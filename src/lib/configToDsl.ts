@@ -1,0 +1,130 @@
+import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
+import { quote, toDslId } from './name';
+
+interface ConfigField {
+  name?: string;
+  type?: string;
+  cardinality?: string;
+  optional?: boolean;
+  idAttribute?: boolean;
+  generated?: boolean;
+  technicalAttribute?: boolean;
+  query?: boolean;
+}
+
+interface ConfigElement {
+  title?: string;
+  aggregate?: string;
+  fields?: ConfigField[];
+  dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
+}
+
+interface ConfigSlice {
+  title?: string;
+  context?: string;
+  commands?: ConfigElement[];
+  events?: ConfigElement[];
+  screens?: ConfigElement[];
+  readmodels?: ConfigElement[];
+  processors?: ConfigElement[];
+  aggregates?: Array<{ name?: string; title?: string }>;
+}
+
+interface ConfigRoot {
+  context?: string;
+  slices?: ConfigSlice[];
+}
+
+export const configToDsl = (config: ConfigRoot): string => {
+  const contextName = toDslId(config.context || config.slices?.[0]?.context || 'EventModel');
+  const grouped = new Map<string, ConfigSlice[]>();
+
+  for (const slice of config.slices ?? []) {
+    const aggregateName =
+      slice.aggregates?.[0]?.name ||
+      slice.aggregates?.[0]?.title ||
+      slice.commands?.[0]?.aggregate ||
+      'Default';
+    const aggregateId = toDslId(aggregateName, 'Aggregate');
+    grouped.set(aggregateId, [...(grouped.get(aggregateId) ?? []), slice]);
+  }
+
+  const lines: string[] = [`context ${contextName} {`];
+  for (const [aggregateName, slices] of grouped) {
+    lines.push(`  aggregate ${aggregateName} {`);
+    for (const slice of slices) {
+      lines.push(`    slice ${toDslId(slice.title, 'Slice')} {`);
+      const screen = slice.screens?.[0];
+      if (screen?.title) {
+        lines.push(`      ui ${toDslId(screen.title, 'Screen')}`);
+      }
+
+      for (const command of slice.commands ?? []) {
+        appendElement(lines, 'command', command, 6);
+      }
+      for (const event of slice.events ?? []) {
+        appendElement(lines, 'event', event, 6);
+      }
+      for (const readmodel of slice.readmodels ?? []) {
+        appendElement(lines, 'projection', readmodel, 6, readmodel.dependencies
+          ?.filter((dependency) => dependency.elementType === 'EVENT' && dependency.title)
+          .map((dependency) => `subscribe ${toDslId(dependency.title, 'Event')}`) ?? []);
+      }
+      for (const processor of slice.processors ?? []) {
+        lines.push(`      automation ${toDslId(processor.title, 'Automation')} {`);
+        for (const dependency of processor.dependencies ?? []) {
+          if (dependency.elementType === 'COMMAND' && dependency.title) {
+            lines.push(`        emits ${toDslId(dependency.title, 'Command')}`);
+          }
+        }
+        lines.push('      }');
+      }
+      lines.push('    }');
+    }
+    lines.push('  }');
+  }
+  lines.push('}');
+  return lines.join('\n');
+};
+
+const appendElement = (lines: string[], kind: 'command' | 'event' | 'projection', element: ConfigElement, indent: number, extraLines: string[] = []): void => {
+  const pad = ' '.repeat(indent);
+  lines.push(`${pad}${kind} ${toDslId(element.title, kind)} {`);
+  for (const field of element.fields ?? []) {
+    lines.push(`${pad}  ${formatField(field)}`);
+  }
+  for (const extraLine of extraLines) {
+    lines.push(`${pad}  ${extraLine}`);
+  }
+  lines.push(`${pad}}`);
+};
+
+const formatField = (field: ConfigField): string => {
+  const type = toDslId(field.type, 'String');
+  const cardinality = field.cardinality === 'Multiple' ? '[]' : field.optional ? '?' : '';
+  const attributes = [
+    field.idAttribute ? 'id' : '',
+    field.generated ? 'generated' : '',
+    field.technicalAttribute ? 'technical' : '',
+    field.query ? 'query' : ''
+  ].filter(Boolean);
+  return `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;
+};
+
+const runCli = (): void => {
+  const input = process.argv[2];
+  if (!input) {
+    console.error('Usage: npm run config:to-dsl -- ../b-config.json');
+    process.exitCode = 1;
+    return;
+  }
+
+  const config = JSON.parse(readFileSync(input, 'utf8')) as ConfigRoot;
+  console.log(`// Generated from ${quote(basename(input))}`);
+  console.log(configToDsl(config));
+};
+
+if (process.argv[1]?.endsWith('configToDsl.ts')) {
+  runCli();
+}

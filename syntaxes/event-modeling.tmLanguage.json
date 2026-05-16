@@ -1,0 +1,71 @@
+{
+  "name": "event-modeling",
+  "scopeName": "source.event-modeling",
+  "fileTypes": [
+    ".em"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "name": "keyword.control.event-modeling",
+      "match": "\\b(actor|aggregate|automation|command|condition|context|decision|emits|event|example|generated|given|hotspot|id|integration|issue|metric|note|on|policy|projection|query|reactsTo|risk|slice|source|specification|state|steps|subscribe|target|technical|then|ui|userJourney|view|when)\\b"
+    },
+    {
+      "name": "string.quoted.double.event-modeling",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "include": "#string-character-escape"
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.single.event-modeling",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "include": "#string-character-escape"
+        }
+      ]
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.event-modeling",
+          "begin": "/\\*",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.event-modeling"
+            }
+          },
+          "end": "\\*/",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.event-modeling"
+            }
+          }
+        },
+        {
+          "begin": "//",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.whitespace.comment.leading.event-modeling"
+            }
+          },
+          "end": "(?=$)",
+          "name": "comment.line.event-modeling"
+        }
+      ]
+    },
+    "string-character-escape": {
+      "name": "constant.character.escape.event-modeling",
+      "match": "\\\\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
+    }
+  }
+}
