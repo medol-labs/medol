@@ -26,6 +26,7 @@ interface ConfigElement {
   type: 'COMMAND' | 'EVENT' | 'SCREEN' | 'READMODEL' | 'PROCESSOR' | 'SPECIFICATION';
   description: string;
   aggregate?: string;
+  aggregateDependencies?: string[];
   dependencies: Array<{
     id: string;
     type: 'INBOUND' | 'OUTBOUND';
@@ -208,6 +209,7 @@ const toConfigElement = (
   type,
   description: '',
   aggregate: aggregateName,
+  aggregateDependencies: [humanize(aggregateName)],
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   createsAggregate: false,
   triggers: [],
