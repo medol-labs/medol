@@ -24,17 +24,69 @@ const laneLabels: Partial<Record<EmElement['kind'], string>> = {
   hotspot: 'HOTSPOT'
 };
 
-const colors: Record<EmElement['kind'], { accent: string; fill: string }> = {
-  actor: { accent: '#7c3aed', fill: '#f5f3ff' },
-  screen: { accent: '#0891b2', fill: '#ecfeff' },
-  command: { accent: '#2563eb', fill: '#eff6ff' },
-  event: { accent: '#16a34a', fill: '#f0fdf4' },
-  projection: { accent: '#ca8a04', fill: '#fefce8' },
-  automation: { accent: '#db2777', fill: '#fdf2f8' },
-  policy: { accent: '#ea580c', fill: '#fff7ed' },
-  gwt: { accent: '#7c3aed', fill: '#f5f3ff' },
-  hotspot: { accent: '#dc2626', fill: '#fef2f2' },
-  aggregate: { accent: '#475569', fill: '#f8fafc' }
+const colors: Record<
+  EmElement['kind'],
+  { accent: string; fill: string }
+> = {
+  // Actor / User
+  actor: {
+    accent: '#7c3aed',
+    fill: '#f3e8ff'
+  },
+
+  // UI / Screen (官方通常偏黄)
+  screen: {
+    accent: '#ca8a04',
+    fill: '#fef9c3'
+  },
+
+  // Command (经典蓝)
+  command: {
+    accent: '#2563eb',
+    fill: '#dbeafe'
+  },
+
+  // Event (官方 Event Modeling 核心橙色)
+  event: {
+    accent: '#ea580c',
+    fill: '#ffedd5'
+  },
+
+  // Read Model / Projection (经典绿色)
+  projection: {
+    accent: '#16a34a',
+    fill: '#dcfce7'
+  },
+
+  // Automation / External automation
+  automation: {
+    accent: '#475569',
+    fill: '#f1f5f9'
+  },
+
+  // Policy / Rule
+  policy: {
+    accent: '#be185d',
+    fill: '#fce7f3'
+  },
+
+  // Given / When / Then
+  gwt: {
+    accent: '#9333ea',
+    fill: '#f3e8ff'
+  },
+
+  // Hotspot / Problem / Risk
+  hotspot: {
+    accent: '#dc2626',
+    fill: '#fee2e2'
+  },
+
+  // Aggregate / Swimlane
+  aggregate: {
+    accent: '#334155',
+    fill: '#f8fafc'
+  }
 };
 
 export const toReactFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] } => {
