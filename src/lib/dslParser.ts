@@ -22,7 +22,7 @@ const blockKeywords = [
   'userJourney'
 ];
 
-const elementKinds = new Set(['command', 'event', 'projection', 'automation', 'policy', 'specification']);
+const elementKinds = new Set(['command', 'event', 'projection', 'automation', 'policy', 'specification', 'integration']);
 
 export const parseEventModelingDsl = (text: string): EmModel => {
   const model = emptyModel();
@@ -152,7 +152,7 @@ const parseElement = (block: Block, scopeId: string, aggregateId?: string): EmEl
     id: `${scopeId}/${kind}/${block.name}`,
     kind: kind as EmElement['kind'],
     name: block.name,
-    fields: parseFields(block.body),
+    fields: kind === 'integration' ? parseIntegrationFields(block.body) : parseFields(block.body),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     aggregateId,
     metadata: parseElementMetadata(block)
@@ -169,6 +169,15 @@ const parseFields = (body: string): EmField[] => {
       attributes: (match[4] || '').trim().split(/\s+/).filter(Boolean)
     });
   }
+  return fields;
+};
+
+const parseIntegrationFields = (body: string): EmField[] => {
+  const fields = parseFields(body);
+  const source = body.match(/^\s*source\s+([A-Za-z_][\w_]*)/m)?.[1];
+  const target = body.match(/^\s*target\s+([A-Za-z_][\w_]*)/m)?.[1];
+  if (source) fields.push({ name: 'source', type: source, cardinality: 'Single', attributes: [] });
+  if (target) fields.push({ name: 'target', type: target, cardinality: 'Single', attributes: [] });
   return fields;
 };
 

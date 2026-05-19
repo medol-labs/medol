@@ -8,7 +8,8 @@ export type EmElementKind =
   | 'gwt'
   | 'aggregate'
   | 'actor'
-  | 'hotspot';
+  | 'hotspot'
+  | 'integration';
 
 export interface EmField {
   name: string;

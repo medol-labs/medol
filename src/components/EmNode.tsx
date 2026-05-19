@@ -19,7 +19,8 @@ const labels: Record<EmElementKind, string> = {
   policy: 'Policy',
   gwt: 'GWT',
   aggregate: 'Aggregate',
-  hotspot: 'Hotspot'
+  hotspot: 'Hotspot',
+  integration: 'Integration'
 };
 
 export function EmNode({ data }: NodeProps) {
