@@ -16,6 +16,7 @@ interface ConfigField {
 interface ConfigElement {
   title?: string;
   aggregate?: string;
+  createsAggregate?: boolean;
   fields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
 }
@@ -55,6 +56,9 @@ export const configToDsl = (config: ConfigRoot): string => {
     lines.push(`  aggregate ${aggregateName} {`);
     for (const slice of slices) {
       lines.push(`    slice ${toDslId(slice.title, 'Slice')} {`);
+      if (slice.commands?.some((command) => command.createsAggregate)) {
+        lines.push('      createsAggregate');
+      }
       const screen = slice.screens?.[0];
       if (screen?.title) {
         lines.push(`      ui ${toDslId(screen.title, 'Screen')}`);

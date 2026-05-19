@@ -32,6 +32,7 @@ export interface EmSlice {
   id: string;
   name: string;
   aggregateId?: string;
+  createsAggregate?: boolean;
   elements: EmElement[];
 }
 

@@ -4,6 +4,7 @@ context FederationLearning {
     state Active
 
     slice CreateFederation {
+      createsAggregate
       actor Admin
       ui CreateFederationScreen
 

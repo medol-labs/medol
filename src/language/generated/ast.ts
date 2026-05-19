@@ -34,6 +34,7 @@ export type EventModelingKeywordNames =
     | "command"
     | "condition"
     | "context"
+    | "createsAggregate"
     | "decision"
     | "emits"
     | "event"
@@ -255,6 +256,21 @@ export const ContextElement = {
 
 export function isContextElement(item: unknown): item is ContextElement {
     return reflection.isInstance(item, ContextElement.$type);
+}
+
+export interface CreatesAggregateMarker extends langium.AstNode {
+    readonly $container: Slice;
+    readonly $type: 'CreatesAggregateMarker';
+    createsAggregate: boolean;
+}
+
+export const CreatesAggregateMarker = {
+    $type: 'CreatesAggregateMarker',
+    createsAggregate: 'createsAggregate'
+} as const;
+
+export function isCreatesAggregateMarker(item: unknown): item is CreatesAggregateMarker {
+    return reflection.isInstance(item, CreatesAggregateMarker.$type);
 }
 
 export interface Decision extends langium.AstNode {
@@ -630,7 +646,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | Event | Hotspot | Policy | Projection | ReactsTo | Specification | UiRef;
+export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | Event | Hotspot | Policy | Projection | ReactsTo | Specification | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -857,6 +873,7 @@ export type EventModelingAstType = {
     Condition: Condition
     Context: Context
     ContextElement: ContextElement
+    CreatesAggregateMarker: CreatesAggregateMarker
     Decision: Decision
     Emits: Emits
     Event: Event
@@ -1028,6 +1045,16 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
             properties: {
             },
             superTypes: []
+        },
+        CreatesAggregateMarker: {
+            name: CreatesAggregateMarker.$type,
+            properties: {
+                createsAggregate: {
+                    name: CreatesAggregateMarker.createsAggregate,
+                    defaultValue: false
+                }
+            },
+            superTypes: [SliceElement.$type]
         },
         Decision: {
             name: Decision.$type,

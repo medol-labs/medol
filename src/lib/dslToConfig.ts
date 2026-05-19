@@ -39,6 +39,40 @@ interface ConfigElement {
   prototype?: { activeByDefault: boolean };
 }
 
+interface ConfigSpecificationElement {
+  title: string;
+  tags: [];
+  id: string;
+  index: 0;
+  specRow: 0;
+  type: 'COMMAND' | 'EVENT';
+  fields: Array<{
+    name: string;
+    example?: string;
+  }>;
+}
+
+interface ConfigSpecificationError {
+  title: string;
+  id: string;
+  description: string;
+  type: 'SPEC_ERROR';
+  fields: [];
+}
+
+interface ConfigSpecification {
+  vertical: false;
+  id: string;
+  chapter: string;
+  sliceName: string;
+  title: string;
+  given: ConfigSpecificationElement[];
+  when: ConfigSpecificationElement[];
+  then: ConfigSpecificationElement[] | ConfigSpecificationError;
+  comments: [];
+  examples: [];
+}
+
 interface ConfigSlice {
   id: string;
   status: 'Created';
@@ -54,7 +88,7 @@ interface ConfigSlice {
   screenLayouts: [];
   processors: ConfigElement[];
   tables: [];
-  specifications: ConfigElement[];
+  specifications: ConfigSpecification[];
   actors: Array<{ id: string; name: string; title: string }>;
   aggregates: Array<{ id: string; name: string; title: string }>;
 }
@@ -62,7 +96,7 @@ interface ConfigSlice {
 export interface ConfigRoot {
   slices: ConfigSlice[];
   flows: [];
-  aggregates: Array<{ id: string; name: string; title: string }>;
+  aggregates: Array<{ id: string; name: string; title: string; fields: [] }>;
   actors: Array<{ id: string; name: string; title: string }>;
   context: string;
   codeGen: Record<string, never>;
@@ -76,7 +110,7 @@ export const dslToConfig = (dsl: string): ConfigRoot => modelToConfig(parseEvent
 export const modelToConfig = (model: EmModel): ConfigRoot => {
   const context = model.contexts[0]?.name ?? 'EventModel';
   const slices: ConfigSlice[] = [];
-  const aggregateRecords = new Map<string, { id: string; name: string; title: string }>();
+  const aggregateRecords = new Map<string, { id: string; name: string; title: string; fields: [] }>();
   const actorRecords = new Map<string, { id: string; name: string; title: string }>();
 
   const elementsById = new Map<string, EmElement>();
@@ -85,7 +119,8 @@ export const modelToConfig = (model: EmModel): ConfigRoot => {
       aggregateRecords.set(aggregate.name, {
         id: stableId('aggregate', aggregate.name),
         name: aggregate.name,
-        title: humanize(aggregate.name)
+        title: humanize(aggregate.name),
+        fields: []
       });
 
       for (const slice of aggregate.slices) {
@@ -103,11 +138,19 @@ export const modelToConfig = (model: EmModel): ConfigRoot => {
     }
   }
 
+  const elementsByReference = new Map<string, EmElement>();
+  for (const element of elementsById.values()) {
+    if (element.kind === 'command' || element.kind === 'event') {
+      elementsByReference.set(`${element.kind}:${element.name}`, element);
+    }
+  }
+
   const dependenciesByElementId = new Map<string, ConfigElement['dependencies']>();
   for (const edge of model.edges) {
     const source = elementsById.get(edge.source);
     const target = elementsById.get(edge.target);
     if (!source || !target) continue;
+    if (source.kind === 'gwt' || target.kind === 'gwt') continue;
 
     pushDependency(dependenciesByElementId, source.id, {
       id: stableId(target.kind, target.id),
@@ -126,7 +169,7 @@ export const modelToConfig = (model: EmModel): ConfigRoot => {
   for (const contextItem of model.contexts) {
     for (const aggregate of contextItem.aggregates) {
       for (const slice of aggregate.slices) {
-        slices.push(toConfigSlice(slice, aggregate.name, contextItem.name, slices.length, dependenciesByElementId));
+        slices.push(toConfigSlice(slice, aggregate.name, contextItem.name, slices.length, dependenciesByElementId, elementsByReference));
       }
     }
   }
@@ -149,7 +192,8 @@ const toConfigSlice = (
   aggregateName: string,
   context: string,
   index: number,
-  dependenciesByElementId: Map<string, ConfigElement['dependencies']>
+  dependenciesByElementId: Map<string, ConfigElement['dependencies']>,
+  elementsByReference: Map<string, EmElement>
 ): ConfigSlice => {
   const commands = slice.elements.filter((element) => element.kind === 'command');
   const events = slice.elements.filter((element) => element.kind === 'event');
@@ -172,7 +216,9 @@ const toConfigSlice = (
     title: humanize(slice.name),
     context,
     sliceType: 'STATE_CHANGE',
-    commands: commands.map((element) => toConfigElement(element, 'COMMAND', aggregateName, context, slice.name, dependenciesByElementId)),
+    commands: commands.map((element, commandIndex) =>
+      toConfigElement(element, 'COMMAND', aggregateName, context, slice.name, dependenciesByElementId, slice.createsAggregate && commandIndex === 0)
+    ),
     events: events.map((element) => toConfigElement(element, 'EVENT', aggregateName, context, slice.name, dependenciesByElementId)),
     readmodels: readmodels.map((element) => toConfigElement(element, 'READMODEL', aggregateName, context, slice.name, dependenciesByElementId)),
     screens: screens.map((element) => toConfigElement(element, 'SCREEN', aggregateName, context, slice.name, dependenciesByElementId)),
@@ -180,7 +226,7 @@ const toConfigSlice = (
     screenLayouts: [],
     processors: processors.map((element) => toConfigElement(element, 'PROCESSOR', aggregateName, context, slice.name, dependenciesByElementId)),
     tables: [],
-    specifications: specifications.map((element) => toConfigElement(element, 'SPECIFICATION', aggregateName, context, slice.name, dependenciesByElementId)),
+    specifications: specifications.map((element) => toConfigSpecification(element, context, slice.name, elementsByReference)),
     actors,
     aggregates: [{
       id: stableId('aggregate', aggregateName),
@@ -196,7 +242,8 @@ const toConfigElement = (
   aggregateName: string,
   context: string,
   sliceName: string,
-  dependenciesByElementId: Map<string, ConfigElement['dependencies']>
+  dependenciesByElementId: Map<string, ConfigElement['dependencies']>,
+  createsAggregate = false
 ): ConfigElement => ({
   id: stableId(element.kind, element.id),
   tags: [],
@@ -211,13 +258,76 @@ const toConfigElement = (
   aggregate: aggregateName,
   aggregateDependencies: [humanize(aggregateName)],
   dependencies: dependenciesByElementId.get(element.id) ?? [],
-  createsAggregate: false,
+  createsAggregate,
   triggers: [],
   sketched: false,
   prototype: {
     activeByDefault: false
   }
 });
+
+const toConfigSpecification = (
+  element: EmElement,
+  context: string,
+  sliceName: string,
+  elementsByReference: Map<string, EmElement>
+): ConfigSpecification => {
+  const metadata = element.metadata ?? {};
+  const given = Object.entries(metadata)
+    .filter(([key]) => /^given\d+$/.test(key))
+    .sort(([left], [right]) => Number(left.slice(5)) - Number(right.slice(5)))
+    .map(([, eventName]) => elementsByReference.get(`event:${eventName}`))
+    .filter((event): event is EmElement => Boolean(event))
+    .map((event) => toConfigSpecificationElement(event, 'EVENT'));
+  const when = metadata.when ? elementsByReference.get(`command:${metadata.when}`) : undefined;
+  const then = metadata.then ? elementsByReference.get(`event:${metadata.then}`) : undefined;
+  const examples = specExamples(metadata);
+
+  return {
+    vertical: false,
+    id: stableId(element.kind, element.id),
+    chapter: context,
+    sliceName: humanize(sliceName),
+    title: humanize(element.name),
+    given,
+    when: when ? [toConfigSpecificationElement(when, 'COMMAND', examples)] : [],
+    then: then
+      ? [toConfigSpecificationElement(then, 'EVENT', examples)]
+      : {
+          title: humanize(element.name),
+          id: stableId('spec-error', element.id),
+          description: '',
+          type: 'SPEC_ERROR',
+          fields: []
+        },
+    comments: [],
+    examples: []
+  };
+};
+
+const toConfigSpecificationElement = (
+  element: EmElement,
+  type: ConfigSpecificationElement['type'],
+  examples: Record<string, string> = {}
+): ConfigSpecificationElement => ({
+  title: humanize(element.name),
+  tags: [],
+  id: stableId(element.kind, element.id),
+  index: 0,
+  specRow: 0,
+  type,
+  fields: element.fields.map((field) => ({
+    name: field.name,
+    ...(examples[field.name] ? { example: examples[field.name] } : {})
+  }))
+});
+
+const specExamples = (metadata: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(metadata)
+      .filter(([key]) => key.startsWith('example:'))
+      .map(([key, value]) => [key.slice('example:'.length), value])
+  );
 
 const toConfigField = (field: EmField): ConfigField => ({
   name: field.name,

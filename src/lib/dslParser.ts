@@ -90,6 +90,7 @@ const parseSlice = (block: Block, aggregateId: string, edges: EmEdge[]): EmSlice
     id: sliceId,
     name: block.name,
     aggregateId,
+    createsAggregate: /^\s*createsAggregate\s*$/m.test(block.body),
     elements: []
   };
 
@@ -203,6 +204,12 @@ const parseElementMetadata = (block: Block): Record<string, string> => {
     const then = block.body.match(/^\s*then\s+([A-Za-z_][\w_]*)/m)?.[1];
     if (when) metadata.when = when;
     if (then) metadata.then = then;
+    const whenExample = block.body.match(/^\s*when\s+[A-Za-z_][\w_]*\s*\{([\s\S]*?)^\s*\}/m)?.[1];
+    if (whenExample) {
+      for (const assignment of whenExample.matchAll(/^\s*([A-Za-z_][\w_]*)\s*=\s*(.+?)\s*$/gm)) {
+        metadata[`example:${assignment[1]}`] = unquote(assignment[2].trim());
+      }
+    }
   }
   return metadata;
 };

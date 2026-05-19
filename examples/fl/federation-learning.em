@@ -17,6 +17,7 @@ context FederationLearningPlatform {
     state Deactivated
 
     slice RegisterOrganization {
+      createsAggregate
       actor OrganizationAdmin
       ui OrganizationRegistrationScreen
 
@@ -128,6 +129,7 @@ context FederationLearningPlatform {
     state Suspended
 
     slice CreateFederation {
+      createsAggregate
       actor PlatformAdmin
       ui FederationSetupScreen
 
@@ -247,6 +249,7 @@ context FederationLearningPlatform {
     state Suspended
 
     slice RegisterComputeNode {
+      createsAggregate
       actor NodeOperator
       ui NodeRegistrationScreen
       reactsTo OrganizationActivated
@@ -376,6 +379,7 @@ context FederationLearningPlatform {
     state DatasetApproved
 
     slice DefineFeatureSchema {
+      createsAggregate
       actor DataSteward
       ui FeatureSchemaEditor
 
@@ -495,6 +499,7 @@ context FederationLearningPlatform {
     state ReadyToTrain
 
     slice CreateTrainingJob {
+      createsAggregate
       actor ResearchLead
       ui TrainingJobCreationScreen
       reactsTo DatasetApprovedForTraining
@@ -627,6 +632,7 @@ context FederationLearningPlatform {
     state Completed
 
     slice StartTrainingRound {
+      createsAggregate
       reactsTo NodeReadyForTraining
 
       automation StartRoundWhenEnoughNodesReady {
@@ -777,6 +783,7 @@ context FederationLearningPlatform {
     state Production
 
     slice EvaluateModel {
+      createsAggregate
       actor ModelEvaluator
       ui ModelEvaluationScreen
       reactsTo TrainingRoundCompleted
@@ -856,6 +863,7 @@ context FederationLearningPlatform {
     state Investigating
 
     slice RecordRuntimeHeartbeat {
+      createsAggregate
       actor EdgeRuntime
       ui RuntimeMonitorScreen
 

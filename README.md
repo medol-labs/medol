@@ -112,6 +112,7 @@ context FederationLearning {
     state Active
 
     slice CreateFederation {
+      createsAggregate
       actor Admin
       ui CreateFederationScreen
 
@@ -176,6 +177,7 @@ context FederationLearning {
 - `context`: A bounded modeling context.
 - `aggregate`: A domain aggregate containing states and slices.
 - `slice`: A timeline column in the event modeling board.
+- `createsAggregate`: Marks a slice whose command creates a new aggregate instance.
 - `ui`: A screen or view reference.
 - `command`: A user or automation intent.
 - `event`: A domain fact produced by a command.
@@ -207,4 +209,3 @@ Cardinality:
 - no suffix: single value
 - `?`: optional value
 - `[]`: list value
-

@@ -45,6 +45,7 @@ Slice:
 
 SliceElement:
       ActorRef
+    | CreatesAggregateMarker
     | UiRef
     | ReactsTo
     | Command
@@ -58,6 +59,10 @@ SliceElement:
 
 ActorRef:
     'actor' actor=ID
+;
+
+CreatesAggregateMarker:
+    createsAggregate?='createsAggregate'
 ;
 
 UiRef:
