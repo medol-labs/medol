@@ -502,17 +502,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "verifiedAt",
-              "type": "DateTime",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -637,17 +626,6 @@
               "subfields": []
             },
             {
-              "name": "activatedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "activationNote",
               "type": "String",
               "cardinality": "Single",
@@ -711,17 +689,6 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "activatedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -1021,17 +988,6 @@
               "subfields": []
             },
             {
-              "name": "deactivatedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "deactivationReason",
               "type": "String",
               "cardinality": "Single",
@@ -1095,17 +1051,6 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "deactivatedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -1679,17 +1624,6 @@
               "subfields": []
             },
             {
-              "name": "invitedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "invitationReason",
               "type": "String",
               "cardinality": "Single",
@@ -1758,17 +1692,6 @@
             },
             {
               "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "invitedBy",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -1881,9 +1804,6 @@
                   "name": "organizationId"
                 },
                 {
-                  "name": "activatedBy"
-                },
-                {
                   "name": "activationNote"
                 }
               ]
@@ -1905,9 +1825,6 @@
                   "name": "organizationId"
                 },
                 {
-                  "name": "invitedBy"
-                },
-                {
                   "name": "invitationReason"
                 }
               ]
@@ -1927,9 +1844,6 @@
                 },
                 {
                   "name": "organizationId"
-                },
-                {
-                  "name": "invitedBy"
                 },
                 {
                   "name": "invitationReason"
@@ -1986,17 +1900,6 @@
             },
             {
               "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "reviewerId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -2075,17 +1978,6 @@
             },
             {
               "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "reviewerId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -2645,17 +2537,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "trustState",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -2988,17 +2869,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "updatedAt",
-              "type": "DateTime",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -3265,17 +3135,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "trustedAt",
-              "type": "DateTime",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -3423,17 +3282,6 @@
               "subfields": []
             },
             {
-              "name": "suspendedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "suspensionReason",
               "type": "String",
               "cardinality": "Single",
@@ -3502,17 +3350,6 @@
             },
             {
               "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "suspendedBy",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -3878,17 +3715,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "definedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "COMMAND",
@@ -3965,17 +3791,6 @@
             {
               "name": "featureCount",
               "type": "Int",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "publishedBy",
-              "type": "UUID",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -4694,17 +4509,6 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "approvedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -5665,17 +5469,6 @@
               "technicalAttribute": true,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "submittedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "COMMAND",
@@ -5747,17 +5540,6 @@
             {
               "name": "minimumNodesPerRound",
               "type": "Int",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "submittedBy",
-              "type": "UUID",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -6635,17 +6417,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "startedAt",
-              "type": "DateTime",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -6877,17 +6648,6 @@
             {
               "name": "targetNodeCount",
               "type": "Int",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "distributedAt",
-              "type": "DateTime",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -7810,17 +7570,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "completedAt",
-              "type": "DateTime",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -8307,17 +8056,6 @@
               "subfields": []
             },
             {
-              "name": "approvedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "approvalNote",
               "type": "String",
               "cardinality": "Single",
@@ -8385,32 +8123,10 @@
               "subfields": []
             },
             {
-              "name": "approvedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "approvalNote",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "approvedAt",
-              "type": "DateTime",
-              "cardinality": "Single",
-              "optional": false,
               "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
@@ -8549,17 +8265,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "promotedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "COMMAND",
@@ -8620,28 +8325,6 @@
             {
               "name": "releaseChannel",
               "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "promotedBy",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "promotedAt",
-              "type": "DateTime",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -8919,17 +8602,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "lastSeenAt",
-              "type": "DateTime",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "COMMAND",
@@ -9017,17 +8689,6 @@
             {
               "name": "memoryLoad",
               "type": "Decimal",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "lastSeenAt",
-              "type": "DateTime",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -9411,17 +9072,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "raisedAt",
-              "type": "DateTime",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -9557,17 +9207,6 @@
               "subfields": []
             },
             {
-              "name": "actorId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "severity",
               "type": "String",
               "cardinality": "Single",
@@ -9657,17 +9296,6 @@
               "subfields": []
             },
             {
-              "name": "actorId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "severity",
               "type": "String",
               "cardinality": "Single",
@@ -9681,17 +9309,6 @@
             {
               "name": "payloadHash",
               "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "appendedAt",
-              "type": "DateTime",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,

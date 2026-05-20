@@ -64,7 +64,6 @@ context FederationLearningPlatform {
         verifierId: UUID
         verificationProvider: String
         identityEvidenceId: UUID
-        verifiedAt: DateTime
       }
 
       state IdentityVerified
@@ -77,13 +76,11 @@ context FederationLearningPlatform {
 
       command ActivateOrganization {
         organizationId: UUID id technical
-        activatedBy: UUID
         activationNote: String?
       }
 
       event OrganizationActivated {
         organizationId: UUID id technical
-        activatedBy: UUID
         activationNote: String?
       }
 
@@ -114,13 +111,11 @@ context FederationLearningPlatform {
 
       command DeactivateOrganization {
         organizationId: UUID id technical
-        deactivatedBy: UUID
         deactivationReason: String
       }
 
       event OrganizationDeactivated {
         organizationId: UUID id technical
-        deactivatedBy: UUID
         deactivationReason: String
       }
 
@@ -179,14 +174,12 @@ context FederationLearningPlatform {
       command InviteParticipant {
         federationId: UUID id technical
         organizationId: UUID
-        invitedBy: UUID
         invitationReason: String
       }
 
       event ParticipantInvited {
         federationId: UUID id technical
         organizationId: UUID
-        invitedBy: UUID
         invitationReason: String
       }
 
@@ -205,14 +198,12 @@ context FederationLearningPlatform {
       command ApproveParticipant {
         federationId: UUID id technical
         organizationId: UUID
-        reviewerId: UUID
         approvalNote: String?
       }
 
       event ParticipantJoined {
         federationId: UUID id technical
         organizationId: UUID
-        reviewerId: UUID
       }
 
       state Active
@@ -345,14 +336,12 @@ context FederationLearningPlatform {
       command SuspendComputeNode {
         nodeId: UUID id technical
         organizationId: UUID
-        suspendedBy: UUID
         suspensionReason: String
       }
 
       event ComputeNodeSuspended {
         nodeId: UUID id technical
         organizationId: UUID
-        suspendedBy: UUID
         suspensionReason: String
       }
 
@@ -398,7 +387,6 @@ context FederationLearningPlatform {
         domain: String
         version: Int
         featureCount: Int
-        definedBy: UUID
       }
 
       event FeatureSchemaPublished {
@@ -406,7 +394,6 @@ context FederationLearningPlatform {
         domain: String
         version: Int
         featureCount: Int
-        publishedBy: UUID
       }
 
       state PublishedSchema
@@ -477,7 +464,6 @@ context FederationLearningPlatform {
 
       command ApproveDatasetForTraining {
         datasetId: UUID id technical
-        approvedBy: UUID
         allowedTrainingPurpose: String
         expiresAt: DateTime
       }
@@ -536,7 +522,6 @@ context FederationLearningPlatform {
         objective: String
         targetMetric: String
         minimumAccuracy: Decimal
-        state: String
       }
 
       state Draft
@@ -575,15 +560,12 @@ context FederationLearningPlatform {
 
       command SubmitTrainingJob {
         trainingJobId: UUID id technical
-        submittedBy: UUID
       }
 
       event TrainingJobSubmitted {
         trainingJobId: UUID id technical
         federationId: UUID
         minimumNodesPerRound: Int
-        submittedBy: UUID
-        state: String
       }
 
       state Submitted
@@ -678,7 +660,6 @@ context FederationLearningPlatform {
         roundId: UUID
         roundNumber: Int
         readyNodeCount: Int
-        startedAt: DateTime
       }
 
       state Running
@@ -699,7 +680,6 @@ context FederationLearningPlatform {
         roundId: UUID
         modelVersionId: UUID
         targetNodeCount: Int
-        distributedAt: DateTime
       }
     }
 
@@ -786,7 +766,6 @@ context FederationLearningPlatform {
         roundId: UUID
         aggregatedModelVersionId: UUID
         validationMetric: Decimal
-        completedAt: DateTime
       }
 
       state Completed
@@ -845,15 +824,12 @@ context FederationLearningPlatform {
 
       command ApproveModel {
         modelVersionId: UUID id technical
-        approvedBy: UUID
         approvalNote: String?
       }
 
       event ModelApproved {
         modelVersionId: UUID id technical
-        approvedBy: UUID
         approvalNote: String?
-        approvedAt: DateTime
       }
 
       state Approved
@@ -867,14 +843,11 @@ context FederationLearningPlatform {
       command PromoteModelToProduction {
         modelVersionId: UUID id technical
         releaseChannel: String
-        promotedBy: UUID
       }
 
       event ModelPromotedToProduction {
         modelVersionId: UUID id technical
         releaseChannel: String
-        promotedBy: UUID
-        promotedAt: DateTime
       }
 
       state Production
@@ -909,7 +882,6 @@ context FederationLearningPlatform {
         cpuLoad: Decimal
         gpuLoad: Decimal
         memoryLoad: Decimal
-        lastSeenAt: DateTime
       }
 
       event RuntimeHeartbeatRecorded {
@@ -918,7 +890,6 @@ context FederationLearningPlatform {
         cpuLoad: Decimal
         gpuLoad: Decimal
         memoryLoad: Decimal
-        lastSeenAt: DateTime
       }
 
       state Healthy
@@ -957,7 +928,6 @@ context FederationLearningPlatform {
         trainingJobId: UUID?
         severity: String
         message: String
-        raisedAt: DateTime
       }
 
       state Degraded
@@ -974,7 +944,6 @@ context FederationLearningPlatform {
       command AppendAuditTrail {
         auditRecordId: UUID id generated technical
         sourceEventName: String
-        actorId: UUID?
         severity: String
         payloadHash: String
       }
@@ -982,10 +951,8 @@ context FederationLearningPlatform {
       event AuditTrailAppended {
         auditRecordId: UUID id technical
         sourceEventName: String
-        actorId: UUID?
         severity: String
         payloadHash: String
-        appendedAt: DateTime
       }
 
       state Investigating
