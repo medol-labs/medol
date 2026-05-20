@@ -21,6 +21,13 @@ interface ConfigElement {
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
 }
 
+interface ConfigTransition {
+  title?: string;
+  from?: string;
+  event?: string;
+  to?: string;
+}
+
 interface ConfigSlice {
   title?: string;
   context?: string;
@@ -29,6 +36,7 @@ interface ConfigSlice {
   screens?: ConfigElement[];
   readmodels?: ConfigElement[];
   processors?: ConfigElement[];
+  transitions?: ConfigTransition[];
   aggregates?: Array<{ name?: string; title?: string }>;
 }
 
@@ -70,6 +78,9 @@ export const configToDsl = (config: ConfigRoot): string => {
       for (const event of slice.events ?? []) {
         appendElement(lines, 'event', event, 6);
       }
+      for (const transition of slice.transitions ?? []) {
+        appendTransition(lines, transition, 6);
+      }
       for (const readmodel of slice.readmodels ?? []) {
         appendElement(lines, 'projection', readmodel, 6, readmodel.dependencies
           ?.filter((dependency) => dependency.elementType === 'EVENT' && dependency.title)
@@ -90,6 +101,20 @@ export const configToDsl = (config: ConfigRoot): string => {
   }
   lines.push('}');
   return lines.join('\n');
+};
+
+const appendTransition = (lines: string[], transition: ConfigTransition, indent: number): void => {
+  if (!transition.event || !transition.to) {
+    return;
+  }
+  const pad = ' '.repeat(indent);
+  lines.push(`${pad}transition ${toDslId(transition.title, 'Transition')} {`);
+  if (transition.from) {
+    lines.push(`${pad}  from ${toDslId(transition.from, 'State')}`);
+  }
+  lines.push(`${pad}  on ${toDslId(transition.event, 'Event')}`);
+  lines.push(`${pad}  to ${toDslId(transition.to, 'State')}`);
+  lines.push(`${pad}}`);
 };
 
 const appendElement = (lines: string[], kind: 'command' | 'event' | 'projection', element: ConfigElement, indent: number, extraLines: string[] = []): void => {

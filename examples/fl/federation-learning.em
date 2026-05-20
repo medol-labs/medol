@@ -37,7 +37,11 @@ context FederationLearningPlatform {
         contactEmail: String
         legalEntityId: String
         countryCode: String
-        status: String
+      }
+
+      transition RegisterOrganizationState {
+        on OrganizationRegistered
+        to Registered
       }
 
       specification "Register organization with legal identity" {
@@ -65,6 +69,12 @@ context FederationLearningPlatform {
         identityEvidenceId: UUID
         verifiedAt: DateTime
       }
+
+      transition VerifyOrganizationIdentityState {
+        from Registered
+        on OrganizationIdentityVerified
+        to IdentityVerified
+      }
     }
 
     slice ActivateOrganization {
@@ -82,7 +92,12 @@ context FederationLearningPlatform {
         organizationId: UUID id technical
         activatedBy: UUID
         activationNote: String?
-        status: String
+      }
+
+      transition ActivateOrganizationState {
+        from IdentityVerified
+        on OrganizationActivated
+        to Active
       }
 
       projection OrganizationDirectory {
@@ -90,7 +105,7 @@ context FederationLearningPlatform {
         organizationName: String
         organizationType: String
         countryCode: String
-        status: String
+        state: String
         verified: Boolean
         trustedNodeCount: Int
         approvedDatasetCount: Int
@@ -118,7 +133,12 @@ context FederationLearningPlatform {
         organizationId: UUID id technical
         deactivatedBy: UUID
         deactivationReason: String
-        status: String
+      }
+
+      transition DeactivateOrganizationState {
+        from Active
+        on OrganizationDeactivated
+        to Deactivated
       }
     }
   }
@@ -149,7 +169,7 @@ context FederationLearningPlatform {
         governancePolicyId: UUID
         minimumParticipantCount: Int
         minimumTrustedNodeCount: Int
-        status: String
+        state: String
       }
 
       specification "Create federation with valid governance policy" {
@@ -182,7 +202,7 @@ context FederationLearningPlatform {
         organizationId: UUID
         invitedBy: UUID
         invitationReason: String
-        invitationStatus: String
+        invitationState: String
       }
 
       specification "Invite only active verified organizations" {
@@ -208,7 +228,7 @@ context FederationLearningPlatform {
         federationId: UUID id technical
         organizationId: UUID
         reviewerId: UUID
-        memberStatus: String
+        memberState: String
       }
 
       projection FederationMembership {
@@ -226,7 +246,7 @@ context FederationLearningPlatform {
       projection FederationOverview {
         federationId: UUID id
         federationName: String
-        status: String
+        state: String
         activeMemberCount: Int
         activeOrganizationCount: Int
         trustedNodeCount: Int
@@ -272,7 +292,7 @@ context FederationLearningPlatform {
         hardwareProfile: String
         runtimeProfile: String
         confidentialComputeSupported: Boolean
-        trustStatus: String
+        trustState: String
       }
     }
 
@@ -345,7 +365,7 @@ context FederationLearningPlatform {
         organizationId: UUID
         suspendedBy: UUID
         suspensionReason: String
-        status: String
+        state: String
       }
     }
 
@@ -362,7 +382,7 @@ context FederationLearningPlatform {
         cpuCoreCount: Int
         memoryGb: Int
         maxConcurrentJobs: Int
-        status: String
+        state: String
         subscribe ComputeNodeRegistered
         subscribe NodeCapabilityUpdated
         subscribe ComputeNodeTrusted
@@ -520,7 +540,7 @@ context FederationLearningPlatform {
         objective: String
         targetMetric: String
         minimumAccuracy: Decimal
-        status: String
+        : String
       }
     }
 
@@ -563,13 +583,13 @@ context FederationLearningPlatform {
         federationId: UUID
         minimumNodesPerRound: Int
         submittedBy: UUID
-        status: String
+        : String
       }
 
       projection TrainingJobBoard {
         trainingJobId: UUID id
         federationId: UUID
-        status: String
+        state: String
         currentRoundNumber: Int
         readyNodeCount: Int
         subscribe TrainingJobCreated
@@ -731,7 +751,7 @@ context FederationLearningPlatform {
         roundId: UUID
         requestId: UUID
         aggregatedModelVersionId: UUID
-        aggregationStatus: String
+        aggregationState: String
       }
 
       event GlobalModelUpdated {
@@ -739,7 +759,7 @@ context FederationLearningPlatform {
         roundId: UUID
         requestId: UUID
         aggregatedModelVersionId: UUID
-        aggregationStatus: String
+        aggregationState: String
       }
     }
 
@@ -766,7 +786,7 @@ context FederationLearningPlatform {
         roundId: UUID
         roundNumber: Int
         submittedUpdateCount: Int
-        aggregationStatus: String
+        aggregationState: String
         validationMetric: Decimal
         subscribe TrainingRoundStarted
         subscribe LocalModelUpdateSubmitted
@@ -846,7 +866,7 @@ context FederationLearningPlatform {
       projection ModelCatalog {
         modelVersionId: UUID id
         trainingJobId: UUID
-        status: String
+        state: String
         accuracy: Decimal
         fairnessScore: Decimal
         releaseChannel: String
@@ -885,10 +905,10 @@ context FederationLearningPlatform {
         lastSeenAt: DateTime
       }
 
-      projection NodeRuntimeStatus {
+      projection NodeRuntimeState {
         nodeId: UUID id
         federationId: UUID
-        status: String
+        state: String
         cpuLoad: Decimal
         gpuLoad: Decimal
         memoryLoad: Decimal

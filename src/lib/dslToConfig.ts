@@ -73,6 +73,18 @@ interface ConfigSpecification {
   examples: [];
 }
 
+interface ConfigTransition {
+  id: string;
+  type: 'STATE_TRANSITION';
+  title: string;
+  aggregate: string;
+  slice: string;
+  from?: string;
+  event: string;
+  eventId?: string;
+  to: string;
+}
+
 interface ConfigSlice {
   id: string;
   status: 'Created';
@@ -88,6 +100,7 @@ interface ConfigSlice {
   screenLayouts: [];
   processors: ConfigElement[];
   tables: [];
+  transitions: ConfigTransition[];
   specifications: ConfigSpecification[];
   actors: Array<{ id: string; name: string; title: string }>;
   aggregates: Array<{ id: string; name: string; title: string }>;
@@ -96,7 +109,7 @@ interface ConfigSlice {
 export interface ConfigRoot {
   slices: ConfigSlice[];
   flows: [];
-  aggregates: Array<{ id: string; name: string; title: string; fields: [] }>;
+  aggregates: Array<{ id: string; name: string; title: string; fields: []; states: string[] }>;
   actors: Array<{ id: string; name: string; title: string }>;
   context: string;
   codeGen: Record<string, never>;
@@ -110,7 +123,7 @@ export const dslToConfig = (dsl: string): ConfigRoot => modelToConfig(parseEvent
 export const modelToConfig = (model: EmModel): ConfigRoot => {
   const context = model.contexts[0]?.name ?? 'EventModel';
   const slices: ConfigSlice[] = [];
-  const aggregateRecords = new Map<string, { id: string; name: string; title: string; fields: [] }>();
+  const aggregateRecords = new Map<string, { id: string; name: string; title: string; fields: []; states: string[] }>();
   const actorRecords = new Map<string, { id: string; name: string; title: string }>();
 
   const elementsById = new Map<string, EmElement>();
@@ -120,7 +133,8 @@ export const modelToConfig = (model: EmModel): ConfigRoot => {
         id: stableId('aggregate', aggregate.name),
         name: aggregate.name,
         title: humanize(aggregate.name),
-        fields: []
+        fields: [],
+        states: aggregate.states
       });
 
       for (const slice of aggregate.slices) {
@@ -201,6 +215,7 @@ const toConfigSlice = (
   const readmodels = slice.elements.filter((element) => element.kind === 'projection');
   const processors = slice.elements.filter((element) => element.kind === 'automation' || element.kind === 'policy');
   const specifications = slice.elements.filter((element) => element.kind === 'gwt');
+  const transitions = slice.elements.filter((element) => element.kind === 'transition');
   const actors = slice.elements
     .filter((element) => element.kind === 'actor')
     .map((element) => ({
@@ -226,6 +241,7 @@ const toConfigSlice = (
     screenLayouts: [],
     processors: processors.map((element) => toConfigElement(element, 'PROCESSOR', aggregateName, context, slice.name, dependenciesByElementId)),
     tables: [],
+    transitions: transitions.map((element) => toConfigTransition(element, aggregateName, slice.name, elementsByReference)),
     specifications: specifications.map((element) => toConfigSpecification(element, context, slice.name, elementsByReference)),
     actors,
     aggregates: [{
@@ -265,6 +281,29 @@ const toConfigElement = (
     activeByDefault: false
   }
 });
+
+const toConfigTransition = (
+  element: EmElement,
+  aggregateName: string,
+  sliceName: string,
+  elementsByReference: Map<string, EmElement>
+): ConfigTransition => {
+  const metadata = element.metadata ?? {};
+  const event = metadata.on ?? element.fields.find((field) => field.name === 'on')?.type ?? '';
+  const eventElement = event ? elementsByReference.get(`event:${event}`) : undefined;
+
+  return {
+    id: stableId(element.kind, element.id),
+    type: 'STATE_TRANSITION',
+    title: humanize(element.name),
+    aggregate: aggregateName,
+    slice: humanize(sliceName),
+    ...(metadata.from ? { from: metadata.from } : {}),
+    event,
+    ...(eventElement ? { eventId: stableId(eventElement.kind, eventElement.id) } : {}),
+    to: metadata.to ?? element.fields.find((field) => field.name === 'to')?.type ?? ''
+  };
+};
 
 const toConfigSpecification = (
   element: EmElement,

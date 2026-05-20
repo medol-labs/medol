@@ -18,11 +18,12 @@ const blockKeywords = [
   'automation',
   'policy',
   'specification',
+  'transition',
   'integration',
   'userJourney'
 ];
 
-const elementKinds = new Set(['command', 'event', 'projection', 'automation', 'policy', 'specification', 'integration']);
+const elementKinds = new Set(['command', 'event', 'projection', 'automation', 'policy', 'specification', 'transition', 'integration']);
 
 export const parseEventModelingDsl = (text: string): EmModel => {
   const model = emptyModel();
@@ -153,11 +154,21 @@ const parseElement = (block: Block, scopeId: string, aggregateId?: string): EmEl
     id: `${scopeId}/${kind}/${block.name}`,
     kind: kind as EmElement['kind'],
     name: block.name,
-    fields: kind === 'integration' ? parseIntegrationFields(block.body) : parseFields(block.body),
+    fields: parseElementFields(kind, block.body),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     aggregateId,
     metadata: parseElementMetadata(block)
   };
+};
+
+const parseElementFields = (kind: string, body: string): EmField[] => {
+  if (kind === 'integration') {
+    return parseIntegrationFields(body);
+  }
+  if (kind === 'transition') {
+    return parseTransitionFields(body);
+  }
+  return parseFields(body);
 };
 
 const parseFields = (body: string): EmField[] => {
@@ -170,6 +181,17 @@ const parseFields = (body: string): EmField[] => {
       attributes: (match[4] || '').trim().split(/\s+/).filter(Boolean)
     });
   }
+  return fields;
+};
+
+const parseTransitionFields = (body: string): EmField[] => {
+  const fields = parseFields(body);
+  const from = body.match(/^\s*from\s+([A-Za-z_][\w_]*)/m)?.[1];
+  const on = body.match(/^\s*on\s+([A-Za-z_][\w_]*)/m)?.[1];
+  const to = body.match(/^\s*to\s+([A-Za-z_][\w_]*)/m)?.[1];
+  if (from) fields.push({ name: 'from', type: from, cardinality: 'Single', attributes: [] });
+  if (on) fields.push({ name: 'on', type: on, cardinality: 'Single', attributes: [] });
+  if (to) fields.push({ name: 'to', type: to, cardinality: 'Single', attributes: [] });
   return fields;
 };
 
@@ -211,6 +233,14 @@ const parseElementMetadata = (block: Block): Record<string, string> => {
       }
     }
   }
+  if (block.keyword === 'transition') {
+    const from = block.body.match(/^\s*from\s+([A-Za-z_][\w_]*)/m)?.[1];
+    const on = block.body.match(/^\s*on\s+([A-Za-z_][\w_]*)/m)?.[1];
+    const to = block.body.match(/^\s*to\s+([A-Za-z_][\w_]*)/m)?.[1];
+    if (from) metadata.from = from;
+    if (on) metadata.on = on;
+    if (to) metadata.to = to;
+  }
   return metadata;
 };
 
@@ -223,7 +253,7 @@ const collectElementEdges = (block: Block, sourceId: string, edges: EmEdge[]): v
   }
   const on = block.body.match(/^\s*on\s+([A-Za-z_][\w_]*)/m)?.[1];
   const issue = block.body.match(/^\s*issue\s+([A-Za-z_][\w_]*)/m)?.[1];
-  if (on) edges.push(edge(`ref/event/${on}`, sourceId, 'triggers'));
+  if (on) edges.push(edge(`ref/event/${on}`, sourceId, block.keyword === 'transition' ? 'transitions' : 'triggers'));
   if (issue) edges.push(edge(sourceId, `ref/command/${issue}`, 'issues'));
   for (const given of block.body.matchAll(/^\s*given\s+([A-Za-z_][\w_]*)/gm)) {
     edges.push(edge(`ref/event/${given[1]}`, sourceId, 'given'));

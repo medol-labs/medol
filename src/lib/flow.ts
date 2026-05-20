@@ -7,6 +7,7 @@ const sliceLaneOrder: EmElement['kind'][] = [
   'screen',
   'command',
   'event',
+  'transition',
   'gwt',
   'projection',
   'automation',
@@ -19,6 +20,7 @@ const laneLabels: Partial<Record<EmElement['kind'], string>> = {
   screen: 'UI',
   command: 'COMMAND',
   event: 'EVENT',
+  transition: 'STATE',
   gwt: 'SPECIFICATION',
   projection: 'READ MODEL',
   automation: 'AUTOMATION',
@@ -46,6 +48,10 @@ const colors: Record<
   event: {
     accent: '#ea580c',
     fill: '#ffedd5'
+  },
+  transition: {
+    accent: '#0891b2',
+    fill: '#cffafe'
   },
   projection: {
     accent: '#16a34a',

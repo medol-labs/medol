@@ -9,7 +9,8 @@ export type EmElementKind =
   | 'aggregate'
   | 'actor'
   | 'hotspot'
-  | 'integration';
+  | 'integration'
+  | 'transition';
 
 export interface EmField {
   name: string;

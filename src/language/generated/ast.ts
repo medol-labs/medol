@@ -39,6 +39,7 @@ export type EventModelingKeywordNames =
     | "emits"
     | "event"
     | "example"
+    | "from"
     | "generated"
     | "given"
     | "hotspot"
@@ -62,6 +63,8 @@ export type EventModelingKeywordNames =
     | "target"
     | "technical"
     | "then"
+    | "to"
+    | "transition"
     | "ui"
     | "userJourney"
     | "view"
@@ -646,7 +649,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | Event | Hotspot | Policy | Projection | ReactsTo | Specification | UiRef;
+export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | Event | Hotspot | Policy | Projection | ReactsTo | Specification | Transition | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -794,6 +797,42 @@ export function isThen(item: unknown): item is Then {
     return reflection.isInstance(item, Then.$type);
 }
 
+export interface Transition extends langium.AstNode {
+    readonly $container: Slice;
+    readonly $type: 'Transition';
+    event: langium.Reference<Event>;
+    from?: TransitionFrom;
+    name: string;
+    to: string;
+}
+
+export const Transition = {
+    $type: 'Transition',
+    event: 'event',
+    from: 'from',
+    name: 'name',
+    to: 'to'
+} as const;
+
+export function isTransition(item: unknown): item is Transition {
+    return reflection.isInstance(item, Transition.$type);
+}
+
+export interface TransitionFrom extends langium.AstNode {
+    readonly $container: Transition;
+    readonly $type: 'TransitionFrom';
+    state: string;
+}
+
+export const TransitionFrom = {
+    $type: 'TransitionFrom',
+    state: 'state'
+} as const;
+
+export function isTransitionFrom(item: unknown): item is TransitionFrom {
+    return reflection.isInstance(item, TransitionFrom.$type);
+}
+
 export interface UiRef extends langium.AstNode {
     readonly $container: Slice | Specification;
     readonly $type: 'UiRef';
@@ -909,6 +948,8 @@ export type EventModelingAstType = {
     Subscription: Subscription
     Target: Target
     Then: Then
+    Transition: Transition
+    TransitionFrom: TransitionFrom
     UiRef: UiRef
     UserJourney: UserJourney
     ViewStep: ViewStep
@@ -1403,6 +1444,34 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
                 event: {
                     name: Then.event,
                     referenceType: Event.$type
+                }
+            },
+            superTypes: []
+        },
+        Transition: {
+            name: Transition.$type,
+            properties: {
+                event: {
+                    name: Transition.event,
+                    referenceType: Event.$type
+                },
+                from: {
+                    name: Transition.from
+                },
+                name: {
+                    name: Transition.name
+                },
+                to: {
+                    name: Transition.to
+                }
+            },
+            superTypes: [SliceElement.$type]
+        },
+        TransitionFrom: {
+            name: TransitionFrom.$type,
+            properties: {
+                state: {
+                    name: TransitionFrom.state
                 }
             },
             superTypes: []
