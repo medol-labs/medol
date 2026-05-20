@@ -154,8 +154,9 @@ context FederationLearningPlatform {
         governancePolicyId: UUID
         minimumParticipantCount: Int
         minimumTrustedNodeCount: Int
-        state: String
       }
+
+      state Draft
 
       specification "Create federation with valid governance policy" {
         when CreateFederation
@@ -187,7 +188,6 @@ context FederationLearningPlatform {
         organizationId: UUID
         invitedBy: UUID
         invitationReason: String
-        invitationState: String
       }
 
       specification "Invite only active verified organizations" {
@@ -213,8 +213,9 @@ context FederationLearningPlatform {
         federationId: UUID id technical
         organizationId: UUID
         reviewerId: UUID
-        memberState: String
       }
+
+      state Active
 
       projection FederationMembership {
         federationId: UUID id
@@ -277,8 +278,9 @@ context FederationLearningPlatform {
         hardwareProfile: String
         runtimeProfile: String
         confidentialComputeSupported: Boolean
-        trustState: String
       }
+
+      state Registered
     }
 
     slice UpdateNodeCapability {
@@ -306,8 +308,9 @@ context FederationLearningPlatform {
         storageGb: Int
         supportedFrameworks: String[]
         maxConcurrentJobs: Int
-        updatedAt: DateTime
       }
+
+      state CapabilityDeclared
     }
 
     slice TrustComputeNode {
@@ -329,8 +332,9 @@ context FederationLearningPlatform {
         trustLevel: String
         attestationReportId: UUID
         attestationExpiresAt: DateTime
-        trustedAt: DateTime
       }
+
+      state Trusted
     }
 
     slice SuspendComputeNode {
@@ -350,8 +354,9 @@ context FederationLearningPlatform {
         organizationId: UUID
         suspendedBy: UUID
         suspensionReason: String
-        state: String
       }
+
+      state Suspended
     }
 
     slice NodeInventory {
@@ -403,6 +408,8 @@ context FederationLearningPlatform {
         featureCount: Int
         publishedBy: UUID
       }
+
+      state PublishedSchema
     }
 
     slice RegisterDataset {
@@ -433,6 +440,8 @@ context FederationLearningPlatform {
         region: String
         usagePolicyId: UUID
       }
+
+      state DatasetRegistered
     }
 
     slice ValidateDatasetContract {
@@ -481,6 +490,8 @@ context FederationLearningPlatform {
         expiresAt: DateTime
       }
 
+      state DatasetApproved
+
       projection DatasetCapability {
         datasetId: UUID id
         organizationId: UUID
@@ -525,8 +536,10 @@ context FederationLearningPlatform {
         objective: String
         targetMetric: String
         minimumAccuracy: Decimal
-        : String
+        state: String
       }
+
+      state Draft
     }
 
     slice ConfigureTrainingStrategy {
@@ -551,6 +564,8 @@ context FederationLearningPlatform {
         differentialPrivacyEnabled: Boolean
         secureAggregationRequired: Boolean
       }
+
+      state StrategyConfigured
     }
 
     slice SubmitTrainingJob {
@@ -568,8 +583,10 @@ context FederationLearningPlatform {
         federationId: UUID
         minimumNodesPerRound: Int
         submittedBy: UUID
-        : String
+        state: String
       }
+
+      state Submitted
 
       projection TrainingJobBoard {
         trainingJobId: UUID id
@@ -605,6 +622,8 @@ context FederationLearningPlatform {
         datasetId: UUID
         participationDeadline: DateTime
       }
+
+      state RecruitingNodes
     }
 
     slice AcceptNodeParticipation {
@@ -627,6 +646,8 @@ context FederationLearningPlatform {
         availableGpuCount: Int
         localEpochLimit: Int
       }
+
+      state ReadyToTrain
     }
   }
 
@@ -659,6 +680,8 @@ context FederationLearningPlatform {
         readyNodeCount: Int
         startedAt: DateTime
       }
+
+      state Running
     }
 
     slice DistributeGlobalModel {
@@ -726,6 +749,8 @@ context FederationLearningPlatform {
         aggregationProvider: String
         requestId: UUID
       }
+
+      state Aggregating
     }
 
     slice CompleteSecureAggregation {
@@ -736,7 +761,6 @@ context FederationLearningPlatform {
         roundId: UUID
         requestId: UUID
         aggregatedModelVersionId: UUID
-        aggregationState: String
       }
 
       event GlobalModelUpdated {
@@ -744,7 +768,6 @@ context FederationLearningPlatform {
         roundId: UUID
         requestId: UUID
         aggregatedModelVersionId: UUID
-        aggregationState: String
       }
     }
 
@@ -765,6 +788,8 @@ context FederationLearningPlatform {
         validationMetric: Decimal
         completedAt: DateTime
       }
+
+      state Completed
 
       projection RoundProgress {
         trainingJobId: UUID id
@@ -809,6 +834,8 @@ context FederationLearningPlatform {
         fairnessScore: Decimal
         privacyBudgetSpent: Decimal
       }
+
+      state Candidate
     }
 
     slice ApproveModel {
@@ -828,6 +855,8 @@ context FederationLearningPlatform {
         approvalNote: String?
         approvedAt: DateTime
       }
+
+      state Approved
     }
 
     slice PromoteModelToProduction {
@@ -847,6 +876,8 @@ context FederationLearningPlatform {
         promotedBy: UUID
         promotedAt: DateTime
       }
+
+      state Production
 
       projection ModelCatalog {
         modelVersionId: UUID id
@@ -890,6 +921,8 @@ context FederationLearningPlatform {
         lastSeenAt: DateTime
       }
 
+      state Healthy
+
       projection NodeRuntimeState {
         nodeId: UUID id
         federationId: UUID
@@ -926,6 +959,8 @@ context FederationLearningPlatform {
         message: String
         raisedAt: DateTime
       }
+
+      state Degraded
     }
 
     slice AppendAuditTrail {
@@ -952,6 +987,8 @@ context FederationLearningPlatform {
         payloadHash: String
         appendedAt: DateTime
       }
+
+      state Investigating
 
       projection ComplianceAuditLog {
         auditRecordId: UUID id

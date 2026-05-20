@@ -187,17 +187,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "status",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -271,6 +260,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "OrganizationRegistered",
+        "eventId": "event-a69b288e",
+        "to": "Registered"
+      },
       "specifications": [
         {
           "vertical": false,
@@ -335,9 +330,6 @@
                 },
                 {
                   "name": "countryCode"
-                },
-                {
-                  "name": "status"
                 }
               ]
             }
@@ -594,6 +586,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "OrganizationIdentityVerified",
+        "eventId": "event-eb0d695e",
+        "to": "IdentityVerified"
+      },
       "specifications": [],
       "actors": [
         {
@@ -737,17 +735,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "status",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -851,7 +838,7 @@
               "subfields": []
             },
             {
-              "name": "status",
+              "name": "state",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -983,6 +970,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "OrganizationActivated",
+        "eventId": "event-194d1ee9",
+        "to": "Active"
+      },
       "specifications": [],
       "actors": [
         {
@@ -1126,17 +1119,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "status",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -1210,6 +1192,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "OrganizationDeactivated",
+        "eventId": "event-4700c6d3",
+        "to": "Deactivated"
+      },
       "specifications": [],
       "actors": [
         {
@@ -1413,17 +1401,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "status",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -1497,6 +1474,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "FederationCreated",
+        "eventId": "event-97387991",
+        "to": "Draft"
+      },
       "specifications": [
         {
           "vertical": false,
@@ -1561,9 +1544,6 @@
                 },
                 {
                   "name": "minimumTrustedNodeCount"
-                },
-                {
-                  "name": "status"
                 }
               ]
             }
@@ -1636,9 +1616,6 @@
                 },
                 {
                   "name": "minimumTrustedNodeCount"
-                },
-                {
-                  "name": "status"
                 }
               ]
             }
@@ -1811,17 +1788,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "invitationStatus",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -1919,9 +1885,6 @@
                 },
                 {
                   "name": "activationNote"
-                },
-                {
-                  "name": "status"
                 }
               ]
             }
@@ -1970,9 +1933,6 @@
                 },
                 {
                   "name": "invitationReason"
-                },
-                {
-                  "name": "invitationStatus"
                 }
               ]
             }
@@ -2134,17 +2094,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "memberStatus",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -2289,6 +2238,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "ParticipantJoined",
+        "eventId": "event-36a7f1bd",
+        "to": "Active"
+      },
       "specifications": [],
       "actors": [
         {
@@ -2347,7 +2302,7 @@
               "subfields": []
             },
             {
-              "name": "status",
+              "name": "state",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -2692,7 +2647,7 @@
               "subfields": []
             },
             {
-              "name": "trustStatus",
+              "name": "trustState",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -2774,6 +2729,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "ComputeNodeRegistered",
+        "eventId": "event-f05e984e",
+        "to": "Registered"
+      },
       "specifications": [],
       "actors": [
         {
@@ -3111,6 +3072,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "NodeCapabilityUpdated",
+        "eventId": "event-bdf03685",
+        "to": "CapabilityDeclared"
+      },
       "specifications": [],
       "actors": [
         {
@@ -3343,9 +3310,9 @@
               "elementType": "READMODEL"
             },
             {
-              "id": "projection-7e9b2017",
+              "id": "projection-3d76a2ce",
               "type": "OUTBOUND",
-              "title": "Node Runtime Status",
+              "title": "Node Runtime State",
               "elementType": "READMODEL"
             }
           ],
@@ -3394,6 +3361,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "ComputeNodeTrusted",
+        "eventId": "event-954fd430",
+        "to": "Trusted"
+      },
       "specifications": [],
       "actors": [
         {
@@ -3559,17 +3532,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "status",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -3643,6 +3605,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "ComputeNodeSuspended",
+        "eventId": "event-eb5f434c",
+        "to": "Suspended"
+      },
       "specifications": [],
       "actors": [
         {
@@ -3778,7 +3746,7 @@
               "subfields": []
             },
             {
-              "name": "status",
+              "name": "state",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -4082,6 +4050,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "FeatureSchemaPublished",
+        "eventId": "event-e8f0f565",
+        "to": "PublishedSchema"
+      },
       "specifications": [],
       "actors": [
         {
@@ -4430,6 +4404,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "DatasetRegistered",
+        "eventId": "event-badee42f",
+        "to": "DatasetRegistered"
+      },
       "specifications": [],
       "actors": [
         {
@@ -5049,6 +5029,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "DatasetApprovedForTraining",
+        "eventId": "event-5a35d800",
+        "to": "DatasetApproved"
+      },
       "specifications": [],
       "actors": [
         {
@@ -5260,7 +5246,7 @@
               "subfields": []
             },
             {
-              "name": "status",
+              "name": "state",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -5342,6 +5328,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingJobCreated",
+        "eventId": "event-89371f8b",
+        "to": "Draft"
+      },
       "specifications": [],
       "actors": [
         {
@@ -5624,6 +5616,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingStrategyConfigured",
+        "eventId": "event-ab1e3ff9",
+        "to": "StrategyConfigured"
+      },
       "specifications": [],
       "actors": [
         {
@@ -5769,7 +5767,7 @@
               "subfields": []
             },
             {
-              "name": "status",
+              "name": "state",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -5859,7 +5857,7 @@
               "subfields": []
             },
             {
-              "name": "status",
+              "name": "state",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -5968,6 +5966,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingJobSubmitted",
+        "eventId": "event-b236c3b2",
+        "to": "Submitted"
+      },
       "specifications": [],
       "actors": [
         {
@@ -6206,6 +6210,12 @@
         }
       ],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "NodeParticipationRequested",
+        "eventId": "event-62681b58",
+        "to": "RecruitingNodes"
+      },
       "specifications": [],
       "actors": [],
       "aggregates": [
@@ -6460,6 +6470,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "NodeReadyForTraining",
+        "eventId": "event-53e72150",
+        "to": "ReadyToTrain"
+      },
       "specifications": [],
       "actors": [
         {
@@ -6709,6 +6725,12 @@
         }
       ],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingRoundStarted",
+        "eventId": "event-3331c14f",
+        "to": "Running"
+      },
       "specifications": [],
       "actors": [],
       "aggregates": [
@@ -7434,6 +7456,12 @@
         }
       ],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "SecureAggregationRequested",
+        "eventId": "event-b783d553",
+        "to": "Aggregating"
+      },
       "specifications": [],
       "actors": [],
       "aggregates": [
@@ -7497,17 +7525,6 @@
             {
               "name": "aggregatedModelVersionId",
               "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "aggregationStatus",
-              "type": "String",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -7591,17 +7608,6 @@
             {
               "name": "aggregatedModelVersionId",
               "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "aggregationStatus",
-              "type": "String",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -7906,7 +7912,7 @@
               "subfields": []
             },
             {
-              "name": "aggregationStatus",
+              "name": "aggregationState",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -7979,6 +7985,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingRoundCompleted",
+        "eventId": "event-8afcf9c4",
+        "to": "Completed"
+      },
       "specifications": [],
       "actors": [],
       "aggregates": [
@@ -8244,6 +8256,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "ModelEvaluationCompleted",
+        "eventId": "event-85f2903a",
+        "to": "Candidate"
+      },
       "specifications": [],
       "actors": [
         {
@@ -8471,6 +8489,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "ModelApproved",
+        "eventId": "event-d2b062e2",
+        "to": "Approved"
+      },
       "specifications": [],
       "actors": [
         {
@@ -8688,7 +8712,7 @@
               "subfields": []
             },
             {
-              "name": "status",
+              "name": "state",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -8802,6 +8826,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "ModelPromotedToProduction",
+        "eventId": "event-62ab78f2",
+        "to": "Production"
+      },
       "specifications": [],
       "actors": [
         {
@@ -9027,9 +9057,9 @@
               "elementType": "READMODEL"
             },
             {
-              "id": "projection-7e9b2017",
+              "id": "projection-3d76a2ce",
               "type": "OUTBOUND",
-              "title": "Node Runtime Status",
+              "title": "Node Runtime State",
               "elementType": "READMODEL"
             },
             {
@@ -9055,13 +9085,13 @@
       ],
       "readmodels": [
         {
-          "id": "projection-7e9b2017",
+          "id": "projection-3d76a2ce",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
           "context": "INTERNAL",
           "slice": "Record Runtime Heartbeat",
-          "title": "Node Runtime Status",
+          "title": "Node Runtime State",
           "fields": [
             {
               "name": "nodeId",
@@ -9086,7 +9116,7 @@
               "subfields": []
             },
             {
-              "name": "status",
+              "name": "state",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -9194,6 +9224,12 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "RuntimeHeartbeatRecorded",
+        "eventId": "event-7fa6dfca",
+        "to": "Healthy"
+      },
       "specifications": [],
       "actors": [
         {
@@ -9465,6 +9501,12 @@
         }
       ],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingAlertRaised",
+        "eventId": "event-badb11bf",
+        "to": "Degraded"
+      },
       "specifications": [],
       "actors": [],
       "aggregates": [
@@ -9817,6 +9859,12 @@
         }
       ],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "AuditTrailAppended",
+        "eventId": "event-28b00d0a",
+        "to": "Investigating"
+      },
       "specifications": [],
       "actors": [],
       "aggregates": [
@@ -9834,49 +9882,95 @@
       "id": "aggregate-1971e30a",
       "name": "Organization",
       "title": "Organization",
-      "fields": []
+      "fields": [],
+      "states": [
+        "Registered",
+        "IdentityVerified",
+        "Active",
+        "Deactivated"
+      ]
     },
     {
       "id": "aggregate-2648508c",
       "name": "Federation",
       "title": "Federation",
-      "fields": []
+      "fields": [],
+      "states": [
+        "Draft",
+        "Active",
+        "Suspended"
+      ]
     },
     {
       "id": "aggregate-8dc3a496",
       "name": "ComputeNode",
       "title": "Compute Node",
-      "fields": []
+      "fields": [],
+      "states": [
+        "Registered",
+        "CapabilityDeclared",
+        "Trusted",
+        "Suspended"
+      ]
     },
     {
       "id": "aggregate-7f8089eb",
       "name": "DatasetGovernance",
       "title": "Dataset Governance",
-      "fields": []
+      "fields": [],
+      "states": [
+        "DraftSchema",
+        "PublishedSchema",
+        "DatasetRegistered",
+        "DatasetApproved"
+      ]
     },
     {
       "id": "aggregate-554c9fce",
       "name": "TrainingJob",
       "title": "Training Job",
-      "fields": []
+      "fields": [],
+      "states": [
+        "Draft",
+        "StrategyConfigured",
+        "Submitted",
+        "RecruitingNodes",
+        "ReadyToTrain"
+      ]
     },
     {
       "id": "aggregate-77410d65",
       "name": "TrainingRound",
       "title": "Training Round",
-      "fields": []
+      "fields": [],
+      "states": [
+        "WaitingForNodes",
+        "Running",
+        "Aggregating",
+        "Completed"
+      ]
     },
     {
       "id": "aggregate-616c6ef1",
       "name": "ModelRegistry",
       "title": "Model Registry",
-      "fields": []
+      "fields": [],
+      "states": [
+        "Candidate",
+        "Approved",
+        "Production"
+      ]
     },
     {
       "id": "aggregate-f154440e",
       "name": "MonitoringAudit",
       "title": "Monitoring Audit",
-      "fields": []
+      "fields": [],
+      "states": [
+        "Healthy",
+        "Degraded",
+        "Investigating"
+      ]
     }
   ],
   "actors": [
