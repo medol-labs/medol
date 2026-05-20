@@ -278,7 +278,6 @@ context FederationLearningPlatform {
         hardwareProfile: String
         runtimeProfile: String
         confidentialComputeSupported: Boolean
-        trustState: String
       }
 
       state Registered
@@ -309,7 +308,6 @@ context FederationLearningPlatform {
         storageGb: Int
         supportedFrameworks: String[]
         maxConcurrentJobs: Int
-        updatedAt: DateTime
       }
 
       state CapabilityDeclared
@@ -334,7 +332,6 @@ context FederationLearningPlatform {
         trustLevel: String
         attestationReportId: UUID
         attestationExpiresAt: DateTime
-        trustedAt: DateTime
       }
 
       state Trusted
