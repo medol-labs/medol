@@ -18,12 +18,11 @@ const blockKeywords = [
   'automation',
   'policy',
   'specification',
-  'transition',
   'integration',
   'userJourney'
 ];
 
-const elementKinds = new Set(['command', 'event', 'projection', 'automation', 'policy', 'specification', 'transition', 'integration']);
+const elementKinds = new Set(['command', 'event', 'projection', 'automation', 'policy', 'specification', 'integration']);
 
 export const parseEventModelingDsl = (text: string): EmModel => {
   const model = emptyModel();
@@ -74,11 +73,10 @@ const parseAggregate = (block: Block, contextId: string, edges: EmEdge[]): EmAgg
     slices: []
   };
 
-  for (const state of block.body.matchAll(/^\s*state\s+([A-Za-z_][\w_]*)/gm)) {
-    aggregate.states.push(state[1]);
-  }
+  const sliceBlocks = findBlocks(block.body, 'slice');
+  aggregate.states.push(...parseStateLines(block.body, sliceBlocks.map(toRange)));
 
-  for (const sliceBlock of findBlocks(block.body, 'slice')) {
+  for (const sliceBlock of sliceBlocks) {
     aggregate.slices.push(parseSlice(sliceBlock, aggregateId, edges));
   }
 
@@ -92,10 +90,14 @@ const parseSlice = (block: Block, aggregateId: string, edges: EmEdge[]): EmSlice
     name: block.name,
     aggregateId,
     createsAggregate: /^\s*createsAggregate\s*$/m.test(block.body),
+    resultingState: undefined,
     elements: []
   };
 
   const refs = parseLineRefs(block.body);
+  const childBlocks = findTopLevelBlocks(block.body, []);
+  slice.resultingState = parseStateLines(block.body, childBlocks.map(toRange))[0];
+
   if (refs.actor) {
     slice.elements.push({
       id: `${sliceId}/actor/${refs.actor}`,
@@ -117,7 +119,7 @@ const parseSlice = (block: Block, aggregateId: string, edges: EmEdge[]): EmSlice
     });
   }
 
-  for (const child of findTopLevelBlocks(block.body, [])) {
+  for (const child of childBlocks) {
     if (!elementKinds.has(child.keyword)) {
       continue;
     }
@@ -165,9 +167,6 @@ const parseElementFields = (kind: string, body: string): EmField[] => {
   if (kind === 'integration') {
     return parseIntegrationFields(body);
   }
-  if (kind === 'transition') {
-    return parseTransitionFields(body);
-  }
   return parseFields(body);
 };
 
@@ -181,17 +180,6 @@ const parseFields = (body: string): EmField[] => {
       attributes: (match[4] || '').trim().split(/\s+/).filter(Boolean)
     });
   }
-  return fields;
-};
-
-const parseTransitionFields = (body: string): EmField[] => {
-  const fields = parseFields(body);
-  const from = body.match(/^\s*from\s+([A-Za-z_][\w_]*)/m)?.[1];
-  const on = body.match(/^\s*on\s+([A-Za-z_][\w_]*)/m)?.[1];
-  const to = body.match(/^\s*to\s+([A-Za-z_][\w_]*)/m)?.[1];
-  if (from) fields.push({ name: 'from', type: from, cardinality: 'Single', attributes: [] });
-  if (on) fields.push({ name: 'on', type: on, cardinality: 'Single', attributes: [] });
-  if (to) fields.push({ name: 'to', type: to, cardinality: 'Single', attributes: [] });
   return fields;
 };
 
@@ -233,14 +221,6 @@ const parseElementMetadata = (block: Block): Record<string, string> => {
       }
     }
   }
-  if (block.keyword === 'transition') {
-    const from = block.body.match(/^\s*from\s+([A-Za-z_][\w_]*)/m)?.[1];
-    const on = block.body.match(/^\s*on\s+([A-Za-z_][\w_]*)/m)?.[1];
-    const to = block.body.match(/^\s*to\s+([A-Za-z_][\w_]*)/m)?.[1];
-    if (from) metadata.from = from;
-    if (on) metadata.on = on;
-    if (to) metadata.to = to;
-  }
   return metadata;
 };
 
@@ -253,7 +233,7 @@ const collectElementEdges = (block: Block, sourceId: string, edges: EmEdge[]): v
   }
   const on = block.body.match(/^\s*on\s+([A-Za-z_][\w_]*)/m)?.[1];
   const issue = block.body.match(/^\s*issue\s+([A-Za-z_][\w_]*)/m)?.[1];
-  if (on) edges.push(edge(`ref/event/${on}`, sourceId, block.keyword === 'transition' ? 'transitions' : 'triggers'));
+  if (on) edges.push(edge(`ref/event/${on}`, sourceId, 'triggers'));
   if (issue) edges.push(edge(sourceId, `ref/command/${issue}`, 'issues'));
   for (const given of block.body.matchAll(/^\s*given\s+([A-Za-z_][\w_]*)/gm)) {
     edges.push(edge(`ref/event/${given[1]}`, sourceId, 'given'));
@@ -271,6 +251,19 @@ const findTopLevelBlocks = (text: string, consumedRanges: Array<[number, number]
   findAllBlocks(text)
     .filter((block) => !consumedRanges.some(([start, end]) => block.start >= start && block.end <= end))
     .filter((block) => blockKeywords.includes(block.keyword));
+
+const parseStateLines = (text: string, ignoredRanges: Array<[number, number]>): string[] => {
+  const states: string[] = [];
+  for (const match of text.matchAll(/^\s*state\s+([A-Za-z_][\w_]*)/gm)) {
+    const index = match.index ?? 0;
+    if (!ignoredRanges.some(([start, end]) => index >= start && index < end)) {
+      states.push(match[1]);
+    }
+  }
+  return states;
+};
+
+const toRange = (block: Block): [number, number] => [block.start, block.end];
 
 const findAllBlocks = (text: string): Block[] => {
   const blocks: Block[] = [];

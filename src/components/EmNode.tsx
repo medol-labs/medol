@@ -14,7 +14,6 @@ const labels: Record<EmElementKind, string> = {
   screen: 'UI',
   command: 'Command',
   event: 'Event',
-  transition: 'Transition',
   projection: 'Projection',
   automation: 'Automation',
   policy: 'Policy',

@@ -21,10 +21,7 @@ interface ConfigElement {
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
 }
 
-interface ConfigTransition {
-  title?: string;
-  from?: string;
-  event?: string;
+interface ConfigStateChange {
   to?: string;
 }
 
@@ -36,18 +33,31 @@ interface ConfigSlice {
   screens?: ConfigElement[];
   readmodels?: ConfigElement[];
   processors?: ConfigElement[];
-  transitions?: ConfigTransition[];
+  stateChange?: ConfigStateChange;
   aggregates?: Array<{ name?: string; title?: string }>;
+}
+
+interface ConfigAggregate {
+  name?: string;
+  title?: string;
+  states?: string[];
 }
 
 interface ConfigRoot {
   context?: string;
+  aggregates?: ConfigAggregate[];
   slices?: ConfigSlice[];
 }
 
 export const configToDsl = (config: ConfigRoot): string => {
   const contextName = toDslId(config.context || config.slices?.[0]?.context || 'EventModel');
   const grouped = new Map<string, ConfigSlice[]>();
+  const aggregateStates = new Map<string, string[]>();
+
+  for (const aggregate of config.aggregates ?? []) {
+    const aggregateId = toDslId(aggregate.name || aggregate.title, 'Aggregate');
+    aggregateStates.set(aggregateId, aggregate.states ?? []);
+  }
 
   for (const slice of config.slices ?? []) {
     const aggregateName =
@@ -62,6 +72,9 @@ export const configToDsl = (config: ConfigRoot): string => {
   const lines: string[] = [`context ${contextName} {`];
   for (const [aggregateName, slices] of grouped) {
     lines.push(`  aggregate ${aggregateName} {`);
+    for (const state of aggregateStates.get(aggregateName) ?? []) {
+      lines.push(`    state ${toDslId(state, 'State')}`);
+    }
     for (const slice of slices) {
       lines.push(`    slice ${toDslId(slice.title, 'Slice')} {`);
       if (slice.commands?.some((command) => command.createsAggregate)) {
@@ -78,8 +91,8 @@ export const configToDsl = (config: ConfigRoot): string => {
       for (const event of slice.events ?? []) {
         appendElement(lines, 'event', event, 6);
       }
-      for (const transition of slice.transitions ?? []) {
-        appendTransition(lines, transition, 6);
+      if (slice.stateChange?.to) {
+        lines.push(`      state ${toDslId(slice.stateChange.to, 'State')}`);
       }
       for (const readmodel of slice.readmodels ?? []) {
         appendElement(lines, 'projection', readmodel, 6, readmodel.dependencies
@@ -101,20 +114,6 @@ export const configToDsl = (config: ConfigRoot): string => {
   }
   lines.push('}');
   return lines.join('\n');
-};
-
-const appendTransition = (lines: string[], transition: ConfigTransition, indent: number): void => {
-  if (!transition.event || !transition.to) {
-    return;
-  }
-  const pad = ' '.repeat(indent);
-  lines.push(`${pad}transition ${toDslId(transition.title, 'Transition')} {`);
-  if (transition.from) {
-    lines.push(`${pad}  from ${toDslId(transition.from, 'State')}`);
-  }
-  lines.push(`${pad}  on ${toDslId(transition.event, 'Event')}`);
-  lines.push(`${pad}  to ${toDslId(transition.to, 'State')}`);
-  lines.push(`${pad}}`);
 };
 
 const appendElement = (lines: string[], kind: 'command' | 'event' | 'projection', element: ConfigElement, indent: number, extraLines: string[] = []): void => {

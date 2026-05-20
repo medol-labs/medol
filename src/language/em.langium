@@ -50,7 +50,7 @@ SliceElement:
     | ReactsTo
     | Command
     | Event
-    | Transition
+    | State
     | Specification
     | Projection
     | Automation
@@ -85,18 +85,6 @@ Event:
     'event' name=ID '{'
         fields+=Field*
     '}'
-;
-
-Transition:
-    'transition' name=ID '{'
-        from=TransitionFrom?
-        'on' event=[Event:ID]
-        'to' to=ID
-    '}'
-;
-
-TransitionFrom:
-    'from' state=ID
 ;
 
 Projection:

@@ -39,10 +39,7 @@ context FederationLearningPlatform {
         countryCode: String
       }
 
-      transition RegisterOrganizationState {
-        on OrganizationRegistered
-        to Registered
-      }
+      state Registered
 
       specification "Register organization with legal identity" {
         when RegisterOrganization
@@ -70,11 +67,7 @@ context FederationLearningPlatform {
         verifiedAt: DateTime
       }
 
-      transition VerifyOrganizationIdentityState {
-        from Registered
-        on OrganizationIdentityVerified
-        to IdentityVerified
-      }
+      state IdentityVerified
     }
 
     slice ActivateOrganization {
@@ -94,11 +87,7 @@ context FederationLearningPlatform {
         activationNote: String?
       }
 
-      transition ActivateOrganizationState {
-        from IdentityVerified
-        on OrganizationActivated
-        to Active
-      }
+      state Active
 
       projection OrganizationDirectory {
         organizationId: UUID id
@@ -135,11 +124,7 @@ context FederationLearningPlatform {
         deactivationReason: String
       }
 
-      transition DeactivateOrganizationState {
-        from Active
-        on OrganizationDeactivated
-        to Deactivated
-      }
+      state Deactivated
     }
   }
 

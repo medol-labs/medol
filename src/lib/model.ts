@@ -9,8 +9,7 @@ export type EmElementKind =
   | 'aggregate'
   | 'actor'
   | 'hotspot'
-  | 'integration'
-  | 'transition';
+  | 'integration';
 
 export interface EmField {
   name: string;
@@ -34,6 +33,7 @@ export interface EmSlice {
   name: string;
   aggregateId?: string;
   createsAggregate?: boolean;
+  resultingState?: string;
   elements: EmElement[];
 }
 
