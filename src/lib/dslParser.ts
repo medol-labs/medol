@@ -206,6 +206,7 @@ const parseFields = (body: string): EmField[] => {
       type: match[2],
       cardinality: match[3] === '[]' ? 'List' : match[3] === '?' ? 'Optional' : 'Single',
       attributes: tail.attributes,
+      ...(tail.example ? { example: tail.example } : {}),
       ...(tail.mapping ? { mapping: tail.mapping } : {})
     });
   }
@@ -214,7 +215,7 @@ const parseFields = (body: string): EmField[] => {
 
 const fieldAttributes = new Set(['id', 'generated', 'technical', 'query']);
 
-const parseFieldTail = (tail: string, details?: string): { attributes: string[]; mapping?: EmFieldMapping } => {
+const parseFieldTail = (tail: string, details?: string): { attributes: string[]; example?: string; mapping?: EmFieldMapping } => {
   const words = tail.trim().split(/\s+/).filter(Boolean);
   const attributes: string[] = [];
   let mapping: EmFieldMapping | undefined;
@@ -243,14 +244,19 @@ const parseFieldTail = (tail: string, details?: string): { attributes: string[];
   }
 
   if (mapping && details !== undefined) {
-    mapping.sources = parseMappingSources(details.match(/\bfrom\s+(.+?)(?=\s+rule\s+|$)/s)?.[1] ?? mapping.sources.join(', '));
+    mapping.sources = parseMappingSources(details.match(/\bfrom\s+(.+?)(?=\s+(?:rule|example)\s+|$)/s)?.[1] ?? mapping.sources.join(', '));
     const rule = details.match(/\brule\s+("([^"\\]|\\.)*"|'([^'\\]|\\.)*')/)?.[1];
     if (rule) {
       mapping.rule = unquote(rule);
     }
   }
 
-  return { attributes, ...(mapping ? { mapping } : {}) };
+  const example = details?.match(/\bexample\s+("([^"\\]|\\.)*"|'([^'\\]|\\.)*')/)?.[1];
+  return {
+    attributes,
+    ...(example ? { example: unquote(example) } : {}),
+    ...(mapping ? { mapping } : {})
+  };
 };
 
 const parseMappingSources = (value: string): string[] =>

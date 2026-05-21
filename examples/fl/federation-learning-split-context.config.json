@@ -3744,6 +3744,7 @@
             {
               "name": "qualityScore",
               "type": "Decimal",
+              "example": "0.86",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,

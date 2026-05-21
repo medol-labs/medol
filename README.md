@@ -198,10 +198,11 @@ fieldName: Type
 fieldName: Type?
 fieldName: Type[]
 fieldName: Type id generated technical query
+fieldName: Type { example "A readable sample value." }
 copiedName: Type from UpstreamElement.sourceName
 computedName: Type derived
 computedName: Type derived from Aggregate.policy
-computedName: Type derived { from Aggregate.state, Command.input rule "Explain the domain rule." }
+computedName: Type derived { from Aggregate.state, Command.input rule "Explain the domain rule." example "42" }
 ```
 
 Supported field attributes:
@@ -215,7 +216,8 @@ Field mappings:
 
 - `from`: Maps a field directly from one or more upstream element or field paths.
 - `derived`: Marks a field produced from a domain rule or aggregate state rather than copied input.
-- `derived { from ... rule "..." }`: Keeps the derivation sources and confirmed rule with the field. DSL-to-config writes these as field `mappings`.
+- `{ example "..." }`: Stores a field-level example value apart from specification examples.
+- `derived { from ... rule "..." example "..." }`: Keeps derivation metadata with the field. DSL-to-config writes sources and rules as field `mappings`.
 
 Cardinality:
 

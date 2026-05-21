@@ -16,6 +16,7 @@ export interface EmField {
   type: string;
   cardinality?: 'Single' | 'List' | 'Optional';
   attributes: string[];
+  example?: string;
   mapping?: EmFieldMapping;
 }
 

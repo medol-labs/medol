@@ -5,6 +5,7 @@ import { humanize } from './name';
 interface ConfigField {
   name: string;
   type: string;
+  example?: string;
   cardinality: 'Single' | 'Multiple';
   optional: boolean;
   idAttribute: boolean;
@@ -362,6 +363,7 @@ const specExamples = (metadata: Record<string, string>): Record<string, string> 
 const toConfigField = (field: EmField): ConfigField => ({
   name: field.name,
   type: field.type,
+  ...(field.example ? { example: field.example } : {}),
   cardinality: field.cardinality === 'List' ? 'Multiple' : 'Single',
   optional: field.cardinality === 'Optional',
   idAttribute: field.attributes.includes('id'),

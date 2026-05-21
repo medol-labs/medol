@@ -1403,6 +1403,19 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "arguments": []
             },
             "cardinality": "?"
+          },
+          {
+            "$type": "Assignment",
+            "feature": "details",
+            "operator": "=",
+            "terminal": {
+              "$type": "RuleCall",
+              "rule": {
+                "$ref": "#/rules@36"
+              },
+              "arguments": []
+            },
+            "cardinality": "?"
           }
         ]
       },
@@ -1547,16 +1560,20 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "value": "derived"
           },
           {
-            "$type": "Alternatives",
+            "$type": "Group",
             "elements": [
               {
+                "$type": "Keyword",
+                "value": "from"
+              },
+              {
                 "$type": "Assignment",
-                "feature": "details",
-                "operator": "=",
+                "feature": "sources",
+                "operator": "+=",
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@36"
+                    "$ref": "#/rules@37"
                   },
                   "arguments": []
                 }
@@ -1566,7 +1583,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
                 "elements": [
                   {
                     "$type": "Keyword",
-                    "value": "from"
+                    "value": ","
                   },
                   {
                     "$type": "Assignment",
@@ -1579,30 +1596,9 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
                       },
                       "arguments": []
                     }
-                  },
-                  {
-                    "$type": "Group",
-                    "elements": [
-                      {
-                        "$type": "Keyword",
-                        "value": ","
-                      },
-                      {
-                        "$type": "Assignment",
-                        "feature": "sources",
-                        "operator": "+=",
-                        "terminal": {
-                          "$type": "RuleCall",
-                          "rule": {
-                            "$ref": "#/rules@37"
-                          },
-                          "arguments": []
-                        }
-                      }
-                    ],
-                    "cardinality": "*"
                   }
-                ]
+                ],
+                "cardinality": "*"
               }
             ],
             "cardinality": "?"
@@ -1615,7 +1611,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
     },
     {
       "$type": "ParserRule",
-      "name": "FieldMappingDetails",
+      "name": "FieldDetails",
       "definition": {
         "$type": "Group",
         "elements": [
@@ -1677,6 +1673,28 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               {
                 "$type": "Assignment",
                 "feature": "rule",
+                "operator": "=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@61"
+                  },
+                  "arguments": []
+                }
+              }
+            ],
+            "cardinality": "?"
+          },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "example"
+              },
+              {
+                "$type": "Assignment",
+                "feature": "example",
                 "operator": "=",
                 "terminal": {
                   "$type": "RuleCall",

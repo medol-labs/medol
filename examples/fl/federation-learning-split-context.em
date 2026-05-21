@@ -407,6 +407,7 @@ context DatasetGovernance {
         qualityScore: Decimal derived {
           from Dataset.statistics, ValidationProfile
           rule "Score dataset quality against the validation profile."
+          example "0.86"
         }
         nonIidScore: Decimal derived {
           from Dataset.statistics, ValidationProfile

@@ -5,6 +5,7 @@ import { quote, toDslId } from './name';
 interface ConfigField {
   name?: string;
   type?: string;
+  example?: string;
   cardinality?: string;
   optional?: boolean;
   idAttribute?: boolean;
@@ -162,27 +163,37 @@ const formatField = (field: ConfigField): string => {
     field.query ? 'query' : ''
   ].filter(Boolean);
   const prefix = `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;
-  return `${prefix}${formatMapping(field)}`;
+  const mapping = formatMapping(field);
+  if (field.example && !mapping.details) {
+    return `${prefix}${mapping.inline} { example ${quote(field.example)} }`;
+  }
+  if (field.example && mapping.details) {
+    return `${prefix}${mapping.inline} { ${mapping.details} example ${quote(field.example)} }`;
+  }
+  return `${prefix}${mapping.inline}${mapping.details ? ` { ${mapping.details} }` : ''}`;
 };
 
-const formatMapping = (field: ConfigField): string => {
+const formatMapping = (field: ConfigField): { inline: string; details?: string } => {
   const mapping = field.mappings?.[0];
   if (typeof mapping === 'string') {
-    return ` from ${formatSources([mapping])}`;
+    return { inline: ` from ${formatSources([mapping])}` };
   }
   if (!mapping) {
-    return field.derived ? ' derived' : '';
+    return { inline: field.derived ? ' derived' : '' };
   }
 
   const sources = mapping.from ?? [];
   if (mapping.type !== 'DERIVED') {
-    return sources.length ? ` from ${formatSources(sources)}` : '';
+    return { inline: sources.length ? ` from ${formatSources(sources)}` : '' };
   }
   if (!mapping.rule) {
-    return sources.length ? ` derived from ${formatSources(sources)}` : ' derived';
+    return { inline: sources.length ? ` derived from ${formatSources(sources)}` : ' derived' };
   }
 
-  return ` derived {${sources.length ? ` from ${formatSources(sources)}` : ''} rule ${quote(mapping.rule)} }`;
+  return {
+    inline: ' derived',
+    details: `${sources.length ? `from ${formatSources(sources)} ` : ''}rule ${quote(mapping.rule)}`
+  };
 };
 
 const formatSources = (sources: string[]): string =>

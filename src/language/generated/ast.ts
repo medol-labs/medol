@@ -403,6 +403,7 @@ export interface Field extends langium.AstNode {
     readonly $type: 'Field';
     attributes: Array<FieldAttribute>;
     cardinality?: Cardinality;
+    details?: FieldDetails;
     mapping?: FieldMapping;
     name: string;
     type: string;
@@ -412,6 +413,7 @@ export const Field = {
     $type: 'Field',
     attributes: 'attributes',
     cardinality: 'cardinality',
+    details: 'details',
     mapping: 'mapping',
     name: 'name',
     type: 'type'
@@ -430,18 +432,35 @@ export function isFieldAttribute(item: unknown): item is FieldAttribute {
 export interface FieldDerivation extends langium.AstNode {
     readonly $container: Field;
     readonly $type: 'FieldDerivation';
-    details?: FieldMappingDetails;
     sources: Array<FieldSource>;
 }
 
 export const FieldDerivation = {
     $type: 'FieldDerivation',
-    details: 'details',
     sources: 'sources'
 } as const;
 
 export function isFieldDerivation(item: unknown): item is FieldDerivation {
     return reflection.isInstance(item, FieldDerivation.$type);
+}
+
+export interface FieldDetails extends langium.AstNode {
+    readonly $container: Field;
+    readonly $type: 'FieldDetails';
+    example?: string;
+    rule?: string;
+    sources: Array<FieldSource>;
+}
+
+export const FieldDetails = {
+    $type: 'FieldDetails',
+    example: 'example',
+    rule: 'rule',
+    sources: 'sources'
+} as const;
+
+export function isFieldDetails(item: unknown): item is FieldDetails {
+    return reflection.isInstance(item, FieldDetails.$type);
 }
 
 export type FieldMapping = FieldDerivation | FieldSourceMapping;
@@ -454,25 +473,8 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export interface FieldMappingDetails extends langium.AstNode {
-    readonly $container: FieldDerivation;
-    readonly $type: 'FieldMappingDetails';
-    rule?: string;
-    sources: Array<FieldSource>;
-}
-
-export const FieldMappingDetails = {
-    $type: 'FieldMappingDetails',
-    rule: 'rule',
-    sources: 'sources'
-} as const;
-
-export function isFieldMappingDetails(item: unknown): item is FieldMappingDetails {
-    return reflection.isInstance(item, FieldMappingDetails.$type);
-}
-
 export interface FieldSource extends langium.AstNode {
-    readonly $container: FieldDerivation | FieldMappingDetails | FieldSourceMapping;
+    readonly $container: FieldDerivation | FieldDetails | FieldSourceMapping;
     readonly $type: 'FieldSource';
     parts: Array<string>;
 }
@@ -985,8 +987,8 @@ export type EventModelingAstType = {
     Expression: Expression
     Field: Field
     FieldDerivation: FieldDerivation
+    FieldDetails: FieldDetails
     FieldMapping: FieldMapping
-    FieldMappingDetails: FieldMappingDetails
     FieldSource: FieldSource
     FieldSourceMapping: FieldSourceMapping
     Given: Given
@@ -1253,6 +1255,9 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
                 cardinality: {
                     name: Field.cardinality
                 },
+                details: {
+                    name: Field.details
+                },
                 mapping: {
                     name: Field.mapping
                 },
@@ -1268,9 +1273,6 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
         FieldDerivation: {
             name: FieldDerivation.$type,
             properties: {
-                details: {
-                    name: FieldDerivation.details
-                },
                 sources: {
                     name: FieldDerivation.sources,
                     defaultValue: []
@@ -1278,22 +1280,25 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [FieldMapping.$type]
         },
-        FieldMapping: {
-            name: FieldMapping.$type,
+        FieldDetails: {
+            name: FieldDetails.$type,
             properties: {
+                example: {
+                    name: FieldDetails.example
+                },
+                rule: {
+                    name: FieldDetails.rule
+                },
+                sources: {
+                    name: FieldDetails.sources,
+                    defaultValue: []
+                }
             },
             superTypes: []
         },
-        FieldMappingDetails: {
-            name: FieldMappingDetails.$type,
+        FieldMapping: {
+            name: FieldMapping.$type,
             properties: {
-                rule: {
-                    name: FieldMappingDetails.rule
-                },
-                sources: {
-                    name: FieldMappingDetails.sources,
-                    defaultValue: []
-                }
             },
             superTypes: []
         },

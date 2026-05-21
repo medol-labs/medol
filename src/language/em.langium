@@ -171,7 +171,7 @@ Assignment:
 ;
 
 Field:
-    name=ID ':' type=ID cardinality=Cardinality? attributes+=FieldAttribute* mapping=FieldMapping?
+    name=ID ':' type=ID cardinality=Cardinality? attributes+=FieldAttribute* mapping=FieldMapping? details=FieldDetails?
 ;
 
 Cardinality returns string:
@@ -196,13 +196,14 @@ FieldSourceMapping:
 ;
 
 FieldDerivation:
-    'derived' (details=FieldMappingDetails | ('from' sources+=FieldSource (',' sources+=FieldSource)*))?
+    'derived' ('from' sources+=FieldSource (',' sources+=FieldSource)*)?
 ;
 
-FieldMappingDetails:
+FieldDetails:
     '{'
         ('from' sources+=FieldSource (',' sources+=FieldSource)*)?
         ('rule' rule=STRING)?
+        ('example' example=STRING)?
     '}'
 ;
 
