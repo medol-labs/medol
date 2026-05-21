@@ -209,7 +209,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-8cec79e0",
+              "id": "projection-7b670a92",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -382,17 +382,6 @@
               "subfields": []
             },
             {
-              "name": "verifierId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "verificationProvider",
               "type": "String",
               "cardinality": "Single",
@@ -471,17 +460,6 @@
               "subfields": []
             },
             {
-              "name": "verifierId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "verificationProvider",
               "type": "String",
               "cardinality": "Single",
@@ -518,16 +496,16 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-8cec79e0",
-              "type": "OUTBOUND",
-              "title": "Organization Directory",
-              "elementType": "READMODEL"
-            },
-            {
               "id": "command-b729ee80",
               "type": "OUTBOUND",
               "title": "Activate Organization",
               "elementType": "COMMAND"
+            },
+            {
+              "id": "projection-7b670a92",
+              "type": "OUTBOUND",
+              "title": "Organization Directory",
+              "elementType": "READMODEL"
             }
           ],
           "createsAggregate": false,
@@ -712,12 +690,6 @@
           ],
           "dependencies": [
             {
-              "id": "projection-8cec79e0",
-              "type": "OUTBOUND",
-              "title": "Organization Directory",
-              "elementType": "READMODEL"
-            },
-            {
               "id": "command-b729ee80",
               "type": "INBOUND",
               "title": "Activate Organization",
@@ -728,6 +700,12 @@
               "type": "OUTBOUND",
               "title": "Deactivate Organization",
               "elementType": "COMMAND"
+            },
+            {
+              "id": "projection-7b670a92",
+              "type": "OUTBOUND",
+              "title": "Organization Directory",
+              "elementType": "READMODEL"
             },
             {
               "id": "projection-01e6d5d6",
@@ -750,157 +728,7 @@
           }
         }
       ],
-      "readmodels": [
-        {
-          "id": "projection-8cec79e0",
-          "tags": [],
-          "elementContext": "INTERNAL",
-          "modelContext": "FederationLearningPlatform",
-          "context": "INTERNAL",
-          "slice": "Activate Organization",
-          "title": "Organization Directory",
-          "fields": [
-            {
-              "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": true,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "organizationName",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "organizationType",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "countryCode",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "state",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "verified",
-              "type": "Boolean",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "trustedNodeCount",
-              "type": "Int",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "approvedDatasetCount",
-              "type": "Int",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            }
-          ],
-          "type": "READMODEL",
-          "description": "",
-          "aggregate": "Organization",
-          "aggregateDependencies": [
-            "Organization"
-          ],
-          "dependencies": [
-            {
-              "id": "event-a69b288e",
-              "type": "INBOUND",
-              "title": "Organization Registered",
-              "elementType": "EVENT"
-            },
-            {
-              "id": "event-eb0d695e",
-              "type": "INBOUND",
-              "title": "Organization Identity Verified",
-              "elementType": "EVENT"
-            },
-            {
-              "id": "event-194d1ee9",
-              "type": "INBOUND",
-              "title": "Organization Activated",
-              "elementType": "EVENT"
-            },
-            {
-              "id": "event-4700c6d3",
-              "type": "INBOUND",
-              "title": "Organization Deactivated",
-              "elementType": "EVENT"
-            },
-            {
-              "id": "event-954fd430",
-              "type": "INBOUND",
-              "title": "Compute Node Trusted",
-              "elementType": "EVENT"
-            },
-            {
-              "id": "event-5a35d800",
-              "type": "INBOUND",
-              "title": "Dataset Approved For Training",
-              "elementType": "EVENT"
-            }
-          ],
-          "createsAggregate": false,
-          "triggers": [],
-          "sketched": false,
-          "prototype": {
-            "activeByDefault": false
-          }
-        }
-      ],
+      "readmodels": [],
       "screens": [
         {
           "id": "screen-97a4027d",
@@ -1074,16 +902,16 @@
           ],
           "dependencies": [
             {
-              "id": "projection-8cec79e0",
-              "type": "OUTBOUND",
-              "title": "Organization Directory",
-              "elementType": "READMODEL"
-            },
-            {
               "id": "command-b4b1da62",
               "type": "INBOUND",
               "title": "Deactivate Organization",
               "elementType": "COMMAND"
+            },
+            {
+              "id": "projection-7b670a92",
+              "type": "OUTBOUND",
+              "title": "Organization Directory",
+              "elementType": "READMODEL"
             },
             {
               "id": "projection-01e6d5d6",
@@ -1160,9 +988,173 @@
       ]
     },
     {
-      "id": "slice-672b62be",
+      "id": "slice-a74e27ad",
       "status": "Created",
       "index": 4,
+      "title": "Organization Directory",
+      "context": "FederationLearningPlatform",
+      "sliceType": "STATE_CHANGE",
+      "commands": [],
+      "events": [],
+      "readmodels": [
+        {
+          "id": "projection-7b670a92",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Organization Directory",
+          "title": "Organization Directory",
+          "fields": [
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "organizationName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "organizationType",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "state",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "verified",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trustedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "approvedDatasetCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "READMODEL",
+          "description": "",
+          "aggregate": "Organization",
+          "aggregateDependencies": [
+            "Organization"
+          ],
+          "dependencies": [
+            {
+              "id": "event-a69b288e",
+              "type": "INBOUND",
+              "title": "Organization Registered",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-eb0d695e",
+              "type": "INBOUND",
+              "title": "Organization Identity Verified",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-194d1ee9",
+              "type": "INBOUND",
+              "title": "Organization Activated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-4700c6d3",
+              "type": "INBOUND",
+              "title": "Organization Deactivated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-954fd430",
+              "type": "INBOUND",
+              "title": "Compute Node Trusted",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-5a35d800",
+              "type": "INBOUND",
+              "title": "Dataset Approved For Training",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-1971e30a",
+          "name": "Organization",
+          "title": "Organization"
+        }
+      ]
+    },
+    {
+      "id": "slice-672b62be",
+      "status": "Created",
+      "index": 5,
       "title": "Create Federation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -1587,7 +1579,7 @@
     {
       "id": "slice-e5370eef",
       "status": "Created",
-      "index": 5,
+      "index": 6,
       "title": "Invite Participant",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -1624,7 +1616,7 @@
               "subfields": []
             },
             {
-              "name": "invitationReason",
+              "name": "invitationNote",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -1702,7 +1694,7 @@
               "subfields": []
             },
             {
-              "name": "invitationReason",
+              "name": "invitationNote",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -1825,7 +1817,7 @@
                   "name": "organizationId"
                 },
                 {
-                  "name": "invitationReason"
+                  "name": "invitationNote"
                 }
               ]
             }
@@ -1846,7 +1838,7 @@
                   "name": "organizationId"
                 },
                 {
-                  "name": "invitationReason"
+                  "name": "invitationNote"
                 }
               ]
             }
@@ -1873,7 +1865,7 @@
     {
       "id": "slice-74f04911",
       "status": "Created",
-      "index": 6,
+      "index": 7,
       "title": "Approve Participant",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -1986,6 +1978,17 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
+            },
+            {
+              "name": "approvalNote",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -2044,8 +2047,8 @@
               "subfields": []
             },
             {
-              "name": "activeMemberCount",
-              "type": "Int",
+              "name": "federationName",
+              "type": "String",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -2055,8 +2058,19 @@
               "subfields": []
             },
             {
-              "name": "pendingInvitationCount",
-              "type": "Int",
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "state",
+              "type": "String",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -2155,7 +2169,7 @@
     {
       "id": "slice-7e7395c5",
       "status": "Created",
-      "index": 7,
+      "index": 8,
       "title": "Federation Overview",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -2216,7 +2230,7 @@
               "subfields": []
             },
             {
-              "name": "activeOrganizationCount",
+              "name": "pendingInvitationCount",
               "type": "Int",
               "cardinality": "Single",
               "optional": false,
@@ -2325,7 +2339,7 @@
     {
       "id": "slice-1c92297f",
       "status": "Created",
-      "index": 8,
+      "index": 9,
       "title": "Register Compute Node",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -2635,7 +2649,7 @@
     {
       "id": "slice-42973768",
       "status": "Created",
-      "index": 9,
+      "index": 10,
       "title": "Update Node Capability",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -2657,17 +2671,6 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -2790,17 +2793,6 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -2967,7 +2959,7 @@
     {
       "id": "slice-6336f6f0",
       "status": "Created",
-      "index": 10,
+      "index": 11,
       "title": "Trust Compute Node",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -2989,17 +2981,6 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -3093,17 +3074,6 @@
               "subfields": []
             },
             {
-              "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "trustLevel",
               "type": "String",
               "cardinality": "Single",
@@ -3145,7 +3115,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-8cec79e0",
+              "id": "projection-7b670a92",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -3245,7 +3215,7 @@
     {
       "id": "slice-58ddba9e",
       "status": "Created",
-      "index": 11,
+      "index": 12,
       "title": "Suspend Compute Node",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -3267,17 +3237,6 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -3345,17 +3304,6 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -3467,7 +3415,7 @@
     {
       "id": "slice-c97dbe39",
       "status": "Created",
-      "index": 12,
+      "index": 13,
       "title": "Node Inventory",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -3658,7 +3606,7 @@
     {
       "id": "slice-82fb93b8",
       "status": "Created",
-      "index": 13,
+      "index": 14,
       "title": "Define Feature Schema",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -3890,7 +3838,7 @@
     {
       "id": "slice-cc831727",
       "status": "Created",
-      "index": 14,
+      "index": 15,
       "title": "Register Dataset",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -4244,7 +4192,7 @@
     {
       "id": "slice-d2661f14",
       "status": "Created",
-      "index": 15,
+      "index": 16,
       "title": "Validate Dataset Contract",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -4487,7 +4435,7 @@
     {
       "id": "slice-1db90980",
       "status": "Created",
-      "index": 16,
+      "index": 17,
       "title": "Approve Dataset For Training",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -4591,28 +4539,6 @@
               "subfields": []
             },
             {
-              "name": "organizationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "featureSchemaId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "allowedTrainingPurpose",
               "type": "String",
               "cardinality": "Single",
@@ -4643,7 +4569,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-8cec79e0",
+              "id": "projection-7b670a92",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -4858,7 +4784,7 @@
     {
       "id": "slice-d68d136c",
       "status": "Created",
-      "index": 17,
+      "index": 18,
       "title": "Create Training Job",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -5048,17 +4974,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "state",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -5157,7 +5072,7 @@
     {
       "id": "slice-c64e0ae2",
       "status": "Created",
-      "index": 18,
+      "index": 19,
       "title": "Configure Training Strategy",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -5445,7 +5360,7 @@
     {
       "id": "slice-a0eda50c",
       "status": "Created",
-      "index": 19,
+      "index": 20,
       "title": "Submit Training Job",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -5527,30 +5442,8 @@
               "subfields": []
             },
             {
-              "name": "federationId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
               "name": "minimumNodesPerRound",
               "type": "Int",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "state",
-              "type": "String",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -5702,6 +5595,24 @@
               "type": "INBOUND",
               "title": "Node Ready For Training",
               "elementType": "EVENT"
+            },
+            {
+              "id": "event-3331c14f",
+              "type": "INBOUND",
+              "title": "Training Round Started",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-5bf1dfde",
+              "type": "INBOUND",
+              "title": "Training Job Running",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-42fd052d",
+              "type": "INBOUND",
+              "title": "Training Job Completed",
+              "elementType": "EVENT"
             }
           ],
           "createsAggregate": false,
@@ -5773,7 +5684,7 @@
     {
       "id": "slice-24209741",
       "status": "Created",
-      "index": 20,
+      "index": 21,
       "title": "Request Node Participation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -5929,6 +5840,12 @@
           ],
           "dependencies": [
             {
+              "id": "projection-9ed706d7",
+              "type": "OUTBOUND",
+              "title": "Training Job Node Board",
+              "elementType": "READMODEL"
+            },
+            {
               "id": "command-54ff8e6e",
               "type": "INBOUND",
               "title": "Request Node Participation",
@@ -5949,7 +5866,78 @@
           }
         }
       ],
-      "readmodels": [],
+      "readmodels": [
+        {
+          "id": "projection-9ed706d7",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Request Node Participation",
+          "title": "Training Job Node Board",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "nodeId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "datasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "READMODEL",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "event-62681b58",
+              "type": "INBOUND",
+              "title": "Node Participation Requested",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-53e72150",
+              "type": "INBOUND",
+              "title": "Node Ready For Training",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
       "screens": [],
       "screenImages": [],
       "screenLayouts": [],
@@ -6011,7 +5999,7 @@
     {
       "id": "slice-54f8bc14",
       "status": "Created",
-      "index": 21,
+      "index": 22,
       "title": "Accept Node Participation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6195,6 +6183,12 @@
               "elementType": "READMODEL"
             },
             {
+              "id": "projection-9ed706d7",
+              "type": "OUTBOUND",
+              "title": "Training Job Node Board",
+              "elementType": "READMODEL"
+            },
+            {
               "id": "command-dd306a54",
               "type": "INBOUND",
               "title": "Accept Node Participation",
@@ -6252,12 +6246,6 @@
       "screenLayouts": [],
       "processors": [],
       "tables": [],
-      "stateChange": {
-        "type": "STATE_CHANGE",
-        "event": "NodeReadyForTraining",
-        "eventId": "event-53e72150",
-        "to": "ReadyToTrain"
-      },
       "specifications": [],
       "actors": [
         {
@@ -6275,9 +6263,519 @@
       ]
     },
     {
+      "id": "slice-02b2cc6a",
+      "status": "Created",
+      "index": 23,
+      "title": "Track Training Job Running",
+      "context": "FederationLearningPlatform",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-cdd43ae4",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Track Training Job Running",
+          "title": "Mark Training Job Running",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundNumber",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "policy-689a6904",
+              "type": "INBOUND",
+              "title": "Mark Training Job Running When Round Starts",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-3331c14f",
+              "type": "INBOUND",
+              "title": "Training Round Started",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-5bf1dfde",
+              "type": "OUTBOUND",
+              "title": "Training Job Running",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-5bf1dfde",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Track Training Job Running",
+          "title": "Training Job Running",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundNumber",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "projection-249041f2",
+              "type": "OUTBOUND",
+              "title": "Training Job Board",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "command-cdd43ae4",
+              "type": "INBOUND",
+              "title": "Mark Training Job Running",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [
+        {
+          "id": "policy-689a6904",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Track Training Job Running",
+          "title": "Mark Training Job Running When Round Starts",
+          "fields": [],
+          "type": "PROCESSOR",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "event-3331c14f",
+              "type": "INBOUND",
+              "title": "Training Round Started",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-cdd43ae4",
+              "type": "OUTBOUND",
+              "title": "Mark Training Job Running",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingJobRunning",
+        "eventId": "event-5bf1dfde",
+        "to": "Running"
+      },
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-554c9fce",
+          "name": "TrainingJob",
+          "title": "Training Job"
+        }
+      ]
+    },
+    {
+      "id": "slice-514abc07",
+      "status": "Created",
+      "index": 24,
+      "title": "Schedule Next Training Round",
+      "context": "FederationLearningPlatform",
+      "sliceType": "STATE_CHANGE",
+      "commands": [],
+      "events": [],
+      "readmodels": [],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [
+        {
+          "id": "automation-a6115832",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Schedule Next Training Round",
+          "title": "Start Next Round While Round Budget Remains",
+          "fields": [],
+          "type": "PROCESSOR",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-a9427835",
+              "type": "OUTBOUND",
+              "title": "Start Training Round",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "event-8afcf9c4",
+              "type": "INBOUND",
+              "title": "Training Round Completed",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "tables": [],
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-554c9fce",
+          "name": "TrainingJob",
+          "title": "Training Job"
+        }
+      ]
+    },
+    {
+      "id": "slice-2a00b3d1",
+      "status": "Created",
+      "index": 25,
+      "title": "Complete Training Job",
+      "context": "FederationLearningPlatform",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-2701162c",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Complete Training Job",
+          "title": "Complete Training Job",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "finalRoundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "finalModelVersionId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "stopReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "automation-c96122ec",
+              "type": "INBOUND",
+              "title": "Complete Job When Round Budget Exhausted",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-42fd052d",
+              "type": "OUTBOUND",
+              "title": "Training Job Completed",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-42fd052d",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Complete Training Job",
+          "title": "Training Job Completed",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "finalRoundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "finalModelVersionId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "stopReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "projection-249041f2",
+              "type": "OUTBOUND",
+              "title": "Training Job Board",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "command-2701162c",
+              "type": "INBOUND",
+              "title": "Complete Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [
+        {
+          "id": "automation-c96122ec",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Complete Training Job",
+          "title": "Complete Job When Round Budget Exhausted",
+          "fields": [],
+          "type": "PROCESSOR",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-2701162c",
+              "type": "OUTBOUND",
+              "title": "Complete Training Job",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "event-8afcf9c4",
+              "type": "INBOUND",
+              "title": "Training Round Completed",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingJobCompleted",
+        "eventId": "event-42fd052d",
+        "to": "Completed"
+      },
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-554c9fce",
+          "name": "TrainingJob",
+          "title": "Training Job"
+        }
+      ]
+    },
+    {
       "id": "slice-ce897f70",
       "status": "Created",
-      "index": 22,
+      "index": 26,
       "title": "Start Training Round",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6343,6 +6841,12 @@
             "Training Round"
           ],
           "dependencies": [
+            {
+              "id": "automation-a6115832",
+              "type": "INBOUND",
+              "title": "Start Next Round While Round Budget Remains",
+              "elementType": "PROCESSOR"
+            },
             {
               "id": "automation-4f242e63",
               "type": "INBOUND",
@@ -6427,10 +6931,34 @@
           ],
           "dependencies": [
             {
+              "id": "projection-249041f2",
+              "type": "OUTBOUND",
+              "title": "Training Job Board",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "policy-689a6904",
+              "type": "OUTBOUND",
+              "title": "Mark Training Job Running When Round Starts",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "command-cdd43ae4",
+              "type": "OUTBOUND",
+              "title": "Mark Training Job Running",
+              "elementType": "COMMAND"
+            },
+            {
               "id": "command-a9427835",
               "type": "INBOUND",
               "title": "Start Training Round",
               "elementType": "COMMAND"
+            },
+            {
+              "id": "policy-41c932cd",
+              "type": "OUTBOUND",
+              "title": "Request Distribute Global Model",
+              "elementType": "PROCESSOR"
             },
             {
               "id": "command-b2c3cb17",
@@ -6515,7 +7043,7 @@
     {
       "id": "slice-5339b1f7",
       "status": "Created",
-      "index": 23,
+      "index": 27,
       "title": "Distribute Global Model",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6581,6 +7109,12 @@
             "Training Round"
           ],
           "dependencies": [
+            {
+              "id": "policy-41c932cd",
+              "type": "INBOUND",
+              "title": "Request Distribute Global Model",
+              "elementType": "PROCESSOR"
+            },
             {
               "id": "event-3331c14f",
               "type": "INBOUND",
@@ -6689,8 +7223,51 @@
       "screens": [],
       "screenImages": [],
       "screenLayouts": [],
-      "processors": [],
+      "processors": [
+        {
+          "id": "policy-41c932cd",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Distribute Global Model",
+          "title": "Request Distribute Global Model",
+          "fields": [],
+          "type": "PROCESSOR",
+          "description": "",
+          "aggregate": "TrainingRound",
+          "aggregateDependencies": [
+            "Training Round"
+          ],
+          "dependencies": [
+            {
+              "id": "event-3331c14f",
+              "type": "INBOUND",
+              "title": "Training Round Started",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-b2c3cb17",
+              "type": "OUTBOUND",
+              "title": "Distribute Global Model",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
       "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "GlobalModelDistributed",
+        "eventId": "event-ca076f8c",
+        "to": "CollectingUpdates"
+      },
       "specifications": [],
       "actors": [],
       "aggregates": [
@@ -6704,7 +7281,7 @@
     {
       "id": "slice-661f5247",
       "status": "Created",
-      "index": 24,
+      "index": 28,
       "title": "Submit Local Model Update",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6986,7 +7563,7 @@
     {
       "id": "slice-dd2c9ebc",
       "status": "Created",
-      "index": 25,
+      "index": 29,
       "title": "Request Secure Aggregation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -7126,17 +7703,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "requestId",
-              "type": "UUID",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -7150,12 +7716,6 @@
               "id": "command-fa96e1e5",
               "type": "INBOUND",
               "title": "Request Secure Aggregation",
-              "elementType": "COMMAND"
-            },
-            {
-              "id": "command-f94b49fb",
-              "type": "OUTBOUND",
-              "title": "Complete Secure Aggregation",
               "elementType": "COMMAND"
             },
             {
@@ -7235,7 +7795,7 @@
     {
       "id": "slice-5735a716",
       "status": "Created",
-      "index": 26,
+      "index": 30,
       "title": "Complete Secure Aggregation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -7301,12 +7861,6 @@
             "Training Round"
           ],
           "dependencies": [
-            {
-              "id": "event-b783d553",
-              "type": "INBOUND",
-              "title": "Secure Aggregation Requested",
-              "elementType": "EVENT"
-            },
             {
               "id": "event-837353ed",
               "type": "OUTBOUND",
@@ -7391,6 +7945,12 @@
               "elementType": "COMMAND"
             },
             {
+              "id": "policy-dcae318f",
+              "type": "OUTBOUND",
+              "title": "Finish Round After Global Model Updated",
+              "elementType": "PROCESSOR"
+            },
+            {
               "id": "projection-f3e7f683",
               "type": "OUTBOUND",
               "title": "Round Progress",
@@ -7430,7 +7990,7 @@
     {
       "id": "slice-8d15a249",
       "status": "Created",
-      "index": 27,
+      "index": 31,
       "title": "Complete Training Round",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -7496,6 +8056,12 @@
             "Training Round"
           ],
           "dependencies": [
+            {
+              "id": "policy-dcae318f",
+              "type": "INBOUND",
+              "title": "Finish Round After Global Model Updated",
+              "elementType": "PROCESSOR"
+            },
             {
               "id": "event-837353ed",
               "type": "INBOUND",
@@ -7579,6 +8145,18 @@
             "Training Round"
           ],
           "dependencies": [
+            {
+              "id": "automation-a6115832",
+              "type": "OUTBOUND",
+              "title": "Start Next Round While Round Budget Remains",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "automation-c96122ec",
+              "type": "OUTBOUND",
+              "title": "Complete Job When Round Budget Exhausted",
+              "elementType": "PROCESSOR"
+            },
             {
               "id": "projection-f3e7f683",
               "type": "OUTBOUND",
@@ -7732,7 +8310,44 @@
       "screens": [],
       "screenImages": [],
       "screenLayouts": [],
-      "processors": [],
+      "processors": [
+        {
+          "id": "policy-dcae318f",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Complete Training Round",
+          "title": "Finish Round After Global Model Updated",
+          "fields": [],
+          "type": "PROCESSOR",
+          "description": "",
+          "aggregate": "TrainingRound",
+          "aggregateDependencies": [
+            "Training Round"
+          ],
+          "dependencies": [
+            {
+              "id": "event-837353ed",
+              "type": "INBOUND",
+              "title": "Global Model Updated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-59063c93",
+              "type": "OUTBOUND",
+              "title": "Complete Training Round",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
       "tables": [],
       "stateChange": {
         "type": "STATE_CHANGE",
@@ -7753,7 +8368,7 @@
     {
       "id": "slice-1996e196",
       "status": "Created",
-      "index": 28,
+      "index": 32,
       "title": "Evaluate Model",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -8030,7 +8645,7 @@
     {
       "id": "slice-f8f30348",
       "status": "Created",
-      "index": 29,
+      "index": 33,
       "title": "Approve Model",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -8230,7 +8845,7 @@
     {
       "id": "slice-2c740b5d",
       "status": "Created",
-      "index": 30,
+      "index": 34,
       "title": "Promote Model To Production",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -8534,7 +9149,7 @@
     {
       "id": "slice-f07c4b2e",
       "status": "Created",
-      "index": 31,
+      "index": 35,
       "title": "Record Runtime Heartbeat",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -8910,7 +9525,7 @@
     {
       "id": "slice-73c0cd7b",
       "status": "Created",
-      "index": 32,
+      "index": 36,
       "title": "Raise Training Alert",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -9170,7 +9785,7 @@
     {
       "id": "slice-0c28a0b6",
       "status": "Created",
-      "index": 33,
+      "index": 37,
       "title": "Append Audit Trail",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -9552,7 +10167,8 @@
         "StrategyConfigured",
         "Submitted",
         "RecruitingNodes",
-        "ReadyToTrain"
+        "Running",
+        "Completed"
       ]
     },
     {
@@ -9561,8 +10177,8 @@
       "title": "Training Round",
       "fields": [],
       "states": [
-        "WaitingForNodes",
         "Running",
+        "CollectingUpdates",
         "Aggregating",
         "Completed"
       ]

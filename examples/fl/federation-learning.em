@@ -10,6 +10,13 @@ context FederationLearningPlatform {
     emits CompleteSecureAggregation
   }
 
+  integration EdgeTrainingRuntime {
+    source TrainingRound
+    target EdgeRuntime
+    reactsTo GlobalModelDistributed
+    emits SubmitLocalModelUpdate
+  }
+
   aggregate Organization {
     state Registered
     state IdentityVerified
@@ -495,7 +502,8 @@ context FederationLearningPlatform {
     state StrategyConfigured
     state Submitted
     state RecruitingNodes
-    state ReadyToTrain
+    state Running
+    state Completed
 
     slice CreateTrainingJob {
       createsAggregate
@@ -576,6 +584,9 @@ context FederationLearningPlatform {
         subscribe TrainingStrategyConfigured
         subscribe TrainingJobSubmitted
         subscribe NodeReadyForTraining
+        subscribe TrainingRoundStarted
+        subscribe TrainingJobRunning
+        subscribe TrainingJobCompleted
       }
     }
 
@@ -632,13 +643,69 @@ context FederationLearningPlatform {
         localEpochLimit: Int
       }
 
-      state NodeReadyForTraining
+    }
+
+    slice TrackTrainingJobRunning {
+      reactsTo TrainingRoundStarted
+
+      policy MarkTrainingJobRunningWhenRoundStarts {
+        on TrainingRoundStarted
+        issue MarkTrainingJobRunning
+      }
+
+      command MarkTrainingJobRunning {
+        trainingJobId: UUID id technical
+        roundId: UUID
+        roundNumber: Int
+      }
+
+      event TrainingJobRunning {
+        trainingJobId: UUID id technical
+        roundId: UUID
+        roundNumber: Int
+      }
+
+      state Running
+    }
+
+    slice ScheduleNextTrainingRound {
+      reactsTo TrainingRoundCompleted
+
+      automation StartNextRoundWhileRoundBudgetRemains {
+        condition currentRoundNumber < maxRounds
+        emits StartTrainingRound
+      }
+    }
+
+    slice CompleteTrainingJob {
+      reactsTo TrainingRoundCompleted
+
+      automation CompleteJobWhenRoundBudgetExhausted {
+        condition currentRoundNumber >= maxRounds
+        emits CompleteTrainingJob
+      }
+
+      command CompleteTrainingJob {
+        trainingJobId: UUID id technical
+        finalRoundId: UUID
+        finalModelVersionId: UUID
+        stopReason: String
+      }
+
+      event TrainingJobCompleted {
+        trainingJobId: UUID id technical
+        finalRoundId: UUID
+        finalModelVersionId: UUID
+        stopReason: String
+      }
+
+      state Completed
     }
   }
 
   aggregate TrainingRound {
-    state WaitingForNodes
     state Running
+    state CollectingUpdates
     state Aggregating
     state Completed
 
@@ -687,6 +754,8 @@ context FederationLearningPlatform {
         modelVersionId: UUID
         targetNodeCount: Int
       }
+
+      state CollectingUpdates
     }
 
     slice SubmitLocalModelUpdate {
@@ -739,11 +808,6 @@ context FederationLearningPlatform {
     }
 
     slice CompleteSecureAggregation {
-      reactsTo SecureAggregationRequested
-      policy RequestCompleteSecureAggregation {
-        on SecureAggregationRequested
-        issue CompleteSecureAggregation
-      }
       command CompleteSecureAggregation {
         trainingJobId: UUID id technical
         roundId: UUID
@@ -761,10 +825,12 @@ context FederationLearningPlatform {
 
     slice CompleteTrainingRound {
       reactsTo GlobalModelUpdated
-      automation CompleteTrainingRoundWHenGlobalModelUpdated {
-        condition trainingRound >= 3
-        emits CompleteTrainingRound
+
+      policy FinishRoundAfterGlobalModelUpdated {
+        on GlobalModelUpdated
+        issue CompleteTrainingRound
       }
+
       command CompleteTrainingRound {
         trainingJobId: UUID id technical
         roundId: UUID
