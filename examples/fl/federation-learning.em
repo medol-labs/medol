@@ -45,6 +45,7 @@ context FederationLearningPlatform {
         when RegisterOrganization
         then OrganizationRegistered
       }
+
     }
 
     slice VerifyOrganizationIdentity {
@@ -54,14 +55,12 @@ context FederationLearningPlatform {
 
       command VerifyOrganizationIdentity {
         organizationId: UUID id technical
-        verifierId: UUID
         verificationProvider: String
         identityEvidenceId: UUID
       }
 
       event OrganizationIdentityVerified {
         organizationId: UUID id technical
-        verifierId: UUID
         verificationProvider: String
         identityEvidenceId: UUID
       }
@@ -86,22 +85,7 @@ context FederationLearningPlatform {
 
       state Active
 
-      projection OrganizationDirectory {
-        organizationId: UUID id
-        organizationName: String
-        organizationType: String
-        countryCode: String
-        state: String
-        verified: Boolean
-        trustedNodeCount: Int
-        approvedDatasetCount: Int
-        subscribe OrganizationRegistered
-        subscribe OrganizationIdentityVerified
-        subscribe OrganizationActivated
-        subscribe OrganizationDeactivated
-        subscribe ComputeNodeTrusted
-        subscribe DatasetApprovedForTraining
-      }
+   
     }
 
     slice DeactivateOrganization {
@@ -121,6 +105,25 @@ context FederationLearningPlatform {
 
       state Deactivated
     }
+
+    slice OrganizationDirectory {
+      projection OrganizationDirectory {
+        organizationId: UUID id
+        organizationName: String
+        organizationType: String
+        state: String
+        verified: Boolean
+        trustedNodeCount: Int
+        approvedDatasetCount: Int
+        subscribe OrganizationRegistered
+        subscribe OrganizationIdentityVerified
+        subscribe OrganizationActivated
+        subscribe OrganizationDeactivated
+        subscribe ComputeNodeTrusted
+        subscribe DatasetApprovedForTraining
+     }
+   }
+
   }
 
   aggregate Federation {
@@ -174,13 +177,13 @@ context FederationLearningPlatform {
       command InviteParticipant {
         federationId: UUID id technical
         organizationId: UUID
-        invitationReason: String
+        invitationNote: String
       }
 
       event ParticipantInvited {
         federationId: UUID id technical
         organizationId: UUID
-        invitationReason: String
+        invitationNote: String
       }
 
       specification "Invite only active verified organizations" {
@@ -204,14 +207,16 @@ context FederationLearningPlatform {
       event ParticipantJoined {
         federationId: UUID id technical
         organizationId: UUID
+        approvalNote: String?
       }
 
       state Active
 
       projection FederationMembership {
         federationId: UUID id
-        activeMemberCount: Int
-        pendingInvitationCount: Int
+        federationName: String
+        organizationId: UUID
+        state: String
         subscribe ParticipantInvited
         subscribe ParticipantJoined
       }
@@ -225,7 +230,7 @@ context FederationLearningPlatform {
         federationName: String
         state: String
         activeMemberCount: Int
-        activeOrganizationCount: Int
+        pendingInvitationCount: Int
         trustedNodeCount: Int
         activeTrainingJobCount: Int
         subscribe FederationCreated
@@ -281,7 +286,6 @@ context FederationLearningPlatform {
 
       command UpdateNodeCapability {
         nodeId: UUID id technical
-        organizationId: UUID
         gpuCount: Int
         cpuCoreCount: Int
         memoryGb: Int
@@ -292,7 +296,6 @@ context FederationLearningPlatform {
 
       event NodeCapabilityUpdated {
         nodeId: UUID id technical
-        organizationId: UUID
         gpuCount: Int
         cpuCoreCount: Int
         memoryGb: Int
@@ -311,7 +314,6 @@ context FederationLearningPlatform {
 
       command TrustComputeNode {
         nodeId: UUID id technical
-        organizationId: UUID
         trustLevel: String
         attestationReportId: UUID
         attestationExpiresAt: DateTime
@@ -319,7 +321,6 @@ context FederationLearningPlatform {
 
       event ComputeNodeTrusted {
         nodeId: UUID id technical
-        organizationId: UUID
         trustLevel: String
         attestationReportId: UUID
         attestationExpiresAt: DateTime
@@ -335,13 +336,11 @@ context FederationLearningPlatform {
 
       command SuspendComputeNode {
         nodeId: UUID id technical
-        organizationId: UUID
         suspensionReason: String
       }
 
       event ComputeNodeSuspended {
         nodeId: UUID id technical
-        organizationId: UUID
         suspensionReason: String
       }
 
@@ -470,8 +469,6 @@ context FederationLearningPlatform {
 
       event DatasetApprovedForTraining {
         datasetId: UUID id technical
-        organizationId: UUID
-        featureSchemaId: UUID
         allowedTrainingPurpose: String
         expiresAt: DateTime
       }
@@ -564,7 +561,6 @@ context FederationLearningPlatform {
 
       event TrainingJobSubmitted {
         trainingJobId: UUID id technical
-        federationId: UUID
         minimumNodesPerRound: Int
       }
 
@@ -606,6 +602,13 @@ context FederationLearningPlatform {
       }
 
       state RecruitingNodes
+      projection TrainingJobNodeBoard {
+        trainingJobId: UUID
+        nodeId: UUID id technical
+        datasetId: UUID
+        subscribe NodeParticipationRequested
+        subscribe NodeReadyForTraining
+      }
     }
 
     slice AcceptNodeParticipation {
@@ -667,7 +670,10 @@ context FederationLearningPlatform {
 
     slice DistributeGlobalModel {
       reactsTo TrainingRoundStarted
-
+      automation StartRoundWhenEnoughNodesReady {
+        on TrainingRoundStarted
+        emits DistributeGlobalModel
+      }
       command DistributeGlobalModel {
         trainingJobId: UUID id technical
         roundId: UUID
@@ -727,7 +733,6 @@ context FederationLearningPlatform {
         roundId: UUID
         submittedUpdateCount: Int
         aggregationProvider: String
-        requestId: UUID
       }
 
       state Aggregating
@@ -735,7 +740,10 @@ context FederationLearningPlatform {
 
     slice CompleteSecureAggregation {
       reactsTo SecureAggregationRequested
-
+      automation CompleteSecureAggrgationWhenSecureAggreagtionRequested {
+        on SecureAggregationRequested
+        emits CompleteSecureAggregation
+      }
       command CompleteSecureAggregation {
         trainingJobId: UUID id technical
         roundId: UUID
@@ -753,7 +761,10 @@ context FederationLearningPlatform {
 
     slice CompleteTrainingRound {
       reactsTo GlobalModelUpdated
-
+      automation CompleteTrainingRoundWHenGlobalModelUpdated {
+        condition trainingRound >= 3
+        emits CompleteTrainingRound
+      }
       command CompleteTrainingRound {
         trainingJobId: UUID id technical
         roundId: UUID
