@@ -632,7 +632,7 @@ context FederationLearningPlatform {
         localEpochLimit: Int
       }
 
-      state ReadyToTrain
+      state NodeReadyForTraining
     }
   }
 
@@ -670,9 +670,9 @@ context FederationLearningPlatform {
 
     slice DistributeGlobalModel {
       reactsTo TrainingRoundStarted
-      automation StartRoundWhenEnoughNodesReady {
+      policy RequestDistributeGlobalModel {
         on TrainingRoundStarted
-        emits DistributeGlobalModel
+        issue DistributeGlobalModel
       }
       command DistributeGlobalModel {
         trainingJobId: UUID id technical
@@ -740,9 +740,9 @@ context FederationLearningPlatform {
 
     slice CompleteSecureAggregation {
       reactsTo SecureAggregationRequested
-      automation CompleteSecureAggrgationWhenSecureAggreagtionRequested {
+      policy RequestCompleteSecureAggregation {
         on SecureAggregationRequested
-        emits CompleteSecureAggregation
+        issue CompleteSecureAggregation
       }
       command CompleteSecureAggregation {
         trainingJobId: UUID id technical
