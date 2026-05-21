@@ -26,3 +26,11 @@
 - Training Round 缺少调用 EdgeRuntime 训练 slice
 - Training Round 多轮？
 - 数据集应包含训练集与评估集
+
+##
+
+建议 DSL 使用时遵守：
+
+一个 aggregate 内的 state slices，应该共享同一个聚合身份与生命周期。
+
+也就是同一 aggregate 里的主要 command/event 应该大致围绕同一主键：
