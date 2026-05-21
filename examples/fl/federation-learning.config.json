@@ -3897,6 +3897,17 @@
               "subfields": []
             },
             {
+              "name": "datasetUsage",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
               "name": "sampleCount",
               "type": "Int",
               "cardinality": "Single",
@@ -4031,6 +4042,17 @@
             },
             {
               "name": "datasetType",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "datasetUsage",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -4461,7 +4483,7 @@
               "subfields": []
             },
             {
-              "name": "allowedTrainingPurpose",
+              "name": "allowedFederatedUse",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -4539,7 +4561,7 @@
               "subfields": []
             },
             {
-              "name": "allowedTrainingPurpose",
+              "name": "allowedFederatedUse",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -4587,9 +4609,9 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "command-f000eaa4",
+              "id": "command-178e9fc9",
               "type": "OUTBOUND",
-              "title": "Create Training Job",
+              "title": "Declare Training Evaluation Datasets",
               "elementType": "COMMAND"
             }
           ],
@@ -4636,6 +4658,17 @@
             {
               "name": "featureSchemaId",
               "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "datasetUsage",
+              "type": "String",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -4782,9 +4815,525 @@
       ]
     },
     {
-      "id": "slice-d68d136c",
+      "id": "slice-69f3ea97",
       "status": "Created",
       "index": 18,
+      "title": "Declare Training Evaluation Datasets",
+      "context": "FederationLearningPlatform",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-178e9fc9",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Declare Training Evaluation Datasets",
+          "title": "Declare Training Evaluation Datasets",
+          "fields": [
+            {
+              "name": "datasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": true,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "nodeId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "ownerRole",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "DatasetGovernance",
+          "aggregateDependencies": [
+            "Dataset Governance"
+          ],
+          "dependencies": [
+            {
+              "id": "event-5a35d800",
+              "type": "INBOUND",
+              "title": "Dataset Approved For Training",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "screen-35efe69b",
+              "type": "INBOUND",
+              "title": "Dataset Bundle Screen",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-9628e3e6",
+              "type": "OUTBOUND",
+              "title": "Training Evaluation Datasets Declared",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-9628e3e6",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Declare Training Evaluation Datasets",
+          "title": "Training Evaluation Datasets Declared",
+          "fields": [
+            {
+              "name": "datasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "nodeId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "ownerRole",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "DatasetGovernance",
+          "aggregateDependencies": [
+            "Dataset Governance"
+          ],
+          "dependencies": [
+            {
+              "id": "projection-62e3581d",
+              "type": "OUTBOUND",
+              "title": "Training Evaluation Dataset Catalog",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "command-178e9fc9",
+              "type": "INBOUND",
+              "title": "Declare Training Evaluation Datasets",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "command-f000eaa4",
+              "type": "OUTBOUND",
+              "title": "Create Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [
+        {
+          "id": "projection-62e3581d",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Declare Training Evaluation Datasets",
+          "title": "Training Evaluation Dataset Catalog",
+          "fields": [
+            {
+              "name": "datasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "nodeId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "ownerRole",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "READMODEL",
+          "description": "",
+          "aggregate": "DatasetGovernance",
+          "aggregateDependencies": [
+            "Dataset Governance"
+          ],
+          "dependencies": [
+            {
+              "id": "event-9628e3e6",
+              "type": "INBOUND",
+              "title": "Training Evaluation Datasets Declared",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "screens": [
+        {
+          "id": "screen-35efe69b",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Declare Training Evaluation Datasets",
+          "title": "Dataset Bundle Screen",
+          "fields": [],
+          "type": "SCREEN",
+          "description": "",
+          "aggregate": "DatasetGovernance",
+          "aggregateDependencies": [
+            "Dataset Governance"
+          ],
+          "dependencies": [
+            {
+              "id": "command-178e9fc9",
+              "type": "OUTBOUND",
+              "title": "Declare Training Evaluation Datasets",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingEvaluationDatasetsDeclared",
+        "eventId": "event-9628e3e6",
+        "to": "DatasetBundleDeclared"
+      },
+      "specifications": [
+        {
+          "vertical": false,
+          "id": "gwt-4d22de3a",
+          "chapter": "FederationLearningPlatform",
+          "sliceName": "Declare Training Evaluation Datasets",
+          "title": "Training participant declares approved train and evaluation datasets",
+          "given": [
+            {
+              "title": "Dataset Approved For Training",
+              "tags": [],
+              "id": "event-5a35d800",
+              "index": 0,
+              "specRow": 0,
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "datasetId"
+                },
+                {
+                  "name": "allowedFederatedUse"
+                },
+                {
+                  "name": "expiresAt"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Declare Training Evaluation Datasets",
+              "tags": [],
+              "id": "command-178e9fc9",
+              "index": 0,
+              "specRow": 0,
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "datasetBundleId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "nodeId"
+                },
+                {
+                  "name": "ownerRole"
+                },
+                {
+                  "name": "trainingDatasetId"
+                },
+                {
+                  "name": "evaluationDatasetId"
+                },
+                {
+                  "name": "featureSchemaId"
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "Training Evaluation Datasets Declared",
+              "tags": [],
+              "id": "event-9628e3e6",
+              "index": 0,
+              "specRow": 0,
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "datasetBundleId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "nodeId"
+                },
+                {
+                  "name": "ownerRole"
+                },
+                {
+                  "name": "trainingDatasetId"
+                },
+                {
+                  "name": "evaluationDatasetId"
+                },
+                {
+                  "name": "featureSchemaId"
+                }
+              ]
+            }
+          ],
+          "comments": [],
+          "examples": []
+        }
+      ],
+      "actors": [
+        {
+          "id": "actor-f22d5274",
+          "name": "DataOwner",
+          "title": "Data Owner"
+        }
+      ],
+      "aggregates": [
+        {
+          "id": "aggregate-7f8089eb",
+          "name": "DatasetGovernance",
+          "title": "Dataset Governance"
+        }
+      ]
+    },
+    {
+      "id": "slice-d68d136c",
+      "status": "Created",
+      "index": 19,
       "title": "Create Training Job",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -4822,6 +5371,39 @@
             },
             {
               "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatorDatasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatorTrainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatorEvaluationDatasetId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -4873,9 +5455,9 @@
           ],
           "dependencies": [
             {
-              "id": "event-5a35d800",
+              "id": "event-9628e3e6",
               "type": "INBOUND",
-              "title": "Dataset Approved For Training",
+              "title": "Training Evaluation Datasets Declared",
               "elementType": "EVENT"
             },
             {
@@ -4933,6 +5515,39 @@
             },
             {
               "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatorDatasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatorTrainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatorEvaluationDatasetId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -5072,7 +5687,7 @@
     {
       "id": "slice-c64e0ae2",
       "status": "Created",
-      "index": 19,
+      "index": 20,
       "title": "Configure Training Strategy",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -5360,7 +5975,7 @@
     {
       "id": "slice-a0eda50c",
       "status": "Created",
-      "index": 20,
+      "index": 21,
       "title": "Submit Training Job",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -5684,7 +6299,7 @@
     {
       "id": "slice-24209741",
       "status": "Created",
-      "index": 21,
+      "index": 22,
       "title": "Request Node Participation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -5721,7 +6336,29 @@
               "subfields": []
             },
             {
-              "name": "datasetId",
+              "name": "participantDatasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -5810,7 +6447,29 @@
               "subfields": []
             },
             {
-              "name": "datasetId",
+              "name": "participantDatasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -5899,7 +6558,29 @@
               "subfields": []
             },
             {
-              "name": "datasetId",
+              "name": "participantDatasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -5999,7 +6680,7 @@
     {
       "id": "slice-54f8bc14",
       "status": "Created",
-      "index": 22,
+      "index": 23,
       "title": "Accept Node Participation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6036,7 +6717,29 @@
               "subfields": []
             },
             {
-              "name": "datasetId",
+              "name": "participantDatasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -6136,7 +6839,29 @@
               "subfields": []
             },
             {
-              "name": "datasetId",
+              "name": "participantDatasetBundleId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -6265,7 +6990,7 @@
     {
       "id": "slice-02b2cc6a",
       "status": "Created",
-      "index": 23,
+      "index": 24,
       "title": "Track Training Job Running",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6481,7 +7206,7 @@
     {
       "id": "slice-514abc07",
       "status": "Created",
-      "index": 24,
+      "index": 25,
       "title": "Schedule Next Training Round",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6493,13 +7218,13 @@
       "screenLayouts": [],
       "processors": [
         {
-          "id": "automation-a6115832",
+          "id": "automation-8030e4f5",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
           "context": "INTERNAL",
           "slice": "Schedule Next Training Round",
-          "title": "Start Next Round While Round Budget Remains",
+          "title": "Start Next Round When Global Metric Not Reached",
           "fields": [],
           "type": "PROCESSOR",
           "description": "",
@@ -6543,7 +7268,7 @@
     {
       "id": "slice-2a00b3d1",
       "status": "Created",
-      "index": 25,
+      "index": 26,
       "title": "Complete Training Job",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6613,6 +7338,12 @@
               "id": "automation-c96122ec",
               "type": "INBOUND",
               "title": "Complete Job When Round Budget Exhausted",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "automation-b6fd7c0f",
+              "type": "INBOUND",
+              "title": "Complete Job When Global Metric Reached",
               "elementType": "PROCESSOR"
             },
             {
@@ -6703,6 +7434,18 @@
               "type": "INBOUND",
               "title": "Complete Training Job",
               "elementType": "COMMAND"
+            },
+            {
+              "id": "policy-a923560b",
+              "type": "OUTBOUND",
+              "title": "Register Final Model When Training Job Completed",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "command-bf490e0f",
+              "type": "OUTBOUND",
+              "title": "Register Candidate Model",
+              "elementType": "COMMAND"
             }
           ],
           "createsAggregate": false,
@@ -6753,6 +7496,36 @@
           "prototype": {
             "activeByDefault": false
           }
+        },
+        {
+          "id": "automation-b6fd7c0f",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Complete Training Job",
+          "title": "Complete Job When Global Metric Reached",
+          "fields": [],
+          "type": "PROCESSOR",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-2701162c",
+              "type": "OUTBOUND",
+              "title": "Complete Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
         }
       ],
       "tables": [],
@@ -6775,7 +7548,7 @@
     {
       "id": "slice-ce897f70",
       "status": "Created",
-      "index": 26,
+      "index": 27,
       "title": "Start Training Round",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -6842,9 +7615,9 @@
           ],
           "dependencies": [
             {
-              "id": "automation-a6115832",
+              "id": "automation-8030e4f5",
               "type": "INBOUND",
-              "title": "Start Next Round While Round Budget Remains",
+              "title": "Start Next Round When Global Metric Not Reached",
               "elementType": "PROCESSOR"
             },
             {
@@ -7043,7 +7816,7 @@
     {
       "id": "slice-5339b1f7",
       "status": "Created",
-      "index": 27,
+      "index": 28,
       "title": "Distribute Global Model",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -7281,7 +8054,7 @@
     {
       "id": "slice-661f5247",
       "status": "Created",
-      "index": 28,
+      "index": 29,
       "title": "Submit Local Model Update",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -7319,6 +8092,39 @@
             },
             {
               "name": "nodeId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localModelVersionId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -7440,6 +8246,39 @@
               "subfields": []
             },
             {
+              "name": "trainingDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localModelVersionId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
               "name": "updateArtifactId",
               "type": "UUID",
               "cardinality": "Single",
@@ -7487,10 +8326,10 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "automation-07af761b",
+              "id": "command-9ffd261d",
               "type": "OUTBOUND",
-              "title": "Request Aggregation When Updates Complete",
-              "elementType": "PROCESSOR"
+              "title": "Submit Local Model Evaluation",
+              "elementType": "COMMAND"
             },
             {
               "id": "projection-f3e7f683",
@@ -7561,9 +8400,292 @@
       ]
     },
     {
+      "id": "slice-12356804",
+      "status": "Created",
+      "index": 30,
+      "title": "Submit Local Model Evaluation",
+      "context": "FederationLearningPlatform",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-9ffd261d",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Submit Local Model Evaluation",
+          "title": "Submit Local Model Evaluation",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "nodeId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localModelVersionId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localLoss",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localFairnessScore",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingRound",
+          "aggregateDependencies": [
+            "Training Round"
+          ],
+          "dependencies": [
+            {
+              "id": "event-11fd8f49",
+              "type": "INBOUND",
+              "title": "Local Model Update Submitted",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-d8871fbf",
+              "type": "OUTBOUND",
+              "title": "Local Model Evaluation Submitted",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-d8871fbf",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Submit Local Model Evaluation",
+          "title": "Local Model Evaluation Submitted",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "nodeId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localModelVersionId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "evaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localLoss",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localFairnessScore",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingRound",
+          "aggregateDependencies": [
+            "Training Round"
+          ],
+          "dependencies": [
+            {
+              "id": "command-9ffd261d",
+              "type": "INBOUND",
+              "title": "Submit Local Model Evaluation",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "automation-be029680",
+              "type": "OUTBOUND",
+              "title": "Request Aggregation When Evaluated Updates Complete",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "projection-f3e7f683",
+              "type": "OUTBOUND",
+              "title": "Round Progress",
+              "elementType": "READMODEL"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-77410d65",
+          "name": "TrainingRound",
+          "title": "Training Round"
+        }
+      ]
+    },
+    {
       "id": "slice-dd2c9ebc",
       "status": "Created",
-      "index": 29,
+      "index": 31,
       "title": "Request Secure Aggregation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -7600,7 +8722,7 @@
               "subfields": []
             },
             {
-              "name": "submittedUpdateCount",
+              "name": "evaluatedUpdateCount",
               "type": "Int",
               "cardinality": "Single",
               "optional": false,
@@ -7630,9 +8752,9 @@
           ],
           "dependencies": [
             {
-              "id": "automation-07af761b",
+              "id": "automation-be029680",
               "type": "INBOUND",
-              "title": "Request Aggregation When Updates Complete",
+              "title": "Request Aggregation When Evaluated Updates Complete",
               "elementType": "PROCESSOR"
             },
             {
@@ -7683,7 +8805,7 @@
               "subfields": []
             },
             {
-              "name": "submittedUpdateCount",
+              "name": "evaluatedUpdateCount",
               "type": "Int",
               "cardinality": "Single",
               "optional": false,
@@ -7739,13 +8861,13 @@
       "screenLayouts": [],
       "processors": [
         {
-          "id": "automation-07af761b",
+          "id": "automation-be029680",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
           "context": "INTERNAL",
           "slice": "Request Secure Aggregation",
-          "title": "Request Aggregation When Updates Complete",
+          "title": "Request Aggregation When Evaluated Updates Complete",
           "fields": [],
           "type": "PROCESSOR",
           "description": "",
@@ -7761,9 +8883,9 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "event-11fd8f49",
+              "id": "event-d8871fbf",
               "type": "INBOUND",
-              "title": "Local Model Update Submitted",
+              "title": "Local Model Evaluation Submitted",
               "elementType": "EVENT"
             }
           ],
@@ -7795,7 +8917,7 @@
     {
       "id": "slice-5735a716",
       "status": "Created",
-      "index": 30,
+      "index": 32,
       "title": "Complete Secure Aggregation",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -7945,9 +9067,276 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "policy-dcae318f",
+              "id": "command-79a023ab",
               "type": "OUTBOUND",
-              "title": "Finish Round After Global Model Updated",
+              "title": "Submit Global Model Evaluation",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "projection-f3e7f683",
+              "type": "OUTBOUND",
+              "title": "Round Progress",
+              "elementType": "READMODEL"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "GlobalModelUpdated",
+        "eventId": "event-837353ed",
+        "to": "EvaluatingGlobalModel"
+      },
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-77410d65",
+          "name": "TrainingRound",
+          "title": "Training Round"
+        }
+      ]
+    },
+    {
+      "id": "slice-68535240",
+      "status": "Created",
+      "index": 33,
+      "title": "Submit Global Model Evaluation",
+      "context": "FederationLearningPlatform",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-79a023ab",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Submit Global Model Evaluation",
+          "title": "Submit Global Model Evaluation",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatedModelVersionId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatorEvaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalLoss",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalFairnessScore",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingRound",
+          "aggregateDependencies": [
+            "Training Round"
+          ],
+          "dependencies": [
+            {
+              "id": "event-837353ed",
+              "type": "INBOUND",
+              "title": "Global Model Updated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-9e046f77",
+              "type": "OUTBOUND",
+              "title": "Global Model Evaluation Submitted",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-9e046f77",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "FederationLearningPlatform",
+          "context": "INTERNAL",
+          "slice": "Submit Global Model Evaluation",
+          "title": "Global Model Evaluation Submitted",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatedModelVersionId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregatorEvaluationDatasetId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalLoss",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalFairnessScore",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingRound",
+          "aggregateDependencies": [
+            "Training Round"
+          ],
+          "dependencies": [
+            {
+              "id": "command-79a023ab",
+              "type": "INBOUND",
+              "title": "Submit Global Model Evaluation",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "policy-ad9badf5",
+              "type": "OUTBOUND",
+              "title": "Finish Round After Global Model Evaluated",
               "elementType": "PROCESSOR"
             },
             {
@@ -7990,7 +9379,7 @@
     {
       "id": "slice-8d15a249",
       "status": "Created",
-      "index": 31,
+      "index": 34,
       "title": "Complete Training Round",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -8038,7 +9427,18 @@
               "subfields": []
             },
             {
-              "name": "validationMetric",
+              "name": "globalAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalFairnessScore",
               "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
@@ -8057,15 +9457,15 @@
           ],
           "dependencies": [
             {
-              "id": "policy-dcae318f",
+              "id": "policy-ad9badf5",
               "type": "INBOUND",
-              "title": "Finish Round After Global Model Updated",
+              "title": "Finish Round After Global Model Evaluated",
               "elementType": "PROCESSOR"
             },
             {
-              "id": "event-837353ed",
+              "id": "event-9e046f77",
               "type": "INBOUND",
-              "title": "Global Model Updated",
+              "title": "Global Model Evaluation Submitted",
               "elementType": "EVENT"
             },
             {
@@ -8127,7 +9527,18 @@
               "subfields": []
             },
             {
-              "name": "validationMetric",
+              "name": "globalAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalFairnessScore",
               "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
@@ -8146,9 +9557,9 @@
           ],
           "dependencies": [
             {
-              "id": "automation-a6115832",
+              "id": "automation-8030e4f5",
               "type": "OUTBOUND",
-              "title": "Start Next Round While Round Budget Remains",
+              "title": "Start Next Round When Global Metric Not Reached",
               "elementType": "PROCESSOR"
             },
             {
@@ -8167,12 +9578,6 @@
               "id": "command-59063c93",
               "type": "INBOUND",
               "title": "Complete Training Round",
-              "elementType": "COMMAND"
-            },
-            {
-              "id": "command-3fe02b57",
-              "type": "OUTBOUND",
-              "title": "Evaluate Model",
               "elementType": "COMMAND"
             }
           ],
@@ -8239,6 +9644,17 @@
               "subfields": []
             },
             {
+              "name": "evaluatedUpdateCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
               "name": "aggregationState",
               "type": "String",
               "cardinality": "Single",
@@ -8250,7 +9666,29 @@
               "subfields": []
             },
             {
-              "name": "validationMetric",
+              "name": "localAccuracyAverage",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "globalFairnessScore",
               "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
@@ -8281,6 +9719,12 @@
               "elementType": "EVENT"
             },
             {
+              "id": "event-d8871fbf",
+              "type": "INBOUND",
+              "title": "Local Model Evaluation Submitted",
+              "elementType": "EVENT"
+            },
+            {
               "id": "event-b783d553",
               "type": "INBOUND",
               "title": "Secure Aggregation Requested",
@@ -8290,6 +9734,12 @@
               "id": "event-837353ed",
               "type": "INBOUND",
               "title": "Global Model Updated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-9e046f77",
+              "type": "INBOUND",
+              "title": "Global Model Evaluation Submitted",
               "elementType": "EVENT"
             },
             {
@@ -8312,13 +9762,13 @@
       "screenLayouts": [],
       "processors": [
         {
-          "id": "policy-dcae318f",
+          "id": "policy-ad9badf5",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
           "context": "INTERNAL",
           "slice": "Complete Training Round",
-          "title": "Finish Round After Global Model Updated",
+          "title": "Finish Round After Global Model Evaluated",
           "fields": [],
           "type": "PROCESSOR",
           "description": "",
@@ -8328,9 +9778,9 @@
           ],
           "dependencies": [
             {
-              "id": "event-837353ed",
+              "id": "event-9e046f77",
               "type": "INBOUND",
-              "title": "Global Model Updated",
+              "title": "Global Model Evaluation Submitted",
               "elementType": "EVENT"
             },
             {
@@ -8366,21 +9816,21 @@
       ]
     },
     {
-      "id": "slice-1996e196",
+      "id": "slice-0be94439",
       "status": "Created",
-      "index": 32,
-      "title": "Evaluate Model",
+      "index": 35,
+      "title": "Register Candidate Model",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
         {
-          "id": "command-3fe02b57",
+          "id": "command-bf490e0f",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
           "context": "INTERNAL",
-          "slice": "Evaluate Model",
-          "title": "Evaluate Model",
+          "slice": "Register Candidate Model",
+          "title": "Register Candidate Model",
           "fields": [
             {
               "name": "modelVersionId",
@@ -8405,7 +9855,7 @@
               "subfields": []
             },
             {
-              "name": "roundId",
+              "name": "finalRoundId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -8416,8 +9866,8 @@
               "subfields": []
             },
             {
-              "name": "evaluationDatasetId",
-              "type": "UUID",
+              "name": "finalGlobalAccuracy",
+              "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -8427,7 +9877,18 @@
               "subfields": []
             },
             {
-              "name": "fairnessProfileId",
+              "name": "finalGlobalFairnessScore",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localEvaluationSummaryId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -8446,21 +9907,21 @@
           ],
           "dependencies": [
             {
-              "id": "event-8afcf9c4",
+              "id": "policy-a923560b",
               "type": "INBOUND",
-              "title": "Training Round Completed",
+              "title": "Register Final Model When Training Job Completed",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-42fd052d",
+              "type": "INBOUND",
+              "title": "Training Job Completed",
               "elementType": "EVENT"
             },
             {
-              "id": "screen-b55115f3",
-              "type": "INBOUND",
-              "title": "Model Evaluation Screen",
-              "elementType": "SCREEN"
-            },
-            {
-              "id": "event-85f2903a",
+              "id": "event-141d87b9",
               "type": "OUTBOUND",
-              "title": "Model Evaluation Completed",
+              "title": "Model Candidate Registered",
               "elementType": "EVENT"
             }
           ],
@@ -8474,13 +9935,13 @@
       ],
       "events": [
         {
-          "id": "event-85f2903a",
+          "id": "event-141d87b9",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
           "context": "INTERNAL",
-          "slice": "Evaluate Model",
-          "title": "Model Evaluation Completed",
+          "slice": "Register Candidate Model",
+          "title": "Model Candidate Registered",
           "fields": [
             {
               "name": "modelVersionId",
@@ -8505,7 +9966,7 @@
               "subfields": []
             },
             {
-              "name": "roundId",
+              "name": "finalRoundId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -8516,7 +9977,7 @@
               "subfields": []
             },
             {
-              "name": "accuracy",
+              "name": "finalGlobalAccuracy",
               "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
@@ -8527,7 +9988,7 @@
               "subfields": []
             },
             {
-              "name": "fairnessScore",
+              "name": "finalGlobalFairnessScore",
               "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
@@ -8538,8 +9999,8 @@
               "subfields": []
             },
             {
-              "name": "privacyBudgetSpent",
-              "type": "Decimal",
+              "name": "localEvaluationSummaryId",
+              "type": "UUID",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -8557,9 +10018,9 @@
           ],
           "dependencies": [
             {
-              "id": "command-3fe02b57",
+              "id": "command-bf490e0f",
               "type": "INBOUND",
-              "title": "Evaluate Model",
+              "title": "Register Candidate Model",
               "elementType": "COMMAND"
             },
             {
@@ -8584,17 +10045,20 @@
         }
       ],
       "readmodels": [],
-      "screens": [
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [
         {
-          "id": "screen-b55115f3",
+          "id": "policy-a923560b",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
           "context": "INTERNAL",
-          "slice": "Evaluate Model",
-          "title": "Model Evaluation Screen",
+          "slice": "Register Candidate Model",
+          "title": "Register Final Model When Training Job Completed",
           "fields": [],
-          "type": "SCREEN",
+          "type": "PROCESSOR",
           "description": "",
           "aggregate": "ModelRegistry",
           "aggregateDependencies": [
@@ -8602,9 +10066,15 @@
           ],
           "dependencies": [
             {
-              "id": "command-3fe02b57",
+              "id": "event-42fd052d",
+              "type": "INBOUND",
+              "title": "Training Job Completed",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-bf490e0f",
               "type": "OUTBOUND",
-              "title": "Evaluate Model",
+              "title": "Register Candidate Model",
               "elementType": "COMMAND"
             }
           ],
@@ -8616,24 +10086,15 @@
           }
         }
       ],
-      "screenImages": [],
-      "screenLayouts": [],
-      "processors": [],
       "tables": [],
       "stateChange": {
         "type": "STATE_CHANGE",
-        "event": "ModelEvaluationCompleted",
-        "eventId": "event-85f2903a",
+        "event": "ModelCandidateRegistered",
+        "eventId": "event-141d87b9",
         "to": "Candidate"
       },
       "specifications": [],
-      "actors": [
-        {
-          "id": "actor-ef28628b",
-          "name": "ModelEvaluator",
-          "title": "Model Evaluator"
-        }
-      ],
+      "actors": [],
       "aggregates": [
         {
           "id": "aggregate-616c6ef1",
@@ -8645,7 +10106,7 @@
     {
       "id": "slice-f8f30348",
       "status": "Created",
-      "index": 33,
+      "index": 36,
       "title": "Approve Model",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -8690,9 +10151,9 @@
           ],
           "dependencies": [
             {
-              "id": "event-85f2903a",
+              "id": "event-141d87b9",
               "type": "INBOUND",
-              "title": "Model Evaluation Completed",
+              "title": "Model Candidate Registered",
               "elementType": "EVENT"
             },
             {
@@ -8845,7 +10306,7 @@
     {
       "id": "slice-2c740b5d",
       "status": "Created",
-      "index": 34,
+      "index": 37,
       "title": "Promote Model To Production",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -9021,7 +10482,7 @@
               "subfields": []
             },
             {
-              "name": "accuracy",
+              "name": "finalGlobalAccuracy",
               "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
@@ -9032,7 +10493,7 @@
               "subfields": []
             },
             {
-              "name": "fairnessScore",
+              "name": "finalGlobalFairnessScore",
               "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
@@ -9062,9 +10523,9 @@
           ],
           "dependencies": [
             {
-              "id": "event-85f2903a",
+              "id": "event-141d87b9",
               "type": "INBOUND",
-              "title": "Model Evaluation Completed",
+              "title": "Model Candidate Registered",
               "elementType": "EVENT"
             },
             {
@@ -9149,7 +10610,7 @@
     {
       "id": "slice-f07c4b2e",
       "status": "Created",
-      "index": 35,
+      "index": 38,
       "title": "Record Runtime Heartbeat",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -9525,7 +10986,7 @@
     {
       "id": "slice-73c0cd7b",
       "status": "Created",
-      "index": 36,
+      "index": 39,
       "title": "Raise Training Alert",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -9785,7 +11246,7 @@
     {
       "id": "slice-0c28a0b6",
       "status": "Created",
-      "index": 37,
+      "index": 40,
       "title": "Append Audit Trail",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
@@ -10154,7 +11615,8 @@
         "DraftSchema",
         "PublishedSchema",
         "DatasetRegistered",
-        "DatasetApproved"
+        "DatasetApproved",
+        "DatasetBundleDeclared"
       ]
     },
     {
@@ -10180,6 +11642,7 @@
         "Running",
         "CollectingUpdates",
         "Aggregating",
+        "EvaluatingGlobalModel",
         "Completed"
       ]
     },
@@ -10266,11 +11729,6 @@
       "id": "actor-3b799a70",
       "name": "EdgeRuntime",
       "title": "Edge Runtime"
-    },
-    {
-      "id": "actor-ef28628b",
-      "name": "ModelEvaluator",
-      "title": "Model Evaluator"
     },
     {
       "id": "actor-06fd6acd",

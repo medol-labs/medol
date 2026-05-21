@@ -15,6 +15,14 @@ context FederationLearningPlatform {
     target EdgeRuntime
     reactsTo GlobalModelDistributed
     emits SubmitLocalModelUpdate
+    emits SubmitLocalModelEvaluation
+  }
+
+  integration AggregationNodeRuntime {
+    source TrainingRound
+    target AggregationRuntime
+    reactsTo GlobalModelUpdated
+    emits SubmitGlobalModelEvaluation
   }
 
   aggregate Organization {
@@ -382,6 +390,7 @@ context FederationLearningPlatform {
     state PublishedSchema
     state DatasetRegistered
     state DatasetApproved
+    state DatasetBundleDeclared
 
     slice DefineFeatureSchema {
       createsAggregate
@@ -415,6 +424,7 @@ context FederationLearningPlatform {
         organizationId: UUID
         featureSchemaId: UUID
         datasetType: String
+        datasetUsage: String
         sampleCount: Int
         sensitivityLevel: String
         containsPII: Boolean
@@ -427,6 +437,7 @@ context FederationLearningPlatform {
         organizationId: UUID
         featureSchemaId: UUID
         datasetType: String
+        datasetUsage: String
         sampleCount: Int
         sensitivityLevel: String
         containsPII: Boolean
@@ -470,13 +481,13 @@ context FederationLearningPlatform {
 
       command ApproveDatasetForTraining {
         datasetId: UUID id technical
-        allowedTrainingPurpose: String
+        allowedFederatedUse: String
         expiresAt: DateTime
       }
 
       event DatasetApprovedForTraining {
         datasetId: UUID id technical
-        allowedTrainingPurpose: String
+        allowedFederatedUse: String
         expiresAt: DateTime
       }
 
@@ -486,6 +497,7 @@ context FederationLearningPlatform {
         datasetId: UUID id
         organizationId: UUID
         featureSchemaId: UUID
+        datasetUsage: String
         sampleCount: Int
         sensitivityLevel: String
         region: String
@@ -493,6 +505,51 @@ context FederationLearningPlatform {
         subscribe DatasetRegistered
         subscribe DatasetContractValidated
         subscribe DatasetApprovedForTraining
+      }
+    }
+
+    slice DeclareTrainingEvaluationDatasets {
+      actor DataOwner
+      ui DatasetBundleScreen
+      reactsTo DatasetApprovedForTraining
+
+      command DeclareTrainingEvaluationDatasets {
+        datasetBundleId: UUID id generated technical
+        organizationId: UUID
+        nodeId: UUID
+        ownerRole: String
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
+        featureSchemaId: UUID
+      }
+
+      event TrainingEvaluationDatasetsDeclared {
+        datasetBundleId: UUID id technical
+        organizationId: UUID
+        nodeId: UUID
+        ownerRole: String
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
+        featureSchemaId: UUID
+      }
+
+      state DatasetBundleDeclared
+
+      projection TrainingEvaluationDatasetCatalog {
+        datasetBundleId: UUID id
+        organizationId: UUID
+        nodeId: UUID
+        ownerRole: String
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
+        featureSchemaId: UUID
+        subscribe TrainingEvaluationDatasetsDeclared
+      }
+
+      specification "Training participant declares approved train and evaluation datasets" {
+        given DatasetApprovedForTraining
+        when DeclareTrainingEvaluationDatasets
+        then TrainingEvaluationDatasetsDeclared
       }
     }
   }
@@ -509,12 +566,15 @@ context FederationLearningPlatform {
       createsAggregate
       actor ResearchLead
       ui TrainingJobCreationScreen
-      reactsTo DatasetApprovedForTraining
+      reactsTo TrainingEvaluationDatasetsDeclared
 
       command CreateTrainingJob {
         trainingJobId: UUID id generated technical
         federationId: UUID
         featureSchemaId: UUID
+        aggregatorDatasetBundleId: UUID
+        aggregatorTrainingDatasetId: UUID
+        aggregatorEvaluationDatasetId: UUID
         objective: String
         targetMetric: String
         minimumAccuracy: Decimal
@@ -524,6 +584,9 @@ context FederationLearningPlatform {
         trainingJobId: UUID id technical
         federationId: UUID
         featureSchemaId: UUID
+        aggregatorDatasetBundleId: UUID
+        aggregatorTrainingDatasetId: UUID
+        aggregatorEvaluationDatasetId: UUID
         objective: String
         targetMetric: String
         minimumAccuracy: Decimal
@@ -601,14 +664,18 @@ context FederationLearningPlatform {
       command RequestNodeParticipation {
         trainingJobId: UUID id technical
         nodeId: UUID
-        datasetId: UUID
+        participantDatasetBundleId: UUID
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
         participationDeadline: DateTime
       }
 
       event NodeParticipationRequested {
         trainingJobId: UUID id technical
         nodeId: UUID
-        datasetId: UUID
+        participantDatasetBundleId: UUID
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
         participationDeadline: DateTime
       }
 
@@ -616,7 +683,9 @@ context FederationLearningPlatform {
       projection TrainingJobNodeBoard {
         trainingJobId: UUID
         nodeId: UUID id technical
-        datasetId: UUID
+        participantDatasetBundleId: UUID
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
         subscribe NodeParticipationRequested
         subscribe NodeReadyForTraining
       }
@@ -630,7 +699,9 @@ context FederationLearningPlatform {
       command AcceptNodeParticipation {
         trainingJobId: UUID id technical
         nodeId: UUID
-        datasetId: UUID
+        participantDatasetBundleId: UUID
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
         availableGpuCount: Int
         localEpochLimit: Int
       }
@@ -638,7 +709,9 @@ context FederationLearningPlatform {
       event NodeReadyForTraining {
         trainingJobId: UUID id technical
         nodeId: UUID
-        datasetId: UUID
+        participantDatasetBundleId: UUID
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
         availableGpuCount: Int
         localEpochLimit: Int
       }
@@ -671,8 +744,8 @@ context FederationLearningPlatform {
     slice ScheduleNextTrainingRound {
       reactsTo TrainingRoundCompleted
 
-      automation StartNextRoundWhileRoundBudgetRemains {
-        condition currentRoundNumber < maxRounds
+      automation StartNextRoundWhenGlobalMetricNotReached {
+        condition globalAccuracy < minimumAccuracy
         emits StartTrainingRound
       }
     }
@@ -682,6 +755,11 @@ context FederationLearningPlatform {
 
       automation CompleteJobWhenRoundBudgetExhausted {
         condition currentRoundNumber >= maxRounds
+        emits CompleteTrainingJob
+      }
+
+      automation CompleteJobWhenGlobalMetricReached {
+        condition globalAccuracy >= minimumAccuracy
         emits CompleteTrainingJob
       }
 
@@ -707,6 +785,7 @@ context FederationLearningPlatform {
     state Running
     state CollectingUpdates
     state Aggregating
+    state EvaluatingGlobalModel
     state Completed
 
     slice StartTrainingRound {
@@ -767,6 +846,9 @@ context FederationLearningPlatform {
         trainingJobId: UUID id technical
         roundId: UUID
         nodeId: UUID
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
+        localModelVersionId: UUID
         updateArtifactId: UUID
         sampleCount: Int
         trainingLoss: Decimal
@@ -776,31 +858,60 @@ context FederationLearningPlatform {
         trainingJobId: UUID id technical
         roundId: UUID
         nodeId: UUID
+        trainingDatasetId: UUID
+        evaluationDatasetId: UUID
+        localModelVersionId: UUID
         updateArtifactId: UUID
         sampleCount: Int
         trainingLoss: Decimal
       }
     }
 
-    slice RequestSecureAggregation {
+    slice SubmitLocalModelEvaluation {
       reactsTo LocalModelUpdateSubmitted
 
-      automation RequestAggregationWhenUpdatesComplete {
-        condition submittedUpdateCount >= 3
+      command SubmitLocalModelEvaluation {
+        trainingJobId: UUID id technical
+        roundId: UUID
+        nodeId: UUID
+        localModelVersionId: UUID
+        evaluationDatasetId: UUID
+        localAccuracy: Decimal
+        localLoss: Decimal
+        localFairnessScore: Decimal
+      }
+
+      event LocalModelEvaluationSubmitted {
+        trainingJobId: UUID id technical
+        roundId: UUID
+        nodeId: UUID
+        localModelVersionId: UUID
+        evaluationDatasetId: UUID
+        localAccuracy: Decimal
+        localLoss: Decimal
+        localFairnessScore: Decimal
+      }
+    }
+
+    slice RequestSecureAggregation {
+      reactsTo LocalModelEvaluationSubmitted
+
+      automation RequestAggregationWhenEvaluatedUpdatesComplete {
+        condition evaluatedUpdateCount >= 3
         emits RequestSecureAggregation
       }
 
       command RequestSecureAggregation {
         trainingJobId: UUID id technical
         roundId: UUID
-        submittedUpdateCount: Int
+        evaluatedUpdateCount: Int
         aggregationProvider: String
       }
 
       event SecureAggregationRequested {
         trainingJobId: UUID id technical
         roundId: UUID
-        submittedUpdateCount: Int
+        evaluatedUpdateCount: Int
         aggregationProvider: String
       }
 
@@ -821,13 +932,39 @@ context FederationLearningPlatform {
         requestId: UUID
         aggregatedModelVersionId: UUID
       }
+
+      state EvaluatingGlobalModel
+    }
+
+    slice SubmitGlobalModelEvaluation {
+      reactsTo GlobalModelUpdated
+
+      command SubmitGlobalModelEvaluation {
+        trainingJobId: UUID id technical
+        roundId: UUID
+        aggregatedModelVersionId: UUID
+        aggregatorEvaluationDatasetId: UUID
+        globalAccuracy: Decimal
+        globalLoss: Decimal
+        globalFairnessScore: Decimal
+      }
+
+      event GlobalModelEvaluationSubmitted {
+        trainingJobId: UUID id technical
+        roundId: UUID
+        aggregatedModelVersionId: UUID
+        aggregatorEvaluationDatasetId: UUID
+        globalAccuracy: Decimal
+        globalLoss: Decimal
+        globalFairnessScore: Decimal
+      }
     }
 
     slice CompleteTrainingRound {
-      reactsTo GlobalModelUpdated
+      reactsTo GlobalModelEvaluationSubmitted
 
-      policy FinishRoundAfterGlobalModelUpdated {
-        on GlobalModelUpdated
+      policy FinishRoundAfterGlobalModelEvaluated {
+        on GlobalModelEvaluationSubmitted
         issue CompleteTrainingRound
       }
 
@@ -835,14 +972,16 @@ context FederationLearningPlatform {
         trainingJobId: UUID id technical
         roundId: UUID
         aggregatedModelVersionId: UUID
-        validationMetric: Decimal
+        globalAccuracy: Decimal
+        globalFairnessScore: Decimal
       }
 
       event TrainingRoundCompleted {
         trainingJobId: UUID id technical
         roundId: UUID
         aggregatedModelVersionId: UUID
-        validationMetric: Decimal
+        globalAccuracy: Decimal
+        globalFairnessScore: Decimal
       }
 
       state Completed
@@ -852,12 +991,17 @@ context FederationLearningPlatform {
         roundId: UUID
         roundNumber: Int
         submittedUpdateCount: Int
+        evaluatedUpdateCount: Int
         aggregationState: String
-        validationMetric: Decimal
+        localAccuracyAverage: Decimal
+        globalAccuracy: Decimal
+        globalFairnessScore: Decimal
         subscribe TrainingRoundStarted
         subscribe LocalModelUpdateSubmitted
+        subscribe LocalModelEvaluationSubmitted
         subscribe SecureAggregationRequested
         subscribe GlobalModelUpdated
+        subscribe GlobalModelEvaluationSubmitted
         subscribe TrainingRoundCompleted
       }
     }
@@ -868,27 +1012,31 @@ context FederationLearningPlatform {
     state Approved
     state Production
 
-    slice EvaluateModel {
+    slice RegisterCandidateModel {
       createsAggregate
-      actor ModelEvaluator
-      ui ModelEvaluationScreen
-      reactsTo TrainingRoundCompleted
+      reactsTo TrainingJobCompleted
 
-      command EvaluateModel {
-        modelVersionId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
-        evaluationDatasetId: UUID
-        fairnessProfileId: UUID
+      policy RegisterFinalModelWhenTrainingJobCompleted {
+        on TrainingJobCompleted
+        issue RegisterCandidateModel
       }
 
-      event ModelEvaluationCompleted {
+      command RegisterCandidateModel {
         modelVersionId: UUID id technical
         trainingJobId: UUID
-        roundId: UUID
-        accuracy: Decimal
-        fairnessScore: Decimal
-        privacyBudgetSpent: Decimal
+        finalRoundId: UUID
+        finalGlobalAccuracy: Decimal
+        finalGlobalFairnessScore: Decimal
+        localEvaluationSummaryId: UUID
+      }
+
+      event ModelCandidateRegistered {
+        modelVersionId: UUID id technical
+        trainingJobId: UUID
+        finalRoundId: UUID
+        finalGlobalAccuracy: Decimal
+        finalGlobalFairnessScore: Decimal
+        localEvaluationSummaryId: UUID
       }
 
       state Candidate
@@ -897,7 +1045,7 @@ context FederationLearningPlatform {
     slice ApproveModel {
       actor GovernanceReviewer
       ui ModelApprovalScreen
-      reactsTo ModelEvaluationCompleted
+      reactsTo ModelCandidateRegistered
 
       command ApproveModel {
         modelVersionId: UUID id technical
@@ -933,10 +1081,10 @@ context FederationLearningPlatform {
         modelVersionId: UUID id
         trainingJobId: UUID
         state: String
-        accuracy: Decimal
-        fairnessScore: Decimal
+        finalGlobalAccuracy: Decimal
+        finalGlobalFairnessScore: Decimal
         releaseChannel: String
-        subscribe ModelEvaluationCompleted
+        subscribe ModelCandidateRegistered
         subscribe ModelApproved
         subscribe ModelPromotedToProduction
       }
