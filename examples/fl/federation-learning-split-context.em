@@ -1,3 +1,4 @@
+domain FederationLearningPlatform {
 context FederationManagement {
   note "Federation management owns organizations, federations, and trusted compute nodes."
 
@@ -1186,4 +1187,5 @@ context RuntimeOperations {
       state Appended
     }
   }
+}
 }

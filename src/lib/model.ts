@@ -51,6 +51,12 @@ export interface EmContext {
   looseElements: EmElement[];
 }
 
+export interface EmDomain {
+  id: string;
+  name: string;
+  contexts: EmContext[];
+}
+
 export interface EmEdge {
   id: string;
   source: string;
@@ -59,12 +65,14 @@ export interface EmEdge {
 }
 
 export interface EmModel {
+  domains: EmDomain[];
   contexts: EmContext[];
   edges: EmEdge[];
   diagnostics: string[];
 }
 
 export const emptyModel = (): EmModel => ({
+  domains: [],
   contexts: [],
   edges: [],
   diagnostics: []

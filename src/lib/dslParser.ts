@@ -1,4 +1,4 @@
-import { EmAggregate, EmContext, EmEdge, EmElement, EmField, EmModel, EmSlice, emptyModel } from './model';
+import { EmAggregate, EmContext, EmDomain, EmEdge, EmElement, EmField, EmModel, EmSlice, emptyModel } from './model';
 
 interface Block {
   keyword: string;
@@ -9,6 +9,7 @@ interface Block {
 }
 
 const blockKeywords = [
+  'domain',
   'context',
   'aggregate',
   'slice',
@@ -26,42 +27,68 @@ const elementKinds = new Set(['command', 'event', 'projection', 'automation', 'p
 
 export const parseEventModelingDsl = (text: string): EmModel => {
   const model = emptyModel();
-  const contexts = findBlocks(text, 'context');
+  const domainBlocks = findBlocks(text, 'domain');
 
-  if (contexts.length === 0 && text.trim().length > 0) {
-    model.diagnostics.push('No context block found. Start with: context MyContext { ... }');
-  }
-
-  for (const contextBlock of contexts) {
-    const context: EmContext = {
-      id: scopedId('context', contextBlock.name),
-      name: contextBlock.name,
-      aggregates: [],
-      looseElements: []
+  for (const domainBlock of domainBlocks) {
+    const domain: EmDomain = {
+      id: scopedId('domain', domainBlock.name),
+      name: domainBlock.name,
+      contexts: []
     };
 
-    const consumedRanges: Array<[number, number]> = [];
-    for (const aggregateBlock of findBlocks(contextBlock.body, 'aggregate')) {
-      consumedRanges.push([aggregateBlock.start, aggregateBlock.end]);
-      const aggregate = parseAggregate(aggregateBlock, context.id, model.edges);
-      context.aggregates.push(aggregate);
+    for (const contextBlock of findBlocks(domainBlock.body, 'context')) {
+      const context = parseContext(contextBlock, domain.id, model.edges);
+      domain.contexts.push(context);
+      model.contexts.push(context);
     }
 
-    for (const elementBlock of findTopLevelBlocks(contextBlock.body, consumedRanges)) {
-      if (!elementKinds.has(elementBlock.keyword)) {
-        continue;
-      }
-      const element = parseElement(elementBlock, context.id);
-      context.looseElements.push(element);
-      collectElementEdges(elementBlock, element.id, model.edges);
+    if (domain.contexts.length === 0) {
+      model.diagnostics.push(`Domain ${domain.name} does not contain a context block.`);
     }
 
-    model.contexts.push(context);
+    model.domains.push(domain);
+  }
+
+  const directContexts = findTopLevelBlocks(text, domainBlocks.map(toRange))
+    .filter((block) => block.keyword === 'context');
+  for (const contextBlock of directContexts) {
+    model.contexts.push(parseContext(contextBlock, undefined, model.edges));
+  }
+
+  if (model.contexts.length === 0 && text.trim().length > 0) {
+    model.diagnostics.push('No context block found. Start with: domain MyDomain { context MyContext { ... } }');
   }
 
   dedupeEdges(model);
   validateReferences(model);
   return model;
+};
+
+const parseContext = (block: Block, domainId: string | undefined, edges: EmEdge[]): EmContext => {
+  const context: EmContext = {
+    id: domainId ? `${domainId}/context/${block.name}` : scopedId('context', block.name),
+    name: block.name,
+    aggregates: [],
+    looseElements: []
+  };
+
+  const consumedRanges: Array<[number, number]> = [];
+  for (const aggregateBlock of findBlocks(block.body, 'aggregate')) {
+    consumedRanges.push([aggregateBlock.start, aggregateBlock.end]);
+    const aggregate = parseAggregate(aggregateBlock, context.id, edges);
+    context.aggregates.push(aggregate);
+  }
+
+  for (const elementBlock of findTopLevelBlocks(block.body, consumedRanges)) {
+    if (!elementKinds.has(elementBlock.keyword)) {
+      continue;
+    }
+    const element = parseElement(elementBlock, context.id);
+    context.looseElements.push(element);
+    collectElementEdges(elementBlock, element.id, edges);
+  }
+
+  return context;
 };
 
 const parseAggregate = (block: Block, contextId: string, edges: EmEdge[]): EmAggregate => {

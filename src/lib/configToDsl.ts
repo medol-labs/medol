@@ -44,12 +44,14 @@ interface ConfigAggregate {
 }
 
 interface ConfigRoot {
+  domain?: string;
   context?: string;
   aggregates?: ConfigAggregate[];
   slices?: ConfigSlice[];
 }
 
 export const configToDsl = (config: ConfigRoot): string => {
+  const domainName = config.domain ? toDslId(config.domain, 'Domain') : undefined;
   const contextName = toDslId(config.context || config.slices?.[0]?.context || 'EventModel');
   const grouped = new Map<string, ConfigSlice[]>();
   const aggregateStates = new Map<string, string[]>();
@@ -69,52 +71,66 @@ export const configToDsl = (config: ConfigRoot): string => {
     grouped.set(aggregateId, [...(grouped.get(aggregateId) ?? []), slice]);
   }
 
-  const lines: string[] = [`context ${contextName} {`];
+  const contextIndent = domainName ? 2 : 0;
+  const aggregateIndent = contextIndent + 2;
+  const sliceIndent = aggregateIndent + 2;
+  const elementIndent = sliceIndent + 2;
+  const lines: string[] = [];
+
+  if (domainName) {
+    lines.push(`domain ${domainName} {`);
+  }
+  lines.push(`${pad(contextIndent)}context ${contextName} {`);
   for (const [aggregateName, slices] of grouped) {
-    lines.push(`  aggregate ${aggregateName} {`);
+    lines.push(`${pad(aggregateIndent)}aggregate ${aggregateName} {`);
     for (const state of aggregateStates.get(aggregateName) ?? []) {
-      lines.push(`    state ${toDslId(state, 'State')}`);
+      lines.push(`${pad(aggregateIndent + 2)}state ${toDslId(state, 'State')}`);
     }
     for (const slice of slices) {
-      lines.push(`    slice ${toDslId(slice.title, 'Slice')} {`);
+      lines.push(`${pad(sliceIndent)}slice ${toDslId(slice.title, 'Slice')} {`);
       if (slice.commands?.some((command) => command.createsAggregate)) {
-        lines.push('      createsAggregate');
+        lines.push(`${pad(elementIndent)}createsAggregate`);
       }
       const screen = slice.screens?.[0];
       if (screen?.title) {
-        lines.push(`      ui ${toDslId(screen.title, 'Screen')}`);
+        lines.push(`${pad(elementIndent)}ui ${toDslId(screen.title, 'Screen')}`);
       }
 
       for (const command of slice.commands ?? []) {
-        appendElement(lines, 'command', command, 6);
+        appendElement(lines, 'command', command, elementIndent);
       }
       for (const event of slice.events ?? []) {
-        appendElement(lines, 'event', event, 6);
+        appendElement(lines, 'event', event, elementIndent);
       }
       if (slice.stateChange?.to) {
-        lines.push(`      state ${toDslId(slice.stateChange.to, 'State')}`);
+        lines.push(`${pad(elementIndent)}state ${toDslId(slice.stateChange.to, 'State')}`);
       }
       for (const readmodel of slice.readmodels ?? []) {
-        appendElement(lines, 'projection', readmodel, 6, readmodel.dependencies
+        appendElement(lines, 'projection', readmodel, elementIndent, readmodel.dependencies
           ?.filter((dependency) => dependency.elementType === 'EVENT' && dependency.title)
           .map((dependency) => `subscribe ${toDslId(dependency.title, 'Event')}`) ?? []);
       }
       for (const processor of slice.processors ?? []) {
-        lines.push(`      automation ${toDslId(processor.title, 'Automation')} {`);
+        lines.push(`${pad(elementIndent)}automation ${toDslId(processor.title, 'Automation')} {`);
         for (const dependency of processor.dependencies ?? []) {
           if (dependency.elementType === 'COMMAND' && dependency.title) {
-            lines.push(`        emits ${toDslId(dependency.title, 'Command')}`);
+            lines.push(`${pad(elementIndent + 2)}emits ${toDslId(dependency.title, 'Command')}`);
           }
         }
-        lines.push('      }');
+        lines.push(`${pad(elementIndent)}}`);
       }
-      lines.push('    }');
+      lines.push(`${pad(sliceIndent)}}`);
     }
-    lines.push('  }');
+    lines.push(`${pad(aggregateIndent)}}`);
   }
-  lines.push('}');
+  lines.push(`${pad(contextIndent)}}`);
+  if (domainName) {
+    lines.push('}');
+  }
   return lines.join('\n');
 };
+
+const pad = (indent: number): string => ' '.repeat(indent);
 
 const appendElement = (lines: string[], kind: 'command' | 'event' | 'projection', element: ConfigElement, indent: number, extraLines: string[] = []): void => {
   const pad = ' '.repeat(indent);

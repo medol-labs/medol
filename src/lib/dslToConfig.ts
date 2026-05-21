@@ -107,6 +107,7 @@ export interface ConfigRoot {
   flows: [];
   aggregates: Array<{ id: string; name: string; title: string; fields: []; states: string[] }>;
   actors: Array<{ id: string; name: string; title: string }>;
+  domain?: string;
   context: string;
   codeGen: Record<string, never>;
   sliceGroups: [];
@@ -189,6 +190,7 @@ export const modelToConfig = (model: EmModel): ConfigRoot => {
     flows: [],
     aggregates: [...aggregateRecords.values()],
     actors: [...actorRecords.values()],
+    ...(model.domains[0] ? { domain: model.domains[0].name } : {}),
     context,
     codeGen: {},
     sliceGroups: [],

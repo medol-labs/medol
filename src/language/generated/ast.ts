@@ -36,6 +36,7 @@ export type EventModelingKeywordNames =
     | "context"
     | "createsAggregate"
     | "decision"
+    | "domain"
     | "emits"
     | "event"
     | "example"
@@ -232,7 +233,7 @@ export function isCondition(item: unknown): item is Condition {
 }
 
 export interface Context extends langium.AstNode {
-    readonly $container: Model;
+    readonly $container: Domain | Model;
     readonly $type: 'Context';
     elements: Array<ContextElement>;
     name: string;
@@ -286,6 +287,23 @@ export const Decision = {
 
 export function isDecision(item: unknown): item is Decision {
     return reflection.isInstance(item, Decision.$type);
+}
+
+export interface Domain extends langium.AstNode {
+    readonly $container: Model;
+    readonly $type: 'Domain';
+    contexts: Array<Context>;
+    name: string;
+}
+
+export const Domain = {
+    $type: 'Domain',
+    contexts: 'contexts',
+    name: 'name'
+} as const;
+
+export function isDomain(item: unknown): item is Domain {
+    return reflection.isInstance(item, Domain.$type);
 }
 
 export interface Emits extends langium.AstNode {
@@ -487,11 +505,13 @@ export function isMetric(item: unknown): item is Metric {
 export interface Model extends langium.AstNode {
     readonly $type: 'Model';
     contexts: Array<Context>;
+    domains: Array<Domain>;
 }
 
 export const Model = {
     $type: 'Model',
-    contexts: 'contexts'
+    contexts: 'contexts',
+    domains: 'domains'
 } as const;
 
 export function isModel(item: unknown): item is Model {
@@ -875,6 +895,7 @@ export type EventModelingAstType = {
     ContextElement: ContextElement
     CreatesAggregateMarker: CreatesAggregateMarker
     Decision: Decision
+    Domain: Domain
     Emits: Emits
     Event: Event
     EventStep: EventStep
@@ -1065,6 +1086,19 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [ContextElement.$type]
         },
+        Domain: {
+            name: Domain.$type,
+            properties: {
+                contexts: {
+                    name: Domain.contexts,
+                    defaultValue: []
+                },
+                name: {
+                    name: Domain.name
+                }
+            },
+            superTypes: []
+        },
         Emits: {
             name: Emits.$type,
             properties: {
@@ -1200,6 +1234,10 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
             properties: {
                 contexts: {
                     name: Model.contexts,
+                    defaultValue: []
+                },
+                domains: {
+                    name: Model.domains,
                     defaultValue: []
                 }
             },

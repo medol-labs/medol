@@ -1,7 +1,13 @@
 grammar EventModeling
 
 entry Model:
-    contexts+=Context*
+    (domains+=Domain | contexts+=Context)*
+;
+
+Domain:
+    'domain' name=ID '{'
+        contexts+=Context*
+    '}'
 ;
 
 Context:

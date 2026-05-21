@@ -1,3 +1,4 @@
+domain FederationLearningPlatform {
 context FederationLearning {
   aggregate Federation {
     state Draft
@@ -69,4 +70,5 @@ context FederationLearning {
       }
     }
   }
+}
 }

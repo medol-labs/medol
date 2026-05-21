@@ -1,4 +1,5 @@
-export const sampleDsl = `context FederationLearning {
+export const sampleDsl = `domain FederationLearningPlatform {
+context FederationLearning {
   aggregate Federation {
     state Draft
     state Active
@@ -69,4 +70,5 @@ export const sampleDsl = `context FederationLearning {
       }
     }
   }
+}
 }`;

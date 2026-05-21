@@ -106,6 +106,7 @@ npm run dsl:to-config -- examples/federation.em > config.json
 ## DSL Example
 
 ```eventmodeling
+domain FederationLearningPlatform {
 context FederationLearning {
   aggregate Federation {
     state Draft
@@ -170,11 +171,13 @@ context FederationLearning {
     }
   }
 }
+}
 ```
 
 ## DSL Concepts
 
-- `context`: A bounded modeling context.
+- `domain`: A top-level domain that groups one or more modeling contexts.
+- `context`: A bounded modeling context inside a domain. Legacy files may still start with `context`.
 - `aggregate`: A domain aggregate containing states and slices.
 - `slice`: A timeline column in the event modeling board.
 - `createsAggregate`: Marks a slice whose command creates a new aggregate instance.

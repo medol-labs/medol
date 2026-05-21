@@ -1,3 +1,4 @@
+domain FederationLearningPlatform {
 context FederationLearningPlatform {
   note "Federation learning is modeled as a distributed collaborative state machine."
   decision "Keep secure aggregation as an integration boundary so third-party cryptographic services can evolve independently."
@@ -1327,4 +1328,5 @@ context FederationLearningPlatform {
       }
     }
   }
+}
 }
