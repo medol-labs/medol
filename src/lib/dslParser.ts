@@ -1,4 +1,4 @@
-import { EmAggregate, EmContext, EmDomain, EmEdge, EmElement, EmField, EmModel, EmSlice, emptyModel } from './model';
+import { EmAggregate, EmContext, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, emptyModel } from './model';
 
 interface Block {
   keyword: string;
@@ -199,16 +199,65 @@ const parseElementFields = (kind: string, body: string): EmField[] => {
 
 const parseFields = (body: string): EmField[] => {
   const fields: EmField[] = [];
-  for (const match of body.matchAll(/^\s*([A-Za-z_][\w_]*)\s*:\s*([A-Za-z_][\w_]*)(\[\]|\?)?([^\n{}]*)$/gm)) {
+  for (const match of body.matchAll(/^\s*([A-Za-z_][\w_]*)\s*:\s*([A-Za-z_][\w_]*)(\[\]|\?)?([^\n{}]*)(?:\{\s*([\s\S]*?)\})?\s*$/gm)) {
+    const tail = parseFieldTail(match[4] || '', match[5]);
     fields.push({
       name: match[1],
       type: match[2],
       cardinality: match[3] === '[]' ? 'List' : match[3] === '?' ? 'Optional' : 'Single',
-      attributes: (match[4] || '').trim().split(/\s+/).filter(Boolean)
+      attributes: tail.attributes,
+      ...(tail.mapping ? { mapping: tail.mapping } : {})
     });
   }
   return fields;
 };
+
+const fieldAttributes = new Set(['id', 'generated', 'technical', 'query']);
+
+const parseFieldTail = (tail: string, details?: string): { attributes: string[]; mapping?: EmFieldMapping } => {
+  const words = tail.trim().split(/\s+/).filter(Boolean);
+  const attributes: string[] = [];
+  let mapping: EmFieldMapping | undefined;
+
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+    if (fieldAttributes.has(word)) {
+      attributes.push(word);
+      continue;
+    }
+    if (word === 'from') {
+      mapping = {
+        kind: 'from',
+        sources: parseMappingSources(words.slice(index + 1).join(' '))
+      };
+      break;
+    }
+    if (word === 'derived') {
+      const rest = words.slice(index + 1);
+      mapping = {
+        kind: 'derived',
+        sources: rest[0] === 'from' ? parseMappingSources(rest.slice(1).join(' ')) : []
+      };
+      break;
+    }
+  }
+
+  if (mapping && details !== undefined) {
+    mapping.sources = parseMappingSources(details.match(/\bfrom\s+(.+?)(?=\s+rule\s+|$)/s)?.[1] ?? mapping.sources.join(', '));
+    const rule = details.match(/\brule\s+("([^"\\]|\\.)*"|'([^'\\]|\\.)*')/)?.[1];
+    if (rule) {
+      mapping.rule = unquote(rule);
+    }
+  }
+
+  return { attributes, ...(mapping ? { mapping } : {}) };
+};
+
+const parseMappingSources = (value: string): string[] =>
+  value
+    .split(',')
+    .map((source) => source.trim())
+    .filter((source) => /^[A-Za-z_][\w_]*(\.[A-Za-z_][\w_]*)*$/.test(source));
 
 const parseIntegrationFields = (body: string): EmField[] => {
   const fields = parseFields(body);

@@ -66,7 +66,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -115,7 +115,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -170,7 +170,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@33"
+              "$ref": "#/rules@38"
             },
             "arguments": []
           },
@@ -184,35 +184,35 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@37"
+              "$ref": "#/rules@42"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@43"
+              "$ref": "#/rules@48"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@44"
+              "$ref": "#/rules@49"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@45"
+              "$ref": "#/rules@50"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@46"
+              "$ref": "#/rules@51"
             },
             "arguments": []
           }
@@ -239,7 +239,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -314,7 +314,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -342,7 +342,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -460,7 +460,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@47"
+              "$ref": "#/rules@52"
             },
             "arguments": []
           }
@@ -487,7 +487,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -531,7 +531,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -564,7 +564,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@55"
+                  "$ref": "#/rules@60"
                 },
                 "arguments": []
               },
@@ -595,7 +595,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -657,7 +657,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -706,7 +706,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -786,7 +786,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@55"
+                  "$ref": "#/rules@60"
                 },
                 "arguments": []
               },
@@ -817,7 +817,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -892,7 +892,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@48"
+                "$ref": "#/rules@53"
               },
               "arguments": []
             }
@@ -925,7 +925,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@55"
+                  "$ref": "#/rules@60"
                 },
                 "arguments": []
               },
@@ -956,7 +956,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -981,7 +981,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@55"
+                  "$ref": "#/rules@60"
                 },
                 "arguments": []
               },
@@ -1005,7 +1005,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@55"
+                  "$ref": "#/rules@60"
                 },
                 "arguments": []
               },
@@ -1040,7 +1040,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@56"
+                "$ref": "#/rules@61"
               },
               "arguments": []
             }
@@ -1131,7 +1131,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@55"
+                  "$ref": "#/rules@60"
                 },
                 "arguments": []
               },
@@ -1167,7 +1167,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@55"
+                  "$ref": "#/rules@60"
                 },
                 "arguments": []
               },
@@ -1216,7 +1216,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@55"
+                  "$ref": "#/rules@60"
                 },
                 "arguments": []
               },
@@ -1304,7 +1304,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1320,7 +1320,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@52"
+                "$ref": "#/rules@57"
               },
               "arguments": []
             }
@@ -1344,7 +1344,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1360,7 +1360,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1390,6 +1390,19 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
               "arguments": []
             },
             "cardinality": "*"
+          },
+          {
+            "$type": "Assignment",
+            "feature": "mapping",
+            "operator": "=",
+            "terminal": {
+              "$type": "RuleCall",
+              "rule": {
+                "$ref": "#/rules@33"
+              },
+              "arguments": []
+            },
+            "cardinality": "?"
           }
         ]
       },
@@ -1449,6 +1462,291 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
     },
     {
       "$type": "ParserRule",
+      "name": "FieldMapping",
+      "definition": {
+        "$type": "Alternatives",
+        "elements": [
+          {
+            "$type": "RuleCall",
+            "rule": {
+              "$ref": "#/rules@34"
+            },
+            "arguments": []
+          },
+          {
+            "$type": "RuleCall",
+            "rule": {
+              "$ref": "#/rules@35"
+            },
+            "arguments": []
+          }
+        ]
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": []
+    },
+    {
+      "$type": "ParserRule",
+      "name": "FieldSourceMapping",
+      "definition": {
+        "$type": "Group",
+        "elements": [
+          {
+            "$type": "Keyword",
+            "value": "from"
+          },
+          {
+            "$type": "Assignment",
+            "feature": "sources",
+            "operator": "+=",
+            "terminal": {
+              "$type": "RuleCall",
+              "rule": {
+                "$ref": "#/rules@37"
+              },
+              "arguments": []
+            }
+          },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": ","
+              },
+              {
+                "$type": "Assignment",
+                "feature": "sources",
+                "operator": "+=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@37"
+                  },
+                  "arguments": []
+                }
+              }
+            ],
+            "cardinality": "*"
+          }
+        ]
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": []
+    },
+    {
+      "$type": "ParserRule",
+      "name": "FieldDerivation",
+      "definition": {
+        "$type": "Group",
+        "elements": [
+          {
+            "$type": "Keyword",
+            "value": "derived"
+          },
+          {
+            "$type": "Alternatives",
+            "elements": [
+              {
+                "$type": "Assignment",
+                "feature": "details",
+                "operator": "=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@36"
+                  },
+                  "arguments": []
+                }
+              },
+              {
+                "$type": "Group",
+                "elements": [
+                  {
+                    "$type": "Keyword",
+                    "value": "from"
+                  },
+                  {
+                    "$type": "Assignment",
+                    "feature": "sources",
+                    "operator": "+=",
+                    "terminal": {
+                      "$type": "RuleCall",
+                      "rule": {
+                        "$ref": "#/rules@37"
+                      },
+                      "arguments": []
+                    }
+                  },
+                  {
+                    "$type": "Group",
+                    "elements": [
+                      {
+                        "$type": "Keyword",
+                        "value": ","
+                      },
+                      {
+                        "$type": "Assignment",
+                        "feature": "sources",
+                        "operator": "+=",
+                        "terminal": {
+                          "$type": "RuleCall",
+                          "rule": {
+                            "$ref": "#/rules@37"
+                          },
+                          "arguments": []
+                        }
+                      }
+                    ],
+                    "cardinality": "*"
+                  }
+                ]
+              }
+            ],
+            "cardinality": "?"
+          }
+        ]
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": []
+    },
+    {
+      "$type": "ParserRule",
+      "name": "FieldMappingDetails",
+      "definition": {
+        "$type": "Group",
+        "elements": [
+          {
+            "$type": "Keyword",
+            "value": "{"
+          },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "from"
+              },
+              {
+                "$type": "Assignment",
+                "feature": "sources",
+                "operator": "+=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@37"
+                  },
+                  "arguments": []
+                }
+              },
+              {
+                "$type": "Group",
+                "elements": [
+                  {
+                    "$type": "Keyword",
+                    "value": ","
+                  },
+                  {
+                    "$type": "Assignment",
+                    "feature": "sources",
+                    "operator": "+=",
+                    "terminal": {
+                      "$type": "RuleCall",
+                      "rule": {
+                        "$ref": "#/rules@37"
+                      },
+                      "arguments": []
+                    }
+                  }
+                ],
+                "cardinality": "*"
+              }
+            ],
+            "cardinality": "?"
+          },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "rule"
+              },
+              {
+                "$type": "Assignment",
+                "feature": "rule",
+                "operator": "=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@61"
+                  },
+                  "arguments": []
+                }
+              }
+            ],
+            "cardinality": "?"
+          },
+          {
+            "$type": "Keyword",
+            "value": "}"
+          }
+        ]
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": []
+    },
+    {
+      "$type": "ParserRule",
+      "name": "FieldSource",
+      "definition": {
+        "$type": "Group",
+        "elements": [
+          {
+            "$type": "Assignment",
+            "feature": "parts",
+            "operator": "+=",
+            "terminal": {
+              "$type": "RuleCall",
+              "rule": {
+                "$ref": "#/rules@60"
+              },
+              "arguments": []
+            }
+          },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "."
+              },
+              {
+                "$type": "Assignment",
+                "feature": "parts",
+                "operator": "+=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@60"
+                  },
+                  "arguments": []
+                }
+              }
+            ],
+            "cardinality": "*"
+          }
+        ]
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": []
+    },
+    {
+      "$type": "ParserRule",
       "name": "Integration",
       "definition": {
         "$type": "Group",
@@ -1464,7 +1762,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1480,7 +1778,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@34"
+                "$ref": "#/rules@39"
               },
               "arguments": []
             },
@@ -1505,14 +1803,14 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@35"
+              "$ref": "#/rules@40"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@36"
+              "$ref": "#/rules@41"
             },
             "arguments": []
           },
@@ -1567,7 +1865,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1595,7 +1893,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1623,7 +1921,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1651,7 +1949,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@38"
+                "$ref": "#/rules@43"
               },
               "arguments": []
             }
@@ -1687,7 +1985,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@39"
+                "$ref": "#/rules@44"
               },
               "arguments": []
             },
@@ -1712,21 +2010,21 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@40"
+              "$ref": "#/rules@45"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@41"
+              "$ref": "#/rules@46"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@42"
+              "$ref": "#/rules@47"
             },
             "arguments": []
           }
@@ -1753,7 +2051,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1779,7 +2077,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           "terminal": {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@55"
+              "$ref": "#/rules@60"
             },
             "arguments": []
           },
@@ -1806,7 +2104,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           "terminal": {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@55"
+              "$ref": "#/rules@60"
             },
             "arguments": []
           },
@@ -1835,7 +2133,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@56"
+                "$ref": "#/rules@61"
               },
               "arguments": []
             }
@@ -1863,7 +2161,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@56"
+                "$ref": "#/rules@61"
               },
               "arguments": []
             }
@@ -1891,7 +2189,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@56"
+                "$ref": "#/rules@61"
               },
               "arguments": []
             }
@@ -1919,7 +2217,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@60"
               },
               "arguments": []
             }
@@ -1947,7 +2245,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@56"
+                "$ref": "#/rules@61"
               },
               "arguments": []
             }
@@ -1968,7 +2266,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
       "definition": {
         "$type": "RuleCall",
         "rule": {
-          "$ref": "#/rules@49"
+          "$ref": "#/rules@54"
         },
         "arguments": []
       },
@@ -1989,7 +2287,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@50"
+              "$ref": "#/rules@55"
             },
             "arguments": []
           },
@@ -2046,7 +2344,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@50"
+                    "$ref": "#/rules@55"
                   },
                   "arguments": []
                 }
@@ -2069,14 +2367,14 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@52"
+              "$ref": "#/rules@57"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@51"
+              "$ref": "#/rules@56"
             },
             "arguments": []
           }
@@ -2101,7 +2399,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           "terminal": {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@55"
+              "$ref": "#/rules@60"
             },
             "arguments": []
           },
@@ -2122,14 +2420,14 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@53"
+              "$ref": "#/rules@58"
             },
             "arguments": []
           },
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@54"
+              "$ref": "#/rules@59"
             },
             "arguments": []
           }
@@ -2149,7 +2447,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@56"
+            "$ref": "#/rules@61"
           },
           "arguments": []
         }
@@ -2168,7 +2466,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@57"
+            "$ref": "#/rules@62"
           },
           "arguments": []
         }

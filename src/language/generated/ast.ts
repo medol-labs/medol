@@ -19,6 +19,8 @@ export type EventModelingTerminalNames = keyof typeof EventModelingTerminals;
 
 export type EventModelingKeywordNames =
     | "!="
+    | ","
+    | "."
     | ":"
     | "<"
     | "<="
@@ -36,10 +38,12 @@ export type EventModelingKeywordNames =
     | "context"
     | "createsAggregate"
     | "decision"
+    | "derived"
     | "domain"
     | "emits"
     | "event"
     | "example"
+    | "from"
     | "generated"
     | "given"
     | "hotspot"
@@ -54,6 +58,7 @@ export type EventModelingKeywordNames =
     | "query"
     | "reactsTo"
     | "risk"
+    | "rule"
     | "slice"
     | "source"
     | "specification"
@@ -398,6 +403,7 @@ export interface Field extends langium.AstNode {
     readonly $type: 'Field';
     attributes: Array<FieldAttribute>;
     cardinality?: Cardinality;
+    mapping?: FieldMapping;
     name: string;
     type: string;
 }
@@ -406,6 +412,7 @@ export const Field = {
     $type: 'Field',
     attributes: 'attributes',
     cardinality: 'cardinality',
+    mapping: 'mapping',
     name: 'name',
     type: 'type'
 } as const;
@@ -418,6 +425,80 @@ export type FieldAttribute = 'generated' | 'id' | 'query' | 'technical';
 
 export function isFieldAttribute(item: unknown): item is FieldAttribute {
     return item === 'id' || item === 'generated' || item === 'technical' || item === 'query';
+}
+
+export interface FieldDerivation extends langium.AstNode {
+    readonly $container: Field;
+    readonly $type: 'FieldDerivation';
+    details?: FieldMappingDetails;
+    sources: Array<FieldSource>;
+}
+
+export const FieldDerivation = {
+    $type: 'FieldDerivation',
+    details: 'details',
+    sources: 'sources'
+} as const;
+
+export function isFieldDerivation(item: unknown): item is FieldDerivation {
+    return reflection.isInstance(item, FieldDerivation.$type);
+}
+
+export type FieldMapping = FieldDerivation | FieldSourceMapping;
+
+export const FieldMapping = {
+    $type: 'FieldMapping'
+} as const;
+
+export function isFieldMapping(item: unknown): item is FieldMapping {
+    return reflection.isInstance(item, FieldMapping.$type);
+}
+
+export interface FieldMappingDetails extends langium.AstNode {
+    readonly $container: FieldDerivation;
+    readonly $type: 'FieldMappingDetails';
+    rule?: string;
+    sources: Array<FieldSource>;
+}
+
+export const FieldMappingDetails = {
+    $type: 'FieldMappingDetails',
+    rule: 'rule',
+    sources: 'sources'
+} as const;
+
+export function isFieldMappingDetails(item: unknown): item is FieldMappingDetails {
+    return reflection.isInstance(item, FieldMappingDetails.$type);
+}
+
+export interface FieldSource extends langium.AstNode {
+    readonly $container: FieldDerivation | FieldMappingDetails | FieldSourceMapping;
+    readonly $type: 'FieldSource';
+    parts: Array<string>;
+}
+
+export const FieldSource = {
+    $type: 'FieldSource',
+    parts: 'parts'
+} as const;
+
+export function isFieldSource(item: unknown): item is FieldSource {
+    return reflection.isInstance(item, FieldSource.$type);
+}
+
+export interface FieldSourceMapping extends langium.AstNode {
+    readonly $container: Field;
+    readonly $type: 'FieldSourceMapping';
+    sources: Array<FieldSource>;
+}
+
+export const FieldSourceMapping = {
+    $type: 'FieldSourceMapping',
+    sources: 'sources'
+} as const;
+
+export function isFieldSourceMapping(item: unknown): item is FieldSourceMapping {
+    return reflection.isInstance(item, FieldSourceMapping.$type);
 }
 
 export interface Given extends langium.AstNode {
@@ -903,6 +984,11 @@ export type EventModelingAstType = {
     ExampleBlock: ExampleBlock
     Expression: Expression
     Field: Field
+    FieldDerivation: FieldDerivation
+    FieldMapping: FieldMapping
+    FieldMappingDetails: FieldMappingDetails
+    FieldSource: FieldSource
+    FieldSourceMapping: FieldSourceMapping
     Given: Given
     Hotspot: Hotspot
     Integration: Integration
@@ -1167,6 +1253,9 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
                 cardinality: {
                     name: Field.cardinality
                 },
+                mapping: {
+                    name: Field.mapping
+                },
                 name: {
                     name: Field.name
                 },
@@ -1175,6 +1264,58 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [ProjectionElement.$type]
+        },
+        FieldDerivation: {
+            name: FieldDerivation.$type,
+            properties: {
+                details: {
+                    name: FieldDerivation.details
+                },
+                sources: {
+                    name: FieldDerivation.sources,
+                    defaultValue: []
+                }
+            },
+            superTypes: [FieldMapping.$type]
+        },
+        FieldMapping: {
+            name: FieldMapping.$type,
+            properties: {
+            },
+            superTypes: []
+        },
+        FieldMappingDetails: {
+            name: FieldMappingDetails.$type,
+            properties: {
+                rule: {
+                    name: FieldMappingDetails.rule
+                },
+                sources: {
+                    name: FieldMappingDetails.sources,
+                    defaultValue: []
+                }
+            },
+            superTypes: []
+        },
+        FieldSource: {
+            name: FieldSource.$type,
+            properties: {
+                parts: {
+                    name: FieldSource.parts,
+                    defaultValue: []
+                }
+            },
+            superTypes: []
+        },
+        FieldSourceMapping: {
+            name: FieldSourceMapping.$type,
+            properties: {
+                sources: {
+                    name: FieldSourceMapping.sources,
+                    defaultValue: []
+                }
+            },
+            superTypes: [FieldMapping.$type]
         },
         Given: {
             name: Given.$type,

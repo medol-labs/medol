@@ -3708,6 +3708,16 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "Dataset.featureSchemaId",
+                    "ValidateDatasetContract.featureSchemaId"
+                  ],
+                  "rule": "Validate dataset feature schema compatibility."
+                }
+              ],
               "subfields": []
             },
             {
@@ -3719,6 +3729,16 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "Dataset.labelSchema",
+                    "FeatureSchema"
+                  ],
+                  "rule": "Validate dataset label compatibility."
+                }
+              ],
               "subfields": []
             },
             {
@@ -3730,6 +3750,16 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "Dataset.statistics",
+                    "ValidationProfile"
+                  ],
+                  "rule": "Score dataset quality against the validation profile."
+                }
+              ],
               "subfields": []
             },
             {
@@ -3741,6 +3771,16 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "Dataset.statistics",
+                    "ValidationProfile"
+                  ],
+                  "rule": "Score dataset distribution skew for training selection."
+                }
+              ],
               "subfields": []
             }
           ],
@@ -6514,6 +6554,15 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "TrainingJob.trainingStrategy"
+                  ],
+                  "rule": "Derive the minimum selected nodes from the configured training strategy."
+                }
+              ],
               "subfields": []
             }
           ],

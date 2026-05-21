@@ -391,15 +391,27 @@ context DatasetGovernance {
         datasetId: UUID id technical
         featureSchemaId: UUID
         validationProfile: String
-      }
 
+      }
       event DatasetContractValidated {
         datasetId: UUID id technical
         featureSchemaId: UUID
-        schemaCompatible: Boolean
-        labelCompatible: Boolean
-        qualityScore: Decimal
-        nonIidScore: Decimal
+        schemaCompatible: Boolean derived {
+          from Dataset.featureSchemaId, ValidateDatasetContract.featureSchemaId
+          rule "Validate dataset feature schema compatibility."
+        }
+        labelCompatible: Boolean derived {
+          from Dataset.labelSchema, FeatureSchema
+          rule "Validate dataset label compatibility."
+        }
+        qualityScore: Decimal derived {
+          from Dataset.statistics, ValidationProfile
+          rule "Score dataset quality against the validation profile."
+        }
+        nonIidScore: Decimal derived {
+          from Dataset.statistics, ValidationProfile
+          rule "Score dataset distribution skew for training selection."
+        }
       }
 
       state ContractValidated
@@ -706,7 +718,10 @@ context TrainingOrchestration {
 
       event TrainingJobSubmitted {
         trainingJobId: UUID id technical
-        minimumNodesPerRound: Int
+        minimumNodesPerRound: Int derived {
+          from TrainingJob.trainingStrategy
+          rule "Derive the minimum selected nodes from the configured training strategy."
+        }
       }
 
       state Submitted

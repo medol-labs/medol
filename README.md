@@ -198,6 +198,10 @@ fieldName: Type
 fieldName: Type?
 fieldName: Type[]
 fieldName: Type id generated technical query
+copiedName: Type from UpstreamElement.sourceName
+computedName: Type derived
+computedName: Type derived from Aggregate.policy
+computedName: Type derived { from Aggregate.state, Command.input rule "Explain the domain rule." }
 ```
 
 Supported field attributes:
@@ -206,6 +210,12 @@ Supported field attributes:
 - `generated`
 - `technical`
 - `query`
+
+Field mappings:
+
+- `from`: Maps a field directly from one or more upstream element or field paths.
+- `derived`: Marks a field produced from a domain rule or aggregate state rather than copied input.
+- `derived { from ... rule "..." }`: Keeps the derivation sources and confirmed rule with the field. DSL-to-config writes these as field `mappings`.
 
 Cardinality:
 

@@ -11,6 +11,14 @@ interface ConfigField {
   generated?: boolean;
   technicalAttribute?: boolean;
   query?: boolean;
+  derived?: boolean;
+  mappings?: Array<string | ConfigFieldMapping>;
+}
+
+interface ConfigFieldMapping {
+  type?: 'DIRECT' | 'DERIVED';
+  from?: string[];
+  rule?: string;
 }
 
 interface ConfigElement {
@@ -153,8 +161,34 @@ const formatField = (field: ConfigField): string => {
     field.technicalAttribute ? 'technical' : '',
     field.query ? 'query' : ''
   ].filter(Boolean);
-  return `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;
+  const prefix = `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;
+  return `${prefix}${formatMapping(field)}`;
 };
+
+const formatMapping = (field: ConfigField): string => {
+  const mapping = field.mappings?.[0];
+  if (typeof mapping === 'string') {
+    return ` from ${formatSources([mapping])}`;
+  }
+  if (!mapping) {
+    return field.derived ? ' derived' : '';
+  }
+
+  const sources = mapping.from ?? [];
+  if (mapping.type !== 'DERIVED') {
+    return sources.length ? ` from ${formatSources(sources)}` : '';
+  }
+  if (!mapping.rule) {
+    return sources.length ? ` derived from ${formatSources(sources)}` : ' derived';
+  }
+
+  return ` derived {${sources.length ? ` from ${formatSources(sources)}` : ''} rule ${quote(mapping.rule)} }`;
+};
+
+const formatSources = (sources: string[]): string =>
+  sources
+    .map((source) => source.split('.').map((part) => toDslId(part, 'Source')).join('.'))
+    .join(', ');
 
 const runCli = (): void => {
   const input = process.argv[2];

@@ -11,7 +11,14 @@ interface ConfigField {
   generated: boolean;
   technicalAttribute: boolean;
   query: boolean;
+  mappings?: ConfigFieldMapping[];
   subfields: [];
+}
+
+interface ConfigFieldMapping {
+  type: 'DIRECT' | 'DERIVED';
+  from: string[];
+  rule?: string;
 }
 
 interface ConfigElement {
@@ -361,7 +368,14 @@ const toConfigField = (field: EmField): ConfigField => ({
   generated: field.attributes.includes('generated'),
   technicalAttribute: field.attributes.includes('technical'),
   query: field.attributes.includes('query'),
+  ...(field.mapping ? { mappings: [toConfigFieldMapping(field.mapping)] } : {}),
   subfields: []
+});
+
+const toConfigFieldMapping = (mapping: NonNullable<EmField['mapping']>): ConfigFieldMapping => ({
+  type: mapping.kind === 'derived' ? 'DERIVED' : 'DIRECT',
+  from: mapping.sources,
+  ...(mapping.rule ? { rule: mapping.rule } : {})
 });
 
 const pushDependency = (

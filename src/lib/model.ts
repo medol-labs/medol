@@ -16,6 +16,13 @@ export interface EmField {
   type: string;
   cardinality?: 'Single' | 'List' | 'Optional';
   attributes: string[];
+  mapping?: EmFieldMapping;
+}
+
+export interface EmFieldMapping {
+  kind: 'from' | 'derived';
+  sources: string[];
+  rule?: string;
 }
 
 export interface EmElement {

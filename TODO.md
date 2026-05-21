@@ -3,10 +3,10 @@
 ## issues
 
 - 所有字段要有来源，ui、生成等
-    - 状态已处理，其它字段 command、event、ui 除生成外一一对应，
+  - 状态已处理，其它字段 command、event、ui 除生成外一一对应，
 - state 语法支持多字段，默认 state DONE,支持多个 state trustState NO
-- specification throw exception 
-- [X] 字段可为空标识
+- specification throw exception
+- [x] 字段可为空标识
   - 已有- 类型后加?
 - 自定义字段类型-嵌套子类
 - 数组字段类型
@@ -15,17 +15,19 @@
 - 样例数据
 - hotspot 作用
 - 要做一个 agent ，了解 DSL 后调用大模型回答问题
-- INTERNAL EXTERNAL 表达调用外部系统或方法
+- [x] INTERNAL EXTERNAL 表达调用外部系统或方法
 - DSL 支持加备注
-- FL 业务 - feature schema 与 dataset 是否是一个聚合
-- [X] policy?
+- [x] FL 业务 - feature schema 与 dataset 是否是一个聚合
+- [x] policy?
   - 事件自动触发
-- [X] 完善 Automation
+- [x] 完善 Automation
   - policy 补充场景
   - 基于读模型等，判断满足条件后处罚
-- Training Round 缺少调用 EdgeRuntime 训练 slice
-- Training Round 多轮？
-- 数据集应包含训练集与评估集
+- [x] Training Round 缺少调用 EdgeRuntime 训练 slice
+- [x] Training Round 多轮？
+- [x] 数据集应包含训练集与评估集
+- [ ] 语法校验
+- [ ] 字段完整性校验
 
 ##
 
