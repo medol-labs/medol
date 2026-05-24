@@ -94,6 +94,7 @@ interface ConfigSlice {
   status: 'Created';
   index: number;
   title: string;
+  chapter: string;
   context: string;
   sliceType: 'STATE_CHANGE';
   commands: ConfigElement[];
@@ -117,10 +118,16 @@ export interface ConfigRoot {
   actors: Array<{ id: string; name: string; title: string }>;
   domain?: string;
   context: string;
-  codeGen: Record<string, never>;
+  codeGen: ConfigCodeGen;
   sliceGroups: [];
   sliceImages: Record<string, never>;
   sliceLayouts: Record<string, never>;
+}
+
+interface ConfigCodeGen {
+  application: string;
+  rootPackage: 'tech.medo';
+  contextPackage: string;
 }
 
 export const dslToConfig = (dsl: string): ConfigRoot => modelToConfig(parseEventModelingDsl(dsl));
@@ -200,12 +207,18 @@ export const modelToConfig = (model: EmModel): ConfigRoot => {
     actors: [...actorRecords.values()],
     ...(model.domains[0] ? { domain: model.domains[0].name } : {}),
     context,
-    codeGen: {},
+    codeGen: toConfigCodeGen(model, context),
     sliceGroups: [],
     sliceImages: {},
     sliceLayouts: {}
   };
 };
+
+const toConfigCodeGen = (model: EmModel, context: string): ConfigCodeGen => ({
+  application: model.domains[0]?.name ?? '',
+  rootPackage: 'tech.medo',
+  contextPackage: context
+});
 
 const toConfigSlice = (
   slice: EmSlice,
@@ -234,6 +247,7 @@ const toConfigSlice = (
     status: 'Created',
     index,
     title: humanize(slice.name),
+    chapter: context,
     context,
     sliceType: 'STATE_CHANGE',
     commands: commands.map((element, commandIndex) =>

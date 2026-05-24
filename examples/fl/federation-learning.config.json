@@ -5,6 +5,7 @@
       "status": "Created",
       "index": 0,
       "title": "Register Organization",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -358,6 +359,7 @@
       "status": "Created",
       "index": 1,
       "title": "Verify Organization Identity",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -580,6 +582,7 @@
       "status": "Created",
       "index": 2,
       "title": "Activate Organization",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -792,6 +795,7 @@
       "status": "Created",
       "index": 3,
       "title": "Deactivate Organization",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -992,6 +996,7 @@
       "status": "Created",
       "index": 4,
       "title": "Organization Directory",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [],
@@ -1156,6 +1161,7 @@
       "status": "Created",
       "index": 5,
       "title": "Create Federation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -1581,6 +1587,7 @@
       "status": "Created",
       "index": 6,
       "title": "Invite Participant",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -1867,6 +1874,7 @@
       "status": "Created",
       "index": 7,
       "title": "Approve Participant",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -2171,6 +2179,7 @@
       "status": "Created",
       "index": 8,
       "title": "Federation Overview",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [],
@@ -2341,6 +2350,7 @@
       "status": "Created",
       "index": 9,
       "title": "Register Compute Node",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -2651,6 +2661,7 @@
       "status": "Created",
       "index": 10,
       "title": "Update Node Capability",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -2961,6 +2972,7 @@
       "status": "Created",
       "index": 11,
       "title": "Trust Compute Node",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -3217,6 +3229,7 @@
       "status": "Created",
       "index": 12,
       "title": "Suspend Compute Node",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -3417,6 +3430,7 @@
       "status": "Created",
       "index": 13,
       "title": "Node Inventory",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [],
@@ -3608,6 +3622,7 @@
       "status": "Created",
       "index": 14,
       "title": "Define Feature Schema",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -3840,6 +3855,7 @@
       "status": "Created",
       "index": 15,
       "title": "Register Dataset",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -4216,6 +4232,7 @@
       "status": "Created",
       "index": 16,
       "title": "Validate Dataset Contract",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -4459,6 +4476,7 @@
       "status": "Created",
       "index": 17,
       "title": "Approve Dataset For Training",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -4819,6 +4837,7 @@
       "status": "Created",
       "index": 18,
       "title": "Configure Dataset Access Profile",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -5245,6 +5264,7 @@
       "status": "Created",
       "index": 19,
       "title": "Request Runtime Dataset Access Validation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -5471,6 +5491,7 @@
       "status": "Created",
       "index": 20,
       "title": "Complete Runtime Dataset Access Validation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -5858,6 +5879,7 @@
       "status": "Created",
       "index": 21,
       "title": "Declare Training Evaluation Datasets",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -6464,6 +6486,7 @@
       "status": "Created",
       "index": 22,
       "title": "Create Training Job",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -6862,6 +6885,7 @@
       "status": "Created",
       "index": 23,
       "title": "Configure Training Strategy",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -7150,6 +7174,7 @@
       "status": "Created",
       "index": 24,
       "title": "Submit Training Job",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -7474,6 +7499,7 @@
       "status": "Created",
       "index": 25,
       "title": "Request Node Participation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -7921,6 +7947,7 @@
       "status": "Created",
       "index": 26,
       "title": "Accept Node Participation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -8275,6 +8302,7 @@
       "status": "Created",
       "index": 27,
       "title": "Track Training Job Running",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -8491,6 +8519,7 @@
       "status": "Created",
       "index": 28,
       "title": "Schedule Next Training Round",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [],
@@ -8553,6 +8582,7 @@
       "status": "Created",
       "index": 29,
       "title": "Complete Training Job",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -8833,6 +8863,7 @@
       "status": "Created",
       "index": 30,
       "title": "Start Training Round",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -9101,6 +9132,7 @@
       "status": "Created",
       "index": 31,
       "title": "Distribute Global Model",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -9339,6 +9371,7 @@
       "status": "Created",
       "index": 32,
       "title": "Submit Local Model Update",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -9731,6 +9764,7 @@
       "status": "Created",
       "index": 33,
       "title": "Submit Local Model Evaluation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -10036,6 +10070,7 @@
       "status": "Created",
       "index": 34,
       "title": "Request Secure Aggregation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -10268,6 +10303,7 @@
       "status": "Created",
       "index": 35,
       "title": "Complete Secure Aggregation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -10463,6 +10499,7 @@
       "status": "Created",
       "index": 36,
       "title": "Submit Global Model Evaluation",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -10752,6 +10789,7 @@
       "status": "Created",
       "index": 37,
       "title": "Complete Training Round",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -11191,6 +11229,7 @@
       "status": "Created",
       "index": 38,
       "title": "Register Candidate Model",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -11479,6 +11518,7 @@
       "status": "Created",
       "index": 39,
       "title": "Approve Model",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -11679,6 +11719,7 @@
       "status": "Created",
       "index": 40,
       "title": "Promote Model To Production",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -11983,6 +12024,7 @@
       "status": "Created",
       "index": 41,
       "title": "Record Runtime Heartbeat",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -12359,6 +12401,7 @@
       "status": "Created",
       "index": 42,
       "title": "Raise Training Alert",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -12619,6 +12662,7 @@
       "status": "Created",
       "index": 43,
       "title": "Append Audit Trail",
+      "chapter": "FederationLearningPlatform",
       "context": "FederationLearningPlatform",
       "sliceType": "STATE_CHANGE",
       "commands": [
@@ -13111,7 +13155,11 @@
   ],
   "domain": "FederationLearningPlatform",
   "context": "FederationLearningPlatform",
-  "codeGen": {},
+  "codeGen": {
+    "application": "FederationLearningPlatform",
+    "rootPackage": "tech.medo",
+    "contextPackage": "FederationLearningPlatform"
+  },
   "sliceGroups": [],
   "sliceImages": {},
   "sliceLayouts": {}
