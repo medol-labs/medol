@@ -776,6 +776,7 @@ context TrainingOrchestration {
     state Submitted
     state RecruitingNodes
     state Running
+    state Paused
     state Completed
 
     slice CreateTrainingJob {
@@ -951,6 +952,50 @@ context TrainingOrchestration {
         trainingRunConfigurationId: UUID
         roundId: UUID
         roundNumber: Int
+      }
+
+      state Running
+    }
+
+    slice PauseTrainingJob {
+      actor MLOpsEngineer
+      ui TrainingOperationsScreen
+      reactsTo TrainingJobRunning
+
+      command PauseTrainingJob {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        pauseReason: String
+        requestedBy: String
+      }
+
+      event TrainingJobPaused {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        pauseReason: String
+        requestedBy: String
+      }
+
+      state Paused
+    }
+
+    slice ResumeTrainingJob {
+      actor MLOpsEngineer
+      ui TrainingOperationsScreen
+      reactsTo TrainingJobPaused
+
+      command ResumeTrainingJob {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        resumeReason: String?
+        requestedBy: String
+      }
+
+      event TrainingJobResumed {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        resumeReason: String?
+        requestedBy: String
       }
 
       state Running
