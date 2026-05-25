@@ -122,7 +122,7 @@ export function isAggregateFeature(item: unknown): item is AggregateFeature {
 export interface Assignment extends langium.AstNode {
     readonly $container: ExampleBlock;
     readonly $type: 'Assignment';
-    field: string;
+    field: FieldName;
     value: Literal;
 }
 
@@ -405,7 +405,7 @@ export interface Field extends langium.AstNode {
     cardinality?: Cardinality;
     details?: FieldDetails;
     mapping?: FieldMapping;
-    name: string;
+    name: FieldName;
     type: string;
 }
 
@@ -473,10 +473,16 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
+export type FieldName = 'domain' | 'event' | 'state' | string;
+
+export function isFieldName(item: unknown): item is FieldName {
+    return item === 'domain' || item === 'event' || item === 'state' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+}
+
 export interface FieldSource extends langium.AstNode {
     readonly $container: FieldDerivation | FieldDetails | FieldSourceMapping;
     readonly $type: 'FieldSource';
-    parts: Array<string>;
+    parts: Array<FieldName>;
 }
 
 export const FieldSource = {

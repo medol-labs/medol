@@ -72,17 +72,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "countryCode",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "COMMAND",
@@ -169,17 +158,6 @@
             },
             {
               "name": "legalEntityId",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "countryCode",
               "type": "String",
               "cardinality": "Single",
               "optional": false,

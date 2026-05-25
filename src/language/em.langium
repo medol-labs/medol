@@ -167,11 +167,18 @@ ExampleBlock:
 ;
 
 Assignment:
-    field=ID '=' value=Literal
+    field=FieldName '=' value=Literal
 ;
 
 Field:
-    name=ID ':' type=ID cardinality=Cardinality? attributes+=FieldAttribute* mapping=FieldMapping? details=FieldDetails?
+    name=FieldName ':' type=ID cardinality=Cardinality? attributes+=FieldAttribute* mapping=FieldMapping? details=FieldDetails?
+;
+
+FieldName returns string:
+      ID
+    | 'domain'
+    | 'event'
+    | 'state'
 ;
 
 Cardinality returns string:
@@ -208,7 +215,7 @@ FieldDetails:
 ;
 
 FieldSource:
-    parts+=ID ('.' parts+=ID)*
+    parts+=FieldName ('.' parts+=FieldName)*
 ;
 
 Integration:
