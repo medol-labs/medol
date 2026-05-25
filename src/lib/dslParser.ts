@@ -1,58 +1,69 @@
+import { createDefaultCoreModule, createDefaultSharedCoreModule, EmptyFileSystem, inject } from 'langium';
+import { EventModelingGeneratedModule, EventModelingGeneratedSharedModule } from '../language/generated/module';
+import {
+  isActorRef,
+  isAggregate,
+  isAutomation,
+  isBinaryExpr,
+  isCommand,
+  isCreatesAggregateMarker,
+  isEvent,
+  isField,
+  isFieldDerivation,
+  isFieldSourceMapping,
+  isIntegration,
+  isNumberLiteral,
+  isPolicy,
+  isProjection,
+  isReactsTo,
+  isRefExpr,
+  isSlice,
+  isSource,
+  isSpecification,
+  isState,
+  isStringLiteral,
+  isSubscription,
+  isTarget,
+  isUiRef
+} from '../language/generated/ast';
+import type {
+  Aggregate as AstAggregate,
+  Automation as AstAutomation,
+  Command as AstCommand,
+  Context as AstContext,
+  Domain as AstDomain,
+  Event as AstEvent,
+  Expression,
+  Field as AstField,
+  FieldSource,
+  Integration as AstIntegration,
+  Model as AstModel,
+  Policy as AstPolicy,
+  Projection as AstProjection,
+  Slice as AstSlice,
+  Specification as AstSpecification
+} from '../language/generated/ast';
 import { EmAggregate, EmContext, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, emptyModel } from './model';
 
-interface Block {
-  keyword: string;
-  name: string;
-  body: string;
-  start: number;
-  end: number;
-}
+const sharedServices = inject(
+  createDefaultSharedCoreModule(EmptyFileSystem),
+  EventModelingGeneratedSharedModule
+);
 
-const blockKeywords = [
-  'domain',
-  'context',
-  'aggregate',
-  'slice',
-  'command',
-  'event',
-  'projection',
-  'automation',
-  'policy',
-  'specification',
-  'integration',
-  'userJourney'
-];
-
-const elementKinds = new Set(['command', 'event', 'projection', 'automation', 'policy', 'specification', 'integration']);
+const eventModelingServices = inject(
+  createDefaultCoreModule({ shared: sharedServices }),
+  EventModelingGeneratedModule
+);
 
 export const parseEventModelingDsl = (text: string): EmModel => {
-  const model = emptyModel();
-  const domainBlocks = findBlocks(text, 'domain');
+  const parseResult = eventModelingServices.parser.LangiumParser.parse<AstModel>(text);
+  const model = astToEmModel(parseResult.value);
 
-  for (const domainBlock of domainBlocks) {
-    const domain: EmDomain = {
-      id: scopedId('domain', domainBlock.name),
-      name: domainBlock.name,
-      contexts: []
-    };
-
-    for (const contextBlock of findBlocks(domainBlock.body, 'context')) {
-      const context = parseContext(contextBlock, domain.id, model.edges);
-      domain.contexts.push(context);
-      model.contexts.push(context);
-    }
-
-    if (domain.contexts.length === 0) {
-      model.diagnostics.push(`Domain ${domain.name} does not contain a context block.`);
-    }
-
-    model.domains.push(domain);
+  for (const lexerError of parseResult.lexerErrors) {
+    model.diagnostics.push(lexerError.message);
   }
-
-  const directContexts = findTopLevelBlocks(text, domainBlocks.map(toRange))
-    .filter((block) => block.keyword === 'context');
-  for (const contextBlock of directContexts) {
-    model.contexts.push(parseContext(contextBlock, undefined, model.edges));
+  for (const parserError of parseResult.parserErrors) {
+    model.diagnostics.push(parserError.message);
   }
 
   if (model.contexts.length === 0 && text.trim().length > 0) {
@@ -64,98 +75,125 @@ export const parseEventModelingDsl = (text: string): EmModel => {
   return model;
 };
 
-const parseContext = (block: Block, domainId: string | undefined, edges: EmEdge[]): EmContext => {
+export const astToEmModel = (ast: AstModel): EmModel => {
+  const model = emptyModel();
+
+  for (const domainNode of ast.domains ?? []) {
+    const domain = parseDomain(domainNode, model.edges);
+    model.domains.push(domain);
+    model.contexts.push(...domain.contexts);
+  }
+
+  for (const contextNode of ast.contexts ?? []) {
+    model.contexts.push(parseContext(contextNode, undefined, model.edges));
+  }
+
+  return model;
+};
+
+const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
+  const domain: EmDomain = {
+    id: scopedId('domain', node.name),
+    name: node.name,
+    contexts: []
+  };
+
+  for (const contextNode of node.contexts) {
+    domain.contexts.push(parseContext(contextNode, domain.id, edges));
+  }
+
+  return domain;
+};
+
+const parseContext = (node: AstContext, domainId: string | undefined, edges: EmEdge[]): EmContext => {
   const context: EmContext = {
-    id: domainId ? `${domainId}/context/${block.name}` : scopedId('context', block.name),
-    name: block.name,
+    id: domainId ? `${domainId}/context/${node.name}` : scopedId('context', node.name),
+    name: node.name,
     aggregates: [],
     looseElements: []
   };
 
-  const consumedRanges: Array<[number, number]> = [];
-  for (const aggregateBlock of findBlocks(block.body, 'aggregate')) {
-    consumedRanges.push([aggregateBlock.start, aggregateBlock.end]);
-    const aggregate = parseAggregate(aggregateBlock, context.id, edges);
-    context.aggregates.push(aggregate);
-  }
-
-  for (const elementBlock of findTopLevelBlocks(block.body, consumedRanges)) {
-    if (!elementKinds.has(elementBlock.keyword)) {
+  for (const element of node.elements) {
+    if (isAggregate(element)) {
+      context.aggregates.push(parseAggregate(element, context.id, edges));
       continue;
     }
-    const element = parseElement(elementBlock, context.id);
-    context.looseElements.push(element);
-    collectElementEdges(elementBlock, element.id, edges);
+    if (isIntegration(element) || isProjection(element) || isPolicy(element)) {
+      const looseElement = parseElement(element, context.id);
+      context.looseElements.push(looseElement);
+      collectElementEdges(element, looseElement.id, edges);
+    }
   }
 
   return context;
 };
 
-const parseAggregate = (block: Block, contextId: string, edges: EmEdge[]): EmAggregate => {
-  const aggregateId = `${contextId}/aggregate/${block.name}`;
+const parseAggregate = (node: AstAggregate, contextId: string, edges: EmEdge[]): EmAggregate => {
+  const aggregateId = `${contextId}/aggregate/${node.name}`;
   const aggregate: EmAggregate = {
     id: aggregateId,
-    name: block.name,
+    name: node.name,
     states: [],
     slices: []
   };
 
-  const sliceBlocks = findBlocks(block.body, 'slice');
-  aggregate.states.push(...parseStateLines(block.body, sliceBlocks.map(toRange)));
-
-  for (const sliceBlock of sliceBlocks) {
-    aggregate.slices.push(parseSlice(sliceBlock, aggregateId, edges));
+  for (const feature of node.features) {
+    if (isState(feature)) {
+      aggregate.states.push(feature.name);
+      continue;
+    }
+    if (isSlice(feature)) {
+      aggregate.slices.push(parseSlice(feature, aggregateId, edges));
+    }
   }
 
   return aggregate;
 };
 
-const parseSlice = (block: Block, aggregateId: string, edges: EmEdge[]): EmSlice => {
-  const sliceId = `${aggregateId}/slice/${block.name}`;
+const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSlice => {
+  const sliceId = `${aggregateId}/slice/${node.name}`;
   const slice: EmSlice = {
     id: sliceId,
-    name: block.name,
+    name: node.name,
     aggregateId,
-    createsAggregate: /^\s*createsAggregate\s*$/m.test(block.body),
-    resultingState: undefined,
+    createsAggregate: node.elements.some(isCreatesAggregateMarker),
+    resultingState: node.elements.find(isState)?.name,
     elements: []
   };
 
-  const refs = parseLineRefs(block.body);
-  const childBlocks = findTopLevelBlocks(block.body, []);
-  slice.resultingState = parseStateLines(block.body, childBlocks.map(toRange))[0];
-
-  if (refs.actor) {
+  const actorRef = node.elements.find(isActorRef);
+  if (actorRef) {
     slice.elements.push({
-      id: `${sliceId}/actor/${refs.actor}`,
+      id: `${sliceId}/actor/${actorRef.actor}`,
       kind: 'actor',
-      name: refs.actor,
+      name: actorRef.actor,
       fields: [],
       sliceId,
       aggregateId
     });
   }
-  if (refs.ui) {
+
+  const uiRef = node.elements.find(isUiRef);
+  if (uiRef) {
     slice.elements.push({
-      id: `${sliceId}/screen/${refs.ui}`,
+      id: `${sliceId}/screen/${uiRef.view}`,
       kind: 'screen',
-      name: refs.ui,
+      name: uiRef.view,
       fields: [],
       sliceId,
       aggregateId
     });
   }
 
-  for (const child of childBlocks) {
-    if (!elementKinds.has(child.keyword)) {
-      continue;
+  for (const element of node.elements) {
+    if (isCommand(element) || isEvent(element) || isProjection(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
+      const parsed = parseElement(element, sliceId, aggregateId);
+      slice.elements.push(parsed);
+      collectElementEdges(element, parsed.id, edges);
     }
-    const element = parseElement(child, sliceId, aggregateId);
-    slice.elements.push(element);
-    collectElementEdges(child, element.id, edges);
   }
 
-  const reactsTo = refs.reactsTo;
+  const reactsTo = node.elements.find(isReactsTo)?.event.$refText;
   const firstReactionElement = slice.elements.find((element) =>
     element.kind === 'projection' || element.kind === 'automation' || element.kind === 'command'
   );
@@ -177,215 +215,158 @@ const parseSlice = (block: Block, aggregateId: string, edges: EmEdge[]): EmSlice
   return slice;
 };
 
-const parseElement = (block: Block, scopeId: string, aggregateId?: string): EmElement => {
-  const kind = block.keyword === 'projection' ? 'projection' : block.keyword === 'specification' ? 'gwt' : block.keyword;
+const parseElement = (
+  node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
+  scopeId: string,
+  aggregateId?: string
+): EmElement => {
+  const kind = isProjection(node)
+    ? 'projection'
+    : isSpecification(node)
+      ? 'gwt'
+      : node.$type.toLowerCase();
+
   return {
-    id: `${scopeId}/${kind}/${block.name}`,
+    id: `${scopeId}/${kind}/${node.name}`,
     kind: kind as EmElement['kind'],
-    name: block.name,
-    fields: parseElementFields(kind, block.body),
+    name: node.name,
+    fields: parseElementFields(node),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     aggregateId,
-    metadata: parseElementMetadata(block)
+    metadata: parseElementMetadata(node)
   };
 };
 
-const parseElementFields = (kind: string, body: string): EmField[] => {
-  if (kind === 'integration') {
-    return parseIntegrationFields(body);
+const parseElementFields = (node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration): EmField[] => {
+  if (isCommand(node) || isEvent(node)) {
+    return node.fields.map(parseField);
   }
-  return parseFields(body);
+  if (isProjection(node)) {
+    return node.elements.filter(isField).map(parseField);
+  }
+  if (isIntegration(node)) {
+    return parseIntegrationFields(node);
+  }
+  return [];
 };
 
-const parseFields = (body: string): EmField[] => {
+const parseIntegrationFields = (node: AstIntegration): EmField[] => {
   const fields: EmField[] = [];
-  for (const match of body.matchAll(/^\s*([A-Za-z_][\w_]*)\s*:\s*([A-Za-z_][\w_]*)(\[\]|\?)?([^\n{}]*)(?:\{\s*([\s\S]*?)\})?\s*$/gm)) {
-    const tail = parseFieldTail(match[4] || '', match[5]);
-    fields.push({
-      name: match[1],
-      type: match[2],
-      cardinality: match[3] === '[]' ? 'List' : match[3] === '?' ? 'Optional' : 'Single',
-      attributes: tail.attributes,
-      ...(tail.example ? { example: tail.example } : {}),
-      ...(tail.mapping ? { mapping: tail.mapping } : {})
-    });
-  }
-  return fields;
-};
-
-const fieldAttributes = new Set(['id', 'generated', 'technical', 'query']);
-
-const parseFieldTail = (tail: string, details?: string): { attributes: string[]; example?: string; mapping?: EmFieldMapping } => {
-  const words = tail.trim().split(/\s+/).filter(Boolean);
-  const attributes: string[] = [];
-  let mapping: EmFieldMapping | undefined;
-
-  for (let index = 0; index < words.length; index += 1) {
-    const word = words[index];
-    if (fieldAttributes.has(word)) {
-      attributes.push(word);
-      continue;
-    }
-    if (word === 'from') {
-      mapping = {
-        kind: 'from',
-        sources: parseMappingSources(words.slice(index + 1).join(' '))
-      };
-      break;
-    }
-    if (word === 'derived') {
-      const rest = words.slice(index + 1);
-      mapping = {
-        kind: 'derived',
-        sources: rest[0] === 'from' ? parseMappingSources(rest.slice(1).join(' ')) : []
-      };
-      break;
-    }
-  }
-
-  if (mapping && details !== undefined) {
-    mapping.sources = parseMappingSources(details.match(/\bfrom\s+(.+?)(?=\s+(?:rule|example)\s+|$)/s)?.[1] ?? mapping.sources.join(', '));
-    const rule = details.match(/\brule\s+("([^"\\]|\\.)*"|'([^'\\]|\\.)*')/)?.[1];
-    if (rule) {
-      mapping.rule = unquote(rule);
-    }
-  }
-
-  const example = details?.match(/\bexample\s+("([^"\\]|\\.)*"|'([^'\\]|\\.)*')/)?.[1];
-  return {
-    attributes,
-    ...(example ? { example: unquote(example) } : {}),
-    ...(mapping ? { mapping } : {})
-  };
-};
-
-const parseMappingSources = (value: string): string[] =>
-  value
-    .split(',')
-    .map((source) => source.trim())
-    .filter((source) => /^[A-Za-z_][\w_]*(\.[A-Za-z_][\w_]*)*$/.test(source));
-
-const parseIntegrationFields = (body: string): EmField[] => {
-  const fields = parseFields(body);
-  const source = body.match(/^\s*source\s+([A-Za-z_][\w_]*)/m)?.[1];
-  const target = body.match(/^\s*target\s+([A-Za-z_][\w_]*)/m)?.[1];
+  const source = node.elements.find(isSource)?.system;
+  const target = node.elements.find(isTarget)?.system;
   if (source) fields.push({ name: 'source', type: source, cardinality: 'Single', attributes: [] });
   if (target) fields.push({ name: 'target', type: target, cardinality: 'Single', attributes: [] });
   return fields;
 };
 
-const parseLineRefs = (body: string): { actor?: string; ui?: string; reactsTo?: string } => ({
-  actor: body.match(/^\s*actor\s+([A-Za-z_][\w_]*)/m)?.[1],
-  ui: body.match(/^\s*ui\s+([A-Za-z_][\w_]*)/m)?.[1],
-  reactsTo: body.match(/^\s*reactsTo\s+([A-Za-z_][\w_]*)/m)?.[1]
-});
+const parseField = (field: AstField): EmField => {
+  const mapping = parseFieldMapping(field);
+  return {
+    name: field.name,
+    type: field.type,
+    cardinality: field.cardinality === '[]' ? 'List' : field.cardinality === '?' ? 'Optional' : 'Single',
+    attributes: [...field.attributes],
+    ...(field.details?.example ? { example: field.details.example } : {}),
+    ...(mapping ? { mapping } : {})
+  };
+};
 
-const parseElementMetadata = (block: Block): Record<string, string> => {
+const parseFieldMapping = (field: AstField): EmFieldMapping | undefined => {
+  const detailSources = field.details?.sources.map(formatFieldSource) ?? [];
+  const rule = field.details?.rule;
+
+  if (field.mapping) {
+    const mappingSources = field.mapping.sources.map(formatFieldSource);
+    return {
+      kind: isFieldDerivation(field.mapping) ? 'derived' : 'from',
+      sources: detailSources.length > 0 ? detailSources : mappingSources,
+      ...(rule ? { rule } : {})
+    };
+  }
+
+  if (detailSources.length > 0 || rule) {
+    return {
+      kind: rule ? 'derived' : 'from',
+      sources: detailSources,
+      ...(rule ? { rule } : {})
+    };
+  }
+
+  return undefined;
+};
+
+const formatFieldSource = (source: FieldSource): string => source.parts.join('.');
+
+const parseElementMetadata = (node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration): Record<string, string> => {
   const metadata: Record<string, string> = {};
-  if (block.keyword === 'policy') {
-    const on = block.body.match(/^\s*on\s+([A-Za-z_][\w_]*)/m)?.[1];
-    const issue = block.body.match(/^\s*issue\s+([A-Za-z_][\w_]*)/m)?.[1];
-    if (on) metadata.on = on;
-    if (issue) metadata.issue = issue;
+
+  if (isPolicy(node)) {
+    metadata.on = node.event.$refText;
+    metadata.issue = node.command.$refText;
   }
-  if (block.keyword === 'specification') {
-    for (const [index, given] of [...block.body.matchAll(/^\s*given\s+([A-Za-z_][\w_]*)/gm)].entries()) {
-      metadata[`given${index + 1}`] = given[1];
-    }
-    const when = block.body.match(/^\s*when\s+([A-Za-z_][\w_]*)/m)?.[1];
-    const then = block.body.match(/^\s*then\s+([A-Za-z_][\w_]*)/m)?.[1];
-    if (when) metadata.when = when;
-    if (then) metadata.then = then;
-    const whenExample = block.body.match(/^\s*when\s+[A-Za-z_][\w_]*\s*\{([\s\S]*?)^\s*\}/m)?.[1];
-    if (whenExample) {
-      for (const assignment of whenExample.matchAll(/^\s*([A-Za-z_][\w_]*)\s*=\s*(.+?)\s*$/gm)) {
-        metadata[`example:${assignment[1]}`] = unquote(assignment[2].trim());
-      }
+
+  if (isSpecification(node)) {
+    node.givens.forEach((given, index) => {
+      metadata[`given${index + 1}`] = given.event.$refText;
+    });
+    metadata.when = node.when.command.$refText;
+    metadata.then = node.then.event.$refText;
+    for (const assignment of node.when.condition?.assignments ?? []) {
+      metadata[`example:${assignment.field}`] = formatLiteral(assignment.value);
     }
   }
+
   return metadata;
 };
 
-const collectElementEdges = (block: Block, sourceId: string, edges: EmEdge[]): void => {
-  for (const subscription of block.body.matchAll(/^\s*subscribe\s+([A-Za-z_][\w_]*)/gm)) {
-    edges.push(edge(`ref/event/${subscription[1]}`, sourceId, 'updates'));
-  }
-  for (const emits of block.body.matchAll(/^\s*emits\s+([A-Za-z_][\w_]*)/gm)) {
-    edges.push(edge(sourceId, `ref/command/${emits[1]}`, 'emits'));
-  }
-  const on = block.body.match(/^\s*on\s+([A-Za-z_][\w_]*)/m)?.[1];
-  const issue = block.body.match(/^\s*issue\s+([A-Za-z_][\w_]*)/m)?.[1];
-  if (on) edges.push(edge(`ref/event/${on}`, sourceId, 'triggers'));
-  if (issue) edges.push(edge(sourceId, `ref/command/${issue}`, 'issues'));
-  for (const given of block.body.matchAll(/^\s*given\s+([A-Za-z_][\w_]*)/gm)) {
-    edges.push(edge(`ref/event/${given[1]}`, sourceId, 'given'));
-  }
-  const when = block.body.match(/^\s*when\s+([A-Za-z_][\w_]*)/m)?.[1];
-  const then = block.body.match(/^\s*then\s+([A-Za-z_][\w_]*)/m)?.[1];
-  if (when) edges.push(edge(`ref/command/${when}`, sourceId, 'when'));
-  if (then) edges.push(edge(sourceId, `ref/event/${then}`, 'then'));
-};
-
-const findBlocks = (text: string, keyword: string): Block[] =>
-  findAllBlocks(text).filter((block) => block.keyword === keyword);
-
-const findTopLevelBlocks = (text: string, consumedRanges: Array<[number, number]>): Block[] =>
-  findAllBlocks(text)
-    .filter((block) => !consumedRanges.some(([start, end]) => block.start >= start && block.end <= end))
-    .filter((block) => blockKeywords.includes(block.keyword));
-
-const parseStateLines = (text: string, ignoredRanges: Array<[number, number]>): string[] => {
-  const states: string[] = [];
-  for (const match of text.matchAll(/^\s*state\s+([A-Za-z_][\w_]*)/gm)) {
-    const index = match.index ?? 0;
-    if (!ignoredRanges.some(([start, end]) => index >= start && index < end)) {
-      states.push(match[1]);
+const collectElementEdges = (
+  node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
+  sourceId: string,
+  edges: EmEdge[]
+): void => {
+  if (isProjection(node)) {
+    for (const subscription of node.elements.filter(isSubscription)) {
+      edges.push(edge(`ref/event/${subscription.event.$refText}`, sourceId, 'updates'));
     }
   }
-  return states;
-};
 
-const toRange = (block: Block): [number, number] => [block.start, block.end];
-
-const findAllBlocks = (text: string): Block[] => {
-  const blocks: Block[] = [];
-  const regex = new RegExp(`\\b(${blockKeywords.join('|')})\\s+("[^"]+"|'[^']+'|[A-Za-z_][\\w_]*)\\s*\\{`, 'g');
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text))) {
-    const openBrace = text.indexOf('{', match.index);
-    const closeBrace = findMatchingBrace(text, openBrace);
-    if (closeBrace < 0) {
-      continue;
+  if (isAutomation(node)) {
+    for (const emits of node.elements.filter((element) => element.$type === 'Emits')) {
+      edges.push(edge(sourceId, `ref/command/${emits.command.$refText}`, 'emits'));
     }
-    blocks.push({
-      keyword: match[1],
-      name: unquote(match[2]),
-      body: text.slice(openBrace + 1, closeBrace),
-      start: match.index,
-      end: closeBrace + 1
-    });
-    regex.lastIndex = closeBrace + 1;
   }
 
-  return blocks;
+  if (isPolicy(node)) {
+    edges.push(edge(`ref/event/${node.event.$refText}`, sourceId, 'triggers'));
+    edges.push(edge(sourceId, `ref/command/${node.command.$refText}`, 'issues'));
+  }
+
+  if (isSpecification(node)) {
+    for (const given of node.givens) {
+      edges.push(edge(`ref/event/${given.event.$refText}`, sourceId, 'given'));
+    }
+    edges.push(edge(`ref/command/${node.when.command.$refText}`, sourceId, 'when'));
+    edges.push(edge(sourceId, `ref/event/${node.then.event.$refText}`, 'then'));
+  }
+
+  if (isIntegration(node)) {
+    for (const element of node.elements) {
+      if (element.$type === 'Emits') {
+        edges.push(edge(sourceId, `ref/command/${element.command.$refText}`, 'emits'));
+      }
+      if (isReactsTo(element)) {
+        edges.push(edge(`ref/event/${element.event.$refText}`, sourceId, 'reactsTo'));
+      }
+    }
+  }
 };
 
-const findMatchingBrace = (text: string, openBrace: number): number => {
-  let depth = 0;
-  let quote: string | undefined;
-  for (let index = openBrace; index < text.length; index += 1) {
-    const char = text[index];
-    const prev = text[index - 1];
-    if ((char === '"' || char === "'") && prev !== '\\') {
-      quote = quote === char ? undefined : quote ?? char;
-    }
-    if (quote) continue;
-    if (char === '{') depth += 1;
-    if (char === '}') depth -= 1;
-    if (depth === 0) return index;
-  }
-  return -1;
+const formatLiteral = (value: Expression): string => {
+  if (isStringLiteral(value)) return value.value;
+  if (isNumberLiteral(value)) return String(value.value);
+  if (isRefExpr(value)) return value.ref.$refText;
+  if (isBinaryExpr(value)) return `${formatLiteral(value.left)} ${value.operator} ${formatLiteral(value.right)}`;
+  return '';
 };
 
 const validateReferences = (model: EmModel): void => {
@@ -436,5 +417,3 @@ const edge = (source: string, target: string, label?: string): EmEdge => ({
 });
 
 const scopedId = (kind: string, name: string): string => `${kind}/${name}`;
-
-const unquote = (value: string): string => value.replace(/^["']|["']$/g, '');

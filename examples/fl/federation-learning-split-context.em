@@ -19,7 +19,6 @@ context FederationManagement {
         organizationType: String
         contactEmail: String
         legalEntityId: String
-        countryCode: String
       }
 
       event OrganizationRegistered {
@@ -28,7 +27,6 @@ context FederationManagement {
         organizationType: String
         contactEmail: String
         legalEntityId: String
-        countryCode: String
       }
 
       state Registered
