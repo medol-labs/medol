@@ -637,6 +637,139 @@ context TrainingOrchestration {
     emits SubmitGlobalModelEvaluation
   }
 
+  aggregate TrainingRunConfiguration {
+    state Draft
+    state Validated
+    state Locked
+
+    slice DefineTrainingRunConfiguration {
+      createsAggregate
+      actor MLOpsEngineer
+      ui TrainingRunConfigurationScreen
+      reactsTo TrainingEvaluationDatasetsDeclared
+
+      command DefineTrainingRunConfiguration {
+        trainingRunConfigurationId: UUID id generated technical
+        federationId: UUID
+        featureSchemaId: UUID
+        strategyName: String
+        aggregationAlgorithm: String
+        maxRounds: Int
+        minimumNodesPerRound: Int
+        roundTimeoutSeconds: Int
+        nodeResponseTimeoutSeconds: Int
+        localEpochs: Int
+        batchSize: Int
+        learningRate: Decimal
+        optimizer: String
+        lossFunction: String
+        gradientClippingNorm: Decimal?
+        secureAggregationRequired: Boolean
+        differentialPrivacyEnabled: Boolean
+        dpNoiseMultiplier: Decimal?
+        dpClipNorm: Decimal?
+        minimumAccuracy: Decimal
+        minimumFairnessScore: Decimal?
+        failureToleranceRatio: Decimal
+      }
+
+      event TrainingRunConfigurationDefined {
+        trainingRunConfigurationId: UUID id technical
+        federationId: UUID
+        featureSchemaId: UUID
+        strategyName: String
+        aggregationAlgorithm: String
+        maxRounds: Int
+        minimumNodesPerRound: Int
+        roundTimeoutSeconds: Int
+        nodeResponseTimeoutSeconds: Int
+        localEpochs: Int
+        batchSize: Int
+        learningRate: Decimal
+        optimizer: String
+        lossFunction: String
+        gradientClippingNorm: Decimal?
+        secureAggregationRequired: Boolean
+        differentialPrivacyEnabled: Boolean
+        dpNoiseMultiplier: Decimal?
+        dpClipNorm: Decimal?
+        minimumAccuracy: Decimal
+        minimumFairnessScore: Decimal?
+        failureToleranceRatio: Decimal
+      }
+
+      state Draft
+    }
+
+    slice ValidateTrainingRunConfiguration {
+      reactsTo TrainingRunConfigurationDefined
+
+      automation ValidateTrainingRunConfigurationAutomatically {
+        condition maxRounds > 0
+        emits ValidateTrainingRunConfiguration
+      }
+
+      command ValidateTrainingRunConfiguration {
+        trainingRunConfigurationId: UUID id technical
+        validationProfile: String
+      }
+
+      event TrainingRunConfigurationValidated {
+        trainingRunConfigurationId: UUID id technical
+        valid: Boolean
+        validationReportId: UUID
+        effectiveMinimumNodesPerRound: Int derived {
+          from TrainingRunConfiguration.minimumNodesPerRound, TrainingRunConfiguration.failureToleranceRatio
+          rule "Derive the effective node quorum from the selected strategy and failure tolerance."
+        }
+      }
+
+      state Validated
+    }
+
+    slice LockTrainingRunConfiguration {
+      reactsTo TrainingJobSubmitted
+
+      policy LockConfigurationWhenTrainingSubmitted {
+        on TrainingJobSubmitted
+        issue LockTrainingRunConfiguration
+      }
+
+      command LockTrainingRunConfiguration {
+        trainingRunConfigurationId: UUID id technical
+        trainingJobId: UUID
+        lockedBy: String
+      }
+
+      event TrainingRunConfigurationLocked {
+        trainingRunConfigurationId: UUID id technical
+        trainingJobId: UUID
+        lockedBy: String
+      }
+
+      state Locked
+    }
+
+    slice TrainingRunConfigurationCatalog {
+      projection TrainingRunConfigurationCatalog {
+        trainingRunConfigurationId: UUID id
+        federationId: UUID
+        featureSchemaId: UUID
+        strategyName: String
+        aggregationAlgorithm: String
+        maxRounds: Int
+        minimumNodesPerRound: Int
+        secureAggregationRequired: Boolean
+        differentialPrivacyEnabled: Boolean
+        minimumAccuracy: Decimal
+        state: String
+        subscribe TrainingRunConfigurationDefined
+        subscribe TrainingRunConfigurationValidated
+        subscribe TrainingRunConfigurationLocked
+      }
+    }
+  }
+
   aggregate TrainingJob {
     state Draft
     state StrategyConfigured
@@ -649,12 +782,13 @@ context TrainingOrchestration {
       createsAggregate
       actor ResearchLead
       ui TrainingJobCreationScreen
-      reactsTo TrainingEvaluationDatasetsDeclared
+      reactsTo TrainingRunConfigurationValidated
 
       command CreateTrainingJob {
         trainingJobId: UUID id generated technical
         federationId: UUID
         featureSchemaId: UUID
+        trainingRunConfigurationId: UUID
         aggregatorDatasetBundleId: UUID
         aggregatorTrainingDatasetId: UUID
         aggregatorTrainingDatasetAccessProfileId: UUID
@@ -662,13 +796,13 @@ context TrainingOrchestration {
         aggregatorEvaluationDatasetAccessProfileId: UUID
         objective: String
         targetMetric: String
-        minimumAccuracy: Decimal
       }
 
       event TrainingJobCreated {
         trainingJobId: UUID id technical
         federationId: UUID
         featureSchemaId: UUID
+        trainingRunConfigurationId: UUID
         aggregatorDatasetBundleId: UUID
         aggregatorTrainingDatasetId: UUID
         aggregatorTrainingDatasetAccessProfileId: UUID
@@ -676,7 +810,6 @@ context TrainingOrchestration {
         aggregatorEvaluationDatasetAccessProfileId: UUID
         objective: String
         targetMetric: String
-        minimumAccuracy: Decimal
       }
 
       state Draft
@@ -689,14 +822,25 @@ context TrainingOrchestration {
 
       command ConfigureTrainingStrategy {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         strategyName: String
-        maxRounds: Int
-        minimumNodesPerRound: Int
-        secureAggregationRequired: Boolean
+        maxRounds: Int derived {
+          from TrainingRunConfiguration.maxRounds
+          rule "Copy the locked training run configuration round budget onto the training job strategy."
+        }
+        minimumNodesPerRound: Int derived {
+          from TrainingRunConfiguration.minimumNodesPerRound
+          rule "Copy the configured minimum node quorum onto the training job strategy."
+        }
+        secureAggregationRequired: Boolean derived {
+          from TrainingRunConfiguration.secureAggregationRequired
+          rule "Copy the secure aggregation requirement onto the training job strategy."
+        }
       }
 
       event TrainingStrategyConfigured {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         strategyName: String
         maxRounds: Int
         minimumNodesPerRound: Int
@@ -713,13 +857,23 @@ context TrainingOrchestration {
 
       command SubmitTrainingJob {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
       }
 
       event TrainingJobSubmitted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         minimumNodesPerRound: Int derived {
           from TrainingJob.trainingStrategy
           rule "Derive the minimum selected nodes from the configured training strategy."
+        }
+        maxRounds: Int derived {
+          from TrainingRunConfiguration.maxRounds
+          rule "Snapshot the configured round budget when the training job is submitted."
+        }
+        minimumAccuracy: Decimal derived {
+          from TrainingRunConfiguration.minimumAccuracy
+          rule "Snapshot the configured target accuracy when the training job is submitted."
         }
       }
 
@@ -736,6 +890,7 @@ context TrainingOrchestration {
 
       command RequestNodeParticipation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         nodeId: UUID
         participantDatasetBundleId: UUID
         trainingDatasetAccessProfileId: UUID
@@ -744,6 +899,7 @@ context TrainingOrchestration {
 
       event NodeParticipationRequested {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         nodeId: UUID
         participantDatasetBundleId: UUID
         trainingDatasetAccessProfileId: UUID
@@ -760,6 +916,7 @@ context TrainingOrchestration {
 
       command AcceptNodeParticipation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         nodeId: UUID
         participantDatasetBundleId: UUID
         availableGpuCount: Int
@@ -767,6 +924,7 @@ context TrainingOrchestration {
 
       event NodeReadyForTraining {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         nodeId: UUID
         participantDatasetBundleId: UUID
         availableGpuCount: Int
@@ -783,12 +941,14 @@ context TrainingOrchestration {
 
       command MarkTrainingJobRunning {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         roundNumber: Int
       }
 
       event TrainingJobRunning {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         roundNumber: Int
       }
@@ -820,6 +980,7 @@ context TrainingOrchestration {
 
       command CompleteTrainingJob {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         finalRoundId: UUID
         finalModelVersionId: UUID
         stopReason: String
@@ -827,6 +988,7 @@ context TrainingOrchestration {
 
       event TrainingJobCompleted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         finalRoundId: UUID
         finalModelVersionId: UUID
         stopReason: String
@@ -854,6 +1016,7 @@ context TrainingOrchestration {
 
       command StartTrainingRound {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID generated technical
         roundNumber: Int
         readyNodeCount: Int
@@ -861,6 +1024,7 @@ context TrainingOrchestration {
 
       event TrainingRoundStarted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         roundNumber: Int
         readyNodeCount: Int
@@ -879,6 +1043,7 @@ context TrainingOrchestration {
 
       command DistributeGlobalModel {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         modelVersionId: UUID
         targetNodeCount: Int
@@ -886,6 +1051,7 @@ context TrainingOrchestration {
 
       event GlobalModelDistributed {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         modelVersionId: UUID
         targetNodeCount: Int
@@ -900,6 +1066,7 @@ context TrainingOrchestration {
 
       command SubmitLocalModelUpdate {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         nodeId: UUID
         trainingDatasetAccessProfileId: UUID
@@ -911,6 +1078,7 @@ context TrainingOrchestration {
 
       event LocalModelUpdateSubmitted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         nodeId: UUID
         trainingDatasetAccessProfileId: UUID
@@ -926,6 +1094,7 @@ context TrainingOrchestration {
 
       command SubmitLocalModelEvaluation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         nodeId: UUID
         localModelVersionId: UUID
@@ -936,6 +1105,7 @@ context TrainingOrchestration {
 
       event LocalModelEvaluationSubmitted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         nodeId: UUID
         localModelVersionId: UUID
@@ -955,6 +1125,7 @@ context TrainingOrchestration {
 
       command RequestSecureAggregation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         evaluatedUpdateCount: Int
         aggregationProvider: String
@@ -962,6 +1133,7 @@ context TrainingOrchestration {
 
       event SecureAggregationRequested {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         evaluatedUpdateCount: Int
         aggregationProvider: String
@@ -973,6 +1145,7 @@ context TrainingOrchestration {
     slice CompleteSecureAggregation {
       command CompleteSecureAggregation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         requestId: UUID
         aggregatedModelVersionId: UUID
@@ -980,6 +1153,7 @@ context TrainingOrchestration {
 
       event GlobalModelUpdated {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         requestId: UUID
         aggregatedModelVersionId: UUID
@@ -993,6 +1167,7 @@ context TrainingOrchestration {
 
       command SubmitGlobalModelEvaluation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         aggregatedModelVersionId: UUID
         aggregatorEvaluationDatasetAccessProfileId: UUID
@@ -1002,6 +1177,7 @@ context TrainingOrchestration {
 
       event GlobalModelEvaluationSubmitted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         aggregatedModelVersionId: UUID
         aggregatorEvaluationDatasetAccessProfileId: UUID
@@ -1020,6 +1196,7 @@ context TrainingOrchestration {
 
       command CompleteTrainingRound {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         aggregatedModelVersionId: UUID
         globalAccuracy: Decimal
@@ -1027,6 +1204,7 @@ context TrainingOrchestration {
 
       event TrainingRoundCompleted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         aggregatedModelVersionId: UUID
         globalAccuracy: Decimal
