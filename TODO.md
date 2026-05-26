@@ -34,6 +34,7 @@
 - [X] 生成器统一归类叫 Generators
 - [ ] Word Generator 产品
 - [ ] Agentic
+- [ ] 支持按 Context 拆分成多个文件，index 文件引用
 
 ##
 
