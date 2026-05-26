@@ -1001,6 +1001,25 @@ context TrainingOrchestration {
       state Running
     }
 
+    slice CancelTrainingJob {
+      actor MLOpsEngineer
+      ui TrainingOperationsScreen
+
+      command CancelTrainingJob {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        cancelReason: String?
+      }
+
+      event TrainingJobCanceled {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        cancelReason: String?
+      }
+
+      state Running
+    }
+
     slice ScheduleNextTrainingRound {
       reactsTo TrainingRoundCompleted
 

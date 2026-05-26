@@ -33,6 +33,7 @@
 - [ ] 条件表达式，找已有的表达式
 - [X] 生成器统一归类叫 Generators
 - [ ] Word Generator 产品
+- [ ] Agentic
 
 ##
 
