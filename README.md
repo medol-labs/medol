@@ -103,6 +103,26 @@ To save it:
 npm run dsl:to-config -- examples/federation.em > config.json
 ```
 
+## Generate PRD Markdown
+
+```bash
+npm run prd:generate -- examples/federation.em
+```
+
+To save it:
+
+```bash
+npm run prd:generate -- examples/federation.em > prd.md
+```
+
+To inspect the DSL-to-PRD source map:
+
+```bash
+npm run prd:generate -- examples/federation.em --trace
+```
+
+The PRD generator emits stable Markdown section markers and a trace JSON shape so generated sections can be mapped back to source DSL nodes.
+
 ## DSL Example
 
 ```eventmodeling

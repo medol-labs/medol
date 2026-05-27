@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "langium:generate": "langium generate",
     "config:to-dsl": "tsx src/lib/configToDsl.ts",
-    "dsl:to-config": "tsx src/lib/dslToConfigCli.ts"
+    "dsl:to-config": "tsx src/lib/dslToConfigCli.ts",
+    "prd:generate": "tsx src/lib/generators/prd/prdCli.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

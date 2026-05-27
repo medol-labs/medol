@@ -11,12 +11,17 @@ import {
   isField,
   isFieldDerivation,
   isFieldSourceMapping,
+  isHotspot,
   isIntegration,
+  isDecision,
+  isMetric,
+  isNote,
   isNumberLiteral,
   isPolicy,
   isProjection,
   isReactsTo,
   isRefExpr,
+  isRisk,
   isSlice,
   isSource,
   isSpecification,
@@ -110,12 +115,32 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     id: domainId ? `${domainId}/context/${node.name}` : scopedId('context', node.name),
     name: node.name,
     aggregates: [],
-    looseElements: []
+    looseElements: [],
+    notes: [],
+    risks: [],
+    decisions: [],
+    metrics: []
   };
 
   for (const element of node.elements) {
     if (isAggregate(element)) {
       context.aggregates.push(parseAggregate(element, context.id, edges));
+      continue;
+    }
+    if (isNote(element)) {
+      context.notes.push(element.value);
+      continue;
+    }
+    if (isRisk(element)) {
+      context.risks.push(element.value);
+      continue;
+    }
+    if (isDecision(element)) {
+      context.decisions.push(element.value);
+      continue;
+    }
+    if (isMetric(element)) {
+      context.metrics.push(element.name);
       continue;
     }
     if (isIntegration(element) || isProjection(element) || isPolicy(element)) {
@@ -158,6 +183,7 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
     aggregateId,
     createsAggregate: node.elements.some(isCreatesAggregateMarker),
     resultingState: node.elements.find(isState)?.name,
+    hotspots: node.elements.filter(isHotspot).map((hotspot) => hotspot.value),
     elements: []
   };
 

@@ -42,6 +42,7 @@ export interface EmSlice {
   aggregateId?: string;
   createsAggregate?: boolean;
   resultingState?: string;
+  hotspots: string[];
   elements: EmElement[];
 }
 
@@ -57,6 +58,10 @@ export interface EmContext {
   name: string;
   aggregates: EmAggregate[];
   looseElements: EmElement[];
+  notes: string[];
+  risks: string[];
+  decisions: string[];
+  metrics: string[];
 }
 
 export interface EmDomain {
