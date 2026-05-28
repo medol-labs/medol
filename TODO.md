@@ -36,6 +36,7 @@
 - [ ] Agentic
 - [ ] 支持按 Context 拆分成多个文件，index 文件引用
 - [ ] ReadModel 添加 list 标识
+- [ ] 转 config.json 时删除不需要的 context
 
 ##
 
