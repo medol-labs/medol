@@ -26,6 +26,7 @@ interface ConfigElement {
   title?: string;
   aggregate?: string;
   createsAggregate?: boolean;
+  listElement?: boolean;
   fields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
 }
@@ -143,7 +144,8 @@ const pad = (indent: number): string => ' '.repeat(indent);
 
 const appendElement = (lines: string[], kind: 'command' | 'event' | 'projection', element: ConfigElement, indent: number, extraLines: string[] = []): void => {
   const pad = ' '.repeat(indent);
-  lines.push(`${pad}${kind} ${toDslId(element.title, kind)} {`);
+  const listMarker = kind === 'projection' && element.listElement ? '[]' : '';
+  lines.push(`${pad}${kind} ${toDslId(element.title, kind)}${listMarker} {`);
   for (const field of element.fields ?? []) {
     lines.push(`${pad}  ${formatField(field)}`);
   }

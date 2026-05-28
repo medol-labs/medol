@@ -35,6 +35,7 @@
 - [ ] Word Generator 产品
 - [ ] Agentic
 - [ ] 支持按 Context 拆分成多个文件，index 文件引用
+- [ ] ReadModel 添加 list 标识
 
 ##
 

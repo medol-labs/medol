@@ -257,6 +257,7 @@ const parseElement = (
     kind: kind as EmElement['kind'],
     name: node.name,
     fields: parseElementFields(node),
+    ...(isProjection(node) && node.listElement ? { listElement: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     aggregateId,
     metadata: parseElementMetadata(node)

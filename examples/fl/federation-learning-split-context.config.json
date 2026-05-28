@@ -987,6 +987,7 @@
           "type": "READMODEL",
           "description": "",
           "aggregate": "Organization",
+          "listElement": true,
           "aggregateDependencies": [
             "Organization"
           ],
@@ -1863,6 +1864,7 @@
           "type": "READMODEL",
           "description": "",
           "aggregate": "Federation",
+          "listElement": true,
           "aggregateDependencies": [
             "Federation"
           ],
@@ -4191,6 +4193,7 @@
           "type": "READMODEL",
           "description": "",
           "aggregate": "Dataset",
+          "listElement": true,
           "aggregateDependencies": [
             "Dataset"
           ],
@@ -5271,6 +5274,7 @@
           "type": "READMODEL",
           "description": "",
           "aggregate": "DatasetAccessProfile",
+          "listElement": true,
           "aggregateDependencies": [
             "Dataset Access Profile"
           ],
@@ -5593,9 +5597,9 @@
               "elementType": "READMODEL"
             },
             {
-              "id": "command-4dc0f9ab",
+              "id": "command-16ecbbfd",
               "type": "OUTBOUND",
-              "title": "Create Training Job",
+              "title": "Define Training Run Configuration",
               "elementType": "COMMAND"
             }
           ],
@@ -5778,6 +5782,7 @@
           "type": "READMODEL",
           "description": "",
           "aggregate": "TrainingEvaluationDatasetBundle",
+          "listElement": true,
           "aggregateDependencies": [
             "Training Evaluation Dataset Bundle"
           ],
@@ -5813,9 +5818,1286 @@
       ]
     },
     {
-      "id": "slice-48ac9373",
+      "id": "slice-3aac963a",
       "status": "Created",
       "index": 24,
+      "title": "Define Training Run Configuration",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-16ecbbfd",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Define Training Run Configuration",
+          "title": "Define Training Run Configuration",
+          "fields": [
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": true,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "federationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "strategyName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "maxRounds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "minimumNodesPerRound",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundTimeoutSeconds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "nodeResponseTimeoutSeconds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localEpochs",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "batchSize",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "learningRate",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "optimizer",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "lossFunction",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "gradientClippingNorm",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "secureAggregationRequired",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "differentialPrivacyEnabled",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "dpNoiseMultiplier",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "dpClipNorm",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "minimumAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "minimumFairnessScore",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "failureToleranceRatio",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "event-c43f30b2",
+              "type": "INBOUND",
+              "title": "Training Evaluation Datasets Declared",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "screen-fbd9e977",
+              "type": "INBOUND",
+              "title": "Training Run Configuration Screen",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-9e78b1c2",
+              "type": "OUTBOUND",
+              "title": "Training Run Configuration Defined",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": true,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-9e78b1c2",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Define Training Run Configuration",
+          "title": "Training Run Configuration Defined",
+          "fields": [
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "federationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "strategyName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "maxRounds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "minimumNodesPerRound",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "roundTimeoutSeconds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "nodeResponseTimeoutSeconds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "localEpochs",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "batchSize",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "learningRate",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "optimizer",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "lossFunction",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "gradientClippingNorm",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "secureAggregationRequired",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "differentialPrivacyEnabled",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "dpNoiseMultiplier",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "dpClipNorm",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "minimumAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "minimumFairnessScore",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "failureToleranceRatio",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "command-16ecbbfd",
+              "type": "INBOUND",
+              "title": "Define Training Run Configuration",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "automation-40e7e7f6",
+              "type": "OUTBOUND",
+              "title": "Validate Training Run Configuration Automatically",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "projection-f009cebd",
+              "type": "OUTBOUND",
+              "title": "Training Run Configuration Catalog",
+              "elementType": "READMODEL"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-fbd9e977",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Define Training Run Configuration",
+          "title": "Training Run Configuration Screen",
+          "fields": [],
+          "type": "SCREEN",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "command-16ecbbfd",
+              "type": "OUTBOUND",
+              "title": "Define Training Run Configuration",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingRunConfigurationDefined",
+        "eventId": "event-9e78b1c2",
+        "to": "Draft"
+      },
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-9b63e88d",
+          "name": "MLOpsEngineer",
+          "title": "MLOps Engineer"
+        }
+      ],
+      "aggregates": [
+        {
+          "id": "aggregate-9ee5dac2",
+          "name": "TrainingRunConfiguration",
+          "title": "Training Run Configuration"
+        }
+      ]
+    },
+    {
+      "id": "slice-6b720ec3",
+      "status": "Created",
+      "index": 25,
+      "title": "Validate Training Run Configuration",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-ef119d9f",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Validate Training Run Configuration",
+          "title": "Validate Training Run Configuration",
+          "fields": [
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "validationProfile",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "automation-40e7e7f6",
+              "type": "INBOUND",
+              "title": "Validate Training Run Configuration Automatically",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-629c6214",
+              "type": "OUTBOUND",
+              "title": "Training Run Configuration Validated",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-629c6214",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Validate Training Run Configuration",
+          "title": "Training Run Configuration Validated",
+          "fields": [
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "valid",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "validationReportId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "effectiveMinimumNodesPerRound",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "TrainingRunConfiguration.minimumNodesPerRound",
+                    "TrainingRunConfiguration.failureToleranceRatio"
+                  ],
+                  "rule": "Derive the effective node quorum from the selected strategy and failure tolerance."
+                }
+              ],
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "command-ef119d9f",
+              "type": "INBOUND",
+              "title": "Validate Training Run Configuration",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "projection-f009cebd",
+              "type": "OUTBOUND",
+              "title": "Training Run Configuration Catalog",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "command-4dc0f9ab",
+              "type": "OUTBOUND",
+              "title": "Create Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [
+        {
+          "id": "automation-40e7e7f6",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Validate Training Run Configuration",
+          "title": "Validate Training Run Configuration Automatically",
+          "fields": [],
+          "type": "PROCESSOR",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "command-ef119d9f",
+              "type": "OUTBOUND",
+              "title": "Validate Training Run Configuration",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "event-9e78b1c2",
+              "type": "INBOUND",
+              "title": "Training Run Configuration Defined",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingRunConfigurationValidated",
+        "eventId": "event-629c6214",
+        "to": "Validated"
+      },
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-9ee5dac2",
+          "name": "TrainingRunConfiguration",
+          "title": "Training Run Configuration"
+        }
+      ]
+    },
+    {
+      "id": "slice-d0c7242a",
+      "status": "Created",
+      "index": 26,
+      "title": "Lock Training Run Configuration",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-22c73d65",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Lock Training Run Configuration",
+          "title": "Lock Training Run Configuration",
+          "fields": [
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "lockedBy",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "policy-ed4349e8",
+              "type": "INBOUND",
+              "title": "Lock Configuration When Training Submitted",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-326c9f47",
+              "type": "INBOUND",
+              "title": "Training Job Submitted",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-99c652c3",
+              "type": "OUTBOUND",
+              "title": "Training Run Configuration Locked",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-99c652c3",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Lock Training Run Configuration",
+          "title": "Training Run Configuration Locked",
+          "fields": [
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "lockedBy",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "command-22c73d65",
+              "type": "INBOUND",
+              "title": "Lock Training Run Configuration",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "projection-f009cebd",
+              "type": "OUTBOUND",
+              "title": "Training Run Configuration Catalog",
+              "elementType": "READMODEL"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [
+        {
+          "id": "policy-ed4349e8",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Lock Training Run Configuration",
+          "title": "Lock Configuration When Training Submitted",
+          "fields": [],
+          "type": "PROCESSOR",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "event-326c9f47",
+              "type": "INBOUND",
+              "title": "Training Job Submitted",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-22c73d65",
+              "type": "OUTBOUND",
+              "title": "Lock Training Run Configuration",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingRunConfigurationLocked",
+        "eventId": "event-99c652c3",
+        "to": "Locked"
+      },
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-9ee5dac2",
+          "name": "TrainingRunConfiguration",
+          "title": "Training Run Configuration"
+        }
+      ]
+    },
+    {
+      "id": "slice-62f5f0ac",
+      "status": "Created",
+      "index": 27,
+      "title": "Training Run Configuration Catalog",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "sliceType": "STATE_CHANGE",
+      "commands": [],
+      "events": [],
+      "readmodels": [
+        {
+          "id": "projection-f009cebd",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Training Run Configuration Catalog",
+          "title": "Training Run Configuration Catalog",
+          "fields": [
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "federationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "strategyName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "maxRounds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "minimumNodesPerRound",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "secureAggregationRequired",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "differentialPrivacyEnabled",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "minimumAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "state",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "READMODEL",
+          "description": "",
+          "aggregate": "TrainingRunConfiguration",
+          "listElement": true,
+          "aggregateDependencies": [
+            "Training Run Configuration"
+          ],
+          "dependencies": [
+            {
+              "id": "event-9e78b1c2",
+              "type": "INBOUND",
+              "title": "Training Run Configuration Defined",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-629c6214",
+              "type": "INBOUND",
+              "title": "Training Run Configuration Validated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-99c652c3",
+              "type": "INBOUND",
+              "title": "Training Run Configuration Locked",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "screens": [],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "specifications": [],
+      "actors": [],
+      "aggregates": [
+        {
+          "id": "aggregate-9ee5dac2",
+          "name": "TrainingRunConfiguration",
+          "title": "Training Run Configuration"
+        }
+      ]
+    },
+    {
+      "id": "slice-48ac9373",
+      "status": "Created",
+      "index": 28,
       "title": "Create Training Job",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -5854,6 +7136,17 @@
             },
             {
               "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -5939,17 +7232,6 @@
               "technicalAttribute": false,
               "query": false,
               "subfields": []
-            },
-            {
-              "name": "minimumAccuracy",
-              "type": "Decimal",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
             }
           ],
           "type": "COMMAND",
@@ -5960,9 +7242,9 @@
           ],
           "dependencies": [
             {
-              "id": "event-c43f30b2",
+              "id": "event-629c6214",
               "type": "INBOUND",
-              "title": "Training Evaluation Datasets Declared",
+              "title": "Training Run Configuration Validated",
               "elementType": "EVENT"
             },
             {
@@ -6030,6 +7312,17 @@
               "subfields": []
             },
             {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
               "name": "aggregatorDatasetBundleId",
               "type": "UUID",
               "cardinality": "Single",
@@ -6098,17 +7391,6 @@
             {
               "name": "targetMetric",
               "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "subfields": []
-            },
-            {
-              "name": "minimumAccuracy",
-              "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -6208,7 +7490,7 @@
     {
       "id": "slice-cc8fc159",
       "status": "Created",
-      "index": 25,
+      "index": 29,
       "title": "Configure Training Strategy",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -6235,6 +7517,17 @@
               "subfields": []
             },
             {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
               "name": "strategyName",
               "type": "String",
               "cardinality": "Single",
@@ -6254,6 +7547,15 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "TrainingRunConfiguration.maxRounds"
+                  ],
+                  "rule": "Copy the locked training run configuration round budget onto the training job strategy."
+                }
+              ],
               "subfields": []
             },
             {
@@ -6265,6 +7567,15 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "TrainingRunConfiguration.minimumNodesPerRound"
+                  ],
+                  "rule": "Copy the configured minimum node quorum onto the training job strategy."
+                }
+              ],
               "subfields": []
             },
             {
@@ -6276,6 +7587,15 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "TrainingRunConfiguration.secureAggregationRequired"
+                  ],
+                  "rule": "Copy the secure aggregation requirement onto the training job strategy."
+                }
+              ],
               "subfields": []
             }
           ],
@@ -6331,6 +7651,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -6469,7 +7800,7 @@
     {
       "id": "slice-8a6eee57",
       "status": "Created",
-      "index": 26,
+      "index": 30,
       "title": "Submit Training Job",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -6492,6 +7823,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             }
@@ -6552,6 +7894,17 @@
               "subfields": []
             },
             {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
               "name": "minimumNodesPerRound",
               "type": "Int",
               "cardinality": "Single",
@@ -6570,6 +7923,46 @@
                 }
               ],
               "subfields": []
+            },
+            {
+              "name": "maxRounds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "TrainingRunConfiguration.maxRounds"
+                  ],
+                  "rule": "Snapshot the configured round budget when the training job is submitted."
+                }
+              ],
+              "subfields": []
+            },
+            {
+              "name": "minimumAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "mappings": [
+                {
+                  "type": "DERIVED",
+                  "from": [
+                    "TrainingRunConfiguration.minimumAccuracy"
+                  ],
+                  "rule": "Snapshot the configured target accuracy when the training job is submitted."
+                }
+              ],
+              "subfields": []
             }
           ],
           "type": "EVENT",
@@ -6584,6 +7977,18 @@
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
+            },
+            {
+              "id": "policy-ed4349e8",
+              "type": "OUTBOUND",
+              "title": "Lock Configuration When Training Submitted",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "command-22c73d65",
+              "type": "OUTBOUND",
+              "title": "Lock Training Run Configuration",
+              "elementType": "COMMAND"
             },
             {
               "id": "command-7399800b",
@@ -6674,7 +8079,7 @@
     {
       "id": "slice-ec8511b8",
       "status": "Created",
-      "index": 27,
+      "index": 31,
       "title": "Request Node Participation",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -6697,6 +8102,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -6797,6 +8213,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -6935,7 +8362,7 @@
     {
       "id": "slice-010190c7",
       "status": "Created",
-      "index": 28,
+      "index": 32,
       "title": "Accept Node Participation",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -6958,6 +8385,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -7047,6 +8485,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -7168,7 +8617,7 @@
     {
       "id": "slice-3f743565",
       "status": "Created",
-      "index": 29,
+      "index": 33,
       "title": "Track Training Job Running",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -7191,6 +8640,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -7273,6 +8733,17 @@
               "subfields": []
             },
             {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
               "name": "roundId",
               "type": "UUID",
               "cardinality": "Single",
@@ -7306,6 +8777,12 @@
               "id": "command-72667c79",
               "type": "INBOUND",
               "title": "Mark Training Job Running",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "command-fdcaa5a7",
+              "type": "OUTBOUND",
+              "title": "Pause Training Job",
               "elementType": "COMMAND"
             }
           ],
@@ -7377,9 +8854,686 @@
       ]
     },
     {
+      "id": "slice-86a33079",
+      "status": "Created",
+      "index": 34,
+      "title": "Pause Training Job",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-fdcaa5a7",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Pause Training Job",
+          "title": "Pause Training Job",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "pauseReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "requestedBy",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "event-09daa087",
+              "type": "INBOUND",
+              "title": "Training Job Running",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "screen-105b6b53",
+              "type": "INBOUND",
+              "title": "Training Operations Screen",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-365a6f46",
+              "type": "OUTBOUND",
+              "title": "Training Job Paused",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-365a6f46",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Pause Training Job",
+          "title": "Training Job Paused",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "pauseReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "requestedBy",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-fdcaa5a7",
+              "type": "INBOUND",
+              "title": "Pause Training Job",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "command-f398038f",
+              "type": "OUTBOUND",
+              "title": "Resume Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-105b6b53",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Pause Training Job",
+          "title": "Training Operations Screen",
+          "fields": [],
+          "type": "SCREEN",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-fdcaa5a7",
+              "type": "OUTBOUND",
+              "title": "Pause Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingJobPaused",
+        "eventId": "event-365a6f46",
+        "to": "Paused"
+      },
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-9b63e88d",
+          "name": "MLOpsEngineer",
+          "title": "MLOps Engineer"
+        }
+      ],
+      "aggregates": [
+        {
+          "id": "aggregate-554c9fce",
+          "name": "TrainingJob",
+          "title": "Training Job"
+        }
+      ]
+    },
+    {
+      "id": "slice-d3e0e9e2",
+      "status": "Created",
+      "index": 35,
+      "title": "Resume Training Job",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-f398038f",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Resume Training Job",
+          "title": "Resume Training Job",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "resumeReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "requestedBy",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "event-365a6f46",
+              "type": "INBOUND",
+              "title": "Training Job Paused",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "screen-264369d0",
+              "type": "INBOUND",
+              "title": "Training Operations Screen",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-247f9d48",
+              "type": "OUTBOUND",
+              "title": "Training Job Resumed",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-247f9d48",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Resume Training Job",
+          "title": "Training Job Resumed",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "resumeReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "requestedBy",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-f398038f",
+              "type": "INBOUND",
+              "title": "Resume Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-264369d0",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Resume Training Job",
+          "title": "Training Operations Screen",
+          "fields": [],
+          "type": "SCREEN",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-f398038f",
+              "type": "OUTBOUND",
+              "title": "Resume Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingJobResumed",
+        "eventId": "event-247f9d48",
+        "to": "Running"
+      },
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-9b63e88d",
+          "name": "MLOpsEngineer",
+          "title": "MLOps Engineer"
+        }
+      ],
+      "aggregates": [
+        {
+          "id": "aggregate-554c9fce",
+          "name": "TrainingJob",
+          "title": "Training Job"
+        }
+      ]
+    },
+    {
+      "id": "slice-647f9f25",
+      "status": "Created",
+      "index": 36,
+      "title": "Cancel Training Job",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "sliceType": "STATE_CHANGE",
+      "commands": [
+        {
+          "id": "command-3fc9e643",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Cancel Training Job",
+          "title": "Cancel Training Job",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "cancelReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "COMMAND",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "screen-73744147",
+              "type": "INBOUND",
+              "title": "Training Operations Screen",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-aaaad323",
+              "type": "OUTBOUND",
+              "title": "Training Job Canceled",
+              "elementType": "EVENT"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-aaaad323",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Cancel Training Job",
+          "title": "Training Job Canceled",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "cancelReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            }
+          ],
+          "type": "EVENT",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-3fc9e643",
+              "type": "INBOUND",
+              "title": "Cancel Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-73744147",
+          "tags": [],
+          "elementContext": "INTERNAL",
+          "modelContext": "TrainingOrchestration",
+          "context": "INTERNAL",
+          "slice": "Cancel Training Job",
+          "title": "Training Operations Screen",
+          "fields": [],
+          "type": "SCREEN",
+          "description": "",
+          "aggregate": "TrainingJob",
+          "aggregateDependencies": [
+            "Training Job"
+          ],
+          "dependencies": [
+            {
+              "id": "command-3fc9e643",
+              "type": "OUTBOUND",
+              "title": "Cancel Training Job",
+              "elementType": "COMMAND"
+            }
+          ],
+          "createsAggregate": false,
+          "triggers": [],
+          "sketched": false,
+          "prototype": {
+            "activeByDefault": false
+          }
+        }
+      ],
+      "screenImages": [],
+      "screenLayouts": [],
+      "processors": [],
+      "tables": [],
+      "stateChange": {
+        "type": "STATE_CHANGE",
+        "event": "TrainingJobCanceled",
+        "eventId": "event-aaaad323",
+        "to": "Canceled"
+      },
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-9b63e88d",
+          "name": "MLOpsEngineer",
+          "title": "MLOps Engineer"
+        }
+      ],
+      "aggregates": [
+        {
+          "id": "aggregate-554c9fce",
+          "name": "TrainingJob",
+          "title": "Training Job"
+        }
+      ]
+    },
+    {
       "id": "slice-5ea0a810",
       "status": "Created",
-      "index": 30,
+      "index": 37,
       "title": "Schedule Next Training Round",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -7442,7 +9596,7 @@
     {
       "id": "slice-c3feb8fe",
       "status": "Created",
-      "index": 31,
+      "index": 38,
       "title": "Complete Training Job",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -7465,6 +9619,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -7554,6 +9719,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -7717,7 +9893,7 @@
     {
       "id": "slice-d7631509",
       "status": "Created",
-      "index": 32,
+      "index": 39,
       "title": "Start Training Round",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -7740,6 +9916,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -7829,6 +10016,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -7974,7 +10172,7 @@
     {
       "id": "slice-5152efe4",
       "status": "Created",
-      "index": 33,
+      "index": 40,
       "title": "Distribute Global Model",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -7997,6 +10195,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -8086,6 +10295,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -8213,7 +10433,7 @@
     {
       "id": "slice-2112e67e",
       "status": "Created",
-      "index": 34,
+      "index": 41,
       "title": "Submit Local Model Update",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -8236,6 +10456,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -8363,6 +10594,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -8497,7 +10739,7 @@
     {
       "id": "slice-f470b10d",
       "status": "Created",
-      "index": 35,
+      "index": 42,
       "title": "Submit Local Model Evaluation",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -8520,6 +10762,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -8640,6 +10893,17 @@
               "subfields": []
             },
             {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "subfields": []
+            },
+            {
               "name": "roundId",
               "type": "UUID",
               "cardinality": "Single",
@@ -8753,7 +11017,7 @@
     {
       "id": "slice-6d731e1d",
       "status": "Created",
-      "index": 36,
+      "index": 43,
       "title": "Request Secure Aggregation",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -8776,6 +11040,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -8859,6 +11134,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -8980,7 +11266,7 @@
     {
       "id": "slice-47ea0149",
       "status": "Created",
-      "index": 37,
+      "index": 44,
       "title": "Complete Secure Aggregation",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -9003,6 +11289,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -9080,6 +11377,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -9170,7 +11478,7 @@
     {
       "id": "slice-b1e1769f",
       "status": "Created",
-      "index": 38,
+      "index": 45,
       "title": "Submit Global Model Evaluation",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -9193,6 +11501,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -9298,6 +11617,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -9410,7 +11740,7 @@
     {
       "id": "slice-e3311d26",
       "status": "Created",
-      "index": 39,
+      "index": 46,
       "title": "Complete Training Round",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
@@ -9433,6 +11763,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -9522,6 +11863,17 @@
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "subfields": []
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "subfields": []
             },
@@ -9655,7 +12007,7 @@
     {
       "id": "slice-5798988b",
       "status": "Created",
-      "index": 40,
+      "index": 47,
       "title": "Register Candidate Model",
       "chapter": "ModelLifecycle",
       "context": "ModelLifecycle",
@@ -9894,7 +12246,7 @@
     {
       "id": "slice-22948526",
       "status": "Created",
-      "index": 41,
+      "index": 48,
       "title": "Approve Model",
       "chapter": "ModelLifecycle",
       "context": "ModelLifecycle",
@@ -10089,7 +12441,7 @@
     {
       "id": "slice-cb5c3beb",
       "status": "Created",
-      "index": 42,
+      "index": 49,
       "title": "Promote Model To Production",
       "chapter": "ModelLifecycle",
       "context": "ModelLifecycle",
@@ -10278,7 +12630,7 @@
     {
       "id": "slice-e0e14d41",
       "status": "Created",
-      "index": 43,
+      "index": 50,
       "title": "Record Runtime Heartbeat",
       "chapter": "RuntimeOperations",
       "context": "RuntimeOperations",
@@ -10539,7 +12891,7 @@
     {
       "id": "slice-bb42613a",
       "status": "Created",
-      "index": 44,
+      "index": 51,
       "title": "Raise Training Alert",
       "chapter": "RuntimeOperations",
       "context": "RuntimeOperations",
@@ -10800,7 +13152,7 @@
     {
       "id": "slice-3a1e454d",
       "status": "Created",
-      "index": 45,
+      "index": 52,
       "title": "Append Audit Trail",
       "chapter": "RuntimeOperations",
       "context": "RuntimeOperations",
@@ -11109,6 +13461,17 @@
       ]
     },
     {
+      "id": "aggregate-9ee5dac2",
+      "name": "TrainingRunConfiguration",
+      "title": "Training Run Configuration",
+      "fields": [],
+      "states": [
+        "Draft",
+        "Validated",
+        "Locked"
+      ]
+    },
+    {
       "id": "aggregate-554c9fce",
       "name": "TrainingJob",
       "title": "Training Job",
@@ -11119,6 +13482,8 @@
         "Submitted",
         "RecruitingNodes",
         "Running",
+        "Paused",
+        "Canceled",
         "Completed"
       ]
     },
@@ -11221,14 +13586,14 @@
       "title": "Data Owner"
     },
     {
-      "id": "actor-3075cdda",
-      "name": "ResearchLead",
-      "title": "Research Lead"
-    },
-    {
       "id": "actor-9b63e88d",
       "name": "MLOpsEngineer",
       "title": "MLOps Engineer"
+    },
+    {
+      "id": "actor-3075cdda",
+      "name": "ResearchLead",
+      "title": "Research Lead"
     },
     {
       "id": "actor-3b799a70",

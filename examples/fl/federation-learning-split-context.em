@@ -1,5 +1,6 @@
 domain FederationLearningPlatform {
 context FederationManagement {
+  
   note "Federation management owns organizations, federations, and trusted compute nodes."
 
   aggregate Organization {
@@ -89,7 +90,7 @@ context FederationManagement {
     }
 
     slice OrganizationDirectory {
-      projection OrganizationDirectory {
+      projection OrganizationDirectory[] {
         organizationId: UUID id
         organizationName: String
         organizationType: String
@@ -179,7 +180,7 @@ context FederationManagement {
     slice FederationOverview {
       reactsTo ParticipantJoined
 
-      projection FederationOverview {
+      projection FederationOverview[] {
         federationId: UUID id
         federationName: String
         state: String
@@ -437,7 +438,7 @@ context DatasetGovernance {
     }
 
     slice DatasetCapability {
-      projection DatasetCapability {
+      projection DatasetCapability[] {
         datasetId: UUID id
         organizationId: UUID
         featureSchemaId: UUID
@@ -545,7 +546,7 @@ context DatasetGovernance {
     }
 
     slice DatasetRuntimeAccessCatalog {
-      projection DatasetRuntimeAccessCatalog {
+      projection DatasetRuntimeAccessCatalog[] {
         accessProfileId: UUID id
         datasetId: UUID
         nodeId: UUID
@@ -597,7 +598,7 @@ context DatasetGovernance {
     }
 
     slice TrainingEvaluationDatasetCatalog {
-      projection TrainingEvaluationDatasetCatalog {
+      projection TrainingEvaluationDatasetCatalog[] {
         datasetBundleId: UUID id
         organizationId: UUID
         nodeId: UUID
@@ -751,7 +752,7 @@ context TrainingOrchestration {
     }
 
     slice TrainingRunConfigurationCatalog {
-      projection TrainingRunConfigurationCatalog {
+      projection TrainingRunConfigurationCatalog[] {
         trainingRunConfigurationId: UUID id
         federationId: UUID
         featureSchemaId: UUID
@@ -777,6 +778,7 @@ context TrainingOrchestration {
     state RecruitingNodes
     state Running
     state Paused
+    state Canceled
     state Completed
 
     slice CreateTrainingJob {
@@ -1017,7 +1019,7 @@ context TrainingOrchestration {
         cancelReason: String?
       }
 
-      state Running
+      state Canceled
     }
 
     slice ScheduleNextTrainingRound {

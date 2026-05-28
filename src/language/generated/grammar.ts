@@ -712,6 +712,16 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
             }
           },
           {
+            "$type": "Assignment",
+            "feature": "listElement",
+            "operator": "?=",
+            "terminal": {
+              "$type": "Keyword",
+              "value": "[]"
+            },
+            "cardinality": "?"
+          },
+          {
             "$type": "Keyword",
             "value": "{"
           },

@@ -670,12 +670,14 @@ export interface Projection extends langium.AstNode {
     readonly $container: Context | Slice;
     readonly $type: 'Projection';
     elements: Array<ProjectionElement>;
+    listElement: boolean;
     name: string;
 }
 
 export const Projection = {
     $type: 'Projection',
     elements: 'elements',
+    listElement: 'listElement',
     name: 'name'
 } as const;
 
@@ -1442,6 +1444,10 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
                 elements: {
                     name: Projection.elements,
                     defaultValue: []
+                },
+                listElement: {
+                    name: Projection.listElement,
+                    defaultValue: false
                 },
                 name: {
                     name: Projection.name

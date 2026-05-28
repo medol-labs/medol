@@ -34,6 +34,7 @@ interface ConfigElement {
   type: 'COMMAND' | 'EVENT' | 'SCREEN' | 'READMODEL' | 'PROCESSOR' | 'SPECIFICATION';
   description: string;
   aggregate?: string;
+  listElement?: boolean;
   aggregateDependencies?: string[];
   dependencies: Array<{
     id: string;
@@ -291,6 +292,7 @@ const toConfigElement = (
   type,
   description: '',
   aggregate: aggregateName,
+  ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   aggregateDependencies: [humanize(aggregateName)],
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   createsAggregate,

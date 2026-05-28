@@ -94,7 +94,7 @@ Event:
 ;
 
 Projection:
-    'projection' name=ID '{'
+    'projection' name=ID listElement?='[]'? '{'
         elements+=ProjectionElement*
     '}'
 ;

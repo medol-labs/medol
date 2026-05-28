@@ -162,7 +162,7 @@ context FederationLearning {
     slice FederationOverview {
       reactsTo FederationCreated
 
-      projection FederationList {
+      projection FederationList[] {
         federationId: UUID id
         federationName: String
         status: String
@@ -205,7 +205,7 @@ context FederationLearning {
 - `command`: A user or automation intent.
 - `event`: A domain fact produced by a command.
 - `specification`: GWT-style business rule node.
-- `projection`: A read model updated by events.
+- `projection`: A read model updated by events. Use `projection Name[]` to export it as a list readmodel with `listElement: true`.
 - `automation`: A process that reacts to events and emits commands.
 - `reactsTo`: Declares that a slice starts from a prior event.
 - `subscribe`: Declares that a projection subscribes to an event.

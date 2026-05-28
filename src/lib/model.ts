@@ -31,6 +31,7 @@ export interface EmElement {
   kind: EmElementKind;
   name: string;
   fields: EmField[];
+  listElement?: boolean;
   sliceId?: string;
   aggregateId?: string;
   metadata?: Record<string, string>;
