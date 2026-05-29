@@ -1,37 +1,7 @@
 domain FederationLearningPlatform {
-context FederationLearningPlatform {
-  note "Federation learning is modeled as a distributed collaborative state machine."
-  decision "Keep secure aggregation as an integration boundary so third-party cryptographic services can evolve independently."
-  risk "Dataset contracts and label semantics are the highest-risk source of silent model quality failure."
-
-  integration SecureAggregationProvider {
-    source TrainingRound
-    target SecureAggregationService
-    reactsTo SecureAggregationRequested
-    emits CompleteSecureAggregation
-  }
-
-  integration EdgeTrainingRuntime {
-    source TrainingRound
-    target EdgeRuntime
-    reactsTo GlobalModelDistributed
-    emits SubmitLocalModelUpdate
-    emits SubmitLocalModelEvaluation
-  }
-
-  integration AggregationNodeRuntime {
-    source TrainingRound
-    target AggregationRuntime
-    reactsTo GlobalModelUpdated
-    emits SubmitGlobalModelEvaluation
-  }
-
-  integration DatasetAccessRuntime {
-    source DatasetGovernance
-    target EdgeRuntime
-    reactsTo DatasetAccessValidationRequested
-    emits CompleteRuntimeDatasetAccessValidation
-  }
+context FederationManagement {
+  
+  note "Federation management owns organizations, federations, and trusted compute nodes."
 
   aggregate Organization {
     state Registered
@@ -50,7 +20,6 @@ context FederationLearningPlatform {
         organizationType: String
         contactEmail: String
         legalEntityId: String
-        countryCode: String
       }
 
       event OrganizationRegistered {
@@ -59,16 +28,9 @@ context FederationLearningPlatform {
         organizationType: String
         contactEmail: String
         legalEntityId: String
-        countryCode: String
       }
 
       state Registered
-
-      specification "Register organization with legal identity" {
-        when RegisterOrganization
-        then OrganizationRegistered
-      }
-
     }
 
     slice VerifyOrganizationIdentity {
@@ -107,8 +69,6 @@ context FederationLearningPlatform {
       }
 
       state Active
-
-   
     }
 
     slice DeactivateOrganization {
@@ -130,7 +90,7 @@ context FederationLearningPlatform {
     }
 
     slice OrganizationDirectory {
-      projection OrganizationDirectory {
+      projection OrganizationDirectory[] {
         organizationId: UUID id
         organizationName: String
         organizationType: String
@@ -144,9 +104,8 @@ context FederationLearningPlatform {
         subscribe OrganizationDeactivated
         subscribe ComputeNodeTrusted
         subscribe DatasetApprovedForTraining
-     }
-   }
-
+      }
+    }
   }
 
   aggregate Federation {
@@ -178,18 +137,6 @@ context FederationLearningPlatform {
       }
 
       state Draft
-
-      specification "Create federation with valid governance policy" {
-        when CreateFederation
-        then FederationCreated
-      }
-
-      specification "Reject federation below minimum participant threshold" {
-        when CreateFederation {
-          minimumParticipantCount = 1
-        }
-        then FederationCreated
-      }
     }
 
     slice InviteParticipant {
@@ -207,12 +154,6 @@ context FederationLearningPlatform {
         federationId: UUID id technical
         organizationId: UUID
         invitationNote: String
-      }
-
-      specification "Invite only active verified organizations" {
-        given OrganizationActivated
-        when InviteParticipant
-        then ParticipantInvited
       }
     }
 
@@ -234,21 +175,84 @@ context FederationLearningPlatform {
       }
 
       state Active
+    }
 
-      projection FederationMembership {
-        federationId: UUID id
-        federationName: String
+    slice RejectParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen
+      reactsTo ParticipantInvited
+
+      command RejectParticipant {
+        federationId: UUID id technical
         organizationId: UUID
-        state: String
-        subscribe ParticipantInvited
-        subscribe ParticipantJoined
+        rejectionReason: String
+      }
+
+      event ParticipantRejected {
+        federationId: UUID id technical
+        organizationId: UUID
+        rejectionReason: String
+      }
+    }
+
+    slice RevokeParticipantInvitation {
+      actor FederationOwner
+      ui ParticipantInvitationScreen
+      reactsTo ParticipantInvited
+
+      command RevokeParticipantInvitation {
+        federationId: UUID id technical
+        organizationId: UUID
+        revokeReason: String
+      }
+
+      event ParticipantInvitationRevoked {
+        federationId: UUID id technical
+        organizationId: UUID
+        revokeReason: String
+      }
+    }
+
+    slice SuspendParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen
+      reactsTo ParticipantJoined
+
+      command SuspendParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        suspensionReason: String
+      }
+
+      event ParticipantSuspended {
+        federationId: UUID id technical
+        organizationId: UUID
+        suspensionReason: String
+      }
+    }
+
+    slice RemoveParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen
+      reactsTo ParticipantSuspended
+
+      command RemoveParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        removalReason: String
+      }
+
+      event ParticipantRemoved {
+        federationId: UUID id technical
+        organizationId: UUID
+        removalReason: String
       }
     }
 
     slice FederationOverview {
       reactsTo ParticipantJoined
 
-      projection FederationOverview {
+      projection FederationOverview[] {
         federationId: UUID id
         federationName: String
         state: String
@@ -257,12 +261,36 @@ context FederationLearningPlatform {
         trustedNodeCount: Int
         activeTrainingJobCount: Int
         subscribe FederationCreated
+        subscribe ParticipantInvited
         subscribe ParticipantJoined
-        subscribe OrganizationActivated
-        subscribe OrganizationDeactivated
+        subscribe ParticipantRejected
+        subscribe ParticipantInvitationRevoked
+        subscribe ParticipantSuspended
+        subscribe ParticipantRemoved
         subscribe ComputeNodeTrusted
         subscribe ComputeNodeSuspended
         subscribe TrainingJobSubmitted
+      }
+    }
+
+    slice FederationMembershipDirectory {
+      reactsTo ParticipantInvited
+
+      projection FederationMembershipDirectory[] {
+        federationId: UUID id
+        organizationId: UUID id
+        organizationName: String
+        membershipStatus: String
+        invitationNote: String?
+        approvalNote: String?
+        subscribe ParticipantInvited
+        subscribe ParticipantJoined
+        subscribe ParticipantRejected
+        subscribe ParticipantInvitationRevoked
+        subscribe ParticipantSuspended
+        subscribe ParticipantRemoved
+        subscribe OrganizationRegistered
+        subscribe OrganizationActivated
       }
     }
   }
@@ -369,38 +397,21 @@ context FederationLearningPlatform {
 
       state Suspended
     }
+  }
+}
 
-    slice NodeInventory {
-      reactsTo ComputeNodeTrusted
+context DatasetGovernance {
+  note "Dataset governance separates schema, dataset assets, runtime access profiles, and train evaluation bundles."
 
-      projection ComputeNodeInventory {
-        nodeId: UUID id
-        organizationId: UUID
-        nodeName: String
-        nodeType: String
-        trustLevel: String
-        gpuCount: Int
-        cpuCoreCount: Int
-        memoryGb: Int
-        maxConcurrentJobs: Int
-        state: String
-        subscribe ComputeNodeRegistered
-        subscribe NodeCapabilityUpdated
-        subscribe ComputeNodeTrusted
-        subscribe ComputeNodeSuspended
-        subscribe RuntimeHeartbeatRecorded
-      }
-    }
+  integration DatasetAccessRuntime {
+    source DatasetAccessProfile
+    target EdgeRuntime
+    reactsTo DatasetAccessValidationRequested
+    emits CompleteRuntimeDatasetAccessValidation
   }
 
-  aggregate DatasetGovernance {
-    state DraftSchema
-    state PublishedSchema
-    state DatasetRegistered
-    state DatasetApproved
-    state AccessProfileConfigured
-    state AccessValidated
-    state DatasetBundleDeclared
+  aggregate FeatureSchema {
+    state Published
 
     slice DefineFeatureSchema {
       createsAggregate
@@ -421,10 +432,20 @@ context FederationLearningPlatform {
         featureCount: Int
       }
 
-      state PublishedSchema
+      state Published
     }
+  }
+
+  aggregate Dataset {
+    state Registered
+    state ContractValidated
+    state Approved
+    state Rejected
+    state ApprovalExpired
+    state ApprovalRevoked
 
     slice RegisterDataset {
+      createsAggregate
       actor DataOwner
       ui DatasetRegistrationScreen
       reactsTo FeatureSchemaPublished
@@ -455,7 +476,7 @@ context FederationLearningPlatform {
         usagePolicyId: UUID
       }
 
-      state DatasetRegistered
+      state Registered
     }
 
     slice ValidateDatasetContract {
@@ -470,18 +491,49 @@ context FederationLearningPlatform {
         datasetId: UUID id technical
         featureSchemaId: UUID
         validationProfile: String
-      }
 
+      }
       event DatasetContractValidated {
         datasetId: UUID id technical
         featureSchemaId: UUID
-        schemaCompatible: Boolean
-        labelCompatible: Boolean
-        qualityScore: Decimal
-        nonIidScore: Decimal
+        schemaCompatible: Boolean derived {
+          from Dataset.featureSchemaId, ValidateDatasetContract.featureSchemaId
+          rule "Validate dataset feature schema compatibility."
+        }
+        labelCompatible: Boolean derived {
+          from Dataset.labelSchema, FeatureSchema
+          rule "Validate dataset label compatibility."
+        }
+        qualityScore: Decimal derived {
+          from Dataset.statistics, ValidationProfile
+          rule "Score dataset quality against the validation profile."
+          example "0.86"
+        }
+        nonIidScore: Decimal derived {
+          from Dataset.statistics, ValidationProfile
+          rule "Score dataset distribution skew for training selection."
+        }
       }
 
-      hotspot "Validation must catch feature unit mismatches and inverted labels before training."
+      state ContractValidated
+    }
+
+    slice RejectDatasetForTraining {
+      actor ComplianceOfficer
+      ui DatasetApprovalScreen
+      reactsTo DatasetContractValidated
+
+      command RejectDatasetForTraining {
+        datasetId: UUID id technical
+        rejectionReason: String
+      }
+
+      event DatasetRejectedForTraining {
+        datasetId: UUID id technical
+        rejectionReason: String
+      }
+
+      state Rejected
     }
 
     slice ApproveDatasetForTraining {
@@ -501,24 +553,76 @@ context FederationLearningPlatform {
         expiresAt: DateTime
       }
 
-      state DatasetApproved
+      state Approved
+    }
 
-      projection DatasetCapability {
+    slice ExpireDatasetTrainingApproval {
+      reactsTo DatasetApprovedForTraining
+
+      automation ExpireDatasetApprovalWhenPastExpiry {
+        condition expiresAt < now
+        emits ExpireDatasetTrainingApproval
+      }
+
+      command ExpireDatasetTrainingApproval {
+        datasetId: UUID id technical
+        expiredAt: DateTime
+      }
+
+      event DatasetTrainingApprovalExpired {
+        datasetId: UUID id technical
+        expiredAt: DateTime
+      }
+
+      state ApprovalExpired
+    }
+
+    slice RevokeDatasetTrainingApproval {
+      actor ComplianceOfficer
+      ui DatasetApprovalScreen
+      reactsTo DatasetApprovedForTraining
+
+      command RevokeDatasetTrainingApproval {
+        datasetId: UUID id technical
+        revokeReason: String
+      }
+
+      event DatasetTrainingApprovalRevoked {
+        datasetId: UUID id technical
+        revokeReason: String
+      }
+
+      state ApprovalRevoked
+    }
+
+    slice DatasetCapability {
+      projection DatasetCapability[] {
         datasetId: UUID id
         organizationId: UUID
         featureSchemaId: UUID
         datasetUsage: String
         sampleCount: Int
-        sensitivityLevel: String
-        region: String
+        qualityScore: Decimal
+        approvalStatus: String
+        expiresAt: DateTime?
         approved: Boolean
         subscribe DatasetRegistered
         subscribe DatasetContractValidated
+        subscribe DatasetRejectedForTraining
         subscribe DatasetApprovedForTraining
+        subscribe DatasetTrainingApprovalExpired
+        subscribe DatasetTrainingApprovalRevoked
       }
     }
+  }
+
+  aggregate DatasetAccessProfile {
+    state Configured
+    state ValidationRequested
+    state Validated
 
     slice ConfigureDatasetAccessProfile {
+      createsAggregate
       actor NodeOperator
       ui DatasetAccessProfileScreen
       reactsTo DatasetApprovedForTraining
@@ -553,7 +657,7 @@ context FederationLearningPlatform {
         featureMappingId: UUID?
       }
 
-      state AccessProfileConfigured
+      state Configured
     }
 
     slice RequestRuntimeDatasetAccessValidation {
@@ -577,6 +681,8 @@ context FederationLearningPlatform {
         runtimeId: UUID
         validationMode: String
       }
+
+      state ValidationRequested
     }
 
     slice CompleteRuntimeDatasetAccessValidation {
@@ -600,9 +706,11 @@ context FederationLearningPlatform {
         validationReportId: UUID
       }
 
-      state AccessValidated
+      state Validated
+    }
 
-      projection DatasetRuntimeAccessCatalog {
+    slice DatasetRuntimeAccessCatalog {
+      projection DatasetRuntimeAccessCatalog[] {
         accessProfileId: UUID id
         datasetId: UUID
         nodeId: UUID
@@ -615,8 +723,13 @@ context FederationLearningPlatform {
         subscribe RuntimeDatasetAccessValidated
       }
     }
+  }
+
+  aggregate TrainingEvaluationDatasetBundle {
+    state Declared
 
     slice DeclareTrainingEvaluationDatasets {
+      createsAggregate
       actor DataOwner
       ui DatasetBundleScreen
       reactsTo RuntimeDatasetAccessValidated
@@ -645,9 +758,11 @@ context FederationLearningPlatform {
         featureSchemaId: UUID
       }
 
-      state DatasetBundleDeclared
+      state Declared
+    }
 
-      projection TrainingEvaluationDatasetCatalog {
+    slice TrainingEvaluationDatasetCatalog {
+      projection TrainingEvaluationDatasetCatalog[] {
         datasetBundleId: UUID id
         organizationId: UUID
         nodeId: UUID
@@ -656,14 +771,166 @@ context FederationLearningPlatform {
         trainingDatasetAccessProfileId: UUID
         evaluationDatasetId: UUID
         evaluationDatasetAccessProfileId: UUID
-        featureSchemaId: UUID
         subscribe TrainingEvaluationDatasetsDeclared
       }
+    }
+  }
+}
 
-      specification "Training participant declares approved train and evaluation datasets" {
-        given RuntimeDatasetAccessValidated
-        when DeclareTrainingEvaluationDatasets
-        then TrainingEvaluationDatasetsDeclared
+context TrainingOrchestration {
+  note "Training orchestration owns job intent and each round of distributed training and evaluation."
+
+  integration SecureAggregationProvider {
+    source TrainingRound
+    target SecureAggregationService
+    reactsTo SecureAggregationRequested
+    emits CompleteSecureAggregation
+  }
+
+  integration EdgeTrainingRuntime {
+    source TrainingRound
+    target EdgeRuntime
+    reactsTo GlobalModelDistributed
+    emits SubmitLocalModelUpdate
+    emits SubmitLocalModelEvaluation
+  }
+
+  integration AggregationNodeRuntime {
+    source TrainingRound
+    target AggregationRuntime
+    reactsTo GlobalModelUpdated
+    emits SubmitGlobalModelEvaluation
+  }
+
+  aggregate TrainingRunConfiguration {
+    state Draft
+    state Validated
+    state Locked
+
+    slice DefineTrainingRunConfiguration {
+      createsAggregate
+      actor MLOpsEngineer
+      ui TrainingRunConfigurationScreen
+      reactsTo TrainingEvaluationDatasetsDeclared
+
+      command DefineTrainingRunConfiguration {
+        trainingRunConfigurationId: UUID id generated technical
+        federationId: UUID
+        featureSchemaId: UUID
+        strategyName: String
+        aggregationAlgorithm: String
+        maxRounds: Int
+        minimumNodesPerRound: Int
+        roundTimeoutSeconds: Int
+        nodeResponseTimeoutSeconds: Int
+        localEpochs: Int
+        batchSize: Int
+        learningRate: Decimal
+        optimizer: String
+        lossFunction: String
+        gradientClippingNorm: Decimal?
+        secureAggregationRequired: Boolean
+        differentialPrivacyEnabled: Boolean
+        dpNoiseMultiplier: Decimal?
+        dpClipNorm: Decimal?
+        minimumAccuracy: Decimal
+        minimumFairnessScore: Decimal?
+        failureToleranceRatio: Decimal
+      }
+
+      event TrainingRunConfigurationDefined {
+        trainingRunConfigurationId: UUID id technical
+        federationId: UUID
+        featureSchemaId: UUID
+        strategyName: String
+        aggregationAlgorithm: String
+        maxRounds: Int
+        minimumNodesPerRound: Int
+        roundTimeoutSeconds: Int
+        nodeResponseTimeoutSeconds: Int
+        localEpochs: Int
+        batchSize: Int
+        learningRate: Decimal
+        optimizer: String
+        lossFunction: String
+        gradientClippingNorm: Decimal?
+        secureAggregationRequired: Boolean
+        differentialPrivacyEnabled: Boolean
+        dpNoiseMultiplier: Decimal?
+        dpClipNorm: Decimal?
+        minimumAccuracy: Decimal
+        minimumFairnessScore: Decimal?
+        failureToleranceRatio: Decimal
+      }
+
+      state Draft
+    }
+
+    slice ValidateTrainingRunConfiguration {
+      reactsTo TrainingRunConfigurationDefined
+
+      automation ValidateTrainingRunConfigurationAutomatically {
+        condition maxRounds > 0
+        emits ValidateTrainingRunConfiguration
+      }
+
+      command ValidateTrainingRunConfiguration {
+        trainingRunConfigurationId: UUID id technical
+        validationProfile: String
+      }
+
+      event TrainingRunConfigurationValidated {
+        trainingRunConfigurationId: UUID id technical
+        valid: Boolean
+        validationReportId: UUID
+        effectiveMinimumNodesPerRound: Int derived {
+          from TrainingRunConfiguration.minimumNodesPerRound, TrainingRunConfiguration.failureToleranceRatio
+          rule "Derive the effective node quorum from the selected strategy and failure tolerance."
+        }
+      }
+
+      state Validated
+    }
+
+    slice LockTrainingRunConfiguration {
+      reactsTo TrainingJobSubmitted
+
+      policy LockConfigurationWhenTrainingSubmitted {
+        on TrainingJobSubmitted
+        issue LockTrainingRunConfiguration
+      }
+
+      command LockTrainingRunConfiguration {
+        trainingRunConfigurationId: UUID id technical
+        trainingJobId: UUID
+        lockedBy: String
+      }
+
+      event TrainingRunConfigurationLocked {
+        trainingRunConfigurationId: UUID id technical
+        trainingJobId: UUID
+        lockedBy: String
+      }
+
+      state Locked
+    }
+
+    slice TrainingRunConfigurationCatalog {
+      projection TrainingRunConfigurationCatalog[] {
+        trainingRunConfigurationId: UUID id
+        federationId: UUID
+        featureSchemaId: UUID
+        strategyName: String
+        aggregationAlgorithm: String
+        maxRounds: Int
+        minimumNodesPerRound: Int
+        secureAggregationRequired: Boolean
+        differentialPrivacyEnabled: Boolean
+        minimumAccuracy: Decimal
+        state: String
+        subscribe TrainingRunConfigurationDefined
+        subscribe TrainingRunConfigurationValidated
+        subscribe TrainingRunConfigurationLocked
       }
     }
   }
@@ -674,18 +941,21 @@ context FederationLearningPlatform {
     state Submitted
     state RecruitingNodes
     state Running
+    state Paused
+    state Canceled
     state Completed
 
     slice CreateTrainingJob {
       createsAggregate
       actor ResearchLead
       ui TrainingJobCreationScreen
-      reactsTo TrainingEvaluationDatasetsDeclared
+      reactsTo TrainingRunConfigurationValidated
 
       command CreateTrainingJob {
         trainingJobId: UUID id generated technical
         federationId: UUID
         featureSchemaId: UUID
+        trainingRunConfigurationId: UUID
         aggregatorDatasetBundleId: UUID
         aggregatorTrainingDatasetId: UUID
         aggregatorTrainingDatasetAccessProfileId: UUID
@@ -693,13 +963,13 @@ context FederationLearningPlatform {
         aggregatorEvaluationDatasetAccessProfileId: UUID
         objective: String
         targetMetric: String
-        minimumAccuracy: Decimal
       }
 
       event TrainingJobCreated {
         trainingJobId: UUID id technical
         federationId: UUID
         featureSchemaId: UUID
+        trainingRunConfigurationId: UUID
         aggregatorDatasetBundleId: UUID
         aggregatorTrainingDatasetId: UUID
         aggregatorTrainingDatasetAccessProfileId: UUID
@@ -707,7 +977,6 @@ context FederationLearningPlatform {
         aggregatorEvaluationDatasetAccessProfileId: UUID
         objective: String
         targetMetric: String
-        minimumAccuracy: Decimal
       }
 
       state Draft
@@ -720,19 +989,28 @@ context FederationLearningPlatform {
 
       command ConfigureTrainingStrategy {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         strategyName: String
-        maxRounds: Int
-        minimumNodesPerRound: Int
-        differentialPrivacyEnabled: Boolean
-        secureAggregationRequired: Boolean
+        maxRounds: Int derived {
+          from TrainingRunConfiguration.maxRounds
+          rule "Copy the locked training run configuration round budget onto the training job strategy."
+        }
+        minimumNodesPerRound: Int derived {
+          from TrainingRunConfiguration.minimumNodesPerRound
+          rule "Copy the configured minimum node quorum onto the training job strategy."
+        }
+        secureAggregationRequired: Boolean derived {
+          from TrainingRunConfiguration.secureAggregationRequired
+          rule "Copy the secure aggregation requirement onto the training job strategy."
+        }
       }
 
       event TrainingStrategyConfigured {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         strategyName: String
         maxRounds: Int
         minimumNodesPerRound: Int
-        differentialPrivacyEnabled: Boolean
         secureAggregationRequired: Boolean
       }
 
@@ -746,29 +1024,27 @@ context FederationLearningPlatform {
 
       command SubmitTrainingJob {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
       }
 
       event TrainingJobSubmitted {
         trainingJobId: UUID id technical
-        minimumNodesPerRound: Int
+        trainingRunConfigurationId: UUID
+        minimumNodesPerRound: Int derived {
+          from TrainingJob.trainingStrategy
+          rule "Derive the minimum selected nodes from the configured training strategy."
+        }
+        maxRounds: Int derived {
+          from TrainingRunConfiguration.maxRounds
+          rule "Snapshot the configured round budget when the training job is submitted."
+        }
+        minimumAccuracy: Decimal derived {
+          from TrainingRunConfiguration.minimumAccuracy
+          rule "Snapshot the configured target accuracy when the training job is submitted."
+        }
       }
 
       state Submitted
-
-      projection TrainingJobBoard {
-        trainingJobId: UUID id
-        federationId: UUID
-        state: String
-        currentRoundNumber: Int
-        readyNodeCount: Int
-        subscribe TrainingJobCreated
-        subscribe TrainingStrategyConfigured
-        subscribe TrainingJobSubmitted
-        subscribe NodeReadyForTraining
-        subscribe TrainingRoundStarted
-        subscribe TrainingJobRunning
-        subscribe TrainingJobCompleted
-      }
     }
 
     slice RequestNodeParticipation {
@@ -781,38 +1057,23 @@ context FederationLearningPlatform {
 
       command RequestNodeParticipation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         nodeId: UUID
         participantDatasetBundleId: UUID
-        trainingDatasetId: UUID
         trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
         evaluationDatasetAccessProfileId: UUID
-        participationDeadline: DateTime
       }
 
       event NodeParticipationRequested {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         nodeId: UUID
         participantDatasetBundleId: UUID
-        trainingDatasetId: UUID
         trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
         evaluationDatasetAccessProfileId: UUID
-        participationDeadline: DateTime
       }
 
       state RecruitingNodes
-      projection TrainingJobNodeBoard {
-        trainingJobId: UUID
-        nodeId: UUID id technical
-        participantDatasetBundleId: UUID
-        trainingDatasetId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        subscribe NodeParticipationRequested
-        subscribe NodeReadyForTraining
-      }
     }
 
     slice AcceptNodeParticipation {
@@ -822,28 +1083,49 @@ context FederationLearningPlatform {
 
       command AcceptNodeParticipation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         nodeId: UUID
         participantDatasetBundleId: UUID
-        trainingDatasetId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
-        evaluationDatasetAccessProfileId: UUID
         availableGpuCount: Int
-        localEpochLimit: Int
       }
 
       event NodeReadyForTraining {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         nodeId: UUID
         participantDatasetBundleId: UUID
-        trainingDatasetId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
-        evaluationDatasetAccessProfileId: UUID
         availableGpuCount: Int
-        localEpochLimit: Int
       }
+    }
 
+    slice TrainingParticipantEligibility {
+      reactsTo TrainingJobSubmitted
+
+      projection TrainingParticipantEligibility[] {
+        trainingJobId: UUID id
+        federationId: UUID
+        organizationId: UUID
+        nodeId: UUID
+        participantDatasetBundleId: UUID
+        trainingDatasetAccessProfileId: UUID
+        evaluationDatasetAccessProfileId: UUID
+        trustedNode: Boolean
+        runtimeReadable: Boolean
+        nodeHealthy: Boolean
+        eligible: Boolean
+        eligibilityReason: String?
+        subscribe TrainingJobSubmitted
+        subscribe ParticipantJoined
+        subscribe ParticipantSuspended
+        subscribe ParticipantRemoved
+        subscribe ComputeNodeTrusted
+        subscribe ComputeNodeSuspended
+        subscribe TrainingEvaluationDatasetsDeclared
+        subscribe RuntimeDatasetAccessValidated
+        subscribe RuntimeHeartbeatRecorded
+        subscribe NodeParticipationRequested
+        subscribe NodeReadyForTraining
+      }
     }
 
     slice TrackTrainingJobRunning {
@@ -856,17 +1138,82 @@ context FederationLearningPlatform {
 
       command MarkTrainingJobRunning {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         roundNumber: Int
       }
 
       event TrainingJobRunning {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         roundNumber: Int
       }
 
       state Running
+    }
+
+    slice PauseTrainingJob {
+      actor MLOpsEngineer
+      ui TrainingOperationsScreen
+      reactsTo TrainingJobRunning
+
+      command PauseTrainingJob {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        pauseReason: String
+        requestedBy: String
+      }
+
+      event TrainingJobPaused {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        pauseReason: String
+        requestedBy: String
+      }
+
+      state Paused
+    }
+
+    slice ResumeTrainingJob {
+      actor MLOpsEngineer
+      ui TrainingOperationsScreen
+      reactsTo TrainingJobPaused
+
+      command ResumeTrainingJob {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        resumeReason: String?
+        requestedBy: String
+      }
+
+      event TrainingJobResumed {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        resumeReason: String?
+        requestedBy: String
+      }
+
+      state Running
+    }
+
+    slice CancelTrainingJob {
+      actor MLOpsEngineer
+      ui TrainingOperationsScreen
+
+      command CancelTrainingJob {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        cancelReason: String?
+      }
+
+      event TrainingJobCanceled {
+        trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
+        cancelReason: String?
+      }
+
+      state Canceled
     }
 
     slice ScheduleNextTrainingRound {
@@ -893,6 +1240,7 @@ context FederationLearningPlatform {
 
       command CompleteTrainingJob {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         finalRoundId: UUID
         finalModelVersionId: UUID
         stopReason: String
@@ -900,12 +1248,44 @@ context FederationLearningPlatform {
 
       event TrainingJobCompleted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         finalRoundId: UUID
         finalModelVersionId: UUID
         stopReason: String
       }
 
       state Completed
+    }
+
+    slice TrainingJobDashboard {
+      projection TrainingJobDashboard[] {
+        trainingJobId: UUID id
+        federationId: UUID
+        trainingRunConfigurationId: UUID
+        featureSchemaId: UUID
+        objective: String
+        targetMetric: String
+        state: String
+        currentRoundNumber: Int
+        readyNodeCount: Int
+        minimumNodesPerRound: Int
+        maxRounds: Int
+        globalAccuracy: Decimal?
+        finalModelVersionId: UUID?
+        stopReason: String?
+        subscribe TrainingJobCreated
+        subscribe TrainingStrategyConfigured
+        subscribe TrainingJobSubmitted
+        subscribe NodeParticipationRequested
+        subscribe NodeReadyForTraining
+        subscribe TrainingJobRunning
+        subscribe TrainingJobPaused
+        subscribe TrainingJobResumed
+        subscribe TrainingJobCanceled
+        subscribe TrainingRoundStarted
+        subscribe TrainingRoundCompleted
+        subscribe TrainingJobCompleted
+      }
     }
   }
 
@@ -927,6 +1307,7 @@ context FederationLearningPlatform {
 
       command StartTrainingRound {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID generated technical
         roundNumber: Int
         readyNodeCount: Int
@@ -934,6 +1315,7 @@ context FederationLearningPlatform {
 
       event TrainingRoundStarted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         roundNumber: Int
         readyNodeCount: Int
@@ -944,12 +1326,15 @@ context FederationLearningPlatform {
 
     slice DistributeGlobalModel {
       reactsTo TrainingRoundStarted
+
       policy RequestDistributeGlobalModel {
         on TrainingRoundStarted
         issue DistributeGlobalModel
       }
+
       command DistributeGlobalModel {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         modelVersionId: UUID
         targetNodeCount: Int
@@ -957,6 +1342,7 @@ context FederationLearningPlatform {
 
       event GlobalModelDistributed {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         modelVersionId: UUID
         targetNodeCount: Int
@@ -967,34 +1353,29 @@ context FederationLearningPlatform {
 
     slice SubmitLocalModelUpdate {
       actor EdgeRuntime
-      ui EdgeRuntimeConsole
       reactsTo GlobalModelDistributed
 
       command SubmitLocalModelUpdate {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         nodeId: UUID
-        trainingDatasetId: UUID
         trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
         evaluationDatasetAccessProfileId: UUID
         localModelVersionId: UUID
         updateArtifactId: UUID
-        sampleCount: Int
         trainingLoss: Decimal
       }
 
       event LocalModelUpdateSubmitted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         nodeId: UUID
-        trainingDatasetId: UUID
         trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
         evaluationDatasetAccessProfileId: UUID
         localModelVersionId: UUID
         updateArtifactId: UUID
-        sampleCount: Int
         trainingLoss: Decimal
       }
     }
@@ -1004,25 +1385,23 @@ context FederationLearningPlatform {
 
       command SubmitLocalModelEvaluation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         nodeId: UUID
         localModelVersionId: UUID
-        evaluationDatasetId: UUID
         evaluationDatasetAccessProfileId: UUID
         localAccuracy: Decimal
-        localLoss: Decimal
         localFairnessScore: Decimal
       }
 
       event LocalModelEvaluationSubmitted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         nodeId: UUID
         localModelVersionId: UUID
-        evaluationDatasetId: UUID
         evaluationDatasetAccessProfileId: UUID
         localAccuracy: Decimal
-        localLoss: Decimal
         localFairnessScore: Decimal
       }
     }
@@ -1037,6 +1416,7 @@ context FederationLearningPlatform {
 
       command RequestSecureAggregation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         evaluatedUpdateCount: Int
         aggregationProvider: String
@@ -1044,6 +1424,7 @@ context FederationLearningPlatform {
 
       event SecureAggregationRequested {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         evaluatedUpdateCount: Int
         aggregationProvider: String
@@ -1055,6 +1436,7 @@ context FederationLearningPlatform {
     slice CompleteSecureAggregation {
       command CompleteSecureAggregation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         requestId: UUID
         aggregatedModelVersionId: UUID
@@ -1062,6 +1444,7 @@ context FederationLearningPlatform {
 
       event GlobalModelUpdated {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         requestId: UUID
         aggregatedModelVersionId: UUID
@@ -1075,23 +1458,21 @@ context FederationLearningPlatform {
 
       command SubmitGlobalModelEvaluation {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         aggregatedModelVersionId: UUID
-        aggregatorEvaluationDatasetId: UUID
         aggregatorEvaluationDatasetAccessProfileId: UUID
         globalAccuracy: Decimal
-        globalLoss: Decimal
         globalFairnessScore: Decimal
       }
 
       event GlobalModelEvaluationSubmitted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         aggregatedModelVersionId: UUID
-        aggregatorEvaluationDatasetId: UUID
         aggregatorEvaluationDatasetAccessProfileId: UUID
         globalAccuracy: Decimal
-        globalLoss: Decimal
         globalFairnessScore: Decimal
       }
     }
@@ -1106,33 +1487,40 @@ context FederationLearningPlatform {
 
       command CompleteTrainingRound {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         aggregatedModelVersionId: UUID
         globalAccuracy: Decimal
-        globalFairnessScore: Decimal
       }
 
       event TrainingRoundCompleted {
         trainingJobId: UUID id technical
+        trainingRunConfigurationId: UUID
         roundId: UUID
         aggregatedModelVersionId: UUID
         globalAccuracy: Decimal
-        globalFairnessScore: Decimal
       }
 
       state Completed
+    }
 
-      projection RoundProgress {
+    slice TrainingRoundProgress {
+      projection TrainingRoundProgress[] {
         trainingJobId: UUID id
-        roundId: UUID
+        trainingRunConfigurationId: UUID
+        roundId: UUID id
         roundNumber: Int
+        state: String
+        readyNodeCount: Int
+        targetNodeCount: Int
         submittedUpdateCount: Int
         evaluatedUpdateCount: Int
-        aggregationState: String
-        localAccuracyAverage: Decimal
-        globalAccuracy: Decimal
-        globalFairnessScore: Decimal
+        aggregationProvider: String?
+        aggregatedModelVersionId: UUID?
+        globalAccuracy: Decimal?
+        globalFairnessScore: Decimal?
         subscribe TrainingRoundStarted
+        subscribe GlobalModelDistributed
         subscribe LocalModelUpdateSubmitted
         subscribe LocalModelEvaluationSubmitted
         subscribe SecureAggregationRequested
@@ -1142,11 +1530,17 @@ context FederationLearningPlatform {
       }
     }
   }
+}
 
-  aggregate ModelRegistry {
+context ModelLifecycle {
+  note "Model lifecycle starts after training has produced a final evaluated candidate."
+
+  aggregate ModelVersion {
     state Candidate
     state Approved
     state Production
+    state RolledBack
+    state Retired
 
     slice RegisterCandidateModel {
       createsAggregate
@@ -1161,18 +1555,22 @@ context FederationLearningPlatform {
         modelVersionId: UUID id technical
         trainingJobId: UUID
         finalRoundId: UUID
+        modelArtifactId: UUID
+        modelHash: String
+        evaluationReportId: UUID
+        lineageRef: String
         finalGlobalAccuracy: Decimal
-        finalGlobalFairnessScore: Decimal
-        localEvaluationSummaryId: UUID
       }
 
       event ModelCandidateRegistered {
         modelVersionId: UUID id technical
         trainingJobId: UUID
         finalRoundId: UUID
+        modelArtifactId: UUID
+        modelHash: String
+        evaluationReportId: UUID
+        lineageRef: String
         finalGlobalAccuracy: Decimal
-        finalGlobalFairnessScore: Decimal
-        localEvaluationSummaryId: UUID
       }
 
       state Candidate
@@ -1204,33 +1602,89 @@ context FederationLearningPlatform {
       command PromoteModelToProduction {
         modelVersionId: UUID id technical
         releaseChannel: String
+        deploymentTarget: String
       }
 
       event ModelPromotedToProduction {
         modelVersionId: UUID id technical
         releaseChannel: String
+        deploymentTarget: String
       }
 
       state Production
+    }
 
-      projection ModelCatalog {
+    slice RollbackModelVersion {
+      actor ReleaseManager
+      ui ModelReleaseScreen
+      reactsTo ModelPromotedToProduction
+
+      command RollbackModelVersion {
+        modelVersionId: UUID id technical
+        previousModelVersionId: UUID
+        rollbackReason: String
+        requestedBy: String
+      }
+
+      event ModelVersionRolledBack {
+        modelVersionId: UUID id technical
+        previousModelVersionId: UUID
+        rollbackReason: String
+        requestedBy: String
+      }
+
+      state RolledBack
+    }
+
+    slice RetireModelVersion {
+      actor ReleaseManager
+      ui ModelReleaseScreen
+      reactsTo ModelPromotedToProduction
+
+      command RetireModelVersion {
+        modelVersionId: UUID id technical
+        retirementReason: String
+        requestedBy: String
+      }
+
+      event ModelVersionRetired {
+        modelVersionId: UUID id technical
+        retirementReason: String
+        requestedBy: String
+      }
+
+      state Retired
+    }
+
+    slice ModelVersionCatalog {
+      projection ModelVersionCatalog[] {
         modelVersionId: UUID id
         trainingJobId: UUID
-        state: String
+        finalRoundId: UUID
+        modelArtifactId: UUID
+        modelHash: String
+        evaluationReportId: UUID
+        lineageRef: String
         finalGlobalAccuracy: Decimal
-        finalGlobalFairnessScore: Decimal
-        releaseChannel: String
+        state: String
+        releaseChannel: String?
+        deploymentTarget: String?
+        previousModelVersionId: UUID?
         subscribe ModelCandidateRegistered
         subscribe ModelApproved
         subscribe ModelPromotedToProduction
+        subscribe ModelVersionRolledBack
+        subscribe ModelVersionRetired
       }
     }
   }
+}
 
-  aggregate MonitoringAudit {
+context RuntimeOperations {
+  note "Runtime operations separates heartbeat monitoring, training alerts, and append only audit records."
+
+  aggregate NodeRuntimeHealth {
     state Healthy
-    state Degraded
-    state Investigating
 
     slice RecordRuntimeHeartbeat {
       createsAggregate
@@ -1254,20 +1708,28 @@ context FederationLearningPlatform {
       }
 
       state Healthy
+    }
 
-      projection NodeRuntimeState {
+    slice RuntimeHealthDashboard {
+      projection RuntimeHealthDashboard[] {
         nodeId: UUID id
         federationId: UUID
-        state: String
         cpuLoad: Decimal
         gpuLoad: Decimal
         memoryLoad: Decimal
+        healthStatus: String
+        lastHeartbeatAt: DateTime
         subscribe RuntimeHeartbeatRecorded
-        subscribe ComputeNodeTrusted
+        subscribe TrainingAlertRaised
       }
     }
+  }
+
+  aggregate TrainingAlert {
+    state Raised
 
     slice RaiseTrainingAlert {
+      createsAggregate
       reactsTo RuntimeHeartbeatRecorded
 
       automation RaiseAlertOnNodeResourcePressure {
@@ -1291,10 +1753,27 @@ context FederationLearningPlatform {
         message: String
       }
 
-      state Degraded
+      state Raised
     }
 
+    slice TrainingAlertCatalog {
+      projection TrainingAlertCatalog[] {
+        alertId: UUID id
+        nodeId: UUID
+        trainingJobId: UUID?
+        severity: String
+        message: String
+        state: String
+        subscribe TrainingAlertRaised
+      }
+    }
+  }
+
+  aggregate AuditRecord {
+    state Appended
+
     slice AppendAuditTrail {
+      createsAggregate
       reactsTo TrainingAlertRaised
 
       policy AuditCriticalTrainingEvents {
@@ -1302,9 +1781,45 @@ context FederationLearningPlatform {
         issue AppendAuditTrail
       }
 
+      policy AuditParticipantJoined {
+        on ParticipantJoined
+        issue AppendAuditTrail
+      }
+
+      policy AuditParticipantSuspended {
+        on ParticipantSuspended
+        issue AppendAuditTrail
+      }
+
+      policy AuditDatasetApproval {
+        on DatasetApprovedForTraining
+        issue AppendAuditTrail
+      }
+
+      policy AuditDatasetApprovalRevoked {
+        on DatasetTrainingApprovalRevoked
+        issue AppendAuditTrail
+      }
+
+      policy AuditTrainingJobSubmitted {
+        on TrainingJobSubmitted
+        issue AppendAuditTrail
+      }
+
+      policy AuditModelPromotedToProduction {
+        on ModelPromotedToProduction
+        issue AppendAuditTrail
+      }
+
+      policy AuditNodeTrustChanged {
+        on ComputeNodeTrusted
+        issue AppendAuditTrail
+      }
+
       command AppendAuditTrail {
         auditRecordId: UUID id generated technical
         sourceEventName: String
+        sourceEntityId: UUID?
         severity: String
         payloadHash: String
       }
@@ -1312,18 +1827,21 @@ context FederationLearningPlatform {
       event AuditTrailAppended {
         auditRecordId: UUID id technical
         sourceEventName: String
+        sourceEntityId: UUID?
         severity: String
         payloadHash: String
       }
 
-      state Investigating
+      state Appended
+    }
 
-      projection ComplianceAuditLog {
+    slice AuditRecordLog {
+      projection AuditRecordLog[] {
         auditRecordId: UUID id
         sourceEventName: String
-        actorId: UUID?
+        sourceEntityId: UUID?
         severity: String
-        appendedAt: DateTime
+        payloadHash: String
         subscribe AuditTrailAppended
       }
     }
