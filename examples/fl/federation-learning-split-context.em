@@ -177,6 +177,78 @@ context FederationManagement {
       state Active
     }
 
+    slice RejectParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen
+      reactsTo ParticipantInvited
+
+      command RejectParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        rejectionReason: String
+      }
+
+      event ParticipantRejected {
+        federationId: UUID id technical
+        organizationId: UUID
+        rejectionReason: String
+      }
+    }
+
+    slice RevokeParticipantInvitation {
+      actor FederationOwner
+      ui ParticipantInvitationScreen
+      reactsTo ParticipantInvited
+
+      command RevokeParticipantInvitation {
+        federationId: UUID id technical
+        organizationId: UUID
+        revokeReason: String
+      }
+
+      event ParticipantInvitationRevoked {
+        federationId: UUID id technical
+        organizationId: UUID
+        revokeReason: String
+      }
+    }
+
+    slice SuspendParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen
+      reactsTo ParticipantJoined
+
+      command SuspendParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        suspensionReason: String
+      }
+
+      event ParticipantSuspended {
+        federationId: UUID id technical
+        organizationId: UUID
+        suspensionReason: String
+      }
+    }
+
+    slice RemoveParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen
+      reactsTo ParticipantSuspended
+
+      command RemoveParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        removalReason: String
+      }
+
+      event ParticipantRemoved {
+        federationId: UUID id technical
+        organizationId: UUID
+        removalReason: String
+      }
+    }
+
     slice FederationOverview {
       reactsTo ParticipantJoined
 
@@ -189,7 +261,12 @@ context FederationManagement {
         trustedNodeCount: Int
         activeTrainingJobCount: Int
         subscribe FederationCreated
+        subscribe ParticipantInvited
         subscribe ParticipantJoined
+        subscribe ParticipantRejected
+        subscribe ParticipantInvitationRevoked
+        subscribe ParticipantSuspended
+        subscribe ParticipantRemoved
         subscribe ComputeNodeTrusted
         subscribe ComputeNodeSuspended
         subscribe TrainingJobSubmitted
@@ -208,6 +285,10 @@ context FederationManagement {
         approvalNote: String?
         subscribe ParticipantInvited
         subscribe ParticipantJoined
+        subscribe ParticipantRejected
+        subscribe ParticipantInvitationRevoked
+        subscribe ParticipantSuspended
+        subscribe ParticipantRemoved
         subscribe OrganizationRegistered
         subscribe OrganizationActivated
       }
@@ -359,6 +440,9 @@ context DatasetGovernance {
     state Registered
     state ContractValidated
     state Approved
+    state Rejected
+    state ApprovalExpired
+    state ApprovalRevoked
 
     slice RegisterDataset {
       createsAggregate
@@ -434,6 +518,24 @@ context DatasetGovernance {
       state ContractValidated
     }
 
+    slice RejectDatasetForTraining {
+      actor ComplianceOfficer
+      ui DatasetApprovalScreen
+      reactsTo DatasetContractValidated
+
+      command RejectDatasetForTraining {
+        datasetId: UUID id technical
+        rejectionReason: String
+      }
+
+      event DatasetRejectedForTraining {
+        datasetId: UUID id technical
+        rejectionReason: String
+      }
+
+      state Rejected
+    }
+
     slice ApproveDatasetForTraining {
       actor ComplianceOfficer
       ui DatasetApprovalScreen
@@ -454,6 +556,45 @@ context DatasetGovernance {
       state Approved
     }
 
+    slice ExpireDatasetTrainingApproval {
+      reactsTo DatasetApprovedForTraining
+
+      automation ExpireDatasetApprovalWhenPastExpiry {
+        condition expiresAt < now
+        emits ExpireDatasetTrainingApproval
+      }
+
+      command ExpireDatasetTrainingApproval {
+        datasetId: UUID id technical
+        expiredAt: DateTime
+      }
+
+      event DatasetTrainingApprovalExpired {
+        datasetId: UUID id technical
+        expiredAt: DateTime
+      }
+
+      state ApprovalExpired
+    }
+
+    slice RevokeDatasetTrainingApproval {
+      actor ComplianceOfficer
+      ui DatasetApprovalScreen
+      reactsTo DatasetApprovedForTraining
+
+      command RevokeDatasetTrainingApproval {
+        datasetId: UUID id technical
+        revokeReason: String
+      }
+
+      event DatasetTrainingApprovalRevoked {
+        datasetId: UUID id technical
+        revokeReason: String
+      }
+
+      state ApprovalRevoked
+    }
+
     slice DatasetCapability {
       projection DatasetCapability[] {
         datasetId: UUID id
@@ -461,10 +602,16 @@ context DatasetGovernance {
         featureSchemaId: UUID
         datasetUsage: String
         sampleCount: Int
+        qualityScore: Decimal
+        approvalStatus: String
+        expiresAt: DateTime?
         approved: Boolean
         subscribe DatasetRegistered
         subscribe DatasetContractValidated
+        subscribe DatasetRejectedForTraining
         subscribe DatasetApprovedForTraining
+        subscribe DatasetTrainingApprovalExpired
+        subscribe DatasetTrainingApprovalRevoked
       }
     }
   }
@@ -951,6 +1098,36 @@ context TrainingOrchestration {
       }
     }
 
+    slice TrainingParticipantEligibility {
+      reactsTo TrainingJobSubmitted
+
+      projection TrainingParticipantEligibility[] {
+        trainingJobId: UUID id
+        federationId: UUID
+        organizationId: UUID
+        nodeId: UUID
+        participantDatasetBundleId: UUID
+        trainingDatasetAccessProfileId: UUID
+        evaluationDatasetAccessProfileId: UUID
+        trustedNode: Boolean
+        runtimeReadable: Boolean
+        nodeHealthy: Boolean
+        eligible: Boolean
+        eligibilityReason: String?
+        subscribe TrainingJobSubmitted
+        subscribe ParticipantJoined
+        subscribe ParticipantSuspended
+        subscribe ParticipantRemoved
+        subscribe ComputeNodeTrusted
+        subscribe ComputeNodeSuspended
+        subscribe TrainingEvaluationDatasetsDeclared
+        subscribe RuntimeDatasetAccessValidated
+        subscribe RuntimeHeartbeatRecorded
+        subscribe NodeParticipationRequested
+        subscribe NodeReadyForTraining
+      }
+    }
+
     slice TrackTrainingJobRunning {
       reactsTo TrainingRoundStarted
 
@@ -1078,6 +1255,37 @@ context TrainingOrchestration {
       }
 
       state Completed
+    }
+
+    slice TrainingJobDashboard {
+      projection TrainingJobDashboard[] {
+        trainingJobId: UUID id
+        federationId: UUID
+        trainingRunConfigurationId: UUID
+        featureSchemaId: UUID
+        objective: String
+        targetMetric: String
+        state: String
+        currentRoundNumber: Int
+        readyNodeCount: Int
+        minimumNodesPerRound: Int
+        maxRounds: Int
+        globalAccuracy: Decimal?
+        finalModelVersionId: UUID?
+        stopReason: String?
+        subscribe TrainingJobCreated
+        subscribe TrainingStrategyConfigured
+        subscribe TrainingJobSubmitted
+        subscribe NodeParticipationRequested
+        subscribe NodeReadyForTraining
+        subscribe TrainingJobRunning
+        subscribe TrainingJobPaused
+        subscribe TrainingJobResumed
+        subscribe TrainingJobCanceled
+        subscribe TrainingRoundStarted
+        subscribe TrainingRoundCompleted
+        subscribe TrainingJobCompleted
+      }
     }
   }
 
@@ -1295,6 +1503,32 @@ context TrainingOrchestration {
 
       state Completed
     }
+
+    slice TrainingRoundProgress {
+      projection TrainingRoundProgress[] {
+        trainingJobId: UUID id
+        trainingRunConfigurationId: UUID
+        roundId: UUID id
+        roundNumber: Int
+        state: String
+        readyNodeCount: Int
+        targetNodeCount: Int
+        submittedUpdateCount: Int
+        evaluatedUpdateCount: Int
+        aggregationProvider: String?
+        aggregatedModelVersionId: UUID?
+        globalAccuracy: Decimal?
+        globalFairnessScore: Decimal?
+        subscribe TrainingRoundStarted
+        subscribe GlobalModelDistributed
+        subscribe LocalModelUpdateSubmitted
+        subscribe LocalModelEvaluationSubmitted
+        subscribe SecureAggregationRequested
+        subscribe GlobalModelUpdated
+        subscribe GlobalModelEvaluationSubmitted
+        subscribe TrainingRoundCompleted
+      }
+    }
   }
 }
 
@@ -1305,6 +1539,8 @@ context ModelLifecycle {
     state Candidate
     state Approved
     state Production
+    state RolledBack
+    state Retired
 
     slice RegisterCandidateModel {
       createsAggregate
@@ -1319,6 +1555,10 @@ context ModelLifecycle {
         modelVersionId: UUID id technical
         trainingJobId: UUID
         finalRoundId: UUID
+        modelArtifactId: UUID
+        modelHash: String
+        evaluationReportId: UUID
+        lineageRef: String
         finalGlobalAccuracy: Decimal
       }
 
@@ -1326,6 +1566,10 @@ context ModelLifecycle {
         modelVersionId: UUID id technical
         trainingJobId: UUID
         finalRoundId: UUID
+        modelArtifactId: UUID
+        modelHash: String
+        evaluationReportId: UUID
+        lineageRef: String
         finalGlobalAccuracy: Decimal
       }
 
@@ -1358,14 +1602,80 @@ context ModelLifecycle {
       command PromoteModelToProduction {
         modelVersionId: UUID id technical
         releaseChannel: String
+        deploymentTarget: String
       }
 
       event ModelPromotedToProduction {
         modelVersionId: UUID id technical
         releaseChannel: String
+        deploymentTarget: String
       }
 
       state Production
+    }
+
+    slice RollbackModelVersion {
+      actor ReleaseManager
+      ui ModelReleaseScreen
+      reactsTo ModelPromotedToProduction
+
+      command RollbackModelVersion {
+        modelVersionId: UUID id technical
+        previousModelVersionId: UUID
+        rollbackReason: String
+        requestedBy: String
+      }
+
+      event ModelVersionRolledBack {
+        modelVersionId: UUID id technical
+        previousModelVersionId: UUID
+        rollbackReason: String
+        requestedBy: String
+      }
+
+      state RolledBack
+    }
+
+    slice RetireModelVersion {
+      actor ReleaseManager
+      ui ModelReleaseScreen
+      reactsTo ModelPromotedToProduction
+
+      command RetireModelVersion {
+        modelVersionId: UUID id technical
+        retirementReason: String
+        requestedBy: String
+      }
+
+      event ModelVersionRetired {
+        modelVersionId: UUID id technical
+        retirementReason: String
+        requestedBy: String
+      }
+
+      state Retired
+    }
+
+    slice ModelVersionCatalog {
+      projection ModelVersionCatalog[] {
+        modelVersionId: UUID id
+        trainingJobId: UUID
+        finalRoundId: UUID
+        modelArtifactId: UUID
+        modelHash: String
+        evaluationReportId: UUID
+        lineageRef: String
+        finalGlobalAccuracy: Decimal
+        state: String
+        releaseChannel: String?
+        deploymentTarget: String?
+        previousModelVersionId: UUID?
+        subscribe ModelCandidateRegistered
+        subscribe ModelApproved
+        subscribe ModelPromotedToProduction
+        subscribe ModelVersionRolledBack
+        subscribe ModelVersionRetired
+      }
     }
   }
 }
@@ -1399,6 +1709,20 @@ context RuntimeOperations {
 
       state Healthy
     }
+
+    slice RuntimeHealthDashboard {
+      projection RuntimeHealthDashboard[] {
+        nodeId: UUID id
+        federationId: UUID
+        cpuLoad: Decimal
+        gpuLoad: Decimal
+        memoryLoad: Decimal
+        healthStatus: String
+        lastHeartbeatAt: DateTime
+        subscribe RuntimeHeartbeatRecorded
+        subscribe TrainingAlertRaised
+      }
+    }
   }
 
   aggregate TrainingAlert {
@@ -1431,6 +1755,18 @@ context RuntimeOperations {
 
       state Raised
     }
+
+    slice TrainingAlertCatalog {
+      projection TrainingAlertCatalog[] {
+        alertId: UUID id
+        nodeId: UUID
+        trainingJobId: UUID?
+        severity: String
+        message: String
+        state: String
+        subscribe TrainingAlertRaised
+      }
+    }
   }
 
   aggregate AuditRecord {
@@ -1445,9 +1781,45 @@ context RuntimeOperations {
         issue AppendAuditTrail
       }
 
+      policy AuditParticipantJoined {
+        on ParticipantJoined
+        issue AppendAuditTrail
+      }
+
+      policy AuditParticipantSuspended {
+        on ParticipantSuspended
+        issue AppendAuditTrail
+      }
+
+      policy AuditDatasetApproval {
+        on DatasetApprovedForTraining
+        issue AppendAuditTrail
+      }
+
+      policy AuditDatasetApprovalRevoked {
+        on DatasetTrainingApprovalRevoked
+        issue AppendAuditTrail
+      }
+
+      policy AuditTrainingJobSubmitted {
+        on TrainingJobSubmitted
+        issue AppendAuditTrail
+      }
+
+      policy AuditModelPromotedToProduction {
+        on ModelPromotedToProduction
+        issue AppendAuditTrail
+      }
+
+      policy AuditNodeTrustChanged {
+        on ComputeNodeTrusted
+        issue AppendAuditTrail
+      }
+
       command AppendAuditTrail {
         auditRecordId: UUID id generated technical
         sourceEventName: String
+        sourceEntityId: UUID?
         severity: String
         payloadHash: String
       }
@@ -1455,11 +1827,23 @@ context RuntimeOperations {
       event AuditTrailAppended {
         auditRecordId: UUID id technical
         sourceEventName: String
+        sourceEntityId: UUID?
         severity: String
         payloadHash: String
       }
 
       state Appended
+    }
+
+    slice AuditRecordLog {
+      projection AuditRecordLog[] {
+        auditRecordId: UUID id
+        sourceEventName: String
+        sourceEntityId: UUID?
+        severity: String
+        payloadHash: String
+        subscribe AuditTrailAppended
+      }
     }
   }
 }
