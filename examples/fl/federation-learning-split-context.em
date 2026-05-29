@@ -195,6 +195,23 @@ context FederationManagement {
         subscribe TrainingJobSubmitted
       }
     }
+
+    slice FederationMembershipDirectory {
+      reactsTo ParticipantInvited
+
+      projection FederationMembershipDirectory[] {
+        federationId: UUID id
+        organizationId: UUID id
+        organizationName: String
+        membershipStatus: String
+        invitationNote: String?
+        approvalNote: String?
+        subscribe ParticipantInvited
+        subscribe ParticipantJoined
+        subscribe OrganizationRegistered
+        subscribe OrganizationActivated
+      }
+    }
   }
 
   aggregate ComputeNode {

@@ -75,8 +75,9 @@ export const parseEventModelingDsl = (text: string): EmModel => {
     model.diagnostics.push('No context block found. Start with: domain MyDomain { context MyContext { ... } }');
   }
 
-  dedupeEdges(model);
   validateReferences(model);
+  refreshEdgeIds(model);
+  dedupeEdges(model);
   return model;
 };
 
@@ -436,11 +437,20 @@ const dedupeEdges = (model: EmModel): void => {
   });
 };
 
+const refreshEdgeIds = (model: EmModel): void => {
+  model.edges = model.edges.map((edgeItem) => ({
+    ...edgeItem,
+    id: formatEdgeId(edgeItem.source, edgeItem.target, edgeItem.label)
+  }));
+};
+
 const edge = (source: string, target: string, label?: string): EmEdge => ({
-  id: `${source}->${target}:${label ?? ''}`,
+  id: formatEdgeId(source, target, label),
   source,
   target,
   label
 });
+
+const formatEdgeId = (source: string, target: string, label?: string): string => `${source}->${target}:${label ?? ''}`;
 
 const scopedId = (kind: string, name: string): string => `${kind}/${name}`;

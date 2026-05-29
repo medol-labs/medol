@@ -18,9 +18,10 @@ slice 1 { command, event, GWT business rules }
 - React Flow rendering for slices, lanes, nodes, and relationships.
 - Slice columns arranged left to right by timeline/order.
 - Lane-based rendering for UI, command, event, GWT, projection, automation, policy, and hotspot elements.
+- DSL to `EmModel` JSON export for code generation.
 - `config.json` to DSL conversion.
 - DSL to `config.json` conversion.
-- Browser UI for editing DSL and exporting `config.json`.
+- Browser UI for editing DSL and exporting `EmModel` JSON or `config.json`.
 
 ## Project Structure
 
@@ -32,6 +33,7 @@ event-modeling-toolkit/
     language/em.langium        Langium grammar
     lib/configToDsl.ts         config.json -> DSL converter
     lib/dslToConfig.ts         DSL -> config.json converter
+    lib/emModelExport.ts       DSL/EmModel JSON export helpers
     lib/dslParser.ts           Lightweight DSL model parser for the UI
     lib/flow.ts                Event model -> React Flow nodes and edges
     App.tsx                    Editor and canvas UI
@@ -58,7 +60,7 @@ http://localhost:5173/
 
 The left panel is the DSL editor. The right panel is the React Flow event modeling canvas.
 
-Use `Export config` in the UI to download the current DSL as `config.json`.
+Use `Export EmModel` in the UI to download the current DSL as `em-model.json`. Use `Export config` only when an older `config.json` consumer still needs it.
 
 ## Build
 
@@ -101,6 +103,20 @@ To save it:
 
 ```bash
 npm run dsl:to-config -- examples/federation.em > config.json
+```
+
+## Export DSL As EmModel JSON
+
+```bash
+npm run dsl:to-model -- examples/federation.em
+```
+
+This prints the parsed `EmModel` JSON used by the renderer and newer generators.
+
+To save it:
+
+```bash
+npm run dsl:to-model -- examples/federation.em > em-model.json
 ```
 
 ## Generate PRD Markdown

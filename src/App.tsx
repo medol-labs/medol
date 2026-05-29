@@ -4,8 +4,9 @@ import { useMemo, useState } from 'react';
 import { EmNode } from './components/EmNode';
 import { LaneLabel } from './components/LaneLabel';
 import { SliceHeader } from './components/SliceHeader';
-import { dslToConfig } from './lib/dslToConfig';
+import { modelToConfig } from './lib/dslToConfig';
 import { parseEventModelingDsl } from './lib/dslParser';
+import { emModelToJson } from './lib/emModelExport';
 import { exportFlowViewportToPng, exportFlowViewportToSvg } from './lib/exportFlowImage';
 import { toReactFlow } from './lib/flow';
 import { sampleDsl } from './lib/sampleDsl';
@@ -21,17 +22,22 @@ function EventModelingApp() {
   const [dsl, setDsl] = useState(sampleDsl);
   const model = useMemo(() => parseEventModelingDsl(dsl), [dsl]);
   const flow = useMemo(() => toReactFlow(model), [model]);
-  const configJson = useMemo(() => JSON.stringify(dslToConfig(dsl), null, 2), [dsl]);
+  const emModelJson = useMemo(() => emModelToJson(model), [model]);
+  const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
 
-  const downloadConfig = () => {
-    const blob = new Blob([configJson], { type: 'application/json' });
+  const downloadJson = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'config.json';
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
   };
+
+  const downloadEmModel = () => downloadJson('em-model.json', emModelJson);
+
+  const downloadConfig = () => downloadJson('config.json', configJson);
 
   const getImageExportOptions = (filename: string) => {
     const bounds = getFlowBounds(flow.nodes);
@@ -79,6 +85,7 @@ function EventModelingApp() {
             <h1>Event Modeling Toolkit</h1>
           </div>
           <div className="toolbar-actions">
+            <button type="button" onClick={downloadEmModel}>Export EmModel</button>
             <button type="button" onClick={downloadConfig}>Export config</button>
             <button type="button" onClick={exportPng}>Export PNG</button>
             <button type="button" onClick={exportSvg}>Export SVG</button>

@@ -41,13 +41,20 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.toolbar > div:first-child {
+  min-width: 180px;
 }
 
 .toolbar-actions {
-  display: flex;
-  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  flex: 1 1 260px;
   gap: 8px;
+  min-width: 0;
 }
 
 .toolbar h1 {
@@ -67,12 +74,15 @@ textarea {
 
 .toolbar button {
   height: 34px;
+  min-width: 0;
   padding: 0 12px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   color: #172033;
   background: #f8fafc;
   cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .toolbar button:hover {
@@ -236,6 +246,10 @@ textarea:focus {
   .editor-pane {
     border-right: 0;
     border-bottom: 1px solid #d8dee8;
+  }
+
+  .toolbar-actions {
+    flex-basis: 100%;
   }
 
   .canvas-pane {
