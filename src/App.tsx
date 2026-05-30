@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { EmNode } from './components/EmNode';
 import { LaneLabel } from './components/LaneLabel';
 import { SliceHeader } from './components/SliceHeader';
-import { modelToConfig } from './lib/dslToConfig';
+import { modelToCodegenModel, modelToConfig } from './lib/dslToConfig';
 import { parseEventModelingDsl } from './lib/dslParser';
 import { emModelToJson } from './lib/emModelExport';
 import { exportFlowViewportToPng, exportFlowViewportToSvg } from './lib/exportFlowImage';
@@ -23,6 +23,7 @@ function EventModelingApp() {
   const model = useMemo(() => parseEventModelingDsl(dsl), [dsl]);
   const flow = useMemo(() => toReactFlow(model), [model]);
   const emModelJson = useMemo(() => emModelToJson(model), [model]);
+  const codegenModelJson = useMemo(() => JSON.stringify(modelToCodegenModel(model), null, 2), [model]);
   const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
 
   const downloadJson = (filename: string, content: string) => {
@@ -36,6 +37,8 @@ function EventModelingApp() {
   };
 
   const downloadEmModel = () => downloadJson('em-model.json', emModelJson);
+
+  const downloadCodegenModel = () => downloadJson('codegen-model.json', codegenModelJson);
 
   const downloadConfig = () => downloadJson('config.json', configJson);
 
@@ -86,6 +89,7 @@ function EventModelingApp() {
           </div>
           <div className="toolbar-actions">
             <button type="button" onClick={downloadEmModel}>Export EmModel</button>
+            <button type="button" onClick={downloadCodegenModel}>Export CodegenModel</button>
             <button type="button" onClick={downloadConfig}>Export config</button>
             <button type="button" onClick={exportPng}>Export PNG</button>
             <button type="button" onClick={exportSvg}>Export SVG</button>

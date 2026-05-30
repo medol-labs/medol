@@ -10,6 +10,7 @@
     "langium:generate": "langium generate",
     "config:to-dsl": "tsx src/lib/configToDsl.ts",
     "dsl:to-config": "tsx src/lib/dslToConfigCli.ts",
+    "dsl:to-codegen-model": "tsx src/lib/dslToCodegenModelCli.ts",
     "dsl:to-model": "tsx src/lib/dslToEmModelCli.ts",
     "prd:generate": "tsx src/lib/generators/prd/prdCli.ts"
   },

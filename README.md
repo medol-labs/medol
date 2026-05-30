@@ -119,6 +119,41 @@ To save it:
 npm run dsl:to-model -- examples/federation.em > em-model.json
 ```
 
+## Codegen Model
+
+The toolkit now uses an internal `CodegenModel` between `EmModel` and the Martin-compatible `config.json` adapter:
+
+```text
+.em DSL -> EmModel -> CodegenModel -> config.json
+```
+
+`EmModel` remains the source-of-truth semantic model for the design language. `CodegenModel` is the normalized code generation view of that model. It keeps codegen-oriented information in a stable shape before it is projected into the current `config.json` format consumed by the Axon/refine generator.
+
+`CodegenModel` covers:
+
+- code generation metadata: `rootPackage` and optional top-level `domain`; the config adapter derives `codeGen.application` from `domain`
+- contexts: id, name, title, notes, risks, decisions, metrics, and aggregate references
+- aggregates: id, name, title, owning context, states, and aggregate fields placeholder
+- slices: id, index, name, title, `chapter`, context, aggregate reference, hotspots, actors, and optional state change
+- elements: commands, events, readmodels, screens, processors, and specifications
+- element codegen data: id, name, title, type, model context, slice, aggregate, fields, dependencies, `createsAggregate`, and `listElement`
+- fields: name, type, cardinality, optional/id/generated/technical/query flags, field-level `example`, and optional source metadata
+- field source metadata: direct mappings and derived mappings with source paths and optional rule text
+- dependencies: inbound/outbound element links with generated ids, titles, and element types
+- specifications: GWT-style given/when/then data plus field examples from specification examples
+
+The existing `dslToConfig` API is preserved. Internally, it now calls:
+
+```text
+modelToCodegenModel(model) -> codegenModelToConfig(codegenModel)
+```
+
+To inspect the codegen view directly:
+
+```bash
+npm run dsl:to-codegen-model -- examples/fl/federation-learning.em
+```
+
 ## Generate PRD Markdown
 
 ```bash
