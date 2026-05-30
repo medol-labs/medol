@@ -31,13 +31,14 @@
 - [ ] 版本管理
 - [ ] 导出图片
 - [ ] 条件表达式，找已有的表达式
-- [X] 生成器统一归类叫 Generators
+- [x] 生成器统一归类叫 Generators
 - [ ] Word Generator 产品
 - [ ] Agentic
 - [ ] 支持按 Context 拆分成多个文件，index 文件引用
 - [ ] ReadModel 添加 list 标识
 - [ ] 转 config.json 时删除不需要的 context
 - [ ] 汉化？设计时只能使用英文？，生成代码等等时 AI 翻译添加国际化
+- [ ] 前端布局预览，不关系具体字段，能展示布局与命令
 
 ##
 
