@@ -1,6 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
 import { EmElement, EmModel, EmSlice } from './model';
-import { flattenElements } from './dslParser';
 
 const sliceLaneOrder: EmElement['kind'][] = [
   'actor',
@@ -83,6 +82,13 @@ interface SliceLayout {
   height: number;
 }
 
+export interface ReactFlowOptions {
+  contextId?: string;
+  aggregateId?: string;
+  sliceId?: string;
+  compactSlices?: boolean;
+}
+
 const columnWidth = 330;
 const columnGap = 36;
 const aggregateLabelWidth = 150;
@@ -93,26 +99,40 @@ const laneMinHeight = 112;
 const headerHeight = 42;
 const aggregatePadding = 18;
 const startX = 32;
+const contextPadding = 24;
+const contextHeaderHeight = 44;
 
-export const toReactFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] } => {
-  const elements = flattenElements(model);
+export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
-  const knownIds = new Set(elements.map((element) => element.id));
   let currentY = 48;
+  const contexts = model.contexts
+    .filter((context) => !options.contextId || context.id === options.contextId)
+    .map((context) => ({
+      ...context,
+      aggregates: context.aggregates
+        .filter((aggregate) => !options.aggregateId || aggregate.id === options.aggregateId)
+        .map((aggregate) => ({
+          ...aggregate,
+          slices: aggregate.slices.filter((slice) => !options.sliceId || slice.id === options.sliceId)
+        }))
+    }));
 
-  const looseElements = model.contexts.flatMap((context) => context.looseElements);
+  const looseElements = contexts.flatMap((context) => context.looseElements);
   if (looseElements.length > 0) {
     nodes.push({
       id: 'external-integrations',
       type: 'group',
       position: { x: startX, y: currentY },
+      draggable: false,
+      selectable: false,
       data: { label: 'External Integrations' },
       style: {
         width: Math.max(aggregateLabelWidth + looseElements.length * 230, 520),
         height: externalRowHeight,
         borderRadius: 8,
         border: '1px dashed #8fb7b1',
-        background: 'rgba(240, 253, 250, 0.68)'
+        background: 'rgba(240, 253, 250, 0.68)',
+        pointerEvents: 'none'
       }
     });
 
@@ -126,7 +146,68 @@ export const toReactFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] } =>
     currentY += externalRowHeight + aggregateGap;
   }
 
-  for (const context of model.contexts) {
+  if (options.compactSlices) {
+    for (const context of contexts) {
+      const aggregateLayouts = context.aggregates.map((aggregate) => ({
+        aggregate,
+        width:
+          aggregateLabelWidth +
+          Math.max(aggregate.slices.length, 1) * columnWidth +
+          Math.max(aggregate.slices.length - 1, 0) * columnGap +
+          aggregatePadding * 2,
+        height: 250
+      }));
+      const contextWidth = Math.max(...aggregateLayouts.map((layout) => layout.width), 520) + contextPadding * 2;
+      const contextHeight =
+        contextHeaderHeight +
+        contextPadding * 2 +
+        aggregateLayouts.reduce((sum, layout) => sum + layout.height, 0) +
+        Math.max(aggregateLayouts.length - 1, 0) * aggregateGap;
+
+      nodes.push({
+        id: context.id,
+        type: 'group',
+        position: { x: startX, y: currentY },
+        draggable: false,
+        selectable: false,
+        data: { label: context.name },
+        style: {
+          width: contextWidth,
+          height: contextHeight,
+          borderRadius: 8,
+          border: '1px solid #b8c8ea',
+          background: 'rgba(239, 246, 255, 0.52)',
+          pointerEvents: 'none'
+        }
+      });
+
+      nodes.push({
+        id: `${context.id}/header`,
+        type: 'laneLabel',
+        parentId: context.id,
+        extent: 'parent',
+        draggable: false,
+        selectable: false,
+        position: { x: 0, y: 14 },
+        data: { label: `CONTEXT / ${context.name}` },
+        style: {
+          width: contextWidth
+        }
+      });
+
+      let aggregateY = contextHeaderHeight + contextPadding;
+      for (const layout of aggregateLayouts) {
+        addCompactAggregateNodes(nodes, layout.aggregate, context.id, {
+          x: contextPadding,
+          y: aggregateY
+        });
+        aggregateY += layout.height + aggregateGap;
+      }
+
+      currentY += contextHeight + aggregateGap;
+    }
+  } else {
+  for (const context of contexts) {
     for (const aggregate of context.aggregates) {
       const sliceLayouts = aggregate.slices.map(toSliceLayout);
       const aggregateWidth =
@@ -142,13 +223,16 @@ export const toReactFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] } =>
         id: aggregate.id,
         type: 'group',
         position: { x: startX, y: currentY },
+        draggable: false,
+        selectable: false,
         data: { label: aggregate.name },
         style: {
           width: aggregateWidth,
           height: aggregateHeight,
           borderRadius: 8,
           border: '1px solid #c6d3e1',
-          background: 'rgba(248, 250, 252, 0.72)'
+          background: 'rgba(248, 250, 252, 0.72)',
+          pointerEvents: 'none'
         }
       });
 
@@ -175,26 +259,166 @@ export const toReactFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] } =>
       currentY += aggregateHeight + aggregateGap;
     }
   }
+  }
 
+  const visibleElementIds = new Set(nodes.filter((node) => node.type === 'emElement').map((node) => node.id));
+  const visibleSummaryIds = new Set(nodes.filter((node) => node.type === 'sliceSummary').map((node) => node.id));
   const edges: Edge[] = model.edges
-    .filter((edgeItem) => knownIds.has(edgeItem.source) && knownIds.has(edgeItem.target))
-    .map((edgeItem) => ({
-      id: edgeItem.id,
-      source: edgeItem.source,
-      target: edgeItem.target,
-      label: edgeItem.label,
-      animated: edgeItem.label === 'emits' || edgeItem.label === 'updates',
-      type: 'smoothstep',
-      style: {
-        stroke: edgeItem.label === 'updates' ? '#f2c9a7' : '#94a3b8',
-        strokeDasharray: edgeItem.label === 'updates' ? '4 5' : undefined,
-        strokeWidth: edgeItem.label === 'updates' ? 2.2 : 1.8
-      },
-      labelStyle: { fill: '#334155', fontSize: 11, fontWeight: 600 },
-      labelBgStyle: { fill: '#ffffff', fillOpacity: 0.85 }
-    }));
+    .filter((edgeItem) => visibleElementIds.has(edgeItem.source) && visibleElementIds.has(edgeItem.target))
+    .map((edgeItem) => {
+      const visual = toEdgeVisual(edgeItem.label);
+      return {
+        id: edgeItem.id,
+        source: edgeItem.source,
+        target: edgeItem.target,
+        label: edgeItem.label,
+        animated: visual.animated,
+        type: 'smoothstep',
+        style: {
+          stroke: visual.stroke,
+          strokeDasharray: visual.strokeDasharray,
+          strokeWidth: visual.strokeWidth
+        },
+        labelStyle: { fill: visual.labelColor, fontSize: 11, fontWeight: 700 },
+        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.9 }
+      };
+    });
+
+  if (options.compactSlices) {
+    for (const context of contexts) {
+      for (const aggregate of context.aggregates) {
+        for (let index = 0; index < aggregate.slices.length - 1; index += 1) {
+          const source = `${aggregate.slices[index].id}/summary`;
+          const target = `${aggregate.slices[index + 1].id}/summary`;
+          if (!visibleSummaryIds.has(source) || !visibleSummaryIds.has(target)) continue;
+          edges.push({
+            id: `timeline/${source}->${target}`,
+            source,
+            target,
+            label: 'then',
+            animated: false,
+            type: 'smoothstep',
+            style: {
+              stroke: '#94a3b8',
+              strokeDasharray: '5 5',
+              strokeWidth: 1.8
+            },
+            labelStyle: { fill: '#64748b', fontSize: 11, fontWeight: 700 },
+            labelBgStyle: { fill: '#ffffff', fillOpacity: 0.88 }
+          });
+        }
+      }
+    }
+  }
 
   return { nodes, edges };
+};
+
+const addCompactAggregateNodes = (
+  nodes: Node[],
+  aggregate: { id: string; name: string; states: string[]; slices: EmSlice[] },
+  parentId: string,
+  position: { x: number; y: number }
+): void => {
+  const aggregateWidth =
+    aggregateLabelWidth +
+    Math.max(aggregate.slices.length, 1) * columnWidth +
+    Math.max(aggregate.slices.length - 1, 0) * columnGap +
+    aggregatePadding * 2;
+  const aggregateHeight = 250;
+
+  nodes.push({
+    id: aggregate.id,
+    type: 'group',
+    parentId,
+    extent: 'parent',
+    position,
+    draggable: false,
+    selectable: false,
+    data: { label: aggregate.name },
+    style: {
+      width: aggregateWidth,
+      height: aggregateHeight,
+      borderRadius: 8,
+      border: '1px solid #c6d3e1',
+      background: 'rgba(248, 250, 252, 0.78)',
+      pointerEvents: 'none'
+    }
+  });
+
+  nodes.push(toNode({
+    id: `${aggregate.id}/label`,
+    kind: 'aggregate',
+    name: aggregate.name,
+    fields: aggregate.states.map((state) => ({
+      name: state,
+      type: 'state',
+      cardinality: 'Single',
+      attributes: []
+    }))
+  }, {
+    x: 16,
+    y: 54
+  }, aggregate.id));
+
+  for (const [sliceIndex, slice] of aggregate.slices.entries()) {
+    nodes.push(toSliceSummaryNode(slice, {
+      x: aggregateLabelWidth + aggregatePadding + sliceIndex * (columnWidth + columnGap),
+      y: 54
+    }, aggregate.id));
+  }
+};
+
+const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, parentId: string): Node => {
+  const elements = slice.elements;
+  return {
+    id: `${slice.id}/summary`,
+    type: 'sliceSummary',
+    parentId,
+    extent: 'parent',
+    position,
+    data: {
+      name: slice.name,
+      resultingState: slice.resultingState,
+      createsAggregate: slice.createsAggregate,
+      metrics: {
+        commands: elements.filter((element) => element.kind === 'command').length,
+        events: elements.filter((element) => element.kind === 'event').length,
+        projections: elements.filter((element) => element.kind === 'projection').length,
+        policies: elements.filter((element) => element.kind === 'policy' || element.kind === 'automation' || element.kind === 'gwt').length,
+        hotspots: elements.filter((element) => element.kind === 'hotspot').length + slice.hotspots.length
+      }
+    },
+    style: {
+      width: 250,
+      height: 138
+    }
+  };
+};
+
+const toEdgeVisual = (label?: string): {
+  stroke: string;
+  strokeWidth: number;
+  strokeDasharray?: string;
+  labelColor: string;
+  animated: boolean;
+} => {
+  if (label === 'emits') {
+    return { stroke: '#ea580c', strokeWidth: 2.4, labelColor: '#9a3412', animated: true };
+  }
+  if (label === 'updates') {
+    return { stroke: '#16a34a', strokeWidth: 2.2, strokeDasharray: '5 5', labelColor: '#166534', animated: true };
+  }
+  if (label === 'invokes') {
+    return { stroke: '#2563eb', strokeWidth: 2, labelColor: '#1d4ed8', animated: false };
+  }
+  if (label === 'triggers' || label === 'issues' || label === 'reactsTo') {
+    return { stroke: '#be185d', strokeWidth: 2, strokeDasharray: '8 5', labelColor: '#9d174d', animated: true };
+  }
+  if (label === 'given' || label === 'when' || label === 'then') {
+    return { stroke: '#9333ea', strokeWidth: 1.8, strokeDasharray: '3 5', labelColor: '#7e22ce', animated: false };
+  }
+  return { stroke: '#94a3b8', strokeWidth: 1.8, labelColor: '#334155', animated: false };
 };
 
 const toSliceLayout = (slice: EmSlice): SliceLayout => {
@@ -218,13 +442,16 @@ const addSliceNodes = (
     parentId: aggregateId,
     extent: 'parent',
     position,
+    draggable: false,
+    selectable: false,
     data: { label: layout.slice.name },
     style: {
       width: columnWidth,
       height: layout.height,
       borderRadius: 0,
       border: '1px solid #b8c8ea',
-      background: laneBackground(headerHeight, layout.laneHeights)
+      background: laneBackground(headerHeight, layout.laneHeights),
+      pointerEvents: 'none'
     }
   });
 

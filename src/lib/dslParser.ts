@@ -62,24 +62,30 @@ const eventModelingServices = inject(
 );
 
 export const parseEventModelingDsl = (text: string): EmModel => {
-  const parseResult = eventModelingServices.parser.LangiumParser.parse<AstModel>(text);
-  const model = astToEmModel(parseResult.value);
+  try {
+    const parseResult = eventModelingServices.parser.LangiumParser.parse<AstModel>(text);
+    const model = astToEmModel(parseResult.value);
 
-  for (const lexerError of parseResult.lexerErrors) {
-    model.diagnostics.push(lexerError.message);
-  }
-  for (const parserError of parseResult.parserErrors) {
-    model.diagnostics.push(parserError.message);
-  }
+    for (const lexerError of parseResult.lexerErrors) {
+      model.diagnostics.push(lexerError.message);
+    }
+    for (const parserError of parseResult.parserErrors) {
+      model.diagnostics.push(parserError.message);
+    }
 
-  if (model.contexts.length === 0 && text.trim().length > 0) {
-    model.diagnostics.push('No context block found. Start with: domain MyDomain { context MyContext { ... } }');
-  }
+    if (model.contexts.length === 0 && text.trim().length > 0) {
+      model.diagnostics.push('No context block found. Start with: domain MyDomain { context MyContext { ... } }');
+    }
 
-  validateReferences(model);
-  refreshEdgeIds(model);
-  dedupeEdges(model);
-  return model;
+    validateReferences(model);
+    refreshEdgeIds(model);
+    dedupeEdges(model);
+    return model;
+  } catch (error) {
+    const model = emptyModel();
+    model.diagnostics.push(error instanceof Error ? error.message : 'Unable to parse current DSL');
+    return model;
+  }
 };
 
 export const astToEmModel = (ast: AstModel): EmModel => {
@@ -100,12 +106,12 @@ export const astToEmModel = (ast: AstModel): EmModel => {
 
 const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
   const domain: EmDomain = {
-    id: scopedId('domain', node.name),
-    name: node.name,
+    id: scopedId('domain', safeName(node.name, 'UnnamedDomain')),
+    name: safeName(node.name, 'UnnamedDomain'),
     contexts: []
   };
 
-  for (const contextNode of node.contexts) {
+  for (const contextNode of node.contexts ?? []) {
     domain.contexts.push(parseContext(contextNode, domain.id, edges));
   }
 
@@ -113,9 +119,10 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
 };
 
 const parseContext = (node: AstContext, domainId: string | undefined, edges: EmEdge[]): EmContext => {
+  const contextName = safeName(node.name, 'UnnamedContext');
   const context: EmContext = {
-    id: domainId ? `${domainId}/context/${node.name}` : scopedId('context', node.name),
-    name: node.name,
+    id: domainId ? `${domainId}/context/${contextName}` : scopedId('context', contextName),
+    name: contextName,
     aggregates: [],
     looseElements: [],
     notes: [],
@@ -124,7 +131,7 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     metrics: []
   };
 
-  for (const element of node.elements) {
+  for (const element of node.elements ?? []) {
     if (isAggregate(element)) {
       context.aggregates.push(parseAggregate(element, context.id, edges));
       continue;
@@ -156,15 +163,16 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
 };
 
 const parseAggregate = (node: AstAggregate, contextId: string, edges: EmEdge[]): EmAggregate => {
-  const aggregateId = `${contextId}/aggregate/${node.name}`;
+  const aggregateName = safeName(node.name, 'UnnamedAggregate');
+  const aggregateId = `${contextId}/aggregate/${aggregateName}`;
   const aggregate: EmAggregate = {
     id: aggregateId,
-    name: node.name,
+    name: aggregateName,
     states: [],
     slices: []
   };
 
-  for (const feature of node.features) {
+  for (const feature of node.features ?? []) {
     if (isState(feature)) {
       aggregate.states.push(feature.name);
       continue;
@@ -178,18 +186,20 @@ const parseAggregate = (node: AstAggregate, contextId: string, edges: EmEdge[]):
 };
 
 const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSlice => {
-  const sliceId = `${aggregateId}/slice/${node.name}`;
+  const sliceName = safeName(node.name, 'UnnamedSlice');
+  const elements = node.elements ?? [];
+  const sliceId = `${aggregateId}/slice/${sliceName}`;
   const slice: EmSlice = {
     id: sliceId,
-    name: node.name,
+    name: sliceName,
     aggregateId,
-    createsAggregate: node.elements.some(isCreatesAggregateMarker),
-    resultingState: node.elements.find(isState)?.name,
-    hotspots: node.elements.filter(isHotspot).map((hotspot) => hotspot.value),
+    createsAggregate: elements.some(isCreatesAggregateMarker),
+    resultingState: elements.find(isState)?.name,
+    hotspots: elements.filter(isHotspot).map((hotspot) => hotspot.value),
     elements: []
   };
 
-  const actorRef = node.elements.find(isActorRef);
+  const actorRef = elements.find(isActorRef);
   if (actorRef) {
     slice.elements.push({
       id: `${sliceId}/actor/${actorRef.actor}`,
@@ -201,7 +211,7 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
     });
   }
 
-  const uiRefs = node.elements.filter(isUiRef);
+  const uiRefs = elements.filter(isUiRef);
   for (const uiRef of uiRefs) {
     slice.elements.push({
       id: `${sliceId}/screen/${uiRef.view}`,
@@ -214,7 +224,7 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
     });
   }
 
-  for (const element of node.elements) {
+  for (const element of elements) {
     if (isCommand(element) || isEvent(element) || isProjection(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
       const parsed = parseElement(element, sliceId, aggregateId);
       slice.elements.push(parsed);
@@ -222,7 +232,7 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
     }
   }
 
-  const reactsTo = node.elements.find(isReactsTo)?.event.$refText;
+  const reactsTo = elements.find(isReactsTo)?.event?.$refText;
   const firstReactionElement = slice.elements.find((element) =>
     element.kind === 'projection' || element.kind === 'automation' || element.kind === 'command'
   );
@@ -266,9 +276,9 @@ const parseElement = (
       : node.$type.toLowerCase();
 
   return {
-    id: `${scopeId}/${kind}/${node.name}`,
+    id: `${scopeId}/${kind}/${safeName(node.name, 'UnnamedElement')}`,
     kind: kind as EmElement['kind'],
-    name: node.name,
+    name: safeName(node.name, 'UnnamedElement'),
     fields: parseElementFields(node),
     ...(isProjection(node) && node.listElement ? { listElement: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
@@ -279,10 +289,10 @@ const parseElement = (
 
 const parseElementFields = (node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration): EmField[] => {
   if (isCommand(node) || isEvent(node)) {
-    return node.fields.map(parseField);
+    return (node.fields ?? []).map(parseField);
   }
   if (isProjection(node)) {
-    return node.elements.filter(isField).map(parseField);
+    return (node.elements ?? []).filter(isField).map(parseField);
   }
   if (isIntegration(node)) {
     return parseIntegrationFields(node);
@@ -302,21 +312,21 @@ const parseIntegrationFields = (node: AstIntegration): EmField[] => {
 const parseField = (field: AstField): EmField => {
   const mapping = parseFieldMapping(field);
   return {
-    name: field.name,
-    type: field.type,
+    name: safeName(field.name, 'unnamedField'),
+    type: safeName(field.type, 'Unknown'),
     cardinality: field.cardinality === '[]' ? 'List' : field.cardinality === '?' ? 'Optional' : 'Single',
-    attributes: [...field.attributes],
+    attributes: [...(field.attributes ?? [])],
     ...(field.details?.example ? { example: field.details.example } : {}),
     ...(mapping ? { mapping } : {})
   };
 };
 
 const parseFieldMapping = (field: AstField): EmFieldMapping | undefined => {
-  const detailSources = field.details?.sources.map(formatFieldSource) ?? [];
+  const detailSources = field.details?.sources?.map(formatFieldSource) ?? [];
   const rule = field.details?.rule;
 
   if (field.mapping) {
-    const mappingSources = field.mapping.sources.map(formatFieldSource);
+    const mappingSources = (field.mapping.sources ?? []).map(formatFieldSource);
     return {
       kind: isFieldDerivation(field.mapping) ? 'derived' : 'from',
       sources: detailSources.length > 0 ? detailSources : mappingSources,
@@ -341,16 +351,16 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstProjection | AstA
   const metadata: Record<string, string> = {};
 
   if (isPolicy(node)) {
-    metadata.on = node.event.$refText;
-    metadata.issue = node.command.$refText;
+    if (node.event?.$refText) metadata.on = node.event.$refText;
+    if (node.command?.$refText) metadata.issue = node.command.$refText;
   }
 
   if (isSpecification(node)) {
-    node.givens.forEach((given, index) => {
-      metadata[`given${index + 1}`] = given.event.$refText;
+    (node.givens ?? []).forEach((given, index) => {
+      if (given.event?.$refText) metadata[`given${index + 1}`] = given.event.$refText;
     });
-    metadata.when = node.when.command.$refText;
-    metadata.then = node.then.event.$refText;
+    if (node.when?.command?.$refText) metadata.when = node.when.command.$refText;
+    if (node.then?.event?.$refText) metadata.then = node.then.event.$refText;
     for (const assignment of node.when.condition?.assignments ?? []) {
       metadata[`example:${assignment.field}`] = formatLiteral(assignment.value);
     }
@@ -365,37 +375,37 @@ const collectElementEdges = (
   edges: EmEdge[]
 ): void => {
   if (isProjection(node)) {
-    for (const subscription of node.elements.filter(isSubscription)) {
-      edges.push(edge(`ref/event/${subscription.event.$refText}`, sourceId, 'updates'));
+    for (const subscription of (node.elements ?? []).filter(isSubscription)) {
+      if (subscription.event?.$refText) edges.push(edge(`ref/event/${subscription.event.$refText}`, sourceId, 'updates'));
     }
   }
 
   if (isAutomation(node)) {
-    for (const emits of node.elements.filter((element) => element.$type === 'Emits')) {
-      edges.push(edge(sourceId, `ref/command/${emits.command.$refText}`, 'emits'));
+    for (const emits of (node.elements ?? []).filter((element) => element.$type === 'Emits')) {
+      if (emits.command?.$refText) edges.push(edge(sourceId, `ref/command/${emits.command.$refText}`, 'emits'));
     }
   }
 
   if (isPolicy(node)) {
-    edges.push(edge(`ref/event/${node.event.$refText}`, sourceId, 'triggers'));
-    edges.push(edge(sourceId, `ref/command/${node.command.$refText}`, 'issues'));
+    if (node.event?.$refText) edges.push(edge(`ref/event/${node.event.$refText}`, sourceId, 'triggers'));
+    if (node.command?.$refText) edges.push(edge(sourceId, `ref/command/${node.command.$refText}`, 'issues'));
   }
 
   if (isSpecification(node)) {
-    for (const given of node.givens) {
-      edges.push(edge(`ref/event/${given.event.$refText}`, sourceId, 'given'));
+    for (const given of node.givens ?? []) {
+      if (given.event?.$refText) edges.push(edge(`ref/event/${given.event.$refText}`, sourceId, 'given'));
     }
-    edges.push(edge(`ref/command/${node.when.command.$refText}`, sourceId, 'when'));
-    edges.push(edge(sourceId, `ref/event/${node.then.event.$refText}`, 'then'));
+    if (node.when?.command?.$refText) edges.push(edge(`ref/command/${node.when.command.$refText}`, sourceId, 'when'));
+    if (node.then?.event?.$refText) edges.push(edge(sourceId, `ref/event/${node.then.event.$refText}`, 'then'));
   }
 
   if (isIntegration(node)) {
-    for (const element of node.elements) {
+    for (const element of node.elements ?? []) {
       if (element.$type === 'Emits') {
-        edges.push(edge(sourceId, `ref/command/${element.command.$refText}`, 'emits'));
+        if (element.command?.$refText) edges.push(edge(sourceId, `ref/command/${element.command.$refText}`, 'emits'));
       }
       if (isReactsTo(element)) {
-        edges.push(edge(`ref/event/${element.event.$refText}`, sourceId, 'reactsTo'));
+        if (element.event?.$refText) edges.push(edge(`ref/event/${element.event.$refText}`, sourceId, 'reactsTo'));
       }
     }
   }
@@ -466,3 +476,7 @@ const edge = (source: string, target: string, label?: string): EmEdge => ({
 const formatEdgeId = (source: string, target: string, label?: string): string => `${source}->${target}:${label ?? ''}`;
 
 const scopedId = (kind: string, name: string): string => `${kind}/${name}`;
+
+const safeName = (value: string | undefined, fallback: string): string => {
+  return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+};

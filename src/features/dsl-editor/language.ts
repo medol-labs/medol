@@ -1,0 +1,86 @@
+import type { Monaco } from '@monaco-editor/react';
+
+const languageId = 'event-modeling-dsl';
+
+export const eventModelingLanguageId = languageId;
+
+export const registerEventModelingLanguage = (monaco: Monaco): void => {
+  const registered = monaco.languages
+    .getLanguages()
+    .some((language: { id: string }) => language.id === languageId);
+  if (registered) return;
+
+  monaco.languages.register({ id: languageId });
+  monaco.languages.setMonarchTokensProvider(languageId, {
+    defaultToken: '',
+    tokenPostfix: '.em',
+    keywords: [
+      'domain',
+      'context',
+      'aggregate',
+      'state',
+      'slice',
+      'creates',
+      'resulting',
+      'actor',
+      'ui',
+      'command',
+      'event',
+      'projection',
+      'automation',
+      'policy',
+      'hotspot',
+      'integration',
+      'given',
+      'when',
+      'then',
+      'field',
+      'fields',
+      'from',
+      'derived',
+      'rule',
+      'example',
+      'subscribes',
+      'emits',
+      'updates'
+    ],
+    tokenizer: {
+      root: [
+        [/\/\/.*$/, 'comment'],
+        [/"([^"\\]|\\.)*$/, 'string.invalid'],
+        [/"/, 'string', '@string'],
+        [/[{}[\]():,]/, 'delimiter'],
+        [/\b[A-Z][\w-]*/, 'type.identifier'],
+        [/[a-zA-Z_][\w-]*/, {
+          cases: {
+            '@keywords': 'keyword',
+            '@default': 'identifier'
+          }
+        }],
+        [/\d+/, 'number']
+      ],
+      string: [
+        [/[^\\"]+/, 'string'],
+        [/\\./, 'string.escape'],
+        [/"/, 'string', '@pop']
+      ]
+    }
+  });
+
+  monaco.editor.defineTheme('event-modeling-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: '1d4ed8', fontStyle: 'bold' },
+      { token: 'type.identifier', foreground: '334155' },
+      { token: 'comment', foreground: '64748b' },
+      { token: 'string', foreground: 'b45309' }
+    ],
+    colors: {
+      'editor.background': '#fbfdff',
+      'editor.lineHighlightBackground': '#eef4fb',
+      'editorLineNumber.foreground': '#94a3b8',
+      'editorCursor.foreground': '#2563eb'
+    }
+  });
+};

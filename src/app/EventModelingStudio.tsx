@@ -1,0 +1,375 @@
+import { getViewportForBounds } from '@xyflow/react';
+import { useMemo, useState, type CSSProperties, type PointerEvent } from 'react';
+import { DslEditor } from '../features/dsl-editor/DslEditor';
+import { findDslLine, type DslLocationTarget } from '../features/dsl-editor/dslLocation';
+import { GlobalMap } from '../features/global-map/GlobalMap';
+import { InspectorPanel } from '../features/inspector/InspectorPanel';
+import { LayoutPreview } from '../components/LayoutPreview';
+import { ModelExplorer } from '../features/model-explorer/ModelExplorer';
+import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
+import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
+import { parseEventModelingDsl } from '../lib/dslParser';
+import { emModelToJson } from '../lib/emModelExport';
+import { exportFlowViewportToPng, exportFlowViewportToSvg } from '../lib/exportFlowImage';
+import { toReactFlow } from '../lib/flow';
+import { toLayoutPreviewModel } from '../lib/layoutPreview';
+import { aggregateIdFromOverviewNodeId, toOverviewFlow } from '../lib/overviewFlow';
+import { sampleDsl } from '../lib/sampleDsl';
+import { getFlowBounds } from './flowBounds';
+import { findModelItem, resolveActiveAggregate, resolveActiveContext } from './modelSelection';
+import { useDebouncedValue } from './useDebouncedValue';
+import type { EmAggregate, EmContext, EmDomain, EmSlice } from '../lib/model';
+
+type ToolbarAction = 'em-model' | 'codegen-model' | 'config' | 'png' | 'svg' | 'reset';
+type PreviewMode = 'canvas' | 'global' | 'layout';
+
+export function EventModelingStudio() {
+  const [dsl, setDsl] = useState(sampleDsl);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
+  const [toolbarAction, setToolbarAction] = useState<ToolbarAction | ''>('');
+  const [selectedDomainId, setSelectedDomainId] = useState<string | undefined>();
+  const [selectedContextId, setSelectedContextId] = useState<string | undefined>();
+  const [selectedAggregateId, setSelectedAggregateId] = useState<string | undefined>();
+  const [selectedSliceId, setSelectedSliceId] = useState<string | undefined>();
+  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(() => Math.floor((window.innerWidth - 48) / 2));
+  const [editorPanelHeight, setEditorPanelHeight] = useState(() => Math.floor((window.innerHeight - 120) / 2));
+  const [dslFocusTarget, setDslFocusTarget] = useState<DslLocationTarget | undefined>();
+  const [dslFocusVersion, setDslFocusVersion] = useState(0);
+  const [dslEditorVersion, setDslEditorVersion] = useState(0);
+  const debouncedDsl = useDebouncedValue(dsl, 800);
+
+  const model = useMemo(() => parseEventModelingDsl(debouncedDsl), [debouncedDsl]);
+  const activeDomain = model.domains.find((domain) => domain.id === selectedDomainId) ?? model.domains[0];
+  const activeContext = resolveActiveContext(model, selectedContextId);
+  const activeAggregate = resolveActiveAggregate(activeContext, selectedAggregateId);
+  const displayContext = selectedContextId ? activeContext : undefined;
+  const domainOverviewMode = Boolean(selectedDomainId && !selectedContextId && previewMode === 'canvas');
+  const flow = useMemo(() => toReactFlow(model, {
+    contextId: selectedContextId ? activeContext?.id : undefined,
+    aggregateId: activeAggregate?.id,
+    sliceId: selectedSliceId,
+    compactSlices: domainOverviewMode
+  }), [model, selectedContextId, activeContext?.id, activeAggregate?.id, selectedSliceId, domainOverviewMode]);
+  const codegenModel = useMemo(() => modelToCodegenModel(model), [model]);
+  const layoutPreview = useMemo(() => toLayoutPreviewModel(codegenModel), [codegenModel]);
+  const overviewFlow = useMemo(() => toOverviewFlow(model), [model]);
+  const selectedItem = useMemo(() => findModelItem(model, {
+    domainId: selectedDomainId,
+    contextId: selectedContextId,
+    aggregateId: selectedAggregateId,
+    sliceId: selectedSliceId,
+    nodeId: selectedNodeId
+  }), [model, selectedDomainId, selectedContextId, selectedAggregateId, selectedSliceId, selectedNodeId]);
+  const emModelJson = useMemo(() => emModelToJson(model), [model]);
+  const codegenModelJson = useMemo(() => JSON.stringify(codegenModel, null, 2), [codegenModel]);
+  const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
+  const dslFocusLine = useMemo(() => findDslLine(dsl, dslFocusTarget), [dsl, dslFocusTarget]);
+  const isParsingPending = dsl !== debouncedDsl;
+
+  const selectDomain = (domain: EmDomain) => {
+    setSelectedDomainId(domain.id);
+    setSelectedContextId(undefined);
+    setSelectedAggregateId(undefined);
+    setSelectedSliceId(undefined);
+    setSelectedNodeId(undefined);
+    setPreviewMode('canvas');
+    setDslFocusTarget({ kind: 'domain', name: domain.name });
+    setDslFocusVersion((version) => version + 1);
+  };
+
+  const selectContext = (context: EmContext) => {
+    setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
+    setSelectedContextId(context.id);
+    setSelectedAggregateId(undefined);
+    setSelectedSliceId(undefined);
+    setSelectedNodeId(undefined);
+    setDslFocusTarget({ kind: 'context', name: context.name });
+    setDslFocusVersion((version) => version + 1);
+  };
+
+  const selectAggregate = (context: EmContext, aggregate: EmAggregate) => {
+    setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
+    setSelectedContextId(context.id);
+    setSelectedAggregateId(aggregate.id);
+    setSelectedSliceId(undefined);
+    setSelectedNodeId(aggregate.id);
+    setDslFocusTarget({ kind: 'aggregate', name: aggregate.name });
+    setDslFocusVersion((version) => version + 1);
+  };
+
+  const selectSlice = (context: EmContext, aggregate: EmAggregate, slice: EmSlice) => {
+    setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
+    setSelectedContextId(context.id);
+    setSelectedAggregateId(aggregate.id);
+    setSelectedSliceId(slice.id);
+    setSelectedNodeId(slice.id);
+    setDslFocusTarget({ kind: 'slice', name: slice.name });
+    setDslFocusVersion((version) => version + 1);
+  };
+
+  const selectOverviewAggregate = (nodeId: string) => {
+    const aggregateId = aggregateIdFromOverviewNodeId(nodeId);
+    if (!aggregateId) return;
+
+    for (const context of model.contexts) {
+      const aggregate = context.aggregates.find((candidate) => candidate.id === aggregateId);
+      if (!aggregate) continue;
+      selectAggregate(context, aggregate);
+      setPreviewMode('canvas');
+      return;
+    }
+  };
+
+  const downloadJson = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getImageExportOptions = (filename: string) => {
+    const bounds = getFlowBounds(flow.nodes);
+    const padding = 180;
+    const imageWidth = Math.max(1280, Math.ceil(bounds.width + padding * 2));
+    const imageHeight = Math.max(720, Math.ceil(bounds.height + padding * 2));
+    const paddedBounds = {
+      x: bounds.x - padding,
+      y: bounds.y - padding,
+      width: bounds.width + padding * 2,
+      height: bounds.height + padding * 2
+    };
+    const viewport = getViewportForBounds(paddedBounds, imageWidth, imageHeight, 0.1, 1.5, 1);
+
+    return {
+      filename,
+      width: imageWidth,
+      height: imageHeight,
+      transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+      backgroundColor: '#f4f7fb'
+    };
+  };
+
+  const runToolbarAction = async () => {
+    if (toolbarAction === 'em-model') {
+      downloadJson('em-model.json', emModelJson);
+    } else if (toolbarAction === 'codegen-model') {
+      downloadJson('codegen-model.json', codegenModelJson);
+    } else if (toolbarAction === 'config') {
+      downloadJson('config.json', configJson);
+    } else if (toolbarAction === 'png' && flow.nodes.length > 0) {
+      await exportFlowViewportToPng({
+        ...getImageExportOptions('event-modeling-flow.png'),
+        pixelRatio: 2
+      });
+    } else if (toolbarAction === 'svg' && flow.nodes.length > 0) {
+      exportFlowViewportToSvg(getImageExportOptions('event-modeling-flow.svg'));
+    } else if (toolbarAction === 'reset') {
+      setDsl(sampleDsl);
+      setDslEditorVersion((version) => version + 1);
+    }
+
+    setToolbarAction('');
+  };
+
+  const resizeLeftPanel = (event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const startX = event.clientX;
+    const startWidth = leftPanelWidth;
+
+    const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const rightWidth = rightPanelOpen ? 320 : 42;
+      const previewMinWidth = 260;
+      const resizeHandleWidth = 6;
+      const maxWidth = Math.max(window.innerWidth - rightWidth - previewMinWidth - resizeHandleWidth, 80);
+      const nextWidth = Math.min(Math.max(startWidth + moveEvent.clientX - startX, 80), maxWidth);
+      setLeftPanelWidth(nextWidth);
+    };
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  const resizeExplorerPanel = (event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const startY = event.clientY;
+    const startHeight = editorPanelHeight;
+
+    const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const explorerMinHeight = 140;
+      const editorMinHeight = 140;
+      const reservedHeight = 86;
+      const maxHeight = Math.max(window.innerHeight - reservedHeight - explorerMinHeight, editorMinHeight);
+      const nextHeight = Math.min(Math.max(startHeight + moveEvent.clientY - startY, editorMinHeight), maxHeight);
+      setEditorPanelHeight(nextHeight);
+    };
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  return (
+    <main
+      className={leftPanelOpen ? rightPanelOpen ? 'app-shell' : 'app-shell is-right-collapsed' : rightPanelOpen ? 'app-shell is-left-collapsed' : 'app-shell is-left-collapsed is-right-collapsed'}
+      style={{
+        '--left-panel-width': `${leftPanelWidth}px`,
+        '--editor-panel-height': `${editorPanelHeight}px`
+      } as CSSProperties}
+    >
+      <aside className="left-workspace">
+        <header className="pane-header pane-header--inline">
+          <div>
+            <p className="eyebrow">Workspace</p>
+            <h2>Editor</h2>
+          </div>
+          <button type="button" className="collapse-button" onClick={() => setLeftPanelOpen(false)}>Hide</button>
+        </header>
+        <div className="left-workspace__body">
+          <section className="left-section left-section--editor">
+            <div className="left-section__title">
+              <span>DSL</span>
+              <strong>{isParsingPending ? 'Parsing' : model.diagnostics.length === 0 ? 'Valid' : `${model.diagnostics.length} warnings`}</strong>
+            </div>
+            <DslEditor
+              key={dslEditorVersion}
+              value={dsl}
+              diagnostics={model.diagnostics}
+              focusLine={dslFocusLine}
+              focusVersion={dslFocusVersion}
+              onChange={setDsl}
+            />
+          </section>
+          <div
+            className="explorer-resize-handle"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize explorer panel"
+            onPointerDown={resizeExplorerPanel}
+          />
+          <ModelExplorer
+            model={model}
+            activeDomainId={selectedDomainId}
+            activeContextId={selectedContextId}
+            activeAggregateId={selectedAggregateId}
+            activeSliceId={selectedSliceId}
+            onSelectDomain={selectDomain}
+            onSelectContext={selectContext}
+            onSelectAggregate={selectAggregate}
+            onSelectSlice={selectSlice}
+          />
+        </div>
+      </aside>
+      {leftPanelOpen && (
+        <div
+          className="left-resize-handle"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize editor panel"
+          onPointerDown={resizeLeftPanel}
+        />
+      )}
+      {!leftPanelOpen && (
+        <button type="button" className="side-restore side-restore--left" onClick={() => setLeftPanelOpen(true)}>
+          Editor
+        </button>
+      )}
+      <section className="workbench-pane">
+        <header className="studio-toolbar">
+          <div>
+            <p className="eyebrow">{displayContext?.name ?? activeDomain?.name ?? 'Event Modeling'}</p>
+            <h1>{activeAggregate?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}</h1>
+          </div>
+          <div className="toolbar-actions">
+            <div className="preview-tabs" role="tablist" aria-label="Preview mode">
+              <button
+                type="button"
+                className={previewMode === 'canvas' ? 'is-active' : undefined}
+                aria-selected={previewMode === 'canvas'}
+                onClick={() => setPreviewMode('canvas')}
+              >
+                Event Canvas
+              </button>
+              <button
+                type="button"
+                className={previewMode === 'global' ? 'is-active' : undefined}
+                aria-selected={previewMode === 'global'}
+                onClick={() => setPreviewMode('global')}
+              >
+                Global Map
+              </button>
+              <button
+                type="button"
+                className={previewMode === 'layout' ? 'is-active' : undefined}
+                aria-selected={previewMode === 'layout'}
+                onClick={() => setPreviewMode('layout')}
+              >
+                Layout Preview
+              </button>
+            </div>
+            <select
+              value={toolbarAction}
+              onChange={(event) => setToolbarAction(event.target.value as ToolbarAction | '')}
+              aria-label="Toolkit action"
+            >
+              <option value="" disabled>Choose action</option>
+              <option value="em-model">Export EmModel</option>
+              <option value="codegen-model">Export CodegenModel</option>
+              <option value="config">Export config</option>
+              <option value="png">Export PNG</option>
+              <option value="svg">Export SVG</option>
+              <option value="reset">Reset DSL</option>
+            </select>
+            <button type="button" onClick={runToolbarAction} disabled={!toolbarAction}>Confirm</button>
+          </div>
+        </header>
+        <div className="preview-stage">
+          {previewMode === 'canvas' ? (
+            <SemanticCanvas nodes={flow.nodes} edges={flow.edges} onSelectNode={setSelectedNodeId} />
+          ) : previewMode === 'global' ? (
+            <GlobalMap nodes={overviewFlow.nodes} edges={overviewFlow.edges} onSelectAggregate={selectOverviewAggregate} />
+          ) : (
+            <LayoutPreview model={layoutPreview} />
+          )}
+        </div>
+        <footer className="studio-status">
+          <strong>{previewMode === 'global' ? overviewFlow.nodes.length : flow.nodes.length}</strong> nodes
+          <strong>{previewMode === 'global' ? overviewFlow.edges.length : flow.edges.length}</strong> edges
+          {isParsingPending && <span>parsing</span>}
+          {domainOverviewMode && <span>domain overview</span>}
+          {selectedSliceId && <span>slice focused</span>}
+          {model.diagnostics.map((diagnostic) => (
+            <span key={diagnostic}>{diagnostic}</span>
+          ))}
+        </footer>
+      </section>
+      <aside className="right-workspace">
+        <header className="pane-header pane-header--inline">
+          <div>
+            <p className="eyebrow">Semantic</p>
+            <h2>Inspector</h2>
+          </div>
+          <button type="button" className="collapse-button" onClick={() => setRightPanelOpen(false)}>Hide</button>
+        </header>
+        <InspectorPanel item={selectedItem} compact />
+      </aside>
+      {!rightPanelOpen && (
+        <button type="button" className="side-restore side-restore--right" onClick={() => setRightPanelOpen(true)}>
+          Inspector
+        </button>
+      )}
+    </main>
+  );
+}
