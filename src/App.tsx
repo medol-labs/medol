@@ -3,12 +3,14 @@ import '@xyflow/react/dist/style.css';
 import { useMemo, useState } from 'react';
 import { EmNode } from './components/EmNode';
 import { LaneLabel } from './components/LaneLabel';
+import { LayoutPreview } from './components/LayoutPreview';
 import { SliceHeader } from './components/SliceHeader';
 import { modelToCodegenModel, modelToConfig } from './lib/dslToConfig';
 import { parseEventModelingDsl } from './lib/dslParser';
 import { emModelToJson } from './lib/emModelExport';
 import { exportFlowViewportToPng, exportFlowViewportToSvg } from './lib/exportFlowImage';
 import { toReactFlow } from './lib/flow';
+import { toLayoutPreviewModel } from './lib/layoutPreview';
 import { sampleDsl } from './lib/sampleDsl';
 import './styles/app.css';
 
@@ -20,10 +22,13 @@ const nodeTypes = {
 
 function EventModelingApp() {
   const [dsl, setDsl] = useState(sampleDsl);
+  const [previewMode, setPreviewMode] = useState<'canvas' | 'layout'>('canvas');
   const model = useMemo(() => parseEventModelingDsl(dsl), [dsl]);
   const flow = useMemo(() => toReactFlow(model), [model]);
+  const codegenModel = useMemo(() => modelToCodegenModel(model), [model]);
+  const layoutPreview = useMemo(() => toLayoutPreviewModel(codegenModel), [codegenModel]);
   const emModelJson = useMemo(() => emModelToJson(model), [model]);
-  const codegenModelJson = useMemo(() => JSON.stringify(modelToCodegenModel(model), null, 2), [model]);
+  const codegenModelJson = useMemo(() => JSON.stringify(codegenModel, null, 2), [codegenModel]);
   const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
 
   const downloadJson = (filename: string, content: string) => {
@@ -110,19 +115,43 @@ function EventModelingApp() {
           ))}
         </footer>
       </aside>
-      <section className="canvas-pane">
-        <ReactFlow
-          nodes={flow.nodes}
-          edges={flow.edges}
-          nodeTypes={nodeTypes}
-          fitView
-          minZoom={0.25}
-          maxZoom={1.6}
-        >
-          <Background gap={20} size={1} color="#dbe3ef" />
-          <MiniMap pannable zoomable />
-          <Controls />
-        </ReactFlow>
+      <section className="preview-pane">
+        <div className="preview-tabs" role="tablist" aria-label="Preview mode">
+          <button
+            type="button"
+            className={previewMode === 'canvas' ? 'is-active' : undefined}
+            aria-selected={previewMode === 'canvas'}
+            onClick={() => setPreviewMode('canvas')}
+          >
+            Event Canvas
+          </button>
+          <button
+            type="button"
+            className={previewMode === 'layout' ? 'is-active' : undefined}
+            aria-selected={previewMode === 'layout'}
+            onClick={() => setPreviewMode('layout')}
+          >
+            Layout Preview
+          </button>
+        </div>
+        {previewMode === 'canvas' ? (
+          <div className="canvas-pane">
+            <ReactFlow
+              nodes={flow.nodes}
+              edges={flow.edges}
+              nodeTypes={nodeTypes}
+              fitView
+              minZoom={0.25}
+              maxZoom={1.6}
+            >
+              <Background gap={20} size={1} color="#dbe3ef" />
+              <MiniMap pannable zoomable />
+              <Controls />
+            </ReactFlow>
+          </div>
+        ) : (
+          <LayoutPreview model={layoutPreview} />
+        )}
       </section>
     </main>
   );

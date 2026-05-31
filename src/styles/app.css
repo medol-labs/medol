@@ -24,7 +24,9 @@ textarea {
 .app-shell {
   display: grid;
   grid-template-columns: minmax(360px, 34vw) 1fr;
-  min-height: 100vh;
+  height: calc(100vh - 24px);
+  margin-bottom: 24px;
+  overflow: hidden;
 }
 
 .editor-pane {
@@ -33,6 +35,7 @@ textarea {
   gap: 14px;
   min-width: 0;
   padding: 18px;
+  overflow: hidden;
   border-right: 1px solid #d8dee8;
   background: #ffffff;
 }
@@ -127,9 +130,54 @@ textarea:focus {
   color: #b45309;
 }
 
+.preview-pane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #f4f7fb;
+}
+
+.preview-tabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid #d8dee8;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.preview-tabs button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #475569;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preview-tabs button:hover {
+  color: #172033;
+  background: #eef4fb;
+}
+
+.preview-tabs button.is-active {
+  border-color: #b9c7d8;
+  color: #172033;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
 .canvas-pane {
   min-width: 0;
-  min-height: 100vh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .react-flow {
@@ -237,6 +285,384 @@ textarea:focus {
   pointer-events: none;
 }
 
+.layout-preview {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #f4f7fb;
+}
+
+.layout-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #d8dee8;
+  background: #ffffff;
+}
+
+.layout-preview__header h2 {
+  margin: 2px 0 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.layout-preview__summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.layout-preview__summary span {
+  padding: 6px 9px;
+  border: 1px solid #d8dee8;
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+.layout-preview__body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.layout-preview__nav {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 14px;
+  border-right: 1px solid #d8dee8;
+  background: #ffffff;
+}
+
+.layout-preview__nav section {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 20px;
+}
+
+.layout-preview__nav strong {
+  color: #172033;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.layout-preview__nav a {
+  display: block;
+  overflow: hidden;
+  padding: 7px 8px;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 12px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-preview__nav a:hover {
+  color: #172033;
+  background: #eef4fb;
+}
+
+.layout-preview__modules {
+  min-height: 0;
+  overflow: auto;
+  padding: 22px;
+}
+
+.layout-context {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 30px;
+}
+
+.layout-context__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.layout-context__title::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #d8dee8;
+}
+
+.layout-module {
+  display: grid;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #d8dee8;
+}
+
+.layout-module__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.layout-module__header p {
+  margin: 0 0 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.layout-module__header h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.layout-states {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+  max-width: 46%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.layout-states li {
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #3f3f46;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.layout-module__grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.05fr) minmax(260px, 1fr) minmax(220px, 0.78fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.layout-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.layout-panel--pages {
+  min-height: 280px;
+}
+
+.layout-panel__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #172033;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.layout-panel__title small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.layout-pages,
+.layout-flows,
+.layout-inventory {
+  display: grid;
+  gap: 12px;
+}
+
+.layout-page {
+  overflow: hidden;
+  border: 1px solid #cfd8e6;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.layout-page__chrome {
+  display: flex;
+  gap: 5px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #edf2f7;
+}
+
+.layout-page__chrome span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.layout-page__body {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+}
+
+.layout-page__body small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.layout-page__body strong {
+  overflow: hidden;
+  color: #172033;
+  font-size: 14px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-wireframe {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+}
+
+.layout-wireframe span {
+  height: 8px;
+  border-radius: 4px;
+  background: #cbd5e1;
+}
+
+.layout-wireframe span:nth-child(2) {
+  width: 78%;
+}
+
+.layout-wireframe span:nth-child(3) {
+  width: 54%;
+}
+
+.layout-wireframe__block {
+  width: 100%;
+  min-height: 28px;
+}
+
+.layout-wireframe__block--list {
+  background:
+    repeating-linear-gradient(to bottom, #b6c6d8 0, #b6c6d8 1px, transparent 1px, transparent 9px),
+    #dce6f1;
+}
+
+.layout-wireframe__block--command {
+  background:
+    linear-gradient(to right, #d97757 0 34%, transparent 34%),
+    #f3d8cd;
+}
+
+.layout-wireframe__block--automation {
+  background:
+    linear-gradient(135deg, #9aa7b5 0 25%, transparent 25% 50%, #9aa7b5 50% 75%, transparent 75%),
+    #e2e8f0;
+}
+
+.layout-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.layout-page__actions span,
+.layout-action-list em,
+.layout-flow__name span,
+.layout-flow__state {
+  padding: 4px 7px;
+  border: 1px solid #d8dee8;
+  border-radius: 999px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.layout-page__actions .is-emphasis,
+.layout-action-list .is-emphasis {
+  border-color: #d9977d;
+  color: #8f3b21;
+  background: #fff1eb;
+}
+
+.layout-flow {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.layout-flow__name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.layout-flow__name strong {
+  overflow: hidden;
+  color: #172033;
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-flow__state {
+  justify-self: start;
+  color: #315c47;
+  background: #edf8f1;
+}
+
+.layout-action-list {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.layout-action-list > span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.layout-action-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.layout-action-list small {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -252,7 +678,30 @@ textarea:focus {
     flex-basis: 100%;
   }
 
-  .canvas-pane {
+  .preview-pane {
     min-height: 0;
+  }
+
+  .layout-preview__body {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-preview__nav {
+    display: none;
+  }
+
+  .layout-module__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-module__header,
+  .layout-preview__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .layout-states {
+    justify-content: flex-start;
+    max-width: none;
   }
 }
