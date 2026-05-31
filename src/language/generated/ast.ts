@@ -33,23 +33,31 @@ export type EventModelingKeywordNames =
     | "actor"
     | "aggregate"
     | "automation"
+    | "background"
     | "command"
     | "condition"
+    | "confirm"
     | "context"
     | "createsAggregate"
     | "decision"
     | "derived"
+    | "detail"
+    | "dialog"
     | "domain"
+    | "drawer"
     | "emits"
     | "event"
     | "example"
+    | "form"
     | "from"
     | "generated"
     | "given"
     | "hotspot"
     | "id"
+    | "inline"
     | "integration"
     | "issue"
+    | "list"
     | "metric"
     | "note"
     | "on"
@@ -72,6 +80,7 @@ export type EventModelingKeywordNames =
     | "userJourney"
     | "view"
     | "when"
+    | "wizard"
     | "{"
     | "}";
 
@@ -908,16 +917,24 @@ export function isThen(item: unknown): item is Then {
 export interface UiRef extends langium.AstNode {
     readonly $container: Slice | Specification;
     readonly $type: 'UiRef';
+    type?: UiType;
     view: string;
 }
 
 export const UiRef = {
     $type: 'UiRef',
+    type: 'type',
     view: 'view'
 } as const;
 
 export function isUiRef(item: unknown): item is UiRef {
     return reflection.isInstance(item, UiRef.$type);
+}
+
+export type UiType = 'background' | 'confirm' | 'detail' | 'dialog' | 'drawer' | 'form' | 'inline' | 'list' | 'wizard';
+
+export function isUiType(item: unknown): item is UiType {
+    return item === 'list' || item === 'detail' || item === 'form' || item === 'dialog' || item === 'drawer' || item === 'confirm' || item === 'wizard' || item === 'inline' || item === 'background';
 }
 
 export interface UserJourney extends langium.AstNode {
@@ -1606,6 +1623,9 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
         UiRef: {
             name: UiRef.$type,
             properties: {
+                type: {
+                    name: UiRef.type
+                },
                 view: {
                     name: UiRef.view
                 }

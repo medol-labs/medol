@@ -1,4 +1,4 @@
-import type { LayoutModule, LayoutPreviewModel } from '../lib/layoutPreview';
+import type { LayoutAction, LayoutModule, LayoutPage, LayoutPreviewModel } from '../lib/layoutPreview';
 
 interface LayoutPreviewProps {
   model: LayoutPreviewModel;
@@ -24,7 +24,7 @@ export function LayoutPreview({ model }: LayoutPreviewProps) {
             <section key={context.id}>
               <strong>{context.title}</strong>
               {context.modules.map((module) => (
-                <a key={module.id} href={`#${module.id}`}>{module.title}</a>
+                <ModuleNav key={module.id} module={module} />
               ))}
             </section>
           ))}
@@ -43,6 +43,61 @@ export function LayoutPreview({ model }: LayoutPreviewProps) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ModuleNav({ module }: { module: LayoutModule }) {
+  const listPages = module.pages.filter((page) => page.kind === 'list');
+  const attachedCommandIds = new Set(listPages.flatMap((page) => page.actions.map((action) => action.id)));
+  const commands = uniqueActions(module.slices.flatMap((slice) => slice.commands));
+  const standaloneCommands = commands.filter((command) => !attachedCommandIds.has(command.id));
+
+  return (
+    <div className="layout-preview__nav-module">
+      <a className="layout-preview__nav-module-link" href={`#${module.id}`}>{module.title}</a>
+      {listPages.length > 0 && (
+        <div className="layout-preview__nav-lists">
+          {listPages.map((page) => (
+            <ListNavItem key={page.id} page={page} />
+          ))}
+        </div>
+      )}
+      {standaloneCommands.length > 0 && (
+        <div className="layout-preview__nav-group">
+          <span>Other commands</span>
+          {standaloneCommands.map((command) => (
+            <a key={command.id} href={`#${command.id}`}>
+              <small>{command.uiType ?? (command.emphasis ? 'create' : 'cmd')}</small>
+              {command.title}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ListNavItem({ page }: { page: LayoutPage }) {
+  const commands = page.actions.filter((action): action is LayoutAction & { kind: 'command' } => action.kind === 'command');
+
+  return (
+    <div className="layout-preview__nav-list">
+      <a className="layout-preview__nav-list-link" href={`#${page.id}`}>
+        <small>list</small>
+        {page.title}
+      </a>
+      {commands.length > 0 && (
+        <div className="layout-preview__nav-group">
+          <span>Commands</span>
+          {commands.map((command) => (
+            <a key={command.id} href={`#${command.id}`}>
+              <small>{command.uiType ?? (command.emphasis ? 'create' : 'cmd')}</small>
+              {command.title}
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -77,7 +132,7 @@ function ModulePreview({ module }: { module: LayoutModule }) {
           </div>
           <div className="layout-pages">
             {module.pages.map((page) => (
-              <div className="layout-page" key={page.id}>
+              <div className="layout-page" id={page.id} key={page.id}>
                 <div className="layout-page__chrome">
                   <span />
                   <span />
@@ -96,6 +151,7 @@ function ModulePreview({ module }: { module: LayoutModule }) {
                       {page.actions.map((action) => (
                         <span className={action.emphasis ? 'is-emphasis' : undefined} key={action.id}>
                           {action.title}
+                          {action.uiType && <small>{action.uiType}</small>}
                         </span>
                       ))}
                     </div>
@@ -118,7 +174,7 @@ function ModulePreview({ module }: { module: LayoutModule }) {
                   <strong>{slice.title}</strong>
                   {slice.createsAggregate && <span>creates aggregate</span>}
                 </div>
-                <ActionList title="Command" items={slice.commands} />
+                <ActionList title="Command" items={slice.commands} anchorItems />
                 <ActionList title="Event" items={slice.events} />
                 <ActionList title="View" items={slice.readmodels} />
                 {slice.processors.length > 0 && <ActionList title="Auto" items={slice.processors} />}
@@ -145,14 +201,25 @@ function ModulePreview({ module }: { module: LayoutModule }) {
   );
 }
 
-function ActionList({ title, items }: { title: string; items: Array<{ id: string; title: string; emphasis?: boolean }> }) {
+function ActionList({
+  title,
+  items,
+  anchorItems = false
+}: {
+  title: string;
+  items: Array<{ id: string; title: string; emphasis?: boolean; uiType?: string }>;
+  anchorItems?: boolean;
+}) {
   return (
     <div className="layout-action-list">
       <span>{title}</span>
       {items.length > 0 ? (
         <div>
           {items.map((item) => (
-            <em className={item.emphasis ? 'is-emphasis' : undefined} key={item.id}>{item.title}</em>
+            <em className={item.emphasis ? 'is-emphasis' : undefined} id={anchorItems ? item.id : undefined} key={item.id}>
+              {item.title}
+              {item.uiType && <small>{item.uiType}</small>}
+            </em>
           ))}
         </div>
       ) : (
@@ -161,3 +228,12 @@ function ActionList({ title, items }: { title: string; items: Array<{ id: string
     </div>
   );
 }
+
+const uniqueActions = <T extends { id: string }>(items: T[]): T[] => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+};

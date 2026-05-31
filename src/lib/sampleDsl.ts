@@ -7,7 +7,7 @@ context FederationLearning {
     slice CreateFederation {
       createsAggregate
       actor Admin
-      ui CreateFederationScreen
+      ui CreateFederationScreen form
 
       command CreateFederation {
         federationId: UUID id generated technical
@@ -40,7 +40,9 @@ context FederationLearning {
 
     slice FederationOverview {
       reactsTo FederationCreated
-      projection FederationList {
+      ui FederationOverviewPage list
+
+      projection FederationList[] {
         federationId: UUID id
         federationName: String
         status: String
@@ -50,7 +52,7 @@ context FederationLearning {
 
     slice AutoActivateFederation {
       actor Admin
-      ui FederationDetailScreen
+      ui FederationDetailScreen confirm
       reactsTo FederationCreated
 
       automation ActivateNewFederation {

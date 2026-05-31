@@ -10,7 +10,7 @@
     },
     {
       "name": "keyword.control.event-modeling",
-      "match": "\\b(actor|aggregate|automation|command|condition|context|createsAggregate|decision|derived|domain|emits|event|example|from|generated|given|hotspot|id|integration|issue|metric|note|on|policy|projection|query|reactsTo|risk|rule|slice|source|specification|state|steps|subscribe|target|technical|then|ui|userJourney|view|when)\\b"
+      "match": "\\b(actor|aggregate|automation|background|command|condition|confirm|context|createsAggregate|decision|derived|detail|dialog|domain|drawer|emits|event|example|form|from|generated|given|hotspot|id|inline|integration|issue|list|metric|note|on|policy|projection|query|reactsTo|risk|rule|slice|source|specification|state|steps|subscribe|target|technical|then|ui|userJourney|view|when|wizard)\\b"
     },
     {
       "name": "string.quoted.double.event-modeling",

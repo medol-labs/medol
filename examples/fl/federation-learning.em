@@ -90,6 +90,8 @@ context FederationManagement {
     }
 
     slice OrganizationDirectory {
+      ui OrganizationDirectory
+
       projection OrganizationDirectory[] {
         organizationId: UUID id
         organizationName: String
@@ -116,7 +118,7 @@ context FederationManagement {
     slice CreateFederation {
       createsAggregate
       actor PlatformAdmin
-      ui FederationSetupScreen
+      ui FederationSetupScreen form
 
       command CreateFederation {
         federationId: UUID id generated technical
@@ -137,116 +139,6 @@ context FederationManagement {
       }
 
       state Draft
-    }
-
-    slice InviteParticipant {
-      actor FederationOwner
-      ui ParticipantInvitationScreen
-      reactsTo FederationCreated
-
-      command InviteParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        invitationNote: String
-      }
-
-      event ParticipantInvited {
-        federationId: UUID id technical
-        organizationId: UUID
-        invitationNote: String
-      }
-    }
-
-    slice ApproveParticipant {
-      actor GovernanceReviewer
-      ui MembershipReviewScreen
-      reactsTo ParticipantInvited
-
-      command ApproveParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        approvalNote: String?
-      }
-
-      event ParticipantJoined {
-        federationId: UUID id technical
-        organizationId: UUID
-        approvalNote: String?
-      }
-
-      state Active
-    }
-
-    slice RejectParticipant {
-      actor GovernanceReviewer
-      ui MembershipReviewScreen
-      reactsTo ParticipantInvited
-
-      command RejectParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        rejectionReason: String
-      }
-
-      event ParticipantRejected {
-        federationId: UUID id technical
-        organizationId: UUID
-        rejectionReason: String
-      }
-    }
-
-    slice RevokeParticipantInvitation {
-      actor FederationOwner
-      ui ParticipantInvitationScreen
-      reactsTo ParticipantInvited
-
-      command RevokeParticipantInvitation {
-        federationId: UUID id technical
-        organizationId: UUID
-        revokeReason: String
-      }
-
-      event ParticipantInvitationRevoked {
-        federationId: UUID id technical
-        organizationId: UUID
-        revokeReason: String
-      }
-    }
-
-    slice SuspendParticipant {
-      actor GovernanceReviewer
-      ui MembershipReviewScreen
-      reactsTo ParticipantJoined
-
-      command SuspendParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        suspensionReason: String
-      }
-
-      event ParticipantSuspended {
-        federationId: UUID id technical
-        organizationId: UUID
-        suspensionReason: String
-      }
-    }
-
-    slice RemoveParticipant {
-      actor GovernanceReviewer
-      ui MembershipReviewScreen
-      reactsTo ParticipantSuspended
-
-      command RemoveParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        removalReason: String
-      }
-
-      event ParticipantRemoved {
-        federationId: UUID id technical
-        organizationId: UUID
-        removalReason: String
-      }
     }
 
     slice FederationOverview {
@@ -273,6 +165,116 @@ context FederationManagement {
       }
     }
 
+    slice InviteParticipant {
+      actor FederationOwner
+      ui ParticipantInvitationScreen dialog
+      reactsTo FederationCreated
+
+      command InviteParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        invitationNote: String
+      }
+
+      event ParticipantInvited {
+        federationId: UUID id technical
+        organizationId: UUID
+        invitationNote: String
+      }
+    }
+
+    slice ApproveParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen dialog
+      reactsTo ParticipantInvited
+
+      command ApproveParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        approvalNote: String?
+      }
+
+      event ParticipantJoined {
+        federationId: UUID id technical
+        organizationId: UUID
+        approvalNote: String?
+      }
+
+      state Active
+    }
+
+    slice RejectParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen dialog
+      reactsTo ParticipantInvited
+
+      command RejectParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        rejectionReason: String
+      }
+
+      event ParticipantRejected {
+        federationId: UUID id technical
+        organizationId: UUID
+        rejectionReason: String
+      }
+    }
+
+    slice RevokeParticipantInvitation {
+      actor FederationOwner
+      ui ParticipantInvitationScreen confirm
+      reactsTo ParticipantInvited
+
+      command RevokeParticipantInvitation {
+        federationId: UUID id technical
+        organizationId: UUID
+        revokeReason: String
+      }
+
+      event ParticipantInvitationRevoked {
+        federationId: UUID id technical
+        organizationId: UUID
+        revokeReason: String
+      }
+    }
+
+    slice SuspendParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen dialog
+      reactsTo ParticipantJoined
+
+      command SuspendParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        suspensionReason: String
+      }
+
+      event ParticipantSuspended {
+        federationId: UUID id technical
+        organizationId: UUID
+        suspensionReason: String
+      }
+    }
+
+    slice RemoveParticipant {
+      actor GovernanceReviewer
+      ui MembershipReviewScreen confirm
+      reactsTo ParticipantSuspended
+
+      command RemoveParticipant {
+        federationId: UUID id technical
+        organizationId: UUID
+        removalReason: String
+      }
+
+      event ParticipantRemoved {
+        federationId: UUID id technical
+        organizationId: UUID
+        removalReason: String
+      }
+    }
+
     slice FederationMembershipDirectory {
       reactsTo ParticipantInvited
 
@@ -293,6 +295,8 @@ context FederationManagement {
         subscribe OrganizationActivated
       }
     }
+
+
   }
 
   aggregate ComputeNode {
@@ -397,6 +401,32 @@ context FederationManagement {
 
       state Suspended
     }
+
+    slice ComputeNodeCatalog {
+      projection ComputeNodeCatalog[] {
+        nodeId: UUID id
+        organizationId: UUID
+        nodeName: String
+        nodeType: String
+        hardwareProfile: String
+        runtimeProfile: String
+        confidentialComputeSupported: Boolean
+        gpuCount: Int
+        cpuCoreCount: Int
+        memoryGb: Int
+        storageGb: Int
+        supportedFrameworks: String[]
+        maxConcurrentJobs: Int
+        trustLevel: String?
+        attestationExpiresAt: DateTime?
+        nodeStatus: String
+        suspensionReason: String?
+        subscribe ComputeNodeRegistered
+        subscribe NodeCapabilityUpdated
+        subscribe ComputeNodeTrusted
+        subscribe ComputeNodeSuspended
+      }
+    }
   }
 }
 
@@ -433,6 +463,17 @@ context DatasetGovernance {
       }
 
       state Published
+    }
+
+    slice FeatureSchemaCatalog {
+      projection FeatureSchemaCatalog[] {
+        featureSchemaId: UUID id
+        domain: String
+        version: Int
+        featureCount: Int
+        schemaStatus: String
+        subscribe FeatureSchemaPublished
+      }
     }
   }
 
@@ -1127,7 +1168,6 @@ context TrainingOrchestration {
         subscribe NodeReadyForTraining
       }
     }
-
     slice TrackTrainingJobRunning {
       reactsTo TrainingRoundStarted
 

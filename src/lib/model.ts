@@ -35,6 +35,22 @@ export interface EmElement {
   sliceId?: string;
   aggregateId?: string;
   metadata?: Record<string, string>;
+  ui?: EmUi;
+}
+
+export type EmUiType =
+  | 'list'
+  | 'detail'
+  | 'form'
+  | 'dialog'
+  | 'drawer'
+  | 'confirm'
+  | 'wizard'
+  | 'inline'
+  | 'background';
+
+export interface EmUi {
+  type?: EmUiType;
 }
 
 export interface EmSlice {

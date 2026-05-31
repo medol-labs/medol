@@ -20,9 +20,12 @@ const nodeTypes = {
   sliceHeader: SliceHeader
 };
 
+type ToolbarAction = 'em-model' | 'codegen-model' | 'config' | 'png' | 'svg' | 'reset';
+
 function EventModelingApp() {
   const [dsl, setDsl] = useState(sampleDsl);
   const [previewMode, setPreviewMode] = useState<'canvas' | 'layout'>('canvas');
+  const [toolbarAction, setToolbarAction] = useState<ToolbarAction | ''>('');
   const model = useMemo(() => parseEventModelingDsl(dsl), [dsl]);
   const flow = useMemo(() => toReactFlow(model), [model]);
   const codegenModel = useMemo(() => modelToCodegenModel(model), [model]);
@@ -84,6 +87,24 @@ function EventModelingApp() {
     exportFlowViewportToSvg(getImageExportOptions('event-modeling-flow.svg'));
   };
 
+  const runToolbarAction = async () => {
+    if (toolbarAction === 'em-model') {
+      downloadEmModel();
+    } else if (toolbarAction === 'codegen-model') {
+      downloadCodegenModel();
+    } else if (toolbarAction === 'config') {
+      downloadConfig();
+    } else if (toolbarAction === 'png') {
+      await exportPng();
+    } else if (toolbarAction === 'svg') {
+      exportSvg();
+    } else if (toolbarAction === 'reset') {
+      setDsl(sampleDsl);
+    }
+
+    setToolbarAction('');
+  };
+
   return (
     <main className="app-shell">
       <aside className="editor-pane">
@@ -93,12 +114,22 @@ function EventModelingApp() {
             <h1>Event Modeling Toolkit</h1>
           </div>
           <div className="toolbar-actions">
-            <button type="button" onClick={downloadEmModel}>Export EmModel</button>
-            <button type="button" onClick={downloadCodegenModel}>Export CodegenModel</button>
-            <button type="button" onClick={downloadConfig}>Export config</button>
-            <button type="button" onClick={exportPng}>Export PNG</button>
-            <button type="button" onClick={exportSvg}>Export SVG</button>
-            <button type="button" onClick={() => setDsl(sampleDsl)}>Reset</button>
+            <label htmlFor="toolbar-action">Action</label>
+            <select
+              id="toolbar-action"
+              value={toolbarAction}
+              onChange={(event) => setToolbarAction(event.target.value as ToolbarAction | '')}
+              aria-label="Toolkit action"
+            >
+              <option value="" disabled>Choose action</option>
+              <option value="em-model">Export EmModel</option>
+              <option value="codegen-model">Export CodegenModel</option>
+              <option value="config">Export config</option>
+              <option value="png">Export PNG</option>
+              <option value="svg">Export SVG</option>
+              <option value="reset">Reset DSL</option>
+            </select>
+            <button type="button" onClick={runToolbarAction} disabled={!toolbarAction}>Confirm</button>
           </div>
         </div>
         <textarea

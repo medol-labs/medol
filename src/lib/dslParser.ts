@@ -46,9 +46,10 @@ import type {
   Policy as AstPolicy,
   Projection as AstProjection,
   Slice as AstSlice,
-  Specification as AstSpecification
+  Specification as AstSpecification,
+  UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmAggregate, EmContext, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, emptyModel } from './model';
+import { EmAggregate, EmContext, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, emptyModel } from './model';
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
@@ -200,15 +201,16 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
     });
   }
 
-  const uiRef = node.elements.find(isUiRef);
-  if (uiRef) {
+  const uiRefs = node.elements.filter(isUiRef);
+  for (const uiRef of uiRefs) {
     slice.elements.push({
       id: `${sliceId}/screen/${uiRef.view}`,
       kind: 'screen',
       name: uiRef.view,
       fields: [],
       sliceId,
-      aggregateId
+      aggregateId,
+      ...(parseUi(uiRef) ? { ui: parseUi(uiRef) } : {})
     });
   }
 
@@ -228,18 +230,28 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
     edges.push(edge(`ref/event/${reactsTo}`, firstReactionElement.id, 'reactsTo'));
   }
 
-  const screen = slice.elements.find((element) => element.kind === 'screen');
+  const screens = slice.elements.filter((element) => element.kind === 'screen');
   const command = slice.elements.find((element) => element.kind === 'command');
   const event = slice.elements.find((element) => element.kind === 'event');
 
-  if (screen && command) {
-    edges.push(edge(screen.id, command.id, 'invokes'));
+  for (const screen of screens) {
+    if (command) {
+      edges.push(edge(screen.id, command.id, 'invokes'));
+    }
   }
   if (command && event) {
     edges.push(edge(command.id, event.id, 'emits'));
   }
 
   return slice;
+};
+
+const parseUi = (uiRef: AstUiRef): EmUi | undefined => {
+  if (!uiRef.type) return undefined;
+
+  return {
+    type: uiRef.type
+  };
 };
 
 const parseElement = (

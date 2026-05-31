@@ -1,4 +1,4 @@
-import type { CodegenElement, CodegenModel, CodegenSlice } from './codegenModel';
+import type { CodegenElement, CodegenModel, CodegenSlice, CodegenUiType } from './codegenModel';
 
 export interface LayoutPreviewModel {
   title: string;
@@ -44,6 +44,7 @@ export interface LayoutAction {
   title: string;
   kind: 'command' | 'event' | 'readmodel' | 'processor';
   emphasis?: boolean;
+  uiType?: CodegenUiType;
 }
 
 export const toLayoutPreviewModel = (model: CodegenModel): LayoutPreviewModel => ({
@@ -88,22 +89,25 @@ const toLayoutPages = (slices: CodegenSlice[]): LayoutPage[] => {
   const processors = uniqueElements(slices.flatMap((slice) => slice.processors));
 
   for (const screen of screens) {
+    const actions = relatedCommands(screen, slices);
     pages.push({
       id: `screen-${screen.id}`,
       title: screen.title,
-      kind: 'detail',
-      source: 'Screen',
-      actions: relatedCommands(screen, slices)
+      kind: toPageKind(screen.ui?.type),
+      source: screen.ui?.type ? `UI ${screen.ui.type}` : 'Screen',
+      actions: actions.length > 0 ? actions : timelineCommands(screen, slices)
     });
   }
 
   for (const readmodel of readmodels) {
+    if (hasExplicitReadmodelPage(readmodel, slices)) continue;
+    const actions = relatedCommands(readmodel, slices);
     pages.push({
       id: `readmodel-${readmodel.id}`,
       title: readmodel.title,
       kind: readmodel.listElement ? 'list' : 'detail',
       source: readmodel.listElement ? 'Read model list' : 'Read model detail',
-      actions: relatedCommands(readmodel, slices)
+      actions: actions.length > 0 ? actions : timelineCommands(readmodel, slices)
     });
   }
 
@@ -137,6 +141,11 @@ const toLayoutPages = (slices: CodegenSlice[]): LayoutPage[] => {
   }));
 };
 
+const hasExplicitReadmodelPage = (readmodel: CodegenElement, slices: CodegenSlice[]): boolean => {
+  const owner = slices.find((slice) => slice.readmodels.some((item) => item.id === readmodel.id));
+  return owner?.screens.some((screen) => screen.ui?.type === 'list' || screen.ui?.type === 'detail') ?? false;
+};
+
 const relatedCommands = (element: CodegenElement, slices: CodegenSlice[]): LayoutAction[] => {
   const inboundIds = new Set(
     element.dependencies
@@ -156,6 +165,25 @@ const relatedCommands = (element: CodegenElement, slices: CodegenSlice[]): Layou
     .flatMap((slice) => slice.commands.map((command) => toAction(command, 'command', command.createsAggregate)));
 };
 
+const timelineCommands = (element: CodegenElement, slices: CodegenSlice[]): LayoutAction[] => {
+  const ownerIndex = slices.findIndex((slice) =>
+    slice.readmodels.some((readmodel) => readmodel.id === element.id) || slice.screens.some((screen) => screen.id === element.id)
+  );
+  if (ownerIndex < 0) return [];
+
+  return uniqueElements(slices.slice(0, ownerIndex).flatMap((slice) => slice.commands))
+    .map((command) => toAction(command, 'command', command.createsAggregate));
+};
+
+const toPageKind = (uiType?: CodegenUiType): LayoutPage['kind'] => {
+  if (uiType === 'list') return 'list';
+  if (uiType === 'background') return 'automation';
+  if (uiType === 'form' || uiType === 'dialog' || uiType === 'drawer' || uiType === 'confirm' || uiType === 'wizard' || uiType === 'inline') {
+    return 'command';
+  }
+  return 'detail';
+};
+
 const uniqueElements = (elements: CodegenElement[]): CodegenElement[] => {
   const seen = new Set<string>();
   return elements.filter((element) => {
@@ -173,5 +201,6 @@ const toAction = (
   id: element.id,
   title: element.title,
   kind,
-  ...(emphasis ? { emphasis } : {})
+  ...(emphasis ? { emphasis } : {}),
+  ...(element.ui?.type ? { uiType: element.ui.type } : {})
 });

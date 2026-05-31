@@ -7,7 +7,8 @@ import type {
   CodegenSlice,
   CodegenSpecification,
   CodegenSpecificationElement,
-  CodegenStateChange
+  CodegenStateChange,
+  CodegenUi
 } from './codegenModel';
 import { stableId } from './codegenModel';
 
@@ -52,6 +53,7 @@ interface ConfigElement {
     elementType: string;
   }>;
   createsAggregate?: boolean;
+  ui?: CodegenUi;
   triggers?: [];
   sketched?: boolean;
   prototype?: { activeByDefault: boolean };
@@ -202,6 +204,7 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   ...(element.aggregate ? { aggregateDependencies: [element.aggregate.title] } : {}),
   dependencies: element.dependencies.map(toConfigDependency),
   createsAggregate: element.createsAggregate ?? false,
+  ...(element.ui ? { ui: element.ui } : {}),
   triggers: [],
   sketched: false,
   prototype: {

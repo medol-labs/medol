@@ -73,7 +73,19 @@ CreatesAggregateMarker:
 ;
 
 UiRef:
-    'ui' view=ID
+    'ui' view=ID type=UiType?
+;
+
+UiType returns string:
+      'list'
+    | 'detail'
+    | 'form'
+    | 'dialog'
+    | 'drawer'
+    | 'confirm'
+    | 'wizard'
+    | 'inline'
+    | 'background'
 ;
 
 ReactsTo:

@@ -29,6 +29,11 @@ interface ConfigElement {
   listElement?: boolean;
   fields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
+  ui?: ConfigUi;
+}
+
+interface ConfigUi {
+  type?: string;
 }
 
 interface ConfigStateChange {
@@ -103,7 +108,7 @@ export const configToDsl = (config: ConfigRoot): string => {
       }
       const screen = slice.screens?.[0];
       if (screen?.title) {
-        lines.push(`${pad(elementIndent)}ui ${toDslId(screen.title, 'Screen')}`);
+        lines.push(...formatUi(screen, elementIndent));
       }
 
       for (const command of slice.commands ?? []) {
@@ -138,6 +143,12 @@ export const configToDsl = (config: ConfigRoot): string => {
     lines.push('}');
   }
   return lines.join('\n');
+};
+
+const formatUi = (screen: ConfigElement, indent: number): string[] => {
+  const name = toDslId(screen.title, 'Screen');
+  const type = screen.ui?.type ? ` ${screen.ui.type}` : '';
+  return [`${pad(indent)}ui ${name}${type}`];
 };
 
 const pad = (indent: number): string => ' '.repeat(indent);

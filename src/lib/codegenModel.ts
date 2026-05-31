@@ -73,6 +73,7 @@ export interface CodegenElement {
   dependencies: CodegenDependency[];
   createsAggregate?: boolean;
   listElement?: boolean;
+  ui?: CodegenUi;
 }
 
 export type CodegenElementType = 'COMMAND' | 'EVENT' | 'SCREEN' | 'READMODEL' | 'PROCESSOR' | 'SPECIFICATION';
@@ -95,6 +96,21 @@ export interface CodegenFieldSource {
   from: string[];
   rule?: string;
 }
+
+export interface CodegenUi {
+  type?: CodegenUiType;
+}
+
+export type CodegenUiType =
+  | 'list'
+  | 'detail'
+  | 'form'
+  | 'dialog'
+  | 'drawer'
+  | 'confirm'
+  | 'wizard'
+  | 'inline'
+  | 'background';
 
 export interface CodegenDependency {
   id: string;
@@ -239,7 +255,16 @@ const toCodegenSlice = (
     context,
     aggregate,
     commands: commands.map((element, commandIndex) =>
-      toCodegenElement(element, 'COMMAND', aggregate, context, slice.name, dependenciesByElementId, slice.createsAggregate && commandIndex === 0)
+      toCodegenElement(
+        element,
+        'COMMAND',
+        aggregate,
+        context,
+        slice.name,
+        dependenciesByElementId,
+        slice.createsAggregate && commandIndex === 0,
+        screens[0]?.ui
+      )
     ),
     events: events.map((element) => toCodegenElement(element, 'EVENT', aggregate, context, slice.name, dependenciesByElementId)),
     readmodels: readmodels.map((element) => toCodegenElement(element, 'READMODEL', aggregate, context, slice.name, dependenciesByElementId)),
@@ -259,7 +284,8 @@ const toCodegenElement = (
   context: string,
   sliceName: string,
   dependenciesByElementId: Map<string, CodegenDependency[]>,
-  createsAggregate = false
+  createsAggregate = false,
+  ui?: CodegenUi
 ): CodegenElement => ({
   id: stableId(element.kind, element.id),
   name: element.name,
@@ -271,7 +297,8 @@ const toCodegenElement = (
   fields: element.fields.map(toCodegenField),
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   ...(createsAggregate ? { createsAggregate } : {}),
-  ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {})
+  ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
+  ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {})
 });
 
 const toCodegenStateChange = (slice: EmSlice, events: EmElement[]): CodegenStateChange => {
