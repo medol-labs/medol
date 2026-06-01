@@ -2,6 +2,7 @@ import { getViewportForBounds } from '@xyflow/react';
 import { useMemo, useState, type CSSProperties, type PointerEvent } from 'react';
 import { DslEditor } from '../features/dsl-editor/DslEditor';
 import { findDslLine, type DslLocationTarget } from '../features/dsl-editor/dslLocation';
+import { AgentChatDock } from '../features/agent-chat/AgentChatDock';
 import { GlobalMap } from '../features/global-map/GlobalMap';
 import { InspectorPanel } from '../features/inspector/InspectorPanel';
 import { LayoutPreview } from '../components/LayoutPreview';
@@ -34,6 +35,7 @@ export function EventModelingStudio() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<'ltr' | 'rtl'>('ltr');
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => Math.floor((window.innerWidth - 48) / 2));
   const [editorPanelHeight, setEditorPanelHeight] = useState(() => Math.floor((window.innerHeight - 120) / 2));
   const [dslFocusTarget, setDslFocusTarget] = useState<DslLocationTarget | undefined>();
@@ -187,7 +189,8 @@ export function EventModelingStudio() {
       const previewMinWidth = 260;
       const resizeHandleWidth = 6;
       const maxWidth = Math.max(window.innerWidth - rightWidth - previewMinWidth - resizeHandleWidth, 80);
-      const nextWidth = Math.min(Math.max(startWidth + moveEvent.clientX - startX, 80), maxWidth);
+      const dragDelta = layoutDirection === 'rtl' ? startX - moveEvent.clientX : moveEvent.clientX - startX;
+      const nextWidth = Math.min(Math.max(startWidth + dragDelta, 80), maxWidth);
       setLeftPanelWidth(nextWidth);
     };
     const onPointerUp = () => {
@@ -207,7 +210,7 @@ export function EventModelingStudio() {
     const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
       const explorerMinHeight = 140;
       const editorMinHeight = 140;
-      const reservedHeight = 86;
+      const reservedHeight = 178;
       const maxHeight = Math.max(window.innerHeight - reservedHeight - explorerMinHeight, editorMinHeight);
       const nextHeight = Math.min(Math.max(startHeight + moveEvent.clientY - startY, editorMinHeight), maxHeight);
       setEditorPanelHeight(nextHeight);
@@ -221,15 +224,33 @@ export function EventModelingStudio() {
     window.addEventListener('pointerup', onPointerUp);
   };
 
+  const editorColumn = leftPanelOpen ? `${leftPanelWidth}px` : '42px';
+  const resizeColumn = leftPanelOpen ? '6px' : '0px';
+  const inspectorColumn = rightPanelOpen ? '320px' : '42px';
+  const gridTemplateColumns = layoutDirection === 'ltr'
+    ? `${editorColumn} ${resizeColumn} minmax(0, 1fr) ${inspectorColumn}`
+    : `${inspectorColumn} minmax(0, 1fr) ${resizeColumn} ${editorColumn}`;
+  const editorGridColumn = layoutDirection === 'ltr' ? 1 : 4;
+  const resizeGridColumn = layoutDirection === 'ltr' ? 2 : 3;
+  const previewGridColumn = layoutDirection === 'ltr' ? 3 : 2;
+  const inspectorGridColumn = layoutDirection === 'ltr' ? 4 : 1;
+  const isRtlLayout = layoutDirection === 'rtl';
+
   return (
     <main
-      className={leftPanelOpen ? rightPanelOpen ? 'app-shell' : 'app-shell is-right-collapsed' : rightPanelOpen ? 'app-shell is-left-collapsed' : 'app-shell is-left-collapsed is-right-collapsed'}
+      className="grid h-[calc(100vh-24px)] min-h-0 overflow-hidden bg-[#f4f7fb] mb-6"
       style={{
+        gridTemplateColumns,
+        gridTemplateRows: 'minmax(0, 1fr)',
         '--left-panel-width': `${leftPanelWidth}px`,
         '--editor-panel-height': `${editorPanelHeight}px`
       } as CSSProperties}
     >
-      <aside className="left-workspace">
+      {leftPanelOpen && (
+      <aside
+        className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-l border-slate-300' : 'border-r border-slate-300'}`}
+        style={{ gridColumn: editorGridColumn, gridRow: 1 }}
+      >
         <header className="pane-header pane-header--inline">
           <div>
             <p className="eyebrow">Workspace</p>
@@ -237,7 +258,7 @@ export function EventModelingStudio() {
           </div>
           <button type="button" className="collapse-button" onClick={() => setLeftPanelOpen(false)}>Hide</button>
         </header>
-        <div className="left-workspace__body">
+        <div className="grid min-h-0 min-w-0 grid-rows-[minmax(140px,var(--editor-panel-height,1fr))_6px_minmax(120px,1fr)_auto] overflow-hidden">
           <section className="left-section left-section--editor">
             <div className="left-section__title">
               <span>DSL</span>
@@ -270,11 +291,14 @@ export function EventModelingStudio() {
             onSelectAggregate={selectAggregate}
             onSelectSlice={selectSlice}
           />
+          <AgentChatDock selectedItem={selectedItem} isParsingPending={isParsingPending} />
         </div>
       </aside>
+      )}
       {leftPanelOpen && (
         <div
-          className="left-resize-handle"
+          className="min-w-0 cursor-col-resize bg-[linear-gradient(to_right,transparent_0_2px,#d8dee8_2px_4px,transparent_4px_6px)] hover:bg-[linear-gradient(to_right,transparent_0_1px,#2563eb_1px_5px,transparent_5px_6px)] active:bg-[linear-gradient(to_right,transparent_0_1px,#2563eb_1px_5px,transparent_5px_6px)]"
+          style={{ gridColumn: resizeGridColumn, gridRow: 1 }}
           role="separator"
           aria-orientation="vertical"
           aria-label="Resize editor panel"
@@ -282,11 +306,19 @@ export function EventModelingStudio() {
         />
       )}
       {!leftPanelOpen && (
-        <button type="button" className="side-restore side-restore--left" onClick={() => setLeftPanelOpen(true)}>
+        <button
+          type="button"
+          className={`min-w-0 cursor-pointer border-0 bg-white p-0 text-xs font-extrabold uppercase tracking-normal text-slate-600 [writing-mode:vertical-rl] hover:bg-[#eef4fb] hover:text-[#172033] ${isRtlLayout ? 'border-l border-slate-300' : 'border-r border-slate-300'}`}
+          style={{ gridColumn: editorGridColumn, gridRow: 1 }}
+          onClick={() => setLeftPanelOpen(true)}
+        >
           Editor
         </button>
       )}
-      <section className="workbench-pane">
+      <section
+        className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[#f4f7fb]"
+        style={{ gridColumn: previewGridColumn, gridRow: 1 }}
+      >
         <header className="studio-toolbar">
           <div>
             <p className="eyebrow">{displayContext?.name ?? activeDomain?.name ?? 'Event Modeling'}</p>
@@ -319,6 +351,9 @@ export function EventModelingStudio() {
                 Layout Preview
               </button>
             </div>
+            <button type="button" onClick={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}>
+              {layoutDirection.toUpperCase()}
+            </button>
             <select
               value={toolbarAction}
               onChange={(event) => setToolbarAction(event.target.value as ToolbarAction | '')}
@@ -355,7 +390,11 @@ export function EventModelingStudio() {
           ))}
         </footer>
       </section>
-      <aside className="right-workspace">
+      {rightPanelOpen && (
+      <aside
+        className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-r border-slate-300' : 'border-l border-slate-300'}`}
+        style={{ gridColumn: inspectorGridColumn, gridRow: 1 }}
+      >
         <header className="pane-header pane-header--inline">
           <div>
             <p className="eyebrow">Semantic</p>
@@ -365,8 +404,14 @@ export function EventModelingStudio() {
         </header>
         <InspectorPanel item={selectedItem} compact />
       </aside>
+      )}
       {!rightPanelOpen && (
-        <button type="button" className="side-restore side-restore--right" onClick={() => setRightPanelOpen(true)}>
+        <button
+          type="button"
+          className={`min-w-0 cursor-pointer border-0 bg-white p-0 text-xs font-extrabold uppercase tracking-normal text-slate-600 [writing-mode:vertical-rl] hover:bg-[#eef4fb] hover:text-[#172033] ${isRtlLayout ? 'border-r border-slate-300' : 'border-l border-slate-300'}`}
+          style={{ gridColumn: inspectorGridColumn, gridRow: 1 }}
+          onClick={() => setRightPanelOpen(true)}
+        >
           Inspector
         </button>
       )}
