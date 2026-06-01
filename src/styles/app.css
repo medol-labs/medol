@@ -587,6 +587,151 @@ textarea {
   min-height: 0;
 }
 
+.agent-chat-thread {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.agent-chat-message {
+  display: grid;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.agent-chat-message.is-user {
+  justify-self: end;
+  max-width: 86%;
+  border-color: #bfdbfe;
+  color: #1e3a8a;
+  background: #eff6ff;
+}
+
+.agent-chat-message.is-assistant {
+  background: #fbfdff;
+}
+
+.agent-chat-message p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.agent-chat-patch {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid #d8dee8;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.agent-chat-patch.is-dismissed {
+  opacity: 0.58;
+}
+
+.agent-chat-patch__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.agent-chat-patch__header div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.agent-chat-patch__header small {
+  color: #2563eb;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.agent-chat-patch__header span {
+  max-width: 160px;
+  overflow: hidden;
+  padding: 3px 6px;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-chat-patch strong {
+  color: #172033;
+  font-size: 12px;
+}
+
+.agent-chat-patch p {
+  color: #475569;
+  font-size: 11px;
+}
+
+.agent-chat-patch pre {
+  max-height: 120px;
+  margin: 0;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: #172033;
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.agent-chat-patch__validation {
+  display: grid;
+  gap: 5px;
+  padding: 7px 8px;
+  border: 1px solid #facc15;
+  border-radius: 8px;
+  color: #713f12;
+  background: #fef9c3;
+  font-size: 11px;
+}
+
+.agent-chat-patch__validation.is-blocked {
+  border-color: #fca5a5;
+  color: #7f1d1d;
+  background: #fee2e2;
+}
+
+.agent-chat-patch__validation ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 16px;
+}
+
+.agent-chat-patch__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-chat-thinking {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .agent-chat-composer__input {
   min-height: 24px !important;
   max-height: calc(1.45em * 6);

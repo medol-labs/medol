@@ -179,6 +179,15 @@ export function EventModelingStudio() {
     setToolbarAction('');
   };
 
+  const applyAgentDsl = (nextDsl: string, focusTarget?: DslLocationTarget) => {
+    setDsl(nextDsl);
+    if (focusTarget) {
+      setDslFocusTarget(focusTarget);
+      setDslFocusVersion((version) => version + 1);
+    }
+    setDslEditorVersion((version) => version + 1);
+  };
+
   const resizeLeftPanel = (event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
     const startX = event.clientX;
@@ -291,7 +300,13 @@ export function EventModelingStudio() {
             onSelectAggregate={selectAggregate}
             onSelectSlice={selectSlice}
           />
-          <AgentChatDock selectedItem={selectedItem} isParsingPending={isParsingPending} />
+          <AgentChatDock
+            dsl={dsl}
+            model={model}
+            selectedItem={selectedItem}
+            isParsingPending={isParsingPending}
+            onApplyDsl={applyAgentDsl}
+          />
         </div>
       </aside>
       )}
