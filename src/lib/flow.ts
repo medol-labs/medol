@@ -39,16 +39,16 @@ const colors: Record<
     fill: '#fef9c3'
   },
   command: {
-    accent: '#2563eb',
+    accent: '#2f80ed',
     fill: '#dbeafe'
   },
   event: {
-    accent: '#ea580c',
-    fill: '#ffedd5'
+    accent: '#d6a300',
+    fill: '#fff4b8'
   },
   projection: {
-    accent: '#16a34a',
-    fill: '#dcfce7'
+    accent: '#2f9e44',
+    fill: '#dff5e3'
   },
   automation: {
     accent: '#475569',

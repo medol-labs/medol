@@ -174,10 +174,10 @@ function ModulePreview({ module }: { module: LayoutModule }) {
                   <strong>{slice.title}</strong>
                   {slice.createsAggregate && <span>creates aggregate</span>}
                 </div>
-                <ActionList title="Command" items={slice.commands} anchorItems />
-                <ActionList title="Event" items={slice.events} />
-                <ActionList title="View" items={slice.readmodels} />
-                {slice.processors.length > 0 && <ActionList title="Auto" items={slice.processors} />}
+                <ActionList title="Command" kind="command" items={slice.commands} anchorItems />
+                <ActionList title="Event" kind="event" items={slice.events} />
+                <ActionList title="View" kind="readmodel" items={slice.readmodels} />
+                {slice.processors.length > 0 && <ActionList title="Auto" kind="processor" items={slice.processors} />}
                 {slice.stateChange && <div className="layout-flow__state">state: {slice.stateChange}</div>}
               </div>
             ))}
@@ -190,10 +190,10 @@ function ModulePreview({ module }: { module: LayoutModule }) {
             <small>{commands.length + events.length + readmodels.length + processors.length}</small>
           </div>
           <div className="layout-inventory">
-            <ActionList title="Commands" items={commands} />
-            <ActionList title="Events" items={events} />
-            <ActionList title="Read models" items={readmodels} />
-            {processors.length > 0 && <ActionList title="Processors" items={processors} />}
+            <ActionList title="Commands" kind="command" items={commands} />
+            <ActionList title="Events" kind="event" items={events} />
+            <ActionList title="Read models" kind="readmodel" items={readmodels} />
+            {processors.length > 0 && <ActionList title="Processors" kind="processor" items={processors} />}
           </div>
         </section>
       </div>
@@ -203,10 +203,12 @@ function ModulePreview({ module }: { module: LayoutModule }) {
 
 function ActionList({
   title,
+  kind,
   items,
   anchorItems = false
 }: {
   title: string;
+  kind: 'command' | 'event' | 'readmodel' | 'processor';
   items: Array<{ id: string; title: string; emphasis?: boolean; uiType?: string }>;
   anchorItems?: boolean;
 }) {
@@ -216,7 +218,7 @@ function ActionList({
       {items.length > 0 ? (
         <div>
           {items.map((item) => (
-            <em className={item.emphasis ? 'is-emphasis' : undefined} id={anchorItems ? item.id : undefined} key={item.id}>
+            <em className={`${item.emphasis ? 'is-emphasis ' : ''}is-${kind}`} id={anchorItems ? item.id : undefined} key={item.id}>
               {item.title}
               {item.uiType && <small>{item.uiType}</small>}
             </em>

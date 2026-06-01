@@ -1290,14 +1290,14 @@ textarea {
 
 .layout-wireframe__block--list {
   background:
-    repeating-linear-gradient(to bottom, #b6c6d8 0, #b6c6d8 1px, transparent 1px, transparent 9px),
-    #dce6f1;
+    repeating-linear-gradient(to bottom, #6fb87a 0, #6fb87a 1px, transparent 1px, transparent 9px),
+    #dff5e3;
 }
 
 .layout-wireframe__block--command {
   background:
-    linear-gradient(to right, #d97757 0 34%, transparent 34%),
-    #f3d8cd;
+    linear-gradient(to right, #2f80ed 0 34%, transparent 34%),
+    #dbeafe;
 }
 
 .layout-wireframe__block--automation {
@@ -1341,9 +1341,33 @@ textarea {
 
 .layout-page__actions .is-emphasis,
 .layout-action-list .is-emphasis {
-  border-color: #d9977d;
-  color: #8f3b21;
-  background: #fff1eb;
+  border-color: #2f80ed;
+  color: #1d4f91;
+  background: #dbeafe;
+}
+
+.layout-action-list .is-command {
+  border-color: #2f80ed;
+  color: #1d4f91;
+  background: #dbeafe;
+}
+
+.layout-action-list .is-event {
+  border-color: #d6a300;
+  color: #735800;
+  background: #fff4b8;
+}
+
+.layout-action-list .is-readmodel {
+  border-color: #2f9e44;
+  color: #1f6f30;
+  background: #dff5e3;
+}
+
+.layout-action-list .is-processor {
+  border-color: #64748b;
+  color: #475569;
+  background: #f1f5f9;
 }
 
 .layout-flow {
