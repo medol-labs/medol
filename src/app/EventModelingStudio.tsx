@@ -25,8 +25,8 @@ type ToolbarAction = 'em-model' | 'codegen-model' | 'config' | 'png' | 'svg' | '
 type PreviewMode = 'canvas' | 'global' | 'layout';
 
 const getInitialLeftPanelWidth = () => {
-  if (typeof window === 'undefined') return 640;
-  return Math.floor((window.innerWidth - 48) / 2);
+  if (typeof window === 'undefined') return 520;
+  return Math.max(420, Math.floor((window.innerWidth - 320 - 48) / 2));
 };
 
 const getInitialEditorPanelHeight = () => {
@@ -44,6 +44,7 @@ export function EventModelingStudio() {
   const [selectedSliceId, setSelectedSliceId] = useState<string | undefined>();
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [agentPanelOpen, setAgentPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState<'ltr' | 'rtl'>('ltr');
   const [leftPanelWidth, setLeftPanelWidth] = useState(getInitialLeftPanelWidth);
@@ -205,9 +206,10 @@ export function EventModelingStudio() {
 
     const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
       const rightWidth = rightPanelOpen ? 320 : 42;
+      const agentWidth = agentPanelOpen ? 320 : 36;
       const previewMinWidth = 260;
       const resizeHandleWidth = 6;
-      const maxWidth = Math.max(window.innerWidth - rightWidth - previewMinWidth - resizeHandleWidth, 80);
+      const maxWidth = Math.max(window.innerWidth - rightWidth - agentWidth - previewMinWidth - resizeHandleWidth, 80);
       const dragDelta = layoutDirection === 'rtl' ? startX - moveEvent.clientX : moveEvent.clientX - startX;
       const nextWidth = Math.min(Math.max(startWidth + dragDelta, 80), maxWidth);
       setLeftPanelWidth(nextWidth);
@@ -245,14 +247,16 @@ export function EventModelingStudio() {
 
   const editorColumn = leftPanelOpen ? `${leftPanelWidth}px` : '42px';
   const resizeColumn = leftPanelOpen ? '6px' : '0px';
+  const agentColumn = agentPanelOpen ? '320px' : '16px';
   const inspectorColumn = rightPanelOpen ? '320px' : '42px';
   const gridTemplateColumns = layoutDirection === 'ltr'
-    ? `${editorColumn} ${resizeColumn} minmax(0, 1fr) ${inspectorColumn}`
-    : `${inspectorColumn} minmax(0, 1fr) ${resizeColumn} ${editorColumn}`;
-  const editorGridColumn = layoutDirection === 'ltr' ? 1 : 4;
-  const resizeGridColumn = layoutDirection === 'ltr' ? 2 : 3;
-  const previewGridColumn = layoutDirection === 'ltr' ? 3 : 2;
-  const inspectorGridColumn = layoutDirection === 'ltr' ? 4 : 1;
+    ? `${editorColumn} ${agentColumn} ${resizeColumn} minmax(0, 1fr) ${inspectorColumn}`
+    : `${inspectorColumn} minmax(0, 1fr) ${resizeColumn} ${agentColumn} ${editorColumn}`;
+  const editorGridColumn = layoutDirection === 'ltr' ? 1 : 5;
+  const agentGridColumn = layoutDirection === 'ltr' ? 2 : 4;
+  const resizeGridColumn = 3;
+  const previewGridColumn = layoutDirection === 'ltr' ? 4 : 2;
+  const inspectorGridColumn = layoutDirection === 'ltr' ? 5 : 1;
   const isRtlLayout = layoutDirection === 'rtl';
 
   return (
@@ -266,59 +270,52 @@ export function EventModelingStudio() {
       } as CSSProperties}
     >
       {leftPanelOpen && (
-      <aside
-        className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-l border-slate-300' : 'border-r border-slate-300'}`}
-        style={{ gridColumn: editorGridColumn, gridRow: 1 }}
-      >
-        <header className="pane-header pane-header--inline">
-          <div>
-            <p className="eyebrow">Workspace</p>
-            <h2>Editor</h2>
-          </div>
-          <button type="button" className="collapse-button" onClick={() => setLeftPanelOpen(false)}>Hide</button>
-        </header>
-        <div className="grid min-h-0 min-w-0 grid-rows-[minmax(140px,var(--editor-panel-height,1fr))_6px_minmax(120px,1fr)_auto] overflow-hidden">
-          <section className="left-section left-section--editor">
-            <div className="left-section__title">
-              <span>DSL</span>
-              <strong>{isParsingPending ? 'Parsing' : model.diagnostics.length === 0 ? 'Valid' : `${model.diagnostics.length} warnings`}</strong>
+        <aside
+          className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-l border-slate-300' : 'border-r border-slate-300'}`}
+          style={{ gridColumn: editorGridColumn, gridRow: 1 }}
+        >
+          <header className="pane-header pane-header--inline">
+            <div>
+              <p className="eyebrow">Workspace</p>
+              <h2>Editor</h2>
             </div>
-            <DslEditor
-              key={dslEditorVersion}
-              value={dsl}
-              diagnostics={model.diagnostics}
-              focusLine={dslFocusLine}
-              focusVersion={dslFocusVersion}
-              onChange={setDsl}
+            <button type="button" className="collapse-button" onClick={() => setLeftPanelOpen(false)}>Hide</button>
+          </header>
+          <div className="grid min-h-0 min-w-0 grid-rows-[minmax(140px,var(--editor-panel-height,1fr))_6px_minmax(120px,1fr)] overflow-hidden">
+            <section className="left-section left-section--editor">
+              <div className="left-section__title">
+                <span>DSL</span>
+                <strong>{isParsingPending ? 'Parsing' : model.diagnostics.length === 0 ? 'Valid' : `${model.diagnostics.length} warnings`}</strong>
+              </div>
+              <DslEditor
+                key={dslEditorVersion}
+                value={dsl}
+                diagnostics={model.diagnostics}
+                focusLine={dslFocusLine}
+                focusVersion={dslFocusVersion}
+                onChange={setDsl}
+              />
+            </section>
+            <div
+              className="explorer-resize-handle"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Resize explorer panel"
+              onPointerDown={resizeExplorerPanel}
             />
-          </section>
-          <div
-            className="explorer-resize-handle"
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label="Resize explorer panel"
-            onPointerDown={resizeExplorerPanel}
-          />
-          <ModelExplorer
-            model={model}
-            activeDomainId={selectedDomainId}
-            activeContextId={selectedContextId}
-            activeAggregateId={selectedAggregateId}
-            activeSliceId={selectedSliceId}
-            onSelectDomain={selectDomain}
-            onSelectContext={selectContext}
-            onSelectAggregate={selectAggregate}
-            onSelectSlice={selectSlice}
-          />
-          <AgentChatDock
-            dsl={dsl}
-            model={model}
-            selectedItem={selectedItem}
-            isParsingPending={isParsingPending}
-            onApplyDsl={applyAgentDsl}
-          />
-        </div>
-      </aside>
+            <ModelExplorer
+              model={model}
+              activeDomainId={selectedDomainId}
+              activeContextId={selectedContextId}
+              activeAggregateId={selectedAggregateId}
+              activeSliceId={selectedSliceId}
+              onSelectDomain={selectDomain}
+              onSelectContext={selectContext}
+              onSelectAggregate={selectAggregate}
+              onSelectSlice={selectSlice}
+            />
+          </div>
+        </aside>
       )}
       {leftPanelOpen && (
         <div
@@ -338,6 +335,35 @@ export function EventModelingStudio() {
           onClick={() => setLeftPanelOpen(true)}
         >
           Editor
+        </button>
+      )}
+      {agentPanelOpen ? (
+        <aside
+          className="agent-panel"
+          style={{ gridColumn: agentGridColumn, gridRow: 1 }}
+        >
+          <header className="pane-header pane-header--inline agent-panel__header">
+            <div>
+              <h2>Assistant</h2>
+            </div>
+            <button type="button" className="collapse-button" onClick={() => setAgentPanelOpen(false)}>Hide</button>
+          </header>
+          <AgentChatDock
+            dsl={dsl}
+            model={model}
+            selectedItem={selectedItem}
+            isParsingPending={isParsingPending}
+            onApplyDsl={applyAgentDsl}
+          />
+        </aside>
+      ) : (
+        <button
+          type="button"
+          className="agent-panel-rail"
+          style={{ gridColumn: agentGridColumn, gridRow: 1 }}
+          onClick={() => setAgentPanelOpen(true)}
+        >
+          Assistant
         </button>
       )}
       <section
@@ -416,19 +442,19 @@ export function EventModelingStudio() {
         </footer>
       </section>
       {rightPanelOpen && (
-      <aside
-        className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-r border-slate-300' : 'border-l border-slate-300'}`}
-        style={{ gridColumn: inspectorGridColumn, gridRow: 1 }}
-      >
-        <header className="pane-header pane-header--inline">
-          <div>
-            <p className="eyebrow">Semantic</p>
-            <h2>Inspector</h2>
-          </div>
-          <button type="button" className="collapse-button" onClick={() => setRightPanelOpen(false)}>Hide</button>
-        </header>
-        <InspectorPanel item={selectedItem} compact />
-      </aside>
+        <aside
+          className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-r border-slate-300' : 'border-l border-slate-300'}`}
+          style={{ gridColumn: inspectorGridColumn, gridRow: 1 }}
+        >
+          <header className="pane-header pane-header--inline">
+            <div>
+              <p className="eyebrow">Semantic</p>
+              <h2>Inspector</h2>
+            </div>
+            <button type="button" className="collapse-button" onClick={() => setRightPanelOpen(false)}>Hide</button>
+          </header>
+          <InspectorPanel item={selectedItem} compact />
+        </aside>
       )}
       {!rightPanelOpen && (
         <button
