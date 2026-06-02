@@ -1,6 +1,6 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { ArrowUp, Bot, Check, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
-import { useChat, type UIMessage } from '@tanstack/ai-react';
+import { fetchServerSentEvents, useChat, type UIMessage } from '@tanstack/ai-react';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import type { EmModel } from '../../lib/model';
@@ -8,7 +8,6 @@ import { parseEventModelingDsl } from '../../lib/dslParser';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
 import type { SelectedModelItem } from '../../app/modelSelection';
 import type { AgentDslPatch } from './agentTypes';
-import { eventModelingAgentMockFetcher } from './tanstackMockBackend';
 
 interface AgentChatDockProps {
   dsl: string;
@@ -34,7 +33,7 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
     sendMessage: sendChatMessage,
     isLoading: isThinking
   } = useChat({
-    fetcher: eventModelingAgentMockFetcher,
+    connection: fetchServerSentEvents('/api/agent/chat'),
     forwardedProps,
     onCustomEvent: (eventType, data) => {
       if (eventType !== 'event-modeling.patch-proposed') return;

@@ -24,6 +24,16 @@ import type { EmAggregate, EmContext, EmDomain, EmSlice } from '../lib/model';
 type ToolbarAction = 'em-model' | 'codegen-model' | 'config' | 'png' | 'svg' | 'reset';
 type PreviewMode = 'canvas' | 'global' | 'layout';
 
+const getInitialLeftPanelWidth = () => {
+  if (typeof window === 'undefined') return 640;
+  return Math.floor((window.innerWidth - 48) / 2);
+};
+
+const getInitialEditorPanelHeight = () => {
+  if (typeof window === 'undefined') return 420;
+  return Math.floor((window.innerHeight - 120) / 2);
+};
+
 export function EventModelingStudio() {
   const [dsl, setDsl] = useState(sampleDsl);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
@@ -36,8 +46,8 @@ export function EventModelingStudio() {
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState<'ltr' | 'rtl'>('ltr');
-  const [leftPanelWidth, setLeftPanelWidth] = useState(() => Math.floor((window.innerWidth - 48) / 2));
-  const [editorPanelHeight, setEditorPanelHeight] = useState(() => Math.floor((window.innerHeight - 120) / 2));
+  const [leftPanelWidth, setLeftPanelWidth] = useState(getInitialLeftPanelWidth);
+  const [editorPanelHeight, setEditorPanelHeight] = useState(getInitialEditorPanelHeight);
   const [dslFocusTarget, setDslFocusTarget] = useState<DslLocationTarget | undefined>();
   const [dslFocusVersion, setDslFocusVersion] = useState(0);
   const [dslEditorVersion, setDslEditorVersion] = useState(0);
