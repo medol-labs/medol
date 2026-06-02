@@ -1,10 +1,11 @@
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { ArrowUp, Check, Plus, X } from 'lucide-react';
 import { fetchServerSentEvents, useChat, type UIMessage } from '@tanstack/ai-react';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import type { EmModel } from '../../lib/model';
 import { parseEventModelingDsl } from '../../lib/dslParser';
+import { useDebouncedValue } from '../../app/useDebouncedValue';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
 import type { SelectedModelItem } from '../../app/modelSelection';
 import type { AgentDslPatch } from './agentTypes';
@@ -19,14 +20,17 @@ interface AgentChatDockProps {
 
 export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onApplyDsl }: AgentChatDockProps) {
   const [draft, setDraft] = useState('');
+  const threadRef = useRef<HTMLDivElement>(null);
+  const sendDebounceRef = useRef<number | undefined>(undefined);
   const [patchReview, setPatchReview] = useState<Record<string, { diagnostics: string[]; confirmRequired: boolean; blocked: boolean }>>({});
   const [patchesByMessageId, setPatchesByMessageId] = useState<Record<string, AgentDslPatch>>({});
   const [patchStateByMessageId, setPatchStateByMessageId] = useState<Record<string, 'applied' | 'dismissed'>>({});
-  const forwardedProps = useMemo(() => ({
+  const immediateForwardedProps = useMemo(() => ({
     dsl,
     model,
     selectedItem
   }), [dsl, model, selectedItem]);
+  const forwardedProps = useDebouncedValue(immediateForwardedProps, 300);
   const {
     messages,
     sendMessage: sendChatMessage,
@@ -58,12 +62,33 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
   const statusLabel = isParsingPending ? 'Parsing DSL' : contextLabel;
   const canSend = draft.trim().length > 0 && !isThinking;
 
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread) return;
+    thread.scrollTop = thread.scrollHeight;
+  }, [messages, isThinking, patchesByMessageId, patchReview]);
+
+  useEffect(() => {
+    return () => {
+      if (sendDebounceRef.current) {
+        window.clearTimeout(sendDebounceRef.current);
+      }
+    };
+  }, []);
+
   const sendMessage = async () => {
     const prompt = draft.trim();
     if (!prompt || isThinking) return;
 
+    if (sendDebounceRef.current) {
+      window.clearTimeout(sendDebounceRef.current);
+    }
+
     setDraft('');
-    await sendChatMessage(prompt);
+    sendDebounceRef.current = window.setTimeout(() => {
+      void sendChatMessage(prompt);
+      sendDebounceRef.current = undefined;
+    }, 180);
   };
 
   const applyPatch = (messageId: string) => {
@@ -116,8 +141,8 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
   return (
     <section className="agent-chat-dock" aria-label="Event modeling assistant">
       <div className="agent-chat-dock__inner">
-        <div className="agent-chat-thread" aria-label="Assistant conversation">
-          {messages.slice(-6).map((message) => (
+        <div className="agent-chat-thread" aria-label="Assistant conversation" ref={threadRef}>
+          {messages.map((message) => (
             <article className={`agent-chat-message is-${message.role}`} key={message.id}>
               <p>{messageText(message)}</p>
               {patchesByMessageId[message.id] && (

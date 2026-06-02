@@ -115,7 +115,6 @@ textarea {
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: thin;
-  min-width: 0;
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
@@ -135,6 +134,7 @@ textarea {
 .toolbar-actions select,
 .toolbar-actions button,
 .collapse-button {
+  flex-shrink: 0;
   height: 32px;
   padding: 0 28px 0 10px;
   border: 1px solid #cbd5e1;
@@ -267,6 +267,10 @@ textarea {
   overflow: hidden;
 }
 
+.preview-panel {
+  container-type: inline-size;
+}
+
 .agent-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -336,6 +340,11 @@ textarea {
   align-items: center;
   min-width: 0;
   padding: 0;
+}
+
+.preview-mode-select {
+  display: none;
+  flex: 0 0 138px;
 }
 
 .preview-tabs button,
@@ -610,6 +619,7 @@ textarea {
   grid-template-rows: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
   padding: 10px;
   border-top: 0;
@@ -623,6 +633,7 @@ textarea {
   width: 100%;
   max-width: none;
   min-height: 0;
+  height: 100%;
   margin: 0 auto;
 }
 
@@ -643,13 +654,16 @@ textarea {
 }
 
 .agent-chat-thread {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   max-height: none;
   min-height: 0;
-  overflow-y: auto;
-  padding-right: 2px;
+  height: 100%;
+  overflow-y: scroll;
+  padding: 2px 2px 4px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .agent-chat-message {
@@ -1620,11 +1634,48 @@ textarea {
   font-size: 12px;
 }
 
-@media (max-width: 900px) {
-  .toolbar-actions {
-    flex-basis: 100%;
+@container (max-width: 620px) {
+  .studio-toolbar > div:first-child {
+    display: none;
   }
 
+  .preview-tabs {
+    display: none;
+  }
+
+  .preview-mode-select {
+    display: block;
+    width: 120px;
+    min-width: 120px;
+    flex-basis: 120px;
+  }
+
+  .toolbar-actions {
+    gap: 5px;
+  }
+
+  .toolbar-actions select {
+    width: 116px;
+    min-width: 116px;
+  }
+
+  .toolbar-actions button {
+    min-width: 56px;
+    padding-inline: 8px;
+  }
+
+  .toolbar-actions .toolbar-confirm {
+    width: 42px;
+    min-width: 42px;
+  }
+
+  .toolbar-actions {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
   .layout-preview__body {
     grid-template-columns: 1fr;
   }

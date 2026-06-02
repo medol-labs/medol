@@ -367,7 +367,7 @@ export function EventModelingStudio() {
         </button>
       )}
       <section
-        className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[#f4f7fb]"
+        className="preview-panel grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[#f4f7fb]"
         style={{ gridColumn: previewGridColumn, gridRow: 1 }}
       >
         <header className="studio-toolbar">
@@ -402,6 +402,16 @@ export function EventModelingStudio() {
                 Layout Preview
               </button>
             </div>
+            <select
+              className="preview-mode-select"
+              value={previewMode}
+              onChange={(event) => setPreviewMode(event.target.value as PreviewMode)}
+              aria-label="Preview mode"
+            >
+              <option value="canvas">Event Canvas</option>
+              <option value="global">Global Map</option>
+              <option value="layout">Layout Preview</option>
+            </select>
             <button type="button" onClick={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}>
               {layoutDirection.toUpperCase()}
             </button>
@@ -418,7 +428,7 @@ export function EventModelingStudio() {
               <option value="svg">Export SVG</option>
               <option value="reset">Reset DSL</option>
             </select>
-            <button type="button" onClick={runToolbarAction} disabled={!toolbarAction}>Confirm</button>
+            <button type="button" className="toolbar-confirm" aria-label="Confirm action" onClick={runToolbarAction} disabled={!toolbarAction}>OK</button>
           </div>
         </header>
         <div className="preview-stage">
