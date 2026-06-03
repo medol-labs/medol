@@ -20,6 +20,7 @@ import { getFlowBounds } from './flowBounds';
 import { findModelItem, resolveActiveAggregate, resolveActiveContext } from './modelSelection';
 import { useDebouncedValue } from './useDebouncedValue';
 import type { EmAggregate, EmContext, EmDomain, EmSlice } from '../lib/model';
+import type { AgentDslPatch } from '../features/agent-chat/agentTypes';
 
 type ToolbarAction = 'em-model' | 'codegen-model' | 'config' | 'png' | 'svg' | 'reset';
 type PreviewMode = 'canvas' | 'global' | 'layout';
@@ -52,6 +53,7 @@ export function EventModelingStudio() {
   const [dslFocusTarget, setDslFocusTarget] = useState<DslLocationTarget | undefined>();
   const [dslFocusVersion, setDslFocusVersion] = useState(0);
   const [dslEditorVersion, setDslEditorVersion] = useState(0);
+  const [previewPatch, setPreviewPatch] = useState<AgentDslPatch | undefined>();
   const debouncedDsl = useDebouncedValue(dsl, 800);
 
   const model = useMemo(() => parseEventModelingDsl(debouncedDsl), [debouncedDsl]);
@@ -183,6 +185,7 @@ export function EventModelingStudio() {
     } else if (toolbarAction === 'svg' && flow.nodes.length > 0) {
       exportFlowViewportToSvg(getImageExportOptions('event-modeling-flow.svg'));
     } else if (toolbarAction === 'reset') {
+      setPreviewPatch(undefined);
       setDsl(sampleDsl);
       setDslEditorVersion((version) => version + 1);
     }
@@ -191,12 +194,26 @@ export function EventModelingStudio() {
   };
 
   const applyAgentDsl = (nextDsl: string, focusTarget?: DslLocationTarget) => {
+    setPreviewPatch(undefined);
     setDsl(nextDsl);
     if (focusTarget) {
       setDslFocusTarget(focusTarget);
       setDslFocusVersion((version) => version + 1);
     }
     setDslEditorVersion((version) => version + 1);
+  };
+
+  const previewAgentPatch = (patch: AgentDslPatch) => {
+    setPreviewPatch(patch);
+    setDslFocusTarget(patch.focusTarget);
+    setDslFocusVersion((version) => version + 1);
+  };
+
+  const clearAgentPatchPreview = (patchId?: string) => {
+    setPreviewPatch((current) => {
+      if (!current) return undefined;
+      return !patchId || current.id === patchId ? undefined : current;
+    });
   };
 
   const resizeLeftPanel = (event: PointerEvent<HTMLDivElement>) => {
@@ -285,12 +302,13 @@ export function EventModelingStudio() {
             <section className="left-section left-section--editor">
               <div className="left-section__title">
                 <span>DSL</span>
-                <strong>{isParsingPending ? 'Parsing' : model.diagnostics.length === 0 ? 'Valid' : `${model.diagnostics.length} warnings`}</strong>
+                <strong>{previewPatch ? 'Patch preview' : isParsingPending ? 'Parsing' : model.diagnostics.length === 0 ? 'Valid' : `${model.diagnostics.length} warnings`}</strong>
               </div>
               <DslEditor
                 key={dslEditorVersion}
                 value={dsl}
                 diagnostics={model.diagnostics}
+                patchPreview={previewPatch ? { baseDsl: previewPatch.baseDsl ?? dsl, nextDsl: previewPatch.nextDsl } : undefined}
                 focusLine={dslFocusLine}
                 focusVersion={dslFocusVersion}
                 onChange={setDsl}
@@ -354,6 +372,8 @@ export function EventModelingStudio() {
             selectedItem={selectedItem}
             isParsingPending={isParsingPending}
             onApplyDsl={applyAgentDsl}
+            onPreviewPatch={previewAgentPatch}
+            onClearPatchPreview={clearAgentPatchPreview}
           />
         </aside>
       ) : (

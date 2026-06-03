@@ -9,6 +9,7 @@ import { useDebouncedValue } from '../../app/useDebouncedValue';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
 import type { SelectedModelItem } from '../../app/modelSelection';
 import type { AgentDslPatch } from './agentTypes';
+import { eventModelingDslKnowledgeManifest } from './dslKnowledge';
 
 interface AgentChatDockProps {
   dsl: string;
@@ -16,9 +17,19 @@ interface AgentChatDockProps {
   selectedItem?: SelectedModelItem;
   isParsingPending: boolean;
   onApplyDsl: (nextDsl: string, focusTarget?: DslLocationTarget) => void;
+  onPreviewPatch: (patch: AgentDslPatch) => void;
+  onClearPatchPreview: (patchId?: string) => void;
 }
 
-export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onApplyDsl }: AgentChatDockProps) {
+export function AgentChatDock({
+  dsl,
+  model,
+  selectedItem,
+  isParsingPending,
+  onApplyDsl,
+  onPreviewPatch,
+  onClearPatchPreview
+}: AgentChatDockProps) {
   const [draft, setDraft] = useState('');
   const threadRef = useRef<HTMLDivElement>(null);
   const sendDebounceRef = useRef<number | undefined>(undefined);
@@ -28,7 +39,8 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
   const immediateForwardedProps = useMemo(() => ({
     dsl,
     model,
-    selectedItem
+    selectedItem,
+    dslKnowledgeManifest: eventModelingDslKnowledgeManifest
   }), [dsl, model, selectedItem]);
   const forwardedProps = useDebouncedValue(immediateForwardedProps, 300);
   const {
@@ -39,6 +51,11 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
     connection: fetchServerSentEvents('/api/agent/chat'),
     forwardedProps,
     onCustomEvent: (eventType, data) => {
+      if (eventType === 'event-modeling.context-built') {
+        console.debug('[event-modeling-agent] context built', data);
+        return;
+      }
+
       if (eventType !== 'event-modeling.patch-proposed') return;
       const event = data as { messageId?: string; patch?: AgentDslPatch };
       if (!event.messageId || !event.patch) return;
@@ -46,6 +63,7 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
         ...current,
         [event.messageId as string]: event.patch as AgentDslPatch
       }));
+      onPreviewPatch(event.patch);
     },
     onError: (error) => {
       console.error(error);
@@ -96,6 +114,18 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
     const patchState = patchStateByMessageId[messageId];
     if (!patch || patchState) return;
 
+    if (patch.baseDsl && patch.baseDsl !== dsl) {
+      setPatchReview((current) => ({
+        ...current,
+        [messageId]: {
+          diagnostics: ['The DSL changed after this proposal was generated. Ask the assistant to regenerate the patch before applying it.'],
+          confirmRequired: false,
+          blocked: true
+        }
+      }));
+      return;
+    }
+
     const validation = parseEventModelingDsl(patch.nextDsl);
     const blocked = validation.domains.length === 0 && validation.contexts.length === 0;
     const existingReview = patchReview[messageId];
@@ -113,6 +143,7 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
     }
 
     onApplyDsl(patch.nextDsl, patch.focusTarget);
+    onClearPatchPreview(patch.id);
     setPatchStateByMessageId((current) => ({ ...current, [messageId]: 'applied' }));
     setPatchReview((current) => {
       const next = { ...current };
@@ -122,6 +153,8 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
   };
 
   const dismissPatch = (messageId: string) => {
+    const patch = patchesByMessageId[messageId];
+    if (patch) onClearPatchPreview(patch.id);
     setPatchStateByMessageId((current) => ({ ...current, [messageId]: 'dismissed' }));
     setPatchReview((current) => {
       const next = { ...current };
@@ -146,52 +179,13 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
             <article className={`agent-chat-message is-${message.role}`} key={message.id}>
               <p>{messageText(message)}</p>
               {patchesByMessageId[message.id] && (
-                <div className={patchStateByMessageId[message.id] === 'dismissed' ? 'agent-chat-patch is-dismissed' : 'agent-chat-patch'}>
-                  <div className="agent-chat-patch__header">
-                    <div>
-                      <small>{patchesByMessageId[message.id].changeType}</small>
-                      <strong>{patchesByMessageId[message.id].summary}</strong>
-                    </div>
-                    <span>{patchesByMessageId[message.id].target}</span>
-                  </div>
-                  <p>{patchesByMessageId[message.id].reason}</p>
-                  <pre>{patchesByMessageId[message.id].preview}</pre>
-                  {patchReview[message.id] && (
-                    <div className={patchReview[message.id].blocked ? 'agent-chat-patch__validation is-blocked' : 'agent-chat-patch__validation'}>
-                      <strong>{patchReview[message.id].blocked ? 'Patch cannot be applied' : 'Dry-run found warnings'}</strong>
-                      {patchReview[message.id].diagnostics.length > 0 ? (
-                        <ul>
-                          {patchReview[message.id].diagnostics.map((diagnostic) => (
-                            <li key={diagnostic}>{diagnostic}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span>The generated DSL did not produce a model.</span>
-                      )}
-                    </div>
-                  )}
-                  <div className="agent-chat-patch__actions">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => applyPatch(message.id)}
-                      disabled={Boolean(patchStateByMessageId[message.id]) || patchReview[message.id]?.blocked}
-                    >
-                      <Check size={14} />
-                      {patchStateByMessageId[message.id] === 'applied' ? 'Applied' : patchReview[message.id]?.confirmRequired ? 'Apply anyway' : 'Apply'}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => dismissPatch(message.id)}
-                      disabled={Boolean(patchStateByMessageId[message.id])}
-                    >
-                      <X size={14} />
-                      {patchStateByMessageId[message.id] === 'dismissed' ? 'Dismissed' : 'Dismiss'}
-                    </Button>
-                  </div>
-                </div>
+                <PatchProposalCard
+                  patch={patchesByMessageId[message.id]}
+                  patchState={patchStateByMessageId[message.id]}
+                  review={patchReview[message.id]}
+                  onApply={() => applyPatch(message.id)}
+                  onDismiss={() => dismissPatch(message.id)}
+                />
               )}
             </article>
           ))}
@@ -224,6 +218,85 @@ export function AgentChatDock({ dsl, model, selectedItem, isParsingPending, onAp
     </section>
   );
 }
+
+interface PatchProposalCardProps {
+  patch: AgentDslPatch;
+  patchState?: 'applied' | 'dismissed';
+  review?: { diagnostics: string[]; confirmRequired: boolean; blocked: boolean };
+  onApply: () => void;
+  onDismiss: () => void;
+}
+
+function PatchProposalCard({ patch, patchState, review, onApply, onDismiss }: PatchProposalCardProps) {
+  return (
+    <div className={patchState === 'dismissed' ? 'agent-chat-patch is-dismissed' : 'agent-chat-patch'}>
+      <div className="agent-chat-patch__header">
+        <div>
+          <small>{patch.changeType} proposal</small>
+          <strong>{patch.summary}</strong>
+        </div>
+        <span>{patch.target}</span>
+      </div>
+      <p>{patch.reason}</p>
+      <div className="agent-chat-patch__operations">
+        <strong>Operations</strong>
+        {(patch.operations?.length ? patch.operations : fallbackOperations(patch)).map((operation) => (
+          <div className="agent-chat-patch__operation" key={operation.id}>
+            <span>{operation.operation}</span>
+            <div>
+              <strong>{operation.target}</strong>
+              {operation.rule && <small>{operation.rule}</small>}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="agent-chat-patch__editor-note">Previewing this change in the DSL editor.</div>
+      {review && (
+        <div className={review.blocked ? 'agent-chat-patch__validation is-blocked' : 'agent-chat-patch__validation'}>
+          <strong>{review.blocked ? 'Patch cannot be applied' : 'Dry-run found warnings'}</strong>
+          {review.diagnostics.length > 0 ? (
+            <ul>
+              {review.diagnostics.map((diagnostic) => (
+                <li key={diagnostic}>{diagnostic}</li>
+              ))}
+            </ul>
+          ) : (
+            <span>The generated DSL did not produce a model.</span>
+          )}
+        </div>
+      )}
+      <div className="agent-chat-patch__actions">
+        <Button
+          type="button"
+          size="sm"
+          onClick={onApply}
+          disabled={Boolean(patchState) || review?.blocked}
+        >
+          <Check size={14} />
+          {patchState === 'applied' ? 'Applied' : review?.confirmRequired ? 'Apply anyway' : 'Apply'}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={onDismiss}
+          disabled={Boolean(patchState)}
+        >
+          <X size={14} />
+          {patchState === 'dismissed' ? 'Dismissed' : 'Dismiss'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+const fallbackOperations = (patch: AgentDslPatch) => [{
+  id: `${patch.id}-operation`,
+  operation: patch.changeType === 'update' ? 'replace' : patch.changeType,
+  target: patch.target,
+  content: patch.preview,
+  rule: patch.reason
+} satisfies AgentDslPatch['operations'][number]];
 
 const messageText = (message: UIMessage): string => {
   return message.parts

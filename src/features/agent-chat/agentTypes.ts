@@ -1,6 +1,8 @@
 import type { EmModel } from '../../lib/model';
 import type { SelectedModelItem } from '../../app/modelSelection';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
+import type { AgentDslKnowledge, AgentDslKnowledgeManifest } from './dslKnowledge';
+import type { BuiltAgentContext } from './agentContextBuilder';
 
 export interface AgentDslPatch {
   id: string;
@@ -8,9 +10,19 @@ export interface AgentDslPatch {
   reason: string;
   target: string;
   changeType: 'insert' | 'update' | 'delete';
+  operations: AgentDslPatchOperation[];
   preview: string;
+  baseDsl?: string;
   nextDsl: string;
   focusTarget?: DslLocationTarget;
+}
+
+export interface AgentDslPatchOperation {
+  id: string;
+  operation: 'insert' | 'replace' | 'delete';
+  target: string;
+  content?: string;
+  rule?: string;
 }
 
 export interface AgentMessage {
@@ -28,6 +40,9 @@ export interface AgentRequest {
   dsl: string;
   model: EmModel;
   selectedItem?: SelectedModelItem;
+  dslKnowledgeManifest?: AgentDslKnowledgeManifest;
+  dslKnowledge?: AgentDslKnowledge;
+  agentContext?: BuiltAgentContext;
 }
 
 export interface AgentResponse {

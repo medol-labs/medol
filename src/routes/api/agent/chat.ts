@@ -1,13 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { toServerSentEventsResponse } from '@tanstack/ai';
 import type { StreamChunk } from '@tanstack/ai/client';
-import { runMockAgent } from '../../../features/agent-chat/mockAgentRuntime';
+import { runEventModelingAgent } from '../../../features/agent-chat/agentRuntime';
 import type { AgentDslPatch, AgentRequest } from '../../../features/agent-chat/agentTypes';
+import { buildAgentContext, toAgentContextDebug } from '../../../features/agent-chat/agentContextBuilder';
+import { eventModelingDslKnowledge, eventModelingDslKnowledgeManifest, requiredDslKnowledgeContext, type AgentContextItem } from '../../../features/agent-chat/dslKnowledge';
 
 type AgentChatRequestBody = {
   threadId?: string;
   runId?: string;
   messages?: WireMessage[];
+  context?: AgentContextItem[];
   forwardedProps?: Partial<Omit<AgentRequest, 'prompt'>> & { prompt?: string };
   data?: Partial<Omit<AgentRequest, 'prompt'>> & { prompt?: string };
 };
@@ -24,13 +27,18 @@ export const Route = createFileRoute('/api/agent/chat')({
       POST: async ({ request }) => {
         const body = await request.json() as AgentChatRequestBody;
         const forwardedProps = body.forwardedProps ?? body.data ?? {};
+        const context = withRequiredDslKnowledge(body.context);
         const stream = createEventModelingAgentStream({
           threadId: body.threadId ?? createId('thread'),
           runId: body.runId ?? createId('run'),
           prompt: forwardedProps.prompt ?? latestUserText(body.messages ?? []),
           dsl: forwardedProps.dsl,
           model: forwardedProps.model,
-          selectedItem: forwardedProps.selectedItem
+          selectedItem: forwardedProps.selectedItem,
+          dslKnowledgeManifest: forwardedProps.dslKnowledgeManifest ?? eventModelingDslKnowledgeManifest,
+          dslKnowledge: resolveDslKnowledge(forwardedProps.dslKnowledgeManifest),
+          messages: body.messages ?? [],
+          context
         });
 
         return toServerSentEventsResponse(stream);
@@ -43,6 +51,8 @@ async function* createEventModelingAgentStream(input: {
   threadId: string;
   runId: string;
   prompt: string;
+  messages: WireMessage[];
+  context: AgentContextItem[];
 } & Partial<Omit<AgentRequest, 'prompt'>>): AsyncIterable<StreamChunk> {
   const messageId = createId('assistant');
   const model = 'event-modeling-agent';
@@ -70,12 +80,43 @@ async function* createEventModelingAgentStream(input: {
     return;
   }
 
-  const response = await runMockAgent({
+  const agentContext = buildAgentContext({
     prompt: input.prompt,
     dsl: input.dsl,
     model: input.model,
-    selectedItem: input.selectedItem
+    selectedItem: input.selectedItem,
+    dslKnowledgeManifest: input.dslKnowledgeManifest ?? eventModelingDslKnowledgeManifest,
+    dslKnowledge: input.dslKnowledge ?? eventModelingDslKnowledge,
+    messages: input.messages
   });
+
+  yield {
+    type: 'CUSTOM',
+    name: 'event-modeling.context-built',
+    value: toAgentContextDebug(agentContext),
+    model
+  } as StreamChunk;
+
+  const response = await runEventModelingAgent({
+    prompt: input.prompt,
+    dsl: input.dsl,
+    model: input.model,
+    selectedItem: input.selectedItem,
+    dslKnowledgeManifest: input.dslKnowledgeManifest,
+    dslKnowledge: input.dslKnowledge,
+    agentContext
+  });
+
+  yield {
+    type: 'CUSTOM',
+    name: 'event-modeling.structured-response',
+    value: {
+      provider: response.provider,
+      type: response.structuredResponse.type,
+      hasPatch: Boolean(response.patch)
+    },
+    model
+  } as StreamChunk;
 
   yield* streamText(messageId, response.content, model);
 
@@ -147,6 +188,19 @@ const contentToText = (content: unknown): string => {
     })
     .filter(Boolean)
     .join('\n');
+};
+
+const withRequiredDslKnowledge = (context: AgentContextItem[] = []): AgentContextItem[] => {
+  const withoutStaleDslKnowledge = context.filter((item) => item.id !== requiredDslKnowledgeContext.id);
+  return [requiredDslKnowledgeContext, ...withoutStaleDslKnowledge];
+};
+
+const resolveDslKnowledge = (manifest: AgentRequest['dslKnowledgeManifest']) => {
+  if (!manifest || manifest.id === eventModelingDslKnowledge.id) {
+    return eventModelingDslKnowledge;
+  }
+
+  return eventModelingDslKnowledge;
 };
 
 const chunkText = (text: string): string[] => {

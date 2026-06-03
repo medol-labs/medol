@@ -62,6 +62,24 @@ The left panel is the DSL editor. The right panel is the React Flow event modeli
 
 Use `Export EmModel` in the UI to download the current DSL as `em-model.json`. Use `Export config` only when an older `config.json` consumer still needs it.
 
+## Agent Provider
+
+The modeling assistant defaults to the local mock provider:
+
+```bash
+AGENT_PROVIDER=mock
+```
+
+To route structured agent responses through the TanStack AI OpenAI adapter on the server:
+
+```bash
+AGENT_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.2
+```
+
+The runtime uses TanStack AI adapters for model access. The provider must return one structured response: `answer`, `clarification`, or `dsl_patch_proposal`.
+
 ## Build
 
 ```bash

@@ -1,17 +1,23 @@
-import { Editor, type BeforeMount, type OnMount } from '@monaco-editor/react';
+import { DiffEditor, Editor, type BeforeMount, type OnMount } from '@monaco-editor/react';
 import { useCallback, useEffect, useRef, type KeyboardEvent } from 'react';
 import type { editor } from 'monaco-editor';
 import { eventModelingLanguageId, registerEventModelingLanguage } from './language';
 
+export interface DslEditorPatchPreview {
+  baseDsl: string;
+  nextDsl: string;
+}
+
 interface DslEditorProps {
   value: string;
   diagnostics: string[];
+  patchPreview?: DslEditorPatchPreview;
   focusLine?: number;
   focusVersion?: number;
   onChange: (value: string) => void;
 }
 
-export function DslEditor({ value, diagnostics, focusLine, focusVersion, onChange }: DslEditorProps) {
+export function DslEditor({ value, diagnostics, patchPreview, focusLine, focusVersion, onChange }: DslEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
 
@@ -52,6 +58,38 @@ export function DslEditor({ value, diagnostics, focusLine, focusVersion, onChang
   const stopKeyboardPropagation = (event: KeyboardEvent) => {
     event.stopPropagation();
   };
+
+  if (patchPreview) {
+    return (
+      <div className="dsl-editor-host is-diff-preview" onKeyDown={stopKeyboardPropagation} onKeyUp={stopKeyboardPropagation}>
+        <DiffEditor
+          height="100%"
+          language={eventModelingLanguageId}
+          theme="event-modeling-light"
+          original={patchPreview.baseDsl}
+          modified={patchPreview.nextDsl}
+          beforeMount={beforeMount}
+          onMount={(_, monaco) => {
+            monaco.editor.setTheme('event-modeling-light');
+          }}
+          loading="Loading diff preview"
+          options={{
+            automaticLayout: true,
+            fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
+            fontSize: 13,
+            lineHeight: 21,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            wordWrap: 'on',
+            readOnly: true,
+            renderSideBySide: false,
+            originalEditable: false,
+            fixedOverflowWidgets: true
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="dsl-editor-host" onKeyDown={stopKeyboardPropagation} onKeyUp={stopKeyboardPropagation}>

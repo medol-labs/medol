@@ -1,17 +1,38 @@
 import type { EmElement, EmSlice } from '../../lib/model';
-import type { AgentDslPatch, AgentRequest, AgentResponse } from './agentTypes';
+import type { AgentRequest, AgentResponse } from './agentTypes';
+import type { BuiltAgentPrompt } from './agentPromptBuilder';
+import { normalizeAgentStructuredResponse, type AgentStructuredDslPatch, type AgentStructuredResponse } from './agentStructuredResponse';
 
 const readModelIntent = /\b(read\s*model|projection|view|list|query)\b/i;
 
 export const runMockAgent = async (request: AgentRequest): Promise<AgentResponse> => {
+  const structuredResponse = await runMockStructuredAgent(request, {
+    system: '',
+    user: ''
+  });
+  return normalizeAgentStructuredResponse(structuredResponse, request);
+};
+
+export const runMockStructuredAgent = async (
+  request: AgentRequest,
+  _prompt: BuiltAgentPrompt
+): Promise<AgentStructuredResponse> => {
   await new Promise((resolve) => globalThis.setTimeout(resolve, 350));
 
   const selected = request.selectedItem;
   const slice = selected?.slice;
   const contextName = selected ? `${selected.type} "${selected.name}"` : 'the current model';
   const diagnostics = request.model.diagnostics.length;
+  const dslKnowledgeVersion = request.dslKnowledgeManifest?.version ?? request.dslKnowledge?.version;
+  const selectedSnippet = request.agentContext?.selectedDslSnippet;
+  const dslKnowledgeTopics = request.agentContext?.dslKnowledgeSnippets.map((snippet) => snippet.topic).join(', ');
   const findings = [
     `Context: ${contextName}.`,
+    dslKnowledgeVersion ? `DSL knowledge package: ${dslKnowledgeVersion}.` : 'DSL knowledge package was not provided.',
+    request.agentContext
+      ? `Agent context built with ${request.agentContext.modelSummary.sliceCount} slice(s); selected DSL snippet ${selectedSnippet ? `${selectedSnippet.label} (${selectedSnippet.startLine}-${selectedSnippet.endLine})` : 'not available'}.`
+      : 'Agent context builder was not used.',
+    dslKnowledgeTopics ? `Relevant DSL knowledge: ${dslKnowledgeTopics}.` : 'No relevant DSL knowledge snippets were selected.',
     diagnostics > 0
       ? `There ${diagnostics === 1 ? 'is' : 'are'} ${diagnostics} parser/model warning${diagnostics === 1 ? '' : 's'} to review before codegen.`
       : 'The current DSL parses without warnings.',
@@ -26,19 +47,33 @@ export const runMockAgent = async (request: AgentRequest): Promise<AgentResponse
       ? proposeHotspotPatch(request.dsl, slice, request.prompt)
       : undefined;
 
+  const content = [
+    'I reviewed the current modeling context.',
+    ...findings.map((finding) => `- ${finding}`),
+    patch
+      ? `Proposed DSL patch: ${patch.summary}`
+      : 'No DSL patch was prepared because there is no selected slice yet.'
+  ].join('\n');
+
+  if (!patch) {
+    return {
+      type: 'answer',
+      content
+    };
+  }
+
   return {
+    type: 'dsl_patch_proposal',
     content: [
       'I reviewed the current modeling context.',
       ...findings.map((finding) => `- ${finding}`),
-      patch
-        ? `Proposed DSL patch: ${patch.summary}`
-        : 'No DSL patch was prepared because there is no selected slice yet.'
+      `Proposed DSL patch: ${patch.summary}`
     ].join('\n'),
     patch
   };
 };
 
-const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentDslPatch | undefined => {
+const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentStructuredDslPatch | undefined => {
   const event = slice.elements.find((element) => element.kind === 'event');
   const baseName = event ? stripSuffix(event.name, 'Event') : slice.name;
   const projectionName = uniqueElementName(slice, `${baseName}ReadModel`);
@@ -49,20 +84,27 @@ const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentDslPatch | und
   if (!nextDsl) return proposeHotspotPatch(dsl, slice, `Add read model ${projectionName}`);
 
   return {
-    id: createId('patch'),
     summary: `Add read model ${projectionName} to slice ${slice.name}.`,
     reason: event
       ? `The selected slice emits ${event.name}; a read model can make that event visible for UI/query flows.`
       : 'The selected slice has no event yet, so this creates a placeholder read model to review.',
     target: `slice ${slice.name}`,
     changeType: 'insert',
+    operations: [{
+      operation: 'insert',
+      target: `slice ${slice.name}`,
+      content: snippet.trim(),
+      rule: event
+        ? `Subscribe the read model to ${event.name} so UI/query flows have a visible state source.`
+        : 'Add a placeholder read model for later field and subscription refinement.'
+    }],
     preview: snippet.trimEnd(),
     nextDsl,
     focusTarget: { kind: 'slice', name: slice.name }
   };
 };
 
-const proposeHotspotPatch = (dsl: string, slice: EmSlice, prompt: string): AgentDslPatch | undefined => {
+const proposeHotspotPatch = (dsl: string, slice: EmSlice, prompt: string): AgentStructuredDslPatch | undefined => {
   const note = sanitizeStringLiteral(`Agent note: clarify rule for ${prompt.trim() || slice.name}`);
   const snippet = `\n      hotspot "${note}"\n`;
   const nextDsl = insertIntoSlice(dsl, slice.name, snippet);
@@ -70,11 +112,16 @@ const proposeHotspotPatch = (dsl: string, slice: EmSlice, prompt: string): Agent
   if (!nextDsl) return undefined;
 
   return {
-    id: createId('patch'),
     summary: `Add a modeling hotspot to slice ${slice.name}.`,
     reason: 'The request needs a domain rule or modeling decision before the DSL can be safely expanded.',
     target: `slice ${slice.name}`,
     changeType: 'insert',
+    operations: [{
+      operation: 'insert',
+      target: `slice ${slice.name}`,
+      content: snippet.trim(),
+      rule: 'Capture the unresolved modeling decision as a hotspot before changing structural DSL.'
+    }],
     preview: snippet.trimEnd(),
     nextDsl,
     focusTarget: { kind: 'slice', name: slice.name }
@@ -146,8 +193,4 @@ const sanitizeStringLiteral = (value: string): string => {
 
 const escapeRegExp = (value: string): string => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
-const createId = (prefix: string): string => {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 };
