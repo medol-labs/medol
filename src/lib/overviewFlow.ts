@@ -88,7 +88,7 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
       target: targetId,
       label: edgeItem.label,
       type: 'smoothstep',
-      animated: edgeItem.label === 'updates' || edgeItem.label === 'triggers' || edgeItem.label === 'issues',
+      animated: false,
       style: overviewEdgeStyle(edgeItem.label),
       labelStyle: { fill: '#334155', fontSize: 11, fontWeight: 700 },
       labelBgStyle: { fill: '#ffffff', fillOpacity: 0.88 }

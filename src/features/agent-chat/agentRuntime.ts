@@ -4,6 +4,7 @@ import { createMiniMaxAgentProvider } from './minimaxAgentProvider';
 import { runMockStructuredAgent } from './mockAgentRuntime';
 import { createOpenAiAgentProvider } from './openAiAgentProvider';
 import type { AgentRequest, AgentResponse } from './agentTypes';
+import { createAgentProviderResult, type AgentUsage } from './agentUsage';
 import {
   normalizeAgentStructuredResponse,
   parseAgentStructuredResponse,
@@ -14,13 +15,14 @@ export interface AgentRuntimeResult extends AgentResponse {
   prompt: BuiltAgentPrompt;
   provider: AgentProviderName;
   structuredResponse: AgentStructuredResponse;
+  usage?: AgentUsage;
 }
 
 export const runEventModelingAgent = async (request: AgentRequest): Promise<AgentRuntimeResult> => {
   const prompt = buildAgentPrompt(request);
   const provider = resolveAgentProvider();
-  const rawStructuredResponse = await provider.run(request, prompt);
-  const structuredResponse = parseAgentStructuredResponse(rawStructuredResponse) ?? {
+  const providerResult = await provider.run(request, prompt);
+  const structuredResponse = parseAgentStructuredResponse(providerResult.response) ?? {
     type: 'answer',
     content: 'I could not produce a valid structured modeling response. Please try a smaller, more specific request.'
   } satisfies AgentStructuredResponse;
@@ -30,7 +32,8 @@ export const runEventModelingAgent = async (request: AgentRequest): Promise<Agen
     ...response,
     prompt,
     provider: provider.name,
-    structuredResponse
+    structuredResponse,
+    ...(providerResult.usage ? { usage: providerResult.usage } : {})
   };
 };
 
@@ -47,6 +50,23 @@ const resolveAgentProvider = (): AgentProvider => {
 
   return {
     name: 'mock',
-    run: runMockStructuredAgent
+    run: async (request, prompt) => {
+      const response = await runMockStructuredAgent(request, prompt);
+      const inputTokens = estimateMockTokens(prompt.system + prompt.user);
+      const outputTokens = estimateMockTokens(JSON.stringify(response));
+      return createAgentProviderResult(response, {
+        provider: 'mock',
+        model: 'mock-model',
+        measurement: 'estimated',
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        requestCount: 1
+      });
+    }
   };
+};
+
+const estimateMockTokens = (text: string): number => {
+  return Math.max(1, Math.ceil(text.length / 4));
 };

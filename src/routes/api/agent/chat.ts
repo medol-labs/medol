@@ -3,7 +3,7 @@ import { toServerSentEventsResponse } from '@tanstack/ai';
 import type { StreamChunk } from '@tanstack/ai/client';
 import { runEventModelingAgent } from '../../../features/agent-chat/agentRuntime';
 import type { AgentDslPatch, AgentRequest } from '../../../features/agent-chat/agentTypes';
-import { buildAgentContext, toAgentContextDebug } from '../../../features/agent-chat/agentContextBuilder';
+import { buildAgentContext } from '../../../features/agent-chat/agentContextBuilder';
 import { eventModelingDslKnowledge, eventModelingDslKnowledgeManifest, requiredDslKnowledgeContext, type AgentContextItem } from '../../../features/agent-chat/dslKnowledge';
 
 type AgentChatRequestBody = {
@@ -90,13 +90,6 @@ async function* createEventModelingAgentStream(input: {
     messages: input.messages
   });
 
-  yield {
-    type: 'CUSTOM',
-    name: 'event-modeling.context-built',
-    value: toAgentContextDebug(agentContext),
-    model
-  } as StreamChunk;
-
   const response = await runEventModelingAgent({
     prompt: input.prompt,
     dsl: input.dsl,
@@ -120,6 +113,18 @@ async function* createEventModelingAgentStream(input: {
 
   yield* streamText(messageId, response.content, model);
 
+  if (response.usage) {
+    yield {
+      type: 'CUSTOM',
+      name: 'event-modeling.usage',
+      value: {
+        messageId,
+        usage: response.usage
+      },
+      model
+    } as StreamChunk;
+  }
+
   if (response.patch) {
     yield {
       type: 'CUSTOM',
@@ -142,18 +147,13 @@ interface PatchProposedEvent {
 }
 
 async function* streamText(messageId: string, text: string, model: string): AsyncIterable<StreamChunk> {
-  let content = '';
-  for (const delta of chunkText(text)) {
-    content += delta;
-    yield {
-      type: 'TEXT_MESSAGE_CONTENT',
-      messageId,
-      delta,
-      content,
-      model
-    } as StreamChunk;
-    await new Promise((resolve) => globalThis.setTimeout(resolve, 14));
-  }
+  yield {
+    type: 'TEXT_MESSAGE_CONTENT',
+    messageId,
+    delta: text,
+    content: text,
+    model
+  } as StreamChunk;
 }
 
 const finish = (threadId: string, runId: string, model: string): StreamChunk => ({
@@ -201,14 +201,6 @@ const resolveDslKnowledge = (manifest: AgentRequest['dslKnowledgeManifest']) => 
   }
 
   return eventModelingDslKnowledge;
-};
-
-const chunkText = (text: string): string[] => {
-  const chunks: string[] = [];
-  for (let index = 0; index < text.length; index += 18) {
-    chunks.push(text.slice(index, index + 18));
-  }
-  return chunks.length > 0 ? chunks : [''];
 };
 
 const createId = (prefix: string): string => {

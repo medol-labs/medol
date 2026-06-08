@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiAgentHistoryRouteImport } from './routes/api/agent/history'
 import { Route as ApiAgentChatRouteImport } from './routes/api/agent/chat'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentHistoryRoute = ApiAgentHistoryRouteImport.update({
+  id: '/api/agent/history',
+  path: '/api/agent/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAgentChatRoute = ApiAgentChatRouteImport.update({
@@ -26,27 +32,31 @@ const ApiAgentChatRoute = ApiAgentChatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
+  '/api/agent/history': typeof ApiAgentHistoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
+  '/api/agent/history': typeof ApiAgentHistoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
+  '/api/agent/history': typeof ApiAgentHistoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/agent/chat'
+  fullPaths: '/' | '/api/agent/chat' | '/api/agent/history'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/agent/chat'
-  id: '__root__' | '/' | '/api/agent/chat'
+  to: '/' | '/api/agent/chat' | '/api/agent/history'
+  id: '__root__' | '/' | '/api/agent/chat' | '/api/agent/history'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiAgentChatRoute: typeof ApiAgentChatRoute
+  ApiAgentHistoryRoute: typeof ApiAgentHistoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agent/history': {
+      id: '/api/agent/history'
+      path: '/api/agent/history'
+      fullPath: '/api/agent/history'
+      preLoaderRoute: typeof ApiAgentHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/agent/chat': {
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAgentChatRoute: ApiAgentChatRoute,
+  ApiAgentHistoryRoute: ApiAgentHistoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

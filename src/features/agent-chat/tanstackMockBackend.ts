@@ -74,18 +74,13 @@ const streamText = async function* (
   text: string,
   model: string
 ): AsyncIterable<StreamChunk> {
-  let content = '';
-  for (const delta of chunkText(text)) {
-    content += delta;
-    yield {
-      type: 'TEXT_MESSAGE_CONTENT',
-      messageId,
-      delta,
-      content,
-      model
-    } as StreamChunk;
-    await new Promise((resolve) => globalThis.setTimeout(resolve, 14));
-  }
+  yield {
+    type: 'TEXT_MESSAGE_CONTENT',
+    messageId,
+    delta: text,
+    content: text,
+    model
+  } as StreamChunk;
 };
 
 const finish = (input: ChatFetcherInput, model: string): StreamChunk => ({
@@ -106,14 +101,6 @@ const latestUserText = (messages: ChatFetcherInput['messages']): string => {
     .map((part) => part.content)
     .join('\n')
     .trim();
-};
-
-const chunkText = (text: string): string[] => {
-  const chunks: string[] = [];
-  for (let index = 0; index < text.length; index += 18) {
-    chunks.push(text.slice(index, index + 18));
-  }
-  return chunks.length > 0 ? chunks : [''];
 };
 
 const createId = (prefix: string): string => {

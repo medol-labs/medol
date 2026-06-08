@@ -27,6 +27,7 @@
     "@tanstack/react-start": "^1.168.18",
     "@vitejs/plugin-react": "^5.0.0",
     "@xyflow/react": "^12.10.2",
+    "better-sqlite3": "^12.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "langium": "^4.2.4",
@@ -35,6 +36,8 @@
     "radix-ui": "^1.4.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "shadcn": "^4.10.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0",
@@ -43,6 +46,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.18",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",

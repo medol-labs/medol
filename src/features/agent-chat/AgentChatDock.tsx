@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowUp, Check, Plus, X } from 'lucide-react';
+import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { ArrowUp, Check, Plus, Trash2, X } from 'lucide-react';
 import { fetchServerSentEvents, useChat, type UIMessage } from '@tanstack/ai-react';
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import type { EmModel } from '../../lib/model';
@@ -9,7 +11,20 @@ import { useDebouncedValue } from '../../app/useDebouncedValue';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
 import type { SelectedModelItem } from '../../app/modelSelection';
 import type { AgentDslPatch } from './agentTypes';
+import { sumAgentUsage, type AgentUsage } from './agentUsage';
+import {
+  agentChatId,
+  agentChatThreadId,
+  clearPersistedAgentChat,
+  loadAgentChatMessages,
+  loadAgentChatMessagesFromServer,
+  loadAgentChatUsage,
+  persistAgentChatMessages,
+  persistAgentChatUsage
+} from './agentChatPersistence';
 import { eventModelingDslKnowledgeManifest } from './dslKnowledge';
+
+const agentChatConnection = fetchServerSentEvents('/api/agent/chat');
 
 interface AgentChatDockProps {
   dsl: string;
@@ -32,10 +47,17 @@ export function AgentChatDock({
 }: AgentChatDockProps) {
   const [draft, setDraft] = useState('');
   const threadRef = useRef<HTMLDivElement>(null);
+  const scrollFrameRef = useRef<number | undefined>(undefined);
   const sendDebounceRef = useRef<number | undefined>(undefined);
+  const chatHydratedRef = useRef(false);
+  const messagesEffectStartedRef = useRef(false);
+  const skipNextPersistenceRef = useRef(false);
+  const serverHydrationPendingRef = useRef(false);
+  const messagesChangedDuringServerHydrationRef = useRef(false);
   const [patchReview, setPatchReview] = useState<Record<string, { diagnostics: string[]; confirmRequired: boolean; blocked: boolean }>>({});
   const [patchesByMessageId, setPatchesByMessageId] = useState<Record<string, AgentDslPatch>>({});
   const [patchStateByMessageId, setPatchStateByMessageId] = useState<Record<string, 'applied' | 'dismissed'>>({});
+  const [usageByMessageId, setUsageByMessageId] = useState<Record<string, AgentUsage>>(loadAgentChatUsage);
   const immediateForwardedProps = useMemo(() => ({
     dsl,
     model,
@@ -46,13 +68,26 @@ export function AgentChatDock({
   const {
     messages,
     sendMessage: sendChatMessage,
-    isLoading: isThinking
+    isLoading: isThinking,
+    clear: clearChat,
+    setMessages
   } = useChat({
-    connection: fetchServerSentEvents('/api/agent/chat'),
+    id: agentChatId,
+    threadId: agentChatThreadId,
+    connection: agentChatConnection,
     forwardedProps,
     onCustomEvent: (eventType, data) => {
-      if (eventType === 'event-modeling.context-built') {
-        console.debug('[event-modeling-agent] context built', data);
+      if (eventType === 'event-modeling.usage') {
+        const event = data as { messageId?: string; usage?: AgentUsage };
+        if (!event.messageId || !event.usage) return;
+        setUsageByMessageId((current) => {
+          const next = {
+            ...current,
+            [event.messageId as string]: event.usage as AgentUsage
+          };
+          persistAgentChatUsage(next);
+          return next;
+        });
         return;
       }
 
@@ -79,17 +114,77 @@ export function AgentChatDock({
     : 'domain model';
   const statusLabel = isParsingPending ? 'Parsing DSL' : contextLabel;
   const canSend = draft.trim().length > 0 && !isThinking;
+  const sessionUsage = useMemo(
+    () => sumAgentUsage(Object.values(usageByMessageId)),
+    [usageByMessageId]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const persistedMessages = loadAgentChatMessages();
+    if (persistedMessages.length > 0) {
+      skipNextPersistenceRef.current = true;
+      setMessages(persistedMessages);
+    }
+    chatHydratedRef.current = true;
+    serverHydrationPendingRef.current = true;
+
+    void loadAgentChatMessagesFromServer().then((serverMessages) => {
+      serverHydrationPendingRef.current = false;
+      if (cancelled || messagesChangedDuringServerHydrationRef.current) return;
+
+      if (serverMessages.length > 0) {
+        skipNextPersistenceRef.current = true;
+        setMessages(serverMessages);
+        persistAgentChatMessages(serverMessages);
+      } else if (persistedMessages.length > 0) {
+        persistAgentChatMessages(persistedMessages);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setMessages]);
+
+  useEffect(() => {
+    if (!messagesEffectStartedRef.current) {
+      messagesEffectStartedRef.current = true;
+      return;
+    }
+    if (!chatHydratedRef.current) return;
+    if (isThinking) return;
+    if (skipNextPersistenceRef.current) {
+      skipNextPersistenceRef.current = false;
+      return;
+    }
+    if (serverHydrationPendingRef.current) {
+      messagesChangedDuringServerHydrationRef.current = true;
+    }
+    persistAgentChatMessages(messages);
+  }, [messages, isThinking]);
 
   useEffect(() => {
     const thread = threadRef.current;
     if (!thread) return;
-    thread.scrollTop = thread.scrollHeight;
+    if (scrollFrameRef.current) window.cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      thread.scrollTop = thread.scrollHeight;
+      scrollFrameRef.current = undefined;
+    });
+
+    return () => {
+      if (scrollFrameRef.current) window.cancelAnimationFrame(scrollFrameRef.current);
+    };
   }, [messages, isThinking, patchesByMessageId, patchReview]);
 
   useEffect(() => {
     return () => {
       if (sendDebounceRef.current) {
         window.clearTimeout(sendDebounceRef.current);
+      }
+      if (scrollFrameRef.current) {
+        window.cancelAnimationFrame(scrollFrameRef.current);
       }
     };
   }, []);
@@ -163,6 +258,16 @@ export function AgentChatDock({
     });
   };
 
+  const clearConversation = () => {
+    clearChat();
+    clearPersistedAgentChat();
+    setPatchesByMessageId({});
+    setPatchStateByMessageId({});
+    setPatchReview({});
+    setUsageByMessageId({});
+    onClearPatchPreview();
+  };
+
   const handleInputKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     event.stopPropagation();
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -177,7 +282,10 @@ export function AgentChatDock({
         <div className="agent-chat-thread" aria-label="Assistant conversation" ref={threadRef}>
           {messages.map((message) => (
             <article className={`agent-chat-message is-${message.role}`} key={message.id}>
-              <p>{messageText(message)}</p>
+              <MessageMarkdown content={messageText(message)} />
+              {usageByMessageId[message.id] && (
+                <AgentUsageLine usage={usageByMessageId[message.id]} />
+              )}
               {patchesByMessageId[message.id] && (
                 <PatchProposalCard
                   patch={patchesByMessageId[message.id]}
@@ -208,6 +316,28 @@ export function AgentChatDock({
               </button>
             </div>
             <div className="agent-chat-composer__actions">
+              {sessionUsage && (
+                <span
+                  className="agent-chat-session-usage"
+                  title={sessionUsage.measurement === 'estimated'
+                    ? 'Current session token usage includes estimated values'
+                    : 'Current session token usage reported by the API'}
+                >
+                  {sessionUsage.measurement === 'estimated' ? '~' : ''}
+                  {formatTokenCount(sessionUsage.totalTokens)} tokens
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Clear conversation"
+                title="Clear conversation"
+                disabled={messages.length === 0 || isThinking}
+                onClick={clearConversation}
+              >
+                <Trash2 size={16} />
+              </Button>
               <Button type="button" size="icon" aria-label="Send message" disabled={!canSend} onClick={() => void sendMessage()}>
                 <ArrowUp size={18} />
               </Button>
@@ -218,6 +348,36 @@ export function AgentChatDock({
     </section>
   );
 }
+
+function AgentUsageLine({ usage }: { usage: AgentUsage }) {
+  const estimatePrefix = usage.measurement === 'estimated' ? '~' : '';
+  const parts = [
+    usage.model,
+    usage.inputTokens !== undefined ? `${estimatePrefix}${formatTokenCount(usage.inputTokens)} in` : undefined,
+    usage.outputTokens !== undefined ? `${estimatePrefix}${formatTokenCount(usage.outputTokens)} out` : undefined,
+    usage.cachedInputTokens !== undefined ? `${formatTokenCount(usage.cachedInputTokens)} cached` : undefined,
+    usage.reasoningTokens !== undefined ? `${formatTokenCount(usage.reasoningTokens)} reasoning` : undefined,
+    usage.totalTokens !== undefined ? `${estimatePrefix}${formatTokenCount(usage.totalTokens)} total` : undefined
+  ].filter(Boolean);
+
+  return (
+    <div
+      className="agent-chat-message__usage"
+      title={usage.measurement === 'estimated'
+        ? `${usage.provider} did not report token usage; values are estimated`
+        : `${usage.provider} API reported usage`}
+    >
+      {parts.join(' · ')}
+    </div>
+  );
+}
+
+const formatTokenCount = (value?: number): string => {
+  if (value === undefined) return '0';
+  if (value < 1000) return String(value);
+  if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}k`;
+  return `${(value / 1_000_000).toFixed(1)}m`;
+};
 
 interface PatchProposalCardProps {
   patch: AgentDslPatch;
@@ -304,3 +464,21 @@ const messageText = (message: UIMessage): string => {
     .map((part) => part.content)
     .join('\n');
 };
+
+const markdownComponents: Components = {
+  a: ({ children, ...props }) => (
+    <a {...props} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  )
+};
+
+const MessageMarkdown = memo(function MessageMarkdown({ content }: { content: string }) {
+  return (
+    <div className="agent-chat-message__markdown">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+});

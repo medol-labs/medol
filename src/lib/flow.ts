@@ -272,7 +272,7 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
         source: edgeItem.source,
         target: edgeItem.target,
         label: edgeItem.label,
-        animated: visual.animated,
+        animated: false,
         type: 'smoothstep',
         style: {
           stroke: visual.stroke,
@@ -401,24 +401,23 @@ const toEdgeVisual = (label?: string): {
   strokeWidth: number;
   strokeDasharray?: string;
   labelColor: string;
-  animated: boolean;
 } => {
   if (label === 'emits') {
-    return { stroke: '#ea580c', strokeWidth: 2.4, labelColor: '#9a3412', animated: true };
+    return { stroke: '#ea580c', strokeWidth: 2.4, labelColor: '#9a3412' };
   }
   if (label === 'updates') {
-    return { stroke: '#16a34a', strokeWidth: 2.2, strokeDasharray: '5 5', labelColor: '#166534', animated: true };
+    return { stroke: '#16a34a', strokeWidth: 2.2, strokeDasharray: '5 5', labelColor: '#166534' };
   }
   if (label === 'invokes') {
-    return { stroke: '#2563eb', strokeWidth: 2, labelColor: '#1d4ed8', animated: false };
+    return { stroke: '#2563eb', strokeWidth: 2, labelColor: '#1d4ed8' };
   }
   if (label === 'triggers' || label === 'issues' || label === 'reactsTo') {
-    return { stroke: '#be185d', strokeWidth: 2, strokeDasharray: '8 5', labelColor: '#9d174d', animated: true };
+    return { stroke: '#be185d', strokeWidth: 2, strokeDasharray: '8 5', labelColor: '#9d174d' };
   }
   if (label === 'given' || label === 'when' || label === 'then') {
-    return { stroke: '#9333ea', strokeWidth: 1.8, strokeDasharray: '3 5', labelColor: '#7e22ce', animated: false };
+    return { stroke: '#9333ea', strokeWidth: 1.8, strokeDasharray: '3 5', labelColor: '#7e22ce' };
   }
-  return { stroke: '#94a3b8', strokeWidth: 1.8, labelColor: '#334155', animated: false };
+  return { stroke: '#94a3b8', strokeWidth: 1.8, labelColor: '#334155' };
 };
 
 const toSliceLayout = (slice: EmSlice): SliceLayout => {

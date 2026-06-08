@@ -1,5 +1,6 @@
 import type { BuiltAgentPrompt } from './agentPromptBuilder';
 import type { AgentRequest } from './agentTypes';
+import type { AgentProviderResult } from './agentUsage';
 
 export type AgentProviderName = 'mock' | 'openai' | 'minimax';
 
@@ -18,7 +19,7 @@ export interface AgentProviderConfig {
 
 export interface AgentProvider {
   name: AgentProviderName;
-  run: (request: AgentRequest, prompt: BuiltAgentPrompt) => Promise<unknown>;
+  run: (request: AgentRequest, prompt: BuiltAgentPrompt) => Promise<AgentProviderResult>;
 }
 
 export const getAgentProviderConfig = (): AgentProviderConfig => {

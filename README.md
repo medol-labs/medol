@@ -89,6 +89,12 @@ MINIMAX_BASE_URL=https://api.minimaxi.com/v1
 
 The runtime uses TanStack AI adapters for model access. The provider must return one structured response: `answer`, `clarification`, or `dsl_patch_proposal`.
 
+Chat messages are cached in browser `localStorage` and mirrored to SQLite through the TanStack Start `/api/agent/history` route. The default database path is `data/agent-chat.sqlite`; override it with:
+
+```bash
+AGENT_CHAT_DB_PATH=./data/agent-chat.sqlite
+```
+
 ## Build
 
 ```bash

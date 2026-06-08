@@ -3,15 +3,20 @@ import type { AgentProvider, AgentProviderConfig } from './agentProvider';
 import type { AgentRequest } from './agentTypes';
 import { parseAgentMixedResponse } from './agentMixedResponse';
 import type { AgentStructuredResponse } from './agentStructuredResponse';
+import {
+  createAgentProviderResult,
+  estimateAgentUsage,
+  extractOpenAiCompatibleUsage
+} from './agentUsage';
 
 export const createMiniMaxAgentProvider = (config: AgentProviderConfig['minimax']): AgentProvider => ({
   name: 'minimax',
-  run: async (_request: AgentRequest, prompt: BuiltAgentPrompt): Promise<unknown> => {
+  run: async (_request: AgentRequest, prompt: BuiltAgentPrompt) => {
     if (!config.apiKey) {
-      return {
+      return createAgentProviderResult({
         type: 'answer',
         content: 'MiniMax provider is selected, but MINIMAX_API_KEY is not configured on the server.'
-      } satisfies AgentStructuredResponse;
+      } satisfies AgentStructuredResponse);
     }
 
     try {
@@ -46,20 +51,31 @@ export const createMiniMaxAgentProvider = (config: AgentProviderConfig['minimax'
 
       const responseText = await response.text();
       if (!response.ok) {
-        return {
+        return createAgentProviderResult({
           type: 'answer',
           content: `MiniMax M3 API request failed with HTTP ${response.status}: ${responseText.slice(0, 800)}`
-        } satisfies AgentStructuredResponse;
+        } satisfies AgentStructuredResponse);
       }
 
       const responseJson = parseApiResponseJson(responseText);
       const outputText = extractMiniMaxOutputText(responseJson) ?? responseText;
-      return parseAgentMixedResponse(outputText);
+      const usage = extractOpenAiCompatibleUsage(findUsageContainer(responseJson), {
+        provider: 'minimax',
+        model: config.model
+      }) ?? estimateAgentUsage(
+        { provider: 'minimax', model: config.model },
+        `${prompt.modelingSystem}\n${prompt.user}`,
+        outputText
+      );
+      return createAgentProviderResult(
+        parseAgentMixedResponse(outputText),
+        usage
+      );
     } catch (error) {
-      return {
+      return createAgentProviderResult({
         type: 'answer',
         content: `MiniMax M3 API request failed: ${formatError(error)}`
-      } satisfies AgentStructuredResponse;
+      } satisfies AgentStructuredResponse);
     }
   }
 });
@@ -114,6 +130,22 @@ const parseApiResponseJson = (text: string): unknown | undefined => {
   } catch {
     return undefined;
   }
+};
+
+const findUsageContainer = (value: unknown): unknown => {
+  if (!value || typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  if (record.usage && typeof record.usage === 'object') return value;
+
+  for (const key of ['data', 'response', 'result']) {
+    const nested = record[key];
+    if (nested && typeof nested === 'object') {
+      const nestedRecord = nested as Record<string, unknown>;
+      if (nestedRecord.usage && typeof nestedRecord.usage === 'object') return nested;
+    }
+  }
+
+  return value;
 };
 
 const trimTrailingSlash = (value: string): string => {
