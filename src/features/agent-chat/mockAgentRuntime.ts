@@ -7,6 +7,7 @@ const readModelIntent = /\b(read\s*model|projection|view|list|query)\b/i;
 
 export const runMockAgent = async (request: AgentRequest): Promise<AgentResponse> => {
   const structuredResponse = await runMockStructuredAgent(request, {
+    modelingSystem: '',
     system: '',
     user: ''
   });

@@ -1,6 +1,7 @@
 import type { AgentRequest } from './agentTypes';
 
 export interface BuiltAgentPrompt {
+  modelingSystem: string;
   system: string;
   user: string;
 }
@@ -9,20 +10,28 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
   const context = request.agentContext;
   const selectedSnippet = context?.selectedDslSnippet;
 
+  const modelingSystem = [
+    ...(context?.systemRules ?? ['You are an Event Modeling DSL assistant.']),
+    '',
+    'You can answer ordinary questions that are unrelated to the DSL or Event Modeling.',
+    'Only propose a DSL patch when the user explicitly requests or clearly needs a model change.',
+    '',
+    'Modeling rules:',
+    '- Use dsl_patch_proposal only when you can produce focused DSL operations.',
+    '- Do not output nextDsl; the server applies operations to the current DSL.',
+    '- Do not silently invent domain rules; use clarification or add a hotspot when behavior is unclear.',
+    '- Preserve unrelated DSL exactly as much as possible.',
+    '- For patch operations, use targets like "slice CreateOrder", "projection OrderList", "command CreateOrder".',
+    '- Insert operations must include the DSL fragment in content.'
+  ].join('\n');
+
   return {
+    modelingSystem,
     system: [
-      ...(context?.systemRules ?? ['You are an Event Modeling DSL assistant.']),
+      modelingSystem,
       '',
       'Respond with exactly one JSON object matching one of these shapes:',
-      JSON.stringify(outputContract, null, 2),
-      '',
-      'Rules:',
-      '- Use dsl_patch_proposal only when you can produce focused DSL operations.',
-      '- Do not output nextDsl; the server applies operations to the current DSL.',
-      '- Do not silently invent domain rules; use clarification or add a hotspot when behavior is unclear.',
-      '- Preserve unrelated DSL exactly as much as possible.',
-      '- For patch operations, use targets like "slice CreateOrder", "projection OrderList", "command CreateOrder".',
-      '- Insert operations must include the DSL fragment in content.'
+      JSON.stringify(outputContract, null, 2)
     ].join('\n'),
     user: [
       `User request:\n${request.prompt}`,

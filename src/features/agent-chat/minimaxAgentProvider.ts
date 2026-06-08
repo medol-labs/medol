@@ -1,7 +1,8 @@
 import type { BuiltAgentPrompt } from './agentPromptBuilder';
 import type { AgentProvider, AgentProviderConfig } from './agentProvider';
 import type { AgentRequest } from './agentTypes';
-import { parseAgentStructuredResponse, type AgentStructuredResponse } from './agentStructuredResponse';
+import { parseAgentMixedResponse } from './agentMixedResponse';
+import type { AgentStructuredResponse } from './agentStructuredResponse';
 
 export const createMiniMaxAgentProvider = (config: AgentProviderConfig['minimax']): AgentProvider => ({
   name: 'minimax',
@@ -23,14 +24,16 @@ export const createMiniMaxAgentProvider = (config: AgentProviderConfig['minimax'
         body: JSON.stringify({
           model: config.model,
           instructions: [
-            prompt.system,
-            'Return only one valid JSON object. Do not wrap it in markdown fences. Do not add explanatory text outside JSON.'
+            prompt.modelingSystem,
+            'Respond naturally to the user first.',
+            'For an ordinary question that does not require structured modeling data, return natural language only.',
+            'When a DSL patch or structured clarification is needed, append one JSON object inside <agent-json>...</agent-json> after the natural-language response.',
+            'The JSON block is machine-readable and must not contain prose outside its JSON string values.'
           ].join('\n\n'),
           input: [
             prompt.user,
             '',
-            'Output must be valid JSON matching exactly one of these shapes:',
-            '{"type":"answer","content":"..."}',
+            'Optional structured JSON shapes:',
             '{"type":"clarification","content":"...","questions":["..."]}',
             '{"type":"dsl_patch_proposal","content":"...","patch":{"summary":"...","reason":"...","target":"slice Name","changeType":"insert","operations":[{"operation":"insert","target":"slice Name","content":"...","rule":"..."}],"preview":"...","focusTarget":{"kind":"slice","name":"Name"}}}'
           ].join('\n'),
@@ -49,15 +52,9 @@ export const createMiniMaxAgentProvider = (config: AgentProviderConfig['minimax'
         } satisfies AgentStructuredResponse;
       }
 
-      const responseJson = parseJsonObject(responseText);
+      const responseJson = parseApiResponseJson(responseText);
       const outputText = extractMiniMaxOutputText(responseJson) ?? responseText;
-      const parsed = parseMiniMaxJsonResponse(outputText);
-      if (parsed) return parsed;
-
-      return {
-        type: 'answer',
-        content: `MiniMax M3 returned a response, but it was not valid structured agent JSON: ${outputText.slice(0, 800)}`
-      } satisfies AgentStructuredResponse;
+      return parseAgentMixedResponse(outputText);
     } catch (error) {
       return {
         type: 'answer',
@@ -111,37 +108,12 @@ const extractChoiceText = (value: unknown): string[] => {
   return typeof messageRecord.content === 'string' ? [messageRecord.content] : [];
 };
 
-const parseMiniMaxJsonResponse = (value: unknown): AgentStructuredResponse | undefined => {
-  const direct = parseAgentStructuredResponse(value);
-  if (direct) return direct;
-
-  if (typeof value !== 'string') return undefined;
-  const parsed = parseJsonObject(value);
-  return parsed ? parseAgentStructuredResponse(parsed) : undefined;
-};
-
-const parseJsonObject = (text: string): unknown | undefined => {
-  const trimmed = text.trim();
-  const jsonText = stripMarkdownFence(trimmed) ?? extractJsonObject(trimmed);
-  if (!jsonText) return undefined;
-
+const parseApiResponseJson = (text: string): unknown | undefined => {
   try {
-    return JSON.parse(jsonText);
+    return JSON.parse(text);
   } catch {
     return undefined;
   }
-};
-
-const stripMarkdownFence = (text: string): string | undefined => {
-  const match = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(text);
-  return match?.[1]?.trim();
-};
-
-const extractJsonObject = (text: string): string | undefined => {
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start < 0 || end <= start) return undefined;
-  return text.slice(start, end + 1);
 };
 
 const trimTrailingSlash = (value: string): string => {
