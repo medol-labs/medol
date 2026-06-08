@@ -17,11 +17,12 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
       JSON.stringify(outputContract, null, 2),
       '',
       'Rules:',
-      '- Use dsl_patch_proposal only when you can produce a focused complete nextDsl.',
-      '- Keep nextDsl as the complete DSL document, not a fragment.',
+      '- Use dsl_patch_proposal only when you can produce focused DSL operations.',
+      '- Do not output nextDsl; the server applies operations to the current DSL.',
       '- Do not silently invent domain rules; use clarification or add a hotspot when behavior is unclear.',
       '- Preserve unrelated DSL exactly as much as possible.',
-      '- For patch operations, describe the semantic operation at the DSL level.'
+      '- For patch operations, use targets like "slice CreateOrder", "projection OrderList", "command CreateOrder".',
+      '- Insert operations must include the DSL fragment in content.'
     ].join('\n'),
     user: [
       `User request:\n${request.prompt}`,
@@ -78,7 +79,6 @@ const outputContract = {
         rule: 'Domain or modeling rule behind the change.'
       }],
       preview: 'Short DSL fragment preview.',
-      nextDsl: 'Complete updated DSL document.',
       focusTarget: {
         kind: 'domain | context | aggregate | slice',
         name: 'Element name'

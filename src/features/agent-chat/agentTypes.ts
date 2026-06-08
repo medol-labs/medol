@@ -14,6 +14,7 @@ export interface AgentDslPatch {
   preview: string;
   baseDsl?: string;
   nextDsl: string;
+  toolErrors?: string[];
   focusTarget?: DslLocationTarget;
 }
 

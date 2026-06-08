@@ -1,5 +1,6 @@
 import { buildAgentPrompt, type BuiltAgentPrompt } from './agentPromptBuilder';
 import { getAgentProviderConfig, type AgentProvider, type AgentProviderName } from './agentProvider';
+import { createMiniMaxAgentProvider } from './minimaxAgentProvider';
 import { runMockStructuredAgent } from './mockAgentRuntime';
 import { createOpenAiAgentProvider } from './openAiAgentProvider';
 import type { AgentRequest, AgentResponse } from './agentTypes';
@@ -38,6 +39,10 @@ const resolveAgentProvider = (): AgentProvider => {
 
   if (config.provider === 'openai') {
     return createOpenAiAgentProvider(config.openai);
+  }
+
+  if (config.provider === 'minimax') {
+    return createMiniMaxAgentProvider(config.minimax);
   }
 
   return {

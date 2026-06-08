@@ -1,13 +1,18 @@
 import type { BuiltAgentPrompt } from './agentPromptBuilder';
 import type { AgentRequest } from './agentTypes';
 
-export type AgentProviderName = 'mock' | 'openai';
+export type AgentProviderName = 'mock' | 'openai' | 'minimax';
 
 export interface AgentProviderConfig {
   provider: AgentProviderName;
   openai: {
     apiKey?: string;
     model: string;
+  };
+  minimax: {
+    apiKey?: string;
+    model: string;
+    baseURL: string;
   };
 }
 
@@ -23,12 +28,18 @@ export const getAgentProviderConfig = (): AgentProviderConfig => {
     openai: {
       apiKey: env.OPENAI_API_KEY,
       model: env.OPENAI_MODEL || 'gpt-5.2'
+    },
+    minimax: {
+      apiKey: env.MINIMAX_API_KEY,
+      model: env.MINIMAX_MODEL || 'MiniMax-M3',
+      baseURL: env.MINIMAX_BASE_URL || 'https://api.minimaxi.com/v1'
     }
   };
 };
 
 const parseProviderName = (value?: string): AgentProviderName => {
-  return value === 'openai' ? 'openai' : 'mock';
+  if (value === 'openai' || value === 'minimax') return value;
+  return 'mock';
 };
 
 const getServerEnv = (): Record<string, string | undefined> => {

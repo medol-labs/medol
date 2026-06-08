@@ -78,10 +78,8 @@ const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentStructuredDslP
   const baseName = event ? stripSuffix(event.name, 'Event') : slice.name;
   const projectionName = uniqueElementName(slice, `${baseName}ReadModel`);
   const eventLine = event ? `\n        subscribe ${event.name}` : '';
-  const snippet = `\n      projection ${projectionName}[] {${eventLine}\n        id: String id\n      }\n`;
-  const nextDsl = insertIntoSlice(dsl, slice.name, snippet);
-
-  if (!nextDsl) return proposeHotspotPatch(dsl, slice, `Add read model ${projectionName}`);
+  const snippet = `\n      projection ${projectionName}[] {\n        readModelId: UUID id generated technical${eventLine}\n      }\n`;
+  if (!hasNamedBlock(dsl, 'slice', slice.name)) return proposeHotspotPatch(dsl, slice, `Add read model ${projectionName}`);
 
   return {
     summary: `Add read model ${projectionName} to slice ${slice.name}.`,
@@ -99,7 +97,6 @@ const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentStructuredDslP
         : 'Add a placeholder read model for later field and subscription refinement.'
     }],
     preview: snippet.trimEnd(),
-    nextDsl,
     focusTarget: { kind: 'slice', name: slice.name }
   };
 };
@@ -107,9 +104,7 @@ const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentStructuredDslP
 const proposeHotspotPatch = (dsl: string, slice: EmSlice, prompt: string): AgentStructuredDslPatch | undefined => {
   const note = sanitizeStringLiteral(`Agent note: clarify rule for ${prompt.trim() || slice.name}`);
   const snippet = `\n      hotspot "${note}"\n`;
-  const nextDsl = insertIntoSlice(dsl, slice.name, snippet);
-
-  if (!nextDsl) return undefined;
+  if (!hasNamedBlock(dsl, 'slice', slice.name)) return undefined;
 
   return {
     summary: `Add a modeling hotspot to slice ${slice.name}.`,
@@ -123,55 +118,13 @@ const proposeHotspotPatch = (dsl: string, slice: EmSlice, prompt: string): Agent
       rule: 'Capture the unresolved modeling decision as a hotspot before changing structural DSL.'
     }],
     preview: snippet.trimEnd(),
-    nextDsl,
     focusTarget: { kind: 'slice', name: slice.name }
   };
 };
 
-const insertIntoSlice = (dsl: string, sliceName: string, snippet: string): string | undefined => {
-  const blockStart = findNamedBlockStart(dsl, 'slice', sliceName);
-  if (blockStart < 0) return undefined;
-
-  const insertAt = findBlockEnd(dsl, blockStart);
-  if (insertAt < 0) return undefined;
-
-  return `${dsl.slice(0, insertAt)}${snippet}${dsl.slice(insertAt)}`;
-};
-
-const findNamedBlockStart = (dsl: string, keyword: string, name: string): number => {
+const hasNamedBlock = (dsl: string, keyword: string, name: string): boolean => {
   const pattern = new RegExp(`\\b${keyword}\\s+${escapeRegExp(name)}\\s*\\{`, 'g');
-  const match = pattern.exec(dsl);
-  return match?.index ?? -1;
-};
-
-const findBlockEnd = (dsl: string, blockStart: number): number => {
-  const openIndex = dsl.indexOf('{', blockStart);
-  if (openIndex < 0) return -1;
-
-  let depth = 0;
-  let quote: '"' | undefined;
-  for (let index = openIndex; index < dsl.length; index += 1) {
-    const char = dsl[index];
-    const previous = dsl[index - 1];
-
-    if (quote) {
-      if (char === quote && previous !== '\\') quote = undefined;
-      continue;
-    }
-
-    if (char === '"') {
-      quote = char;
-      continue;
-    }
-
-    if (char === '{') depth += 1;
-    if (char === '}') {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-
-  return -1;
+  return pattern.test(dsl);
 };
 
 const uniqueElementName = (slice: EmSlice, preferredName: string): string => {

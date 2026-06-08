@@ -78,6 +78,15 @@ OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-5.2
 ```
 
+To use MiniMax M3 through the domestic Responses API:
+
+```bash
+AGENT_PROVIDER=minimax
+MINIMAX_API_KEY=...
+MINIMAX_MODEL=MiniMax-M3
+MINIMAX_BASE_URL=https://api.minimaxi.com/v1
+```
+
 The runtime uses TanStack AI adapters for model access. The provider must return one structured response: `answer`, `clarification`, or `dsl_patch_proposal`.
 
 ## Build

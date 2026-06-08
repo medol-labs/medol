@@ -106,7 +106,25 @@ context FederationManagement {
         subscribe OrganizationDeactivated
         subscribe ComputeNodeTrusted
         subscribe DatasetApprovedForTraining
+        subscribe OrganizationReactivated
       }
+    }
+    slice ReactivateOrganization {
+    actor PlatformAdmin
+    ui OrganizationAdminScreen dialog
+    reactsTo OrganizationDeactivated
+    
+    command ReactivateOrganization {
+    organizationId: UUID id technical
+    reactivationNote: String?
+    }
+    
+    event OrganizationReactivated {
+    organizationId: UUID id technical
+    reactivationNote: String?
+    }
+    
+    state Active
     }
   }
 
@@ -162,6 +180,9 @@ context FederationManagement {
         subscribe ComputeNodeTrusted
         subscribe ComputeNodeSuspended
         subscribe TrainingJobSubmitted
+        subscribe FederationActivated
+        subscribe FederationSuspended
+        subscribe FederationResumed
       }
     }
 
@@ -297,6 +318,59 @@ context FederationManagement {
     }
 
 
+    slice ActivateFederation {
+    actor PlatformAdmin
+    ui FederationAdminScreen dialog
+    reactsTo FederationCreated
+    
+    command ActivateFederation {
+    federationId: UUID id technical
+    activationNote: String?
+    }
+    
+    event FederationActivated {
+    federationId: UUID id technical
+    activationNote: String?
+    }
+    
+    state Active
+    }
+    
+    slice SuspendFederation {
+    actor PlatformAdmin
+    ui FederationAdminScreen confirm
+    reactsTo FederationActivated
+    
+    command SuspendFederation {
+    federationId: UUID id technical
+    suspensionReason: String
+    }
+    
+    event FederationSuspended {
+    federationId: UUID id technical
+    suspensionReason: String
+    }
+    
+    state Suspended
+    }
+    
+    slice ResumeFederation {
+    actor PlatformAdmin
+    ui FederationAdminScreen dialog
+    reactsTo FederationSuspended
+    
+    command ResumeFederation {
+    federationId: UUID id technical
+    resumeReason: String?
+    }
+    
+    event FederationResumed {
+    federationId: UUID id technical
+    resumeReason: String?
+    }
+    
+    state Active
+    }
   }
 
   aggregate ComputeNode {
@@ -425,7 +499,27 @@ context FederationManagement {
         subscribe NodeCapabilityUpdated
         subscribe ComputeNodeTrusted
         subscribe ComputeNodeSuspended
+        subscribe ComputeNodeReactivated
       }
+    }
+    slice ReactivateComputeNode {
+    actor SecurityReviewer
+    ui NodeTrustScreen dialog
+    reactsTo ComputeNodeSuspended
+    
+    command ReactivateComputeNode {
+    nodeId: UUID id technical
+    reactivationReason: String
+    attestationExpiresAt: DateTime?
+    }
+    
+    event ComputeNodeReactivated {
+    nodeId: UUID id technical
+    reactivationReason: String
+    attestationExpiresAt: DateTime?
+    }
+    
+    state Trusted
     }
   }
 }
@@ -1765,49 +1859,9 @@ context RuntimeOperations {
     }
   }
 
-  aggregate TrainingAlert {
-    state Raised
-
-    slice RaiseTrainingAlert {
-      createsAggregate
-      reactsTo RuntimeHeartbeatRecorded
-
-      automation RaiseAlertOnNodeResourcePressure {
-        condition gpuLoad > 95
-        emits RaiseTrainingAlert
-      }
-
-      command RaiseTrainingAlert {
-        alertId: UUID id generated technical
-        nodeId: UUID
-        trainingJobId: UUID?
-        severity: String
-        message: String
-      }
-
-      event TrainingAlertRaised {
-        alertId: UUID id technical
-        nodeId: UUID
-        trainingJobId: UUID?
-        severity: String
-        message: String
-      }
-
-      state Raised
-    }
-
-    slice TrainingAlertCatalog {
-      projection TrainingAlertCatalog[] {
-        alertId: UUID id
-        nodeId: UUID
-        trainingJobId: UUID?
-        severity: String
-        message: String
-        state: String
-        subscribe TrainingAlertRaised
-      }
-    }
-  }
+    aggregate TrainingAlert {
+  state Raised
+  state Resolved
 
   aggregate AuditRecord {
     state Appended
@@ -1886,5 +1940,24 @@ context RuntimeOperations {
       }
     }
   }
+      slice ResolveTrainingAlert {
+      actor PlatformAdmin
+      ui RuntimeMonitorScreen dialog
+      reactsTo TrainingAlertRaised
+      
+      command ResolveTrainingAlert {
+      alertId: UUID id technical
+      resolutionNote: String
+      resolvedBy: String
+      }
+      
+      event TrainingAlertResolved {
+      alertId: UUID id technical
+      resolutionNote: String
+      resolvedBy: String
+      }
+      
+      state Resolved
+      }
 }
 }

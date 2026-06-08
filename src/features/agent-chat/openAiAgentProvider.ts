@@ -4,7 +4,7 @@ import type { OpenAIChatModel } from '@tanstack/ai-openai';
 import type { BuiltAgentPrompt } from './agentPromptBuilder';
 import type { AgentProvider, AgentProviderConfig } from './agentProvider';
 import type { AgentRequest } from './agentTypes';
-import type { AgentStructuredResponse } from './agentStructuredResponse';
+import { agentStructuredResponseSchema, type AgentStructuredResponse } from './agentStructuredResponse';
 
 export const createOpenAiAgentProvider = (config: AgentProviderConfig['openai']): AgentProvider => ({
   name: 'openai',
@@ -17,15 +17,13 @@ export const createOpenAiAgentProvider = (config: AgentProviderConfig['openai'])
     }
 
     try {
-      const outputText = await chat({
+      return await chat({
         adapter: createOpenaiChat(config.model as OpenAIChatModel, config.apiKey),
         systemPrompts: [prompt.system],
         messages: [{ role: 'user', content: prompt.user }],
-        stream: false,
+        outputSchema: agentStructuredResponseSchema,
         temperature: 0
       });
-
-      return JSON.parse(outputText) as unknown;
     } catch (error) {
       return {
         type: 'answer',

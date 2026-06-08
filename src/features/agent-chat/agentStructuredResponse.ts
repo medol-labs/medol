@@ -1,6 +1,8 @@
+import { z } from 'zod';
 import { parseEventModelingDsl } from '../../lib/dslParser';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
 import type { AgentDslPatch, AgentDslPatchOperation, AgentRequest, AgentResponse } from './agentTypes';
+import { applyDslOperations } from './dslOperationTools';
 
 export type AgentStructuredResponse =
   | AgentStructuredAnswer
@@ -31,7 +33,7 @@ export interface AgentStructuredDslPatch {
   changeType: AgentDslPatch['changeType'];
   operations: AgentStructuredDslPatchOperation[];
   preview?: string;
-  nextDsl: string;
+  nextDsl?: string;
   focusTarget?: DslLocationTarget;
 }
 
@@ -42,6 +44,40 @@ export interface AgentStructuredDslPatchOperation {
   content?: string;
   rule?: string;
 }
+
+export const agentStructuredResponseSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('answer'),
+    content: z.string()
+  }),
+  z.object({
+    type: z.literal('clarification'),
+    content: z.string(),
+    questions: z.array(z.string())
+  }),
+  z.object({
+    type: z.literal('dsl_patch_proposal'),
+    content: z.string(),
+    patch: z.object({
+      summary: z.string(),
+      reason: z.string(),
+      target: z.string(),
+      changeType: z.enum(['insert', 'update', 'delete']),
+      operations: z.array(z.object({
+        id: z.string().optional(),
+        operation: z.enum(['insert', 'replace', 'delete']),
+        target: z.string(),
+        content: z.string().optional(),
+        rule: z.string().optional()
+      })).min(1),
+      preview: z.string().optional(),
+      focusTarget: z.object({
+        kind: z.enum(['domain', 'context', 'aggregate', 'slice']),
+        name: z.string()
+      }).optional()
+    })
+  })
+]) satisfies z.ZodType<AgentStructuredResponse>;
 
 export const normalizeAgentStructuredResponse = (
   structuredResponse: AgentStructuredResponse,
@@ -62,8 +98,12 @@ export const normalizeAgentStructuredResponse = (
 
   const patch = normalizeStructuredPatch(structuredResponse.patch, request.dsl);
   const diagnostics = parseEventModelingDsl(patch.nextDsl).diagnostics;
-  const validationSummary = diagnostics.length > 0
-    ? `\n\nDry-run warnings:\n${diagnostics.map((diagnostic) => `- ${diagnostic}`).join('\n')}`
+  const toolErrors = patch.toolErrors ?? [];
+  const validationSummary = toolErrors.length > 0 || diagnostics.length > 0
+    ? `\n\nPatch dry-run:\n${[
+        ...toolErrors.map((error) => `- ${error}`),
+        ...diagnostics.map((diagnostic) => `- ${diagnostic}`)
+      ].join('\n')}`
     : '';
 
   return {
@@ -104,8 +144,7 @@ const parseStructuredPatch = (value: unknown): AgentStructuredDslPatch | undefin
     typeof record.summary !== 'string' ||
     typeof record.reason !== 'string' ||
     typeof record.target !== 'string' ||
-    !isChangeType(record.changeType) ||
-    typeof record.nextDsl !== 'string'
+    !isChangeType(record.changeType)
   ) {
     return undefined;
   }
@@ -119,7 +158,7 @@ const parseStructuredPatch = (value: unknown): AgentStructuredDslPatch | undefin
       ? record.operations.map(parseStructuredOperation).filter((operation): operation is AgentStructuredDslPatchOperation => Boolean(operation))
       : [],
     ...(typeof record.preview === 'string' ? { preview: record.preview } : {}),
-    nextDsl: record.nextDsl,
+    ...(typeof record.nextDsl === 'string' ? { nextDsl: record.nextDsl } : {}),
     ...(parseFocusTarget(record.focusTarget) ? { focusTarget: parseFocusTarget(record.focusTarget) } : {})
   };
 };
@@ -137,24 +176,31 @@ const parseStructuredOperation = (value: unknown): AgentStructuredDslPatchOperat
   };
 };
 
-const normalizeStructuredPatch = (structuredPatch: AgentStructuredDslPatch, baseDsl: string): AgentDslPatch => ({
-  id: createId('patch'),
-  summary: structuredPatch.summary,
-  reason: structuredPatch.reason,
-  target: structuredPatch.target,
-  changeType: structuredPatch.changeType,
-  operations: structuredPatch.operations.map((operation) => ({
-    id: operation.id ?? createId('operation'),
-    operation: operation.operation,
-    target: operation.target,
-    ...(operation.content ? { content: operation.content } : {}),
-    ...(operation.rule ? { rule: operation.rule } : {})
-  })),
-  preview: structuredPatch.preview ?? structuredPatch.operations.map((operation) => operation.content).filter(Boolean).join('\n'),
-  baseDsl,
-  nextDsl: structuredPatch.nextDsl,
-  ...(structuredPatch.focusTarget ? { focusTarget: structuredPatch.focusTarget } : {})
-});
+const normalizeStructuredPatch = (structuredPatch: AgentStructuredDslPatch, baseDsl: string): AgentDslPatch => {
+  const applied = structuredPatch.nextDsl
+    ? { nextDsl: structuredPatch.nextDsl, errors: [] }
+    : applyDslOperations(baseDsl, structuredPatch.operations);
+
+  return {
+    id: createId('patch'),
+    summary: structuredPatch.summary,
+    reason: structuredPatch.reason,
+    target: structuredPatch.target,
+    changeType: structuredPatch.changeType,
+    operations: structuredPatch.operations.map((operation) => ({
+      id: operation.id ?? createId('operation'),
+      operation: operation.operation,
+      target: operation.target,
+      ...(operation.content ? { content: operation.content } : {}),
+      ...(operation.rule ? { rule: operation.rule } : {})
+    })),
+    preview: structuredPatch.preview ?? structuredPatch.operations.map((operation) => operation.content).filter(Boolean).join('\n'),
+    baseDsl,
+    nextDsl: applied.nextDsl,
+    ...(applied.errors.length > 0 ? { toolErrors: applied.errors } : {}),
+    ...(structuredPatch.focusTarget ? { focusTarget: structuredPatch.focusTarget } : {})
+  };
+};
 
 const parseFocusTarget = (value: unknown): DslLocationTarget | undefined => {
   if (!value || typeof value !== 'object') return undefined;

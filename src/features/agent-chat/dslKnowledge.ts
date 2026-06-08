@@ -45,7 +45,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Preserve existing names, ordering, indentation, and user-authored comments where possible.',
     'When a business rule is unclear, add or update a hotspot instead of inventing behavior.',
     'Command and event fields do not need to be identical. Event fields may be derived from command fields, aggregate state, read models, policies, or integrations.',
-    'When proposing DSL changes, return a complete nextDsl string plus a short preview and focus target.'
+    'When proposing DSL changes, return focused patch operations plus a short preview and focus target; the server generates nextDsl.'
   ],
   syntax: {
     domain: 'domain Name { context ... } groups bounded contexts under a business domain.',
@@ -86,7 +86,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
   ],
   patchRules: [
     'Patch preview should be short and focused.',
-    'nextDsl must parse after the patch unless the response explicitly blocks applying it.',
+    'Patch operations should produce DSL that parses after the server dry-run unless the response explicitly blocks applying it.',
     'When generating a projection, subscribe to the event it reads from when known.',
     'When generating a derived field, include from sources and rule text when known; otherwise use derived plus hotspot.',
     'Never remove existing DSL content unless the user explicitly asks for deletion.'
