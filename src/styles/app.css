@@ -88,6 +88,81 @@ textarea {
   justify-content: space-between;
 }
 
+.workspace-header {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.workspace-switcher {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.workspace-switcher__row,
+.workspace-switcher__form {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+}
+
+.workspace-switcher select,
+.workspace-switcher input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  background: #f8fafc;
+  font: inherit;
+  font-size: 12px;
+}
+
+.workspace-switcher select {
+  width: min(220px, 100%);
+  padding: 0 26px 0 8px;
+  font-weight: 700;
+}
+
+.workspace-switcher input {
+  flex: 1 1 auto;
+  padding: 0 8px;
+}
+
+.workspace-switcher button {
+  display: inline-grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #475569;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.workspace-switcher button:hover:not(:disabled) {
+  color: #1d4ed8;
+  background: #eef4fb;
+}
+
+.workspace-switcher button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.workspace-switcher select:focus,
+.workspace-switcher input:focus,
+.workspace-switcher button:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
 .pane-header h2,
 .studio-toolbar h1 {
   overflow: hidden;

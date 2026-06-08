@@ -1,19 +1,9 @@
-import Database from 'better-sqlite3';
-import { mkdirSync } from 'node:fs';
-import path from 'node:path';
+import { database } from './database';
 
 interface ChatHistoryRow {
   messages_json: string;
 }
 
-const databasePath = process.env.AGENT_CHAT_DB_PATH
-  ? path.resolve(process.env.AGENT_CHAT_DB_PATH)
-  : path.resolve(process.cwd(), 'data', 'agent-chat.sqlite');
-
-mkdirSync(path.dirname(databasePath), { recursive: true });
-
-const database = new Database(databasePath);
-database.pragma('journal_mode = WAL');
 database.exec(`
   CREATE TABLE IF NOT EXISTS agent_chat_history (
     chat_id TEXT PRIMARY KEY,

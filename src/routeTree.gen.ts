@@ -10,12 +10,19 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiModelingWorkspacesRouteImport } from './routes/api/modeling/workspaces'
 import { Route as ApiAgentHistoryRouteImport } from './routes/api/agent/history'
 import { Route as ApiAgentChatRouteImport } from './routes/api/agent/chat'
+import { Route as ApiModelingWorkspacesWorkspaceIdRouteImport } from './routes/api/modeling/workspaces.$workspaceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiModelingWorkspacesRoute = ApiModelingWorkspacesRouteImport.update({
+  id: '/api/modeling/workspaces',
+  path: '/api/modeling/workspaces',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAgentHistoryRoute = ApiAgentHistoryRouteImport.update({
@@ -28,35 +35,64 @@ const ApiAgentChatRoute = ApiAgentChatRouteImport.update({
   path: '/api/agent/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiModelingWorkspacesWorkspaceIdRoute =
+  ApiModelingWorkspacesWorkspaceIdRouteImport.update({
+    id: '/$workspaceId',
+    path: '/$workspaceId',
+    getParentRoute: () => ApiModelingWorkspacesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/agent/chat' | '/api/agent/history'
+  fullPaths:
+    | '/'
+    | '/api/agent/chat'
+    | '/api/agent/history'
+    | '/api/modeling/workspaces'
+    | '/api/modeling/workspaces/$workspaceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/agent/chat' | '/api/agent/history'
-  id: '__root__' | '/' | '/api/agent/chat' | '/api/agent/history'
+  to:
+    | '/'
+    | '/api/agent/chat'
+    | '/api/agent/history'
+    | '/api/modeling/workspaces'
+    | '/api/modeling/workspaces/$workspaceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/agent/chat'
+    | '/api/agent/history'
+    | '/api/modeling/workspaces'
+    | '/api/modeling/workspaces/$workspaceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiAgentChatRoute: typeof ApiAgentChatRoute
   ApiAgentHistoryRoute: typeof ApiAgentHistoryRoute
+  ApiModelingWorkspacesRoute: typeof ApiModelingWorkspacesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -66,6 +102,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/modeling/workspaces': {
+      id: '/api/modeling/workspaces'
+      path: '/api/modeling/workspaces'
+      fullPath: '/api/modeling/workspaces'
+      preLoaderRoute: typeof ApiModelingWorkspacesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/agent/history': {
@@ -82,13 +125,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/modeling/workspaces/$workspaceId': {
+      id: '/api/modeling/workspaces/$workspaceId'
+      path: '/$workspaceId'
+      fullPath: '/api/modeling/workspaces/$workspaceId'
+      preLoaderRoute: typeof ApiModelingWorkspacesWorkspaceIdRouteImport
+      parentRoute: typeof ApiModelingWorkspacesRoute
+    }
   }
 }
+
+interface ApiModelingWorkspacesRouteChildren {
+  ApiModelingWorkspacesWorkspaceIdRoute: typeof ApiModelingWorkspacesWorkspaceIdRoute
+}
+
+const ApiModelingWorkspacesRouteChildren: ApiModelingWorkspacesRouteChildren = {
+  ApiModelingWorkspacesWorkspaceIdRoute: ApiModelingWorkspacesWorkspaceIdRoute,
+}
+
+const ApiModelingWorkspacesRouteWithChildren =
+  ApiModelingWorkspacesRoute._addFileChildren(
+    ApiModelingWorkspacesRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAgentChatRoute: ApiAgentChatRoute,
   ApiAgentHistoryRoute: ApiAgentHistoryRoute,
+  ApiModelingWorkspacesRoute: ApiModelingWorkspacesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

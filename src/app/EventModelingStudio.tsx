@@ -8,6 +8,8 @@ import { InspectorPanel } from '../features/inspector/InspectorPanel';
 import { LayoutPreview } from '../components/LayoutPreview';
 import { ModelExplorer } from '../features/model-explorer/ModelExplorer';
 import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
+import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
+import { useModelingWorkspace } from '../features/workspace/useModelingWorkspace';
 import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
 import { parseEventModelingDsl } from '../lib/dslParser';
 import { emModelToJson } from '../lib/emModelExport';
@@ -35,8 +37,26 @@ const getInitialEditorPanelHeight = () => {
   return Math.floor((window.innerHeight - 120) / 2);
 };
 
+const formatPersistenceStatus = (status: 'loading' | 'saving' | 'saved' | 'offline'): string => {
+  if (status === 'loading') return 'Loading';
+  if (status === 'saving') return 'Saving';
+  if (status === 'offline') return 'Offline';
+  return 'Saved';
+};
+
 export function EventModelingStudio() {
-  const [dsl, setDsl] = useState(sampleDsl);
+  const {
+    dsl,
+    updateDsl,
+    workspaces,
+    activeWorkspaceId,
+    status: dslPersistenceStatus,
+    workspaceRevision,
+    switchWorkspace,
+    createWorkspace,
+    renameWorkspace,
+    deleteWorkspace
+  } = useModelingWorkspace(sampleDsl);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
   const [toolbarAction, setToolbarAction] = useState<ToolbarAction | ''>('');
   const [selectedDomainId, setSelectedDomainId] = useState<string | undefined>();
@@ -83,6 +103,13 @@ export function EventModelingStudio() {
   const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
   const dslFocusLine = useMemo(() => findDslLine(dsl, dslFocusTarget), [dsl, dslFocusTarget]);
   const isParsingPending = dsl !== debouncedDsl;
+  const modelStatus = previewPatch
+    ? 'Patch preview'
+    : isParsingPending
+      ? 'Parsing'
+      : model.diagnostics.length === 0
+        ? 'Valid'
+        : `${model.diagnostics.length} warnings`;
 
   const selectDomain = (domain: EmDomain) => {
     setSelectedDomainId(domain.id);
@@ -186,7 +213,7 @@ export function EventModelingStudio() {
       exportFlowViewportToSvg(getImageExportOptions('event-modeling-flow.svg'));
     } else if (toolbarAction === 'reset') {
       setPreviewPatch(undefined);
-      setDsl(sampleDsl);
+      updateDsl(sampleDsl);
       setDslEditorVersion((version) => version + 1);
     }
 
@@ -195,7 +222,7 @@ export function EventModelingStudio() {
 
   const applyAgentDsl = (nextDsl: string, focusTarget?: DslLocationTarget) => {
     setPreviewPatch(undefined);
-    setDsl(nextDsl);
+    updateDsl(nextDsl);
     if (focusTarget) {
       setDslFocusTarget(focusTarget);
       setDslFocusVersion((version) => version + 1);
@@ -292,9 +319,25 @@ export function EventModelingStudio() {
           style={{ gridColumn: editorGridColumn, gridRow: 1 }}
         >
           <header className="pane-header pane-header--inline">
-            <div>
+            <div className="workspace-header">
               <p className="eyebrow">Workspace</p>
-              <h2>Editor</h2>
+              <WorkspaceSwitcher
+                workspaces={workspaces}
+                activeWorkspaceId={activeWorkspaceId}
+                status={dslPersistenceStatus}
+                onSelect={(workspaceId) => {
+                  setPreviewPatch(undefined);
+                  setSelectedDomainId(undefined);
+                  setSelectedContextId(undefined);
+                  setSelectedAggregateId(undefined);
+                  setSelectedSliceId(undefined);
+                  setSelectedNodeId(undefined);
+                  void switchWorkspace(workspaceId);
+                }}
+                onCreate={(name) => void createWorkspace(name)}
+                onRename={(name) => void renameWorkspace(name)}
+                onDelete={() => void deleteWorkspace()}
+              />
             </div>
             <button type="button" className="collapse-button" onClick={() => setLeftPanelOpen(false)}>Hide</button>
           </header>
@@ -302,16 +345,18 @@ export function EventModelingStudio() {
             <section className="left-section left-section--editor">
               <div className="left-section__title">
                 <span>DSL</span>
-                <strong>{previewPatch ? 'Patch preview' : isParsingPending ? 'Parsing' : model.diagnostics.length === 0 ? 'Valid' : `${model.diagnostics.length} warnings`}</strong>
+                <strong title={`DSL persistence: ${dslPersistenceStatus}`}>
+                  {modelStatus} · {formatPersistenceStatus(dslPersistenceStatus)}
+                </strong>
               </div>
               <DslEditor
-                key={dslEditorVersion}
+                key={`${activeWorkspaceId ?? 'loading'}:${workspaceRevision}:${dslEditorVersion}`}
                 value={dsl}
                 diagnostics={model.diagnostics}
                 patchPreview={previewPatch ? { baseDsl: previewPatch.baseDsl ?? dsl, nextDsl: previewPatch.nextDsl } : undefined}
                 focusLine={dslFocusLine}
                 focusVersion={dslFocusVersion}
-                onChange={setDsl}
+                onChange={updateDsl}
               />
             </section>
             <div
@@ -366,15 +411,19 @@ export function EventModelingStudio() {
             </div>
             <button type="button" className="collapse-button" onClick={() => setAgentPanelOpen(false)}>Hide</button>
           </header>
-          <AgentChatDock
-            dsl={dsl}
-            model={model}
-            selectedItem={selectedItem}
-            isParsingPending={isParsingPending}
-            onApplyDsl={applyAgentDsl}
-            onPreviewPatch={previewAgentPatch}
-            onClearPatchPreview={clearAgentPatchPreview}
-          />
+          {activeWorkspaceId && (
+            <AgentChatDock
+              key={activeWorkspaceId}
+              workspaceId={activeWorkspaceId}
+              dsl={dsl}
+              model={model}
+              selectedItem={selectedItem}
+              isParsingPending={isParsingPending}
+              onApplyDsl={applyAgentDsl}
+              onPreviewPatch={previewAgentPatch}
+              onClearPatchPreview={clearAgentPatchPreview}
+            />
+          )}
         </aside>
       ) : (
         <button

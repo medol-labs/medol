@@ -1,23 +1,34 @@
 import type { UIMessage } from '@tanstack/ai-client';
 import type { AgentUsage } from './agentUsage';
 
-export const agentChatId = 'event-modeling-assistant';
-export const agentChatThreadId = 'event-modeling-assistant-thread';
-
-const storageKey = 'event-modeling-toolkit:agent-chat:v1';
-const usageStorageKey = 'event-modeling-toolkit:agent-chat-usage:v1';
+const defaultAgentChatId = 'event-modeling-assistant';
+const defaultAgentChatThreadId = 'event-modeling-assistant-thread';
+const defaultStorageKey = 'event-modeling-toolkit:agent-chat:v1';
+const defaultUsageStorageKey = 'event-modeling-toolkit:agent-chat-usage:v1';
 const maxPersistedMessages = 100;
 const persistDelayMs = 250;
 
-let persistTimer: number | undefined;
-let pendingMessages: UIMessage[] | undefined;
-let serverPersistController: AbortController | undefined;
+const persistTimers = new Map<string, number>();
+const pendingMessagesByChatId = new Map<string, UIMessage[]>();
+const serverPersistControllers = new Map<string, AbortController>();
 
-export const loadAgentChatMessages = (): UIMessage[] => {
+export const getAgentChatId = (workspaceId: string): string => {
+  return workspaceId === 'default'
+    ? defaultAgentChatId
+    : `${defaultAgentChatId}:${workspaceId}`;
+};
+
+export const getAgentChatThreadId = (workspaceId: string): string => {
+  return workspaceId === 'default'
+    ? defaultAgentChatThreadId
+    : `${defaultAgentChatThreadId}:${workspaceId}`;
+};
+
+export const loadAgentChatMessages = (chatId: string): UIMessage[] => {
   if (typeof window === 'undefined') return [];
 
   try {
-    const stored = window.localStorage.getItem(storageKey);
+    const stored = window.localStorage.getItem(storageKey(chatId));
     if (!stored) return [];
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
@@ -27,11 +38,11 @@ export const loadAgentChatMessages = (): UIMessage[] => {
   }
 };
 
-export const loadAgentChatUsage = (): Record<string, AgentUsage> => {
+export const loadAgentChatUsage = (chatId: string): Record<string, AgentUsage> => {
   if (typeof window === 'undefined') return {};
 
   try {
-    const stored = window.localStorage.getItem(usageStorageKey);
+    const stored = window.localStorage.getItem(usageStorageKey(chatId));
     if (!stored) return {};
     const parsed = JSON.parse(stored);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
@@ -44,18 +55,21 @@ export const loadAgentChatUsage = (): Record<string, AgentUsage> => {
   }
 };
 
-export const persistAgentChatUsage = (usageByMessageId: Record<string, AgentUsage>): void => {
+export const persistAgentChatUsage = (
+  chatId: string,
+  usageByMessageId: Record<string, AgentUsage>
+): void => {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(usageStorageKey, JSON.stringify(usageByMessageId));
+    window.localStorage.setItem(usageStorageKey(chatId), JSON.stringify(usageByMessageId));
   } catch {
     // Usage display metadata must not break chat.
   }
 };
 
-export const loadAgentChatMessagesFromServer = async (): Promise<UIMessage[]> => {
+export const loadAgentChatMessagesFromServer = async (chatId: string): Promise<UIMessage[]> => {
   try {
-    const response = await fetch(historyUrl(), {
+    const response = await fetch(historyUrl(chatId), {
       method: 'GET',
       headers: { Accept: 'application/json' }
     });
@@ -68,49 +82,55 @@ export const loadAgentChatMessagesFromServer = async (): Promise<UIMessage[]> =>
   }
 };
 
-export const persistAgentChatMessages = (messages: UIMessage[]): void => {
+export const persistAgentChatMessages = (chatId: string, messages: UIMessage[]): void => {
   if (typeof window === 'undefined') return;
-  pendingMessages = messages.slice(-maxPersistedMessages);
+  pendingMessagesByChatId.set(chatId, messages.slice(-maxPersistedMessages));
 
-  if (persistTimer) window.clearTimeout(persistTimer);
-  persistTimer = window.setTimeout(flushPendingMessages, persistDelayMs);
+  const currentTimer = persistTimers.get(chatId);
+  if (currentTimer) window.clearTimeout(currentTimer);
+  persistTimers.set(
+    chatId,
+    window.setTimeout(() => flushPendingMessages(chatId), persistDelayMs)
+  );
 };
 
-export const clearPersistedAgentChat = (): void => {
+export const clearPersistedAgentChat = (chatId: string): void => {
   if (typeof window === 'undefined') return;
-  if (persistTimer) window.clearTimeout(persistTimer);
-  persistTimer = undefined;
-  pendingMessages = undefined;
-  serverPersistController?.abort();
-  serverPersistController = undefined;
-  window.localStorage.removeItem(storageKey);
-  window.localStorage.removeItem(usageStorageKey);
-  void fetch(historyUrl(), { method: 'DELETE' }).catch(() => undefined);
+  const timer = persistTimers.get(chatId);
+  if (timer) window.clearTimeout(timer);
+  persistTimers.delete(chatId);
+  pendingMessagesByChatId.delete(chatId);
+  serverPersistControllers.get(chatId)?.abort();
+  serverPersistControllers.delete(chatId);
+  window.localStorage.removeItem(storageKey(chatId));
+  window.localStorage.removeItem(usageStorageKey(chatId));
+  void fetch(historyUrl(chatId), { method: 'DELETE' }).catch(() => undefined);
 };
 
-const flushPendingMessages = (): void => {
-  persistTimer = undefined;
-  if (typeof window === 'undefined' || !pendingMessages) return;
-  const messages = pendingMessages;
+const flushPendingMessages = (chatId: string): void => {
+  persistTimers.delete(chatId);
+  if (typeof window === 'undefined') return;
+  const messages = pendingMessagesByChatId.get(chatId);
+  if (!messages) return;
 
   try {
-    window.localStorage.setItem(storageKey, JSON.stringify(messages));
+    window.localStorage.setItem(storageKey(chatId), JSON.stringify(messages));
   } catch {
     // Persistence is best-effort; storage limits must not break chat.
   } finally {
-    pendingMessages = undefined;
+    pendingMessagesByChatId.delete(chatId);
   }
 
-  void persistMessagesToServer(messages);
+  void persistMessagesToServer(chatId, messages);
 };
 
-const persistMessagesToServer = async (messages: UIMessage[]): Promise<void> => {
-  serverPersistController?.abort();
+const persistMessagesToServer = async (chatId: string, messages: UIMessage[]): Promise<void> => {
+  serverPersistControllers.get(chatId)?.abort();
   const controller = new AbortController();
-  serverPersistController = controller;
+  serverPersistControllers.set(chatId, controller);
 
   try {
-    await fetch(historyUrl(), {
+    await fetch(historyUrl(chatId), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages }),
@@ -119,14 +139,26 @@ const persistMessagesToServer = async (messages: UIMessage[]): Promise<void> => 
   } catch {
     // localStorage remains the offline fallback.
   } finally {
-    if (serverPersistController === controller) {
-      serverPersistController = undefined;
+    if (serverPersistControllers.get(chatId) === controller) {
+      serverPersistControllers.delete(chatId);
     }
   }
 };
 
-const historyUrl = (): string => {
-  return `/api/agent/history?chatId=${encodeURIComponent(agentChatId)}`;
+const historyUrl = (chatId: string): string => {
+  return `/api/agent/history?chatId=${encodeURIComponent(chatId)}`;
+};
+
+const storageKey = (chatId: string): string => {
+  return chatId === defaultAgentChatId
+    ? defaultStorageKey
+    : `${defaultStorageKey}:${chatId}`;
+};
+
+const usageStorageKey = (chatId: string): string => {
+  return chatId === defaultAgentChatId
+    ? defaultUsageStorageKey
+    : `${defaultUsageStorageKey}:${chatId}`;
 };
 
 const reviveMessage = (value: unknown): UIMessage | undefined => {

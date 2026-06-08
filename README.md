@@ -89,11 +89,29 @@ MINIMAX_BASE_URL=https://api.minimaxi.com/v1
 
 The runtime uses TanStack AI adapters for model access. The provider must return one structured response: `answer`, `clarification`, or `dsl_patch_proposal`.
 
-Chat messages are cached in browser `localStorage` and mirrored to SQLite through the TanStack Start `/api/agent/history` route. The default database path is `data/agent-chat.sqlite`; override it with:
+Chat messages are cached in browser `localStorage` and mirrored to SQLite through the TanStack Start `/api/agent/history` route. Modeling workspaces are managed through the REST-style `/api/modeling/workspaces` API. Each workspace stores its own DSL document, which can contain one or more domains. Both use the same embedded SQLite database and require no separate backend service. The default database path is `data/event-modeling.sqlite`; override it with:
 
 ```bash
-AGENT_CHAT_DB_PATH=./data/agent-chat.sqlite
+EVENT_MODELING_DB_PATH=./data/event-modeling.sqlite
 ```
+
+The editor depends on the `ModelingWorkspaceClient` interface rather than TanStack Start directly. To move workspace management to another backend later, implement the same API contract and set:
+
+```bash
+VITE_WORKSPACE_API_BASE_URL=https://modeling-api.example.com
+```
+
+The workspace API contract is:
+
+```text
+GET    /workspaces
+POST   /workspaces
+GET    /workspaces/:workspaceId
+PUT    /workspaces/:workspaceId
+DELETE /workspaces/:workspaceId
+```
+
+Workspace is the persistence boundary. A workspace owns one DSL document and its assistant conversation; the DSL document may declare multiple `domain` blocks.
 
 ## Build
 

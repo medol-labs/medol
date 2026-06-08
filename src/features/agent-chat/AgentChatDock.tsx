@@ -13,9 +13,9 @@ import type { SelectedModelItem } from '../../app/modelSelection';
 import type { AgentDslPatch } from './agentTypes';
 import { sumAgentUsage, type AgentUsage } from './agentUsage';
 import {
-  agentChatId,
-  agentChatThreadId,
   clearPersistedAgentChat,
+  getAgentChatId,
+  getAgentChatThreadId,
   loadAgentChatMessages,
   loadAgentChatMessagesFromServer,
   loadAgentChatUsage,
@@ -27,6 +27,7 @@ import { eventModelingDslKnowledgeManifest } from './dslKnowledge';
 const agentChatConnection = fetchServerSentEvents('/api/agent/chat');
 
 interface AgentChatDockProps {
+  workspaceId: string;
   dsl: string;
   model: EmModel;
   selectedItem?: SelectedModelItem;
@@ -37,6 +38,7 @@ interface AgentChatDockProps {
 }
 
 export function AgentChatDock({
+  workspaceId,
   dsl,
   model,
   selectedItem,
@@ -45,6 +47,8 @@ export function AgentChatDock({
   onPreviewPatch,
   onClearPatchPreview
 }: AgentChatDockProps) {
+  const chatId = getAgentChatId(workspaceId);
+  const chatThreadId = getAgentChatThreadId(workspaceId);
   const [draft, setDraft] = useState('');
   const threadRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | undefined>(undefined);
@@ -57,7 +61,9 @@ export function AgentChatDock({
   const [patchReview, setPatchReview] = useState<Record<string, { diagnostics: string[]; confirmRequired: boolean; blocked: boolean }>>({});
   const [patchesByMessageId, setPatchesByMessageId] = useState<Record<string, AgentDslPatch>>({});
   const [patchStateByMessageId, setPatchStateByMessageId] = useState<Record<string, 'applied' | 'dismissed'>>({});
-  const [usageByMessageId, setUsageByMessageId] = useState<Record<string, AgentUsage>>(loadAgentChatUsage);
+  const [usageByMessageId, setUsageByMessageId] = useState<Record<string, AgentUsage>>(
+    () => loadAgentChatUsage(chatId)
+  );
   const immediateForwardedProps = useMemo(() => ({
     dsl,
     model,
@@ -72,8 +78,8 @@ export function AgentChatDock({
     clear: clearChat,
     setMessages
   } = useChat({
-    id: agentChatId,
-    threadId: agentChatThreadId,
+    id: chatId,
+    threadId: chatThreadId,
     connection: agentChatConnection,
     forwardedProps,
     onCustomEvent: (eventType, data) => {
@@ -85,7 +91,7 @@ export function AgentChatDock({
             ...current,
             [event.messageId as string]: event.usage as AgentUsage
           };
-          persistAgentChatUsage(next);
+          persistAgentChatUsage(chatId, next);
           return next;
         });
         return;
@@ -121,7 +127,7 @@ export function AgentChatDock({
 
   useEffect(() => {
     let cancelled = false;
-    const persistedMessages = loadAgentChatMessages();
+    const persistedMessages = loadAgentChatMessages(chatId);
     if (persistedMessages.length > 0) {
       skipNextPersistenceRef.current = true;
       setMessages(persistedMessages);
@@ -129,16 +135,16 @@ export function AgentChatDock({
     chatHydratedRef.current = true;
     serverHydrationPendingRef.current = true;
 
-    void loadAgentChatMessagesFromServer().then((serverMessages) => {
+    void loadAgentChatMessagesFromServer(chatId).then((serverMessages) => {
       serverHydrationPendingRef.current = false;
       if (cancelled || messagesChangedDuringServerHydrationRef.current) return;
 
       if (serverMessages.length > 0) {
         skipNextPersistenceRef.current = true;
         setMessages(serverMessages);
-        persistAgentChatMessages(serverMessages);
+        persistAgentChatMessages(chatId, serverMessages);
       } else if (persistedMessages.length > 0) {
-        persistAgentChatMessages(persistedMessages);
+        persistAgentChatMessages(chatId, persistedMessages);
       }
     });
 
@@ -161,7 +167,7 @@ export function AgentChatDock({
     if (serverHydrationPendingRef.current) {
       messagesChangedDuringServerHydrationRef.current = true;
     }
-    persistAgentChatMessages(messages);
+    persistAgentChatMessages(chatId, messages);
   }, [messages, isThinking]);
 
   useEffect(() => {
@@ -260,7 +266,7 @@ export function AgentChatDock({
 
   const clearConversation = () => {
     clearChat();
-    clearPersistedAgentChat();
+    clearPersistedAgentChat(chatId);
     setPatchesByMessageId({});
     setPatchStateByMessageId({});
     setPatchReview({});
