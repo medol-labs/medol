@@ -14,7 +14,7 @@ export interface DocumentationBundle {
   domains: string[];
   contexts: DocumentationContext[];
   workflows: DocumentationWorkflow[];
-  projections: DocumentationProjection[];
+  readmodels: DocumentationReadModel[];
   integrations: DocumentationIntegration[];
   diagnostics: string[];
 }
@@ -47,7 +47,7 @@ export interface DocumentationWorkflow {
   };
   commands: DocumentationElement[];
   events: DocumentationElement[];
-  projections: string[];
+  readmodels: string[];
   processors: string[];
   specifications: DocumentationSpecification[];
   createsAggregate: boolean;
@@ -83,7 +83,7 @@ export interface DocumentationSpecification {
   examples: Record<string, string>;
 }
 
-export interface DocumentationProjection {
+export interface DocumentationReadModel {
   id: string;
   name: string;
   context: string;

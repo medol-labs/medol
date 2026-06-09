@@ -188,7 +188,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-2f9a4302",
+              "id": "readmodel-2f9a4302",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -411,7 +411,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-2f9a4302",
+              "id": "readmodel-2f9a4302",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -612,7 +612,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-2f9a4302",
+              "id": "readmodel-2f9a4302",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -813,7 +813,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-2f9a4302",
+              "id": "readmodel-2f9a4302",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -898,7 +898,7 @@
       "events": [],
       "readmodels": [
         {
-          "id": "projection-2f9a4302",
+          "id": "readmodel-2f9a4302",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationManagement",
@@ -1262,7 +1262,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-99a789a6",
+              "id": "readmodel-99a789a6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -1690,7 +1690,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-99a789a6",
+              "id": "readmodel-99a789a6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -1775,7 +1775,7 @@
       "events": [],
       "readmodels": [
         {
-          "id": "projection-99a789a6",
+          "id": "readmodel-99a789a6",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationManagement",
@@ -2693,13 +2693,13 @@
           ],
           "dependencies": [
             {
-              "id": "projection-2f9a4302",
+              "id": "readmodel-2f9a4302",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
             },
             {
-              "id": "projection-99a789a6",
+              "id": "readmodel-99a789a6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -2894,7 +2894,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-99a789a6",
+              "id": "readmodel-99a789a6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -3510,7 +3510,7 @@
               "elementType": "PROCESSOR"
             },
             {
-              "id": "projection-1d7fc2d7",
+              "id": "readmodel-1d7fc2d7",
               "type": "OUTBOUND",
               "title": "Dataset Capability",
               "elementType": "READMODEL"
@@ -3801,7 +3801,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-1d7fc2d7",
+              "id": "readmodel-1d7fc2d7",
               "type": "OUTBOUND",
               "title": "Dataset Capability",
               "elementType": "READMODEL"
@@ -4012,7 +4012,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-2f9a4302",
+              "id": "readmodel-2f9a4302",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -4024,7 +4024,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-1d7fc2d7",
+              "id": "readmodel-1d7fc2d7",
               "type": "OUTBOUND",
               "title": "Dataset Capability",
               "elementType": "READMODEL"
@@ -4115,7 +4115,7 @@
       "events": [],
       "readmodels": [
         {
-          "id": "projection-1d7fc2d7",
+          "id": "readmodel-1d7fc2d7",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "DatasetGovernance",
@@ -4594,7 +4594,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-8d9dc4ec",
+              "id": "readmodel-8d9dc4ec",
               "type": "OUTBOUND",
               "title": "Dataset Runtime Access Catalog",
               "elementType": "READMODEL"
@@ -5120,7 +5120,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-8d9dc4ec",
+              "id": "readmodel-8d9dc4ec",
               "type": "OUTBOUND",
               "title": "Dataset Runtime Access Catalog",
               "elementType": "READMODEL"
@@ -5174,7 +5174,7 @@
       "events": [],
       "readmodels": [
         {
-          "id": "projection-8d9dc4ec",
+          "id": "readmodel-8d9dc4ec",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "DatasetGovernance",
@@ -5591,7 +5591,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-4b4e940d",
+              "id": "readmodel-4b4e940d",
               "type": "OUTBOUND",
               "title": "Training Evaluation Dataset Catalog",
               "elementType": "READMODEL"
@@ -5682,7 +5682,7 @@
       "events": [],
       "readmodels": [
         {
-          "id": "projection-4b4e940d",
+          "id": "readmodel-4b4e940d",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "DatasetGovernance",
@@ -6385,7 +6385,7 @@
               "elementType": "PROCESSOR"
             },
             {
-              "id": "projection-f009cebd",
+              "id": "readmodel-f009cebd",
               "type": "OUTBOUND",
               "title": "Training Run Configuration Catalog",
               "elementType": "READMODEL"
@@ -6606,7 +6606,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-f009cebd",
+              "id": "readmodel-f009cebd",
               "type": "OUTBOUND",
               "title": "Training Run Configuration Catalog",
               "elementType": "READMODEL"
@@ -6829,7 +6829,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-f009cebd",
+              "id": "readmodel-f009cebd",
               "type": "OUTBOUND",
               "title": "Training Run Configuration Catalog",
               "elementType": "READMODEL"
@@ -6914,7 +6914,7 @@
       "events": [],
       "readmodels": [
         {
-          "id": "projection-f009cebd",
+          "id": "readmodel-f009cebd",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "TrainingOrchestration",
@@ -7973,7 +7973,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-99a789a6",
+              "id": "readmodel-99a789a6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"

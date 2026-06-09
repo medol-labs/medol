@@ -110,7 +110,7 @@ const aggregateMetrics = (aggregate: EmAggregate): Record<string, number> => {
     slices: aggregate.slices.length,
     commands: elements.filter((element) => element.kind === 'command').length,
     events: elements.filter((element) => element.kind === 'event').length,
-    projections: elements.filter((element) => element.kind === 'projection').length,
+    readmodels: elements.filter((element) => element.kind === 'readmodel').length,
     hotspots: elements.filter((element) => element.kind === 'hotspot').length + aggregate.slices.flatMap((slice) => slice.hotspots).length
   };
 };

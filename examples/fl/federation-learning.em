@@ -92,7 +92,7 @@ context FederationManagement {
     slice OrganizationDirectory {
       ui OrganizationDirectory
 
-      projection OrganizationDirectory[] {
+      readmodel OrganizationDirectory[] {
         organizationId: UUID id
         organizationName: String
         organizationType: String
@@ -162,7 +162,7 @@ context FederationManagement {
     slice FederationOverview {
       reactsTo ParticipantJoined
 
-      projection FederationOverview[] {
+      readmodel FederationOverview[] {
         federationId: UUID id
         federationName: String
         state: String
@@ -299,7 +299,7 @@ context FederationManagement {
     slice FederationMembershipDirectory {
       reactsTo ParticipantInvited
 
-      projection FederationMembershipDirectory[] {
+      readmodel FederationMembershipDirectory[] {
         federationId: UUID id
         organizationId: UUID id
         organizationName: String
@@ -477,7 +477,7 @@ context FederationManagement {
     }
 
     slice ComputeNodeCatalog {
-      projection ComputeNodeCatalog[] {
+      readmodel ComputeNodeCatalog[] {
         nodeId: UUID id
         organizationId: UUID
         nodeName: String
@@ -560,7 +560,7 @@ context DatasetGovernance {
     }
 
     slice FeatureSchemaCatalog {
-      projection FeatureSchemaCatalog[] {
+      readmodel FeatureSchemaCatalog[] {
         featureSchemaId: UUID id
         domain: String
         version: Int
@@ -731,7 +731,7 @@ context DatasetGovernance {
     }
 
     slice DatasetCapability {
-      projection DatasetCapability[] {
+      readmodel DatasetCapability[] {
         datasetId: UUID id
         organizationId: UUID
         featureSchemaId: UUID
@@ -845,7 +845,7 @@ context DatasetGovernance {
     }
 
     slice DatasetRuntimeAccessCatalog {
-      projection DatasetRuntimeAccessCatalog[] {
+      readmodel DatasetRuntimeAccessCatalog[] {
         accessProfileId: UUID id
         datasetId: UUID
         nodeId: UUID
@@ -897,7 +897,7 @@ context DatasetGovernance {
     }
 
     slice TrainingEvaluationDatasetCatalog {
-      projection TrainingEvaluationDatasetCatalog[] {
+      readmodel TrainingEvaluationDatasetCatalog[] {
         datasetBundleId: UUID id
         organizationId: UUID
         nodeId: UUID
@@ -1051,7 +1051,7 @@ context TrainingOrchestration {
     }
 
     slice TrainingRunConfigurationCatalog {
-      projection TrainingRunConfigurationCatalog[] {
+      readmodel TrainingRunConfigurationCatalog[] {
         trainingRunConfigurationId: UUID id
         federationId: UUID
         featureSchemaId: UUID
@@ -1236,7 +1236,7 @@ context TrainingOrchestration {
     slice TrainingParticipantEligibility {
       reactsTo TrainingJobSubmitted
 
-      projection TrainingParticipantEligibility[] {
+      readmodel TrainingParticipantEligibility[] {
         trainingJobId: UUID id
         federationId: UUID
         organizationId: UUID
@@ -1392,7 +1392,7 @@ context TrainingOrchestration {
     }
 
     slice TrainingJobDashboard {
-      projection TrainingJobDashboard[] {
+      readmodel TrainingJobDashboard[] {
         trainingJobId: UUID id
         federationId: UUID
         trainingRunConfigurationId: UUID
@@ -1639,7 +1639,7 @@ context TrainingOrchestration {
     }
 
     slice TrainingRoundProgress {
-      projection TrainingRoundProgress[] {
+      readmodel TrainingRoundProgress[] {
         trainingJobId: UUID id
         trainingRunConfigurationId: UUID
         roundId: UUID id
@@ -1791,7 +1791,7 @@ context ModelLifecycle {
     }
 
     slice ModelVersionCatalog {
-      projection ModelVersionCatalog[] {
+      readmodel ModelVersionCatalog[] {
         modelVersionId: UUID id
         trainingJobId: UUID
         finalRoundId: UUID
@@ -1845,7 +1845,7 @@ context RuntimeOperations {
     }
 
     slice RuntimeHealthDashboard {
-      projection RuntimeHealthDashboard[] {
+      readmodel RuntimeHealthDashboard[] {
         nodeId: UUID id
         federationId: UUID
         cpuLoad: Decimal
@@ -1930,7 +1930,7 @@ context RuntimeOperations {
     }
 
     slice AuditRecordLog {
-      projection AuditRecordLog[] {
+      readmodel AuditRecordLog[] {
         auditRecordId: UUID id
         sourceEventName: String
         sourceEntityId: UUID?

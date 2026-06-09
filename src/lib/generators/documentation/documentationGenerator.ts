@@ -8,7 +8,7 @@ import type {
   DocumentationField,
   DocumentationKind,
   DocumentationLanguage,
-  DocumentationProjection,
+  DocumentationReadModel,
   DocumentationSpecification,
   GeneratedDocumentation
 } from './documentationModel';
@@ -108,7 +108,7 @@ export const buildDocumentationBundle = (
             : {}),
           commands: slice.elements.filter(isKind('command')).map(toDocumentationElement),
           events: slice.elements.filter(isKind('event')).map(toDocumentationElement),
-          projections: slice.elements.filter(isKind('projection')).map((element) => element.name),
+          readmodels: slice.elements.filter(isKind('readmodel')).map((element) => element.name),
           processors: slice.elements
             .filter((element) => element.kind === 'automation' || element.kind === 'policy')
             .map((element) => element.name),
@@ -123,27 +123,27 @@ export const buildDocumentationBundle = (
     )
   );
 
-  const projections = model.contexts.flatMap((context) =>
+  const readmodels = model.contexts.flatMap((context) =>
     context.aggregates.flatMap((aggregate) =>
       aggregate.slices.flatMap((slice) =>
         slice.elements
-          .filter(isKind('projection'))
-          .map<DocumentationProjection>((projection) => ({
-            id: projection.id,
-            name: projection.name,
+          .filter(isKind('readmodel'))
+          .map<DocumentationReadModel>((readmodel) => ({
+            id: readmodel.id,
+            name: readmodel.name,
             context: context.name,
             aggregate: aggregate.name,
             slice: slice.name,
-            collection: Boolean(projection.listElement),
-            fields: projection.fields.map(toDocumentationField),
+            collection: Boolean(readmodel.listElement),
+            fields: readmodel.fields.map(toDocumentationField),
             sourceEvents: model.edges
-              .filter((edge) => edge.target === projection.id && edge.label === 'updates')
+              .filter((edge) => edge.target === readmodel.id && edge.label === 'updates')
               .map((edge) => elementsById.get(edge.source)?.name)
               .filter((name): name is string => Boolean(name)),
-            queryFields: projection.fields
+            queryFields: readmodel.fields
               .filter((field) => field.attributes.includes('query'))
               .map((field) => field.name),
-            identifierFields: projection.fields
+            identifierFields: readmodel.fields
               .filter((field) => field.attributes.includes('id'))
               .map((field) => field.name)
           }))
@@ -179,7 +179,7 @@ export const buildDocumentationBundle = (
     domains: model.domains.map((domain) => domain.name),
     contexts,
     workflows,
-    projections,
+    readmodels,
     integrations,
     diagnostics: model.diagnostics
   };

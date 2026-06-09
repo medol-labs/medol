@@ -35,7 +35,7 @@ export interface AgentContextItem {
 
 export const eventModelingDslKnowledge: AgentDslKnowledge = {
   id: 'event-modeling-dsl-knowledge',
-  version: '2026-06-02',
+  version: '2026-06-09',
   language: 'event-modeling-dsl',
   title: 'Event Modeling DSL knowledge',
   summary: 'Core syntax, modeling conventions, and patch constraints for the Event Modeling Toolkit DSL.',
@@ -49,12 +49,12 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
   ],
   syntax: {
     domain: 'domain Name { context ... } groups bounded contexts under a business domain.',
-    context: 'context Name { aggregate | policy | integration | projection | userJourney | risk | note | decision | metric } describes a bounded context.',
+    context: 'context Name { aggregate | policy | integration | readmodel | userJourney | risk | note | decision | metric } describes a bounded context.',
     aggregate: 'aggregate Name { state StateName | slice SliceName { ... } } owns lifecycle states and timeline slices.',
-    slice: 'slice Name { actor | createsAggregate | ui | reactsTo | command | event | state | specification | projection | automation | policy | hotspot } describes one timeline capability.',
+    slice: 'slice Name { actor | createsAggregate | ui | reactsTo | command | event | state | specification | readmodel | automation | policy | hotspot } describes one timeline capability.',
     command: 'command Name { fieldName: Type attributes? mapping? details? example? } represents user or system intent.',
     event: 'event Name { fieldName: Type attributes? mapping? details? } records a fact after command/rule processing.',
-    projection: 'projection Name[]? { subscribe EventName? fieldName: Type ... } represents a read model. [] marks list/read-model collection semantics.',
+    readmodel: 'readmodel Name[]? { subscribe EventName? fieldName: Type ... } represents information available for queries and UI. [] marks collection semantics.',
     ui: 'ui ViewName type? attaches a UI surface to a slice. Supported types: list, detail, form, dialog, drawer, confirm, wizard, inline, background.',
     state: 'state StateName inside an aggregate declares a lifecycle state. state StateName inside a slice marks the resulting state.',
     createsAggregate: 'createsAggregate marks the command slice that creates the aggregate instance.',
@@ -64,8 +64,8 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     hotspot: 'hotspot "..." records open questions, unclear rules, or decisions that are not ready to encode.'
   },
   modelingConventions: [
-    'Use slices to model timeline flow. Command, event, state, projection, automation, and hotspot placement matters.',
-    'Place projection/read model slices where the timeline makes the resulting information visible.',
+    'Use slices to model timeline flow. Command, event, state, read model, automation, and hotspot placement matters.',
+    'Place read model slices where the timeline makes the resulting information visible.',
     'Use createsAggregate only on the entry command slice that creates the aggregate.',
     'Use state in aggregate for possible lifecycle states and state in slice for the resulting state after that slice.',
     'Use reactsTo when a slice starts from a prior event instead of a direct UI/user command.',
@@ -87,7 +87,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
   patchRules: [
     'Patch preview should be short and focused.',
     'Patch operations should produce DSL that parses after the server dry-run unless the response explicitly blocks applying it.',
-    'When generating a projection, subscribe to the event it reads from when known.',
+    'When generating a read model, subscribe to the event it reads from when known.',
     'When generating a derived field, include from sources and rule text when known; otherwise use derived plus hotspot.',
     'Never remove existing DSL content unless the user explicitly asks for deletion.'
   ],
@@ -124,9 +124,9 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
       ].join('\n')
     },
     {
-      name: 'Read model projection',
+      name: 'Read model',
       dsl: [
-        'projection FederationOverview[] {',
+        'readmodel FederationOverview[] {',
         '  subscribe FederationCreated',
         '  federationId: UUID id',
         '  federationName: String',
@@ -147,7 +147,7 @@ export const eventModelingDslKnowledgeManifest: AgentDslKnowledgeManifest = {
     ...eventModelingDslKnowledge.requiredInstructions,
     'Use field mappings with from or derived. Add rule/example details only when they clarify known domain logic.',
     'Use ui type to express interaction style. Command UI types include form/dialog/drawer/confirm/wizard/inline/background; read surfaces include list/detail.',
-    'Use projection Name[] with subscribe EventName when modeling read models fed by events.'
+    'Use readmodel Name[] with subscribe EventName when modeling information fed by events.'
   ]
 };
 

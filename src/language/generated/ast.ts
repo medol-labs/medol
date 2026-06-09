@@ -65,6 +65,7 @@ export type EventModelingKeywordNames =
     | "projection"
     | "query"
     | "reactsTo"
+    | "readmodel"
     | "risk"
     | "rule"
     | "slice"
@@ -263,7 +264,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Aggregate | Decision | Integration | Metric | Note | Policy | Projection | Risk | UserJourney;
+export type ContextElement = Aggregate | Decision | Integration | Metric | Note | Policy | ReadModel | Risk | UserJourney;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -408,7 +409,7 @@ export function isExpression(item: unknown): item is Expression {
 }
 
 export interface Field extends langium.AstNode {
-    readonly $container: Command | Event | Projection;
+    readonly $container: Command | Event | ReadModel;
     readonly $type: 'Field';
     attributes: Array<FieldAttribute>;
     cardinality?: Cardinality;
@@ -675,35 +676,6 @@ export function isPrimaryExpr(item: unknown): item is PrimaryExpr {
     return reflection.isInstance(item, PrimaryExpr.$type);
 }
 
-export interface Projection extends langium.AstNode {
-    readonly $container: Context | Slice;
-    readonly $type: 'Projection';
-    elements: Array<ProjectionElement>;
-    listElement: boolean;
-    name: string;
-}
-
-export const Projection = {
-    $type: 'Projection',
-    elements: 'elements',
-    listElement: 'listElement',
-    name: 'name'
-} as const;
-
-export function isProjection(item: unknown): item is Projection {
-    return reflection.isInstance(item, Projection.$type);
-}
-
-export type ProjectionElement = Field | Subscription;
-
-export const ProjectionElement = {
-    $type: 'ProjectionElement'
-} as const;
-
-export function isProjectionElement(item: unknown): item is ProjectionElement {
-    return reflection.isInstance(item, ProjectionElement.$type);
-}
-
 export interface ReactsTo extends langium.AstNode {
     readonly $container: Integration | Slice;
     readonly $type: 'ReactsTo';
@@ -717,6 +689,35 @@ export const ReactsTo = {
 
 export function isReactsTo(item: unknown): item is ReactsTo {
     return reflection.isInstance(item, ReactsTo.$type);
+}
+
+export interface ReadModel extends langium.AstNode {
+    readonly $container: Context | Slice;
+    readonly $type: 'ReadModel';
+    elements: Array<ReadModelElement>;
+    listElement: boolean;
+    name: string;
+}
+
+export const ReadModel = {
+    $type: 'ReadModel',
+    elements: 'elements',
+    listElement: 'listElement',
+    name: 'name'
+} as const;
+
+export function isReadModel(item: unknown): item is ReadModel {
+    return reflection.isInstance(item, ReadModel.$type);
+}
+
+export type ReadModelElement = Field | Subscription;
+
+export const ReadModelElement = {
+    $type: 'ReadModelElement'
+} as const;
+
+export function isReadModelElement(item: unknown): item is ReadModelElement {
+    return reflection.isInstance(item, ReadModelElement.$type);
 }
 
 export interface RefExpr extends langium.AstNode {
@@ -766,7 +767,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | Event | Hotspot | Policy | Projection | ReactsTo | Specification | State | UiRef;
+export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | Event | Hotspot | Policy | ReactsTo | ReadModel | Specification | State | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -870,7 +871,7 @@ export function isStringLiteral(item: unknown): item is StringLiteral {
 }
 
 export interface Subscription extends langium.AstNode {
-    readonly $container: Projection;
+    readonly $container: ReadModel;
     readonly $type: 'Subscription';
     event: langium.Reference<Event>;
 }
@@ -1027,9 +1028,9 @@ export type EventModelingAstType = {
     NumberLiteral: NumberLiteral
     Policy: Policy
     PrimaryExpr: PrimaryExpr
-    Projection: Projection
-    ProjectionElement: ProjectionElement
     ReactsTo: ReactsTo
+    ReadModel: ReadModel
+    ReadModelElement: ReadModelElement
     RefExpr: RefExpr
     Risk: Risk
     Slice: Slice
@@ -1293,7 +1294,7 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
                     name: Field.type
                 }
             },
-            superTypes: [ProjectionElement.$type]
+            superTypes: [ReadModelElement.$type]
         },
         FieldDerivation: {
             name: FieldDerivation.$type,
@@ -1455,29 +1456,6 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [Expression.$type]
         },
-        Projection: {
-            name: Projection.$type,
-            properties: {
-                elements: {
-                    name: Projection.elements,
-                    defaultValue: []
-                },
-                listElement: {
-                    name: Projection.listElement,
-                    defaultValue: false
-                },
-                name: {
-                    name: Projection.name
-                }
-            },
-            superTypes: [ContextElement.$type, SliceElement.$type]
-        },
-        ProjectionElement: {
-            name: ProjectionElement.$type,
-            properties: {
-            },
-            superTypes: []
-        },
         ReactsTo: {
             name: ReactsTo.$type,
             properties: {
@@ -1487,6 +1465,29 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [IntegrationElement.$type, SliceElement.$type]
+        },
+        ReadModel: {
+            name: ReadModel.$type,
+            properties: {
+                elements: {
+                    name: ReadModel.elements,
+                    defaultValue: []
+                },
+                listElement: {
+                    name: ReadModel.listElement,
+                    defaultValue: false
+                },
+                name: {
+                    name: ReadModel.name
+                }
+            },
+            superTypes: [ContextElement.$type, SliceElement.$type]
+        },
+        ReadModelElement: {
+            name: ReadModelElement.$type,
+            properties: {
+            },
+            superTypes: []
         },
         RefExpr: {
             name: RefExpr.$type,
@@ -1599,7 +1600,7 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
                     referenceType: Event.$type
                 }
             },
-            superTypes: [ProjectionElement.$type]
+            superTypes: [ReadModelElement.$type]
         },
         Target: {
             name: Target.$type,

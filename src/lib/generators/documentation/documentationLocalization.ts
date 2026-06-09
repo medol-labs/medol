@@ -6,7 +6,7 @@ export const localizeDocumentationMarkdown = (
 ): string => {
   const replacements: Array<[string, string]> = [
     ['Software Design', '软件设计'],
-    ['Projection Database Design', 'Projection 数据库设计'],
+    ['Read Model Database Design', 'Read Model 数据库设计'],
     ['Business Process', '业务流程'],
     ['Generated from Event Modeling DSL at', '生成来源：Event Modeling DSL；生成时间：'],
     ['Architecture Overview', '架构概述'],
@@ -18,7 +18,7 @@ export const localizeDocumentationMarkdown = (
     ['Quality Attributes And Decisions', '质量属性与设计决策'],
     ['Implementation Gaps', '实现缺口'],
     ['Design Scope', '设计范围'],
-    ['Projection Inventory', 'Projection 清单'],
+    ['Read Model Inventory', 'Read Model 清单'],
     ['Logical Schema', '逻辑结构'],
     ['Keys And Access Paths', '主键与访问路径'],
     ['Update Semantics', '更新语义'],
@@ -52,7 +52,7 @@ export const localizeDocumentationMarkdown = (
     ['| Context | Domain | Aggregates | Notes |', '| 限界上下文 | 业务领域 | 聚合 | 说明 |'],
     ['| Context | Aggregate | Capability | Input | Result | Read Side | Trigger |', '| 限界上下文 | 聚合 | 业务能力 | 输入 | 结果 | 读模型 | 触发者 |'],
     ['| View | Interaction | Capability | Command | Read Model |', '| 页面 | 交互类型 | 业务能力 | 命令 | Read Model |'],
-    ['| Projection | Context | Aggregate | Shape | Source Events |', '| Projection | 限界上下文 | 聚合 | 形态 | 来源事件 |'],
+    ['| Read Model | Context | Aggregate | Shape | Source Events |', '| Read Model | 限界上下文 | 聚合 | 形态 | 来源事件 |'],
     ['| Field | Type | Cardinality | Attributes | Example | Source / Derivation |', '| 字段 | 类型 | 数量 | 属性 | 示例 | 来源/计算规则 |'],
     ['| Step | Actor / Trigger | Interaction | Command | Event / State | Read Model | Rules |', '| 步骤 | 角色/触发条件 | 交互 | 命令 | 事件/状态 | Read Model | 规则 |']
   ];
@@ -62,14 +62,14 @@ export const localizeDocumentationMarkdown = (
 
   if (kind === 'software-design') {
     localized = localized.replace(
-      'The system is organized around bounded contexts, event-driven aggregate workflows, read-side projections, policies, automations, and external integrations.',
-      '系统按照限界上下文组织，以事件驱动的聚合流程为写侧，以 Projection 为读侧，并结合策略、自动化和外部集成。'
+      'The system is organized around bounded contexts, event-driven aggregate workflows, read models, policies, automations, and external integrations.',
+      '系统按照限界上下文组织，以事件驱动的聚合流程为写侧，以 Read Model 为读侧，并结合策略、自动化和外部集成。'
     );
   }
   if (kind === 'database-design') {
     localized = localized.replace(
-      'This document describes the read-side data model inferred from Event Modeling projections. Storage engines, physical table names, retention, and consistency SLAs remain implementation decisions unless explicitly stated.',
-      '本文档描述由 Event Modeling Projection 推导出的读侧数据模型。除非 DSL 明确说明，否则存储引擎、物理表名、数据保留策略和一致性 SLA 均属于后续实现决策。'
+      'This document describes the read-side data model inferred from Event Modeling read models. Storage engines, physical table names, retention, and consistency SLAs remain implementation decisions unless explicitly stated.',
+      '本文档描述由 Event Modeling Read Model 推导出的读侧数据模型。除非 DSL 明确说明，否则存储引擎、物理表名、数据保留策略和一致性 SLA 均属于后续实现决策。'
     );
   }
 

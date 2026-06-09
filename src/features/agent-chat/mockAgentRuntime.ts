@@ -38,7 +38,7 @@ export const runMockStructuredAgent = async (
       ? `There ${diagnostics === 1 ? 'is' : 'are'} ${diagnostics} parser/model warning${diagnostics === 1 ? '' : 's'} to review before codegen.`
       : 'The current DSL parses without warnings.',
     slice
-      ? `Selected slice has ${slice.elements.filter((element) => element.kind === 'command').length} command(s), ${slice.elements.filter((element) => element.kind === 'event').length} event(s), and ${slice.elements.filter((element) => element.kind === 'projection').length} read model(s).`
+      ? `Selected slice has ${slice.elements.filter((element) => element.kind === 'command').length} command(s), ${slice.elements.filter((element) => element.kind === 'event').length} event(s), and ${slice.elements.filter((element) => element.kind === 'readmodel').length} read model(s).`
       : 'Select a slice when you want the agent to propose a precise DSL patch.'
   ];
 
@@ -77,13 +77,13 @@ export const runMockStructuredAgent = async (
 const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentStructuredDslPatch | undefined => {
   const event = slice.elements.find((element) => element.kind === 'event');
   const baseName = event ? stripSuffix(event.name, 'Event') : slice.name;
-  const projectionName = uniqueElementName(slice, `${baseName}ReadModel`);
+  const readModelName = uniqueElementName(slice, `${baseName}ReadModel`);
   const eventLine = event ? `\n        subscribe ${event.name}` : '';
-  const snippet = `\n      projection ${projectionName}[] {\n        readModelId: UUID id generated technical${eventLine}\n      }\n`;
-  if (!hasNamedBlock(dsl, 'slice', slice.name)) return proposeHotspotPatch(dsl, slice, `Add read model ${projectionName}`);
+  const snippet = `\n      readmodel ${readModelName}[] {\n        readModelId: UUID id generated technical${eventLine}\n      }\n`;
+  if (!hasNamedBlock(dsl, 'slice', slice.name)) return proposeHotspotPatch(dsl, slice, `Add read model ${readModelName}`);
 
   return {
-    summary: `Add read model ${projectionName} to slice ${slice.name}.`,
+    summary: `Add read model ${readModelName} to slice ${slice.name}.`,
     reason: event
       ? `The selected slice emits ${event.name}; a read model can make that event visible for UI/query flows.`
       : 'The selected slice has no event yet, so this creates a placeholder read model to review.',

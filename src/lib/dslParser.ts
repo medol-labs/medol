@@ -18,7 +18,7 @@ import {
   isNote,
   isNumberLiteral,
   isPolicy,
-  isProjection,
+  isReadModel,
   isReactsTo,
   isRefExpr,
   isRisk,
@@ -44,7 +44,7 @@ import type {
   Integration as AstIntegration,
   Model as AstModel,
   Policy as AstPolicy,
-  Projection as AstProjection,
+  ReadModel as AstReadModel,
   Slice as AstSlice,
   Specification as AstSpecification,
   UiRef as AstUiRef
@@ -152,7 +152,7 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
       context.metrics.push(element.name);
       continue;
     }
-    if (isIntegration(element) || isProjection(element) || isPolicy(element)) {
+    if (isIntegration(element) || isReadModel(element) || isPolicy(element)) {
       const looseElement = parseElement(element, context.id);
       context.looseElements.push(looseElement);
       collectElementEdges(element, looseElement.id, edges);
@@ -225,7 +225,7 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
   }
 
   for (const element of elements) {
-    if (isCommand(element) || isEvent(element) || isProjection(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
+    if (isCommand(element) || isEvent(element) || isReadModel(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
       const parsed = parseElement(element, sliceId, aggregateId);
       slice.elements.push(parsed);
       collectElementEdges(element, parsed.id, edges);
@@ -234,7 +234,7 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
 
   const reactsTo = elements.find(isReactsTo)?.event?.$refText;
   const firstReactionElement = slice.elements.find((element) =>
-    element.kind === 'projection' || element.kind === 'automation' || element.kind === 'command'
+    element.kind === 'readmodel' || element.kind === 'automation' || element.kind === 'command'
   );
   if (reactsTo && firstReactionElement) {
     edges.push(edge(`ref/event/${reactsTo}`, firstReactionElement.id, 'reactsTo'));
@@ -265,12 +265,12 @@ const parseUi = (uiRef: AstUiRef): EmUi | undefined => {
 };
 
 const parseElement = (
-  node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
+  node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
   scopeId: string,
   aggregateId?: string
 ): EmElement => {
-  const kind = isProjection(node)
-    ? 'projection'
+  const kind = isReadModel(node)
+    ? 'readmodel'
     : isSpecification(node)
       ? 'gwt'
       : node.$type.toLowerCase();
@@ -280,18 +280,18 @@ const parseElement = (
     kind: kind as EmElement['kind'],
     name: safeName(node.name, 'UnnamedElement'),
     fields: parseElementFields(node),
-    ...(isProjection(node) && node.listElement ? { listElement: true } : {}),
+    ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     aggregateId,
     metadata: parseElementMetadata(node)
   };
 };
 
-const parseElementFields = (node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration): EmField[] => {
+const parseElementFields = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration): EmField[] => {
   if (isCommand(node) || isEvent(node)) {
     return (node.fields ?? []).map(parseField);
   }
-  if (isProjection(node)) {
+  if (isReadModel(node)) {
     return (node.elements ?? []).filter(isField).map(parseField);
   }
   if (isIntegration(node)) {
@@ -347,7 +347,7 @@ const parseFieldMapping = (field: AstField): EmFieldMapping | undefined => {
 
 const formatFieldSource = (source: FieldSource): string => source.parts.join('.');
 
-const parseElementMetadata = (node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration): Record<string, string> => {
+const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration): Record<string, string> => {
   const metadata: Record<string, string> = {};
 
   if (isPolicy(node)) {
@@ -370,11 +370,11 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstProjection | AstA
 };
 
 const collectElementEdges = (
-  node: AstCommand | AstEvent | AstProjection | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
+  node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
   sourceId: string,
   edges: EmEdge[]
 ): void => {
-  if (isProjection(node)) {
+  if (isReadModel(node)) {
     for (const subscription of (node.elements ?? []).filter(isSubscription)) {
       if (subscription.event?.$refText) edges.push(edge(`ref/event/${subscription.event.$refText}`, sourceId, 'updates'));
     }

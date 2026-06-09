@@ -117,7 +117,7 @@ export const renderPrdMarkdown = (
         '功能清单中的页面、查询和操作均可访问，实际权限范围需由业务方确认。',
         '命令输入字段的必填、可选、标识和示例约束与 DSL 一致。',
         '操作成功后产生约定事件，并进入 DSL 指定的业务状态。',
-        'Projection 能根据订阅事件更新，并满足列表或详情查询需要。',
+        'Read Model 能根据订阅事件更新，并满足列表或详情查询需要。',
         'derived 字段按 rule 计算，from 字段能追踪到来源字段。',
         '错误提示、重复提交、并发冲突、权限拒绝和操作幂等策略需在开发前确认。',
         '性能、容量、安全、审计、数据保留和可用性指标需由项目另行定义。'
@@ -126,7 +126,7 @@ export const renderPrdMarkdown = (
         'Every page, query, and operation in the feature inventory is accessible; final authorization scope requires business confirmation.',
         'Required, optional, identifier, and example constraints match command input fields in the DSL.',
         'Successful operations produce the modeled event and transition to the modeled business state.',
-        'Projections update from subscribed events and support the required list or detail access.',
+        'Read models update from subscribed events and support the required list or detail access.',
         'Derived fields follow their rule and directly mapped fields remain traceable to their source.',
         'Error messages, duplicate submission, concurrency conflicts, permission denial, and idempotency policies require confirmation before implementation.',
         'Performance, capacity, security, audit, retention, and availability targets must be specified separately.'
@@ -159,8 +159,8 @@ const appendSlice = (
   if (slice.command) lines.push(`- **${zh ? '提交操作' : 'Command'}:** ${humanize(slice.command.name)}`);
   if (slice.event) lines.push(`- **${zh ? '成功结果' : 'Success result'}:** ${humanize(slice.event.name)}`);
   if (slice.resultingState) lines.push(`- **${zh ? '结果状态' : 'Resulting state'}:** ${humanize(slice.resultingState)}`);
-  if (slice.projectionNames.length) {
-    lines.push(`- **${zh ? '查询结果' : 'Read model'}:** ${slice.projectionNames.map(humanize).join(', ')}`);
+  if (slice.readModelNames.length) {
+    lines.push(`- **${zh ? '查询结果' : 'Read Model'}:** ${slice.readModelNames.map(humanize).join(', ')}`);
   }
   lines.push('');
 
@@ -232,7 +232,7 @@ const buildAcceptanceScenarios = (
       slice.command ? `command ${humanize(slice.command.name)}` : undefined,
       slice.event ? `event ${humanize(slice.event.name)}` : undefined,
       slice.resultingState ? `state ${humanize(slice.resultingState)}` : undefined,
-      slice.projectionNames.length ? `projection ${slice.projectionNames.map(humanize).join(', ')}` : undefined
+      slice.readModelNames.length ? `readmodel ${slice.readModelNames.map(humanize).join(', ')}` : undefined
     ].filter(Boolean).join('; ') || (zh ? 'slice 语义' : 'slice semantics')
   }];
 };
@@ -240,8 +240,8 @@ const buildAcceptanceScenarios = (
 const formatUi = (slice: PrdSlice, language: DocumentationLanguage): string => {
   const zh = language === 'zh-CN';
   if (!slice.ui) {
-    if (slice.operation === 'read' && slice.projectionNames.length) {
-      return `${humanize(slice.projectionNames[0])} ${zh ? '查询入口' : 'query entry'}`;
+    if (slice.operation === 'read' && slice.readModelNames.length) {
+      return `${humanize(slice.readModelNames[0])} ${zh ? '查询入口' : 'query entry'}`;
     }
     return zh ? '系统流程/入口未明确' : 'System flow / entry unspecified';
   }
@@ -254,7 +254,7 @@ const formatResult = (slice: PrdSlice, language: DocumentationLanguage): string 
     slice.createsAggregate ? `${zh ? '创建' : 'Creates'} ${humanize(slice.aggregate)}` : undefined,
     slice.event ? `${zh ? '产生事件' : 'Produces'} ${humanize(slice.event.name)}` : undefined,
     slice.resultingState ? `${zh ? '状态变为' : 'State becomes'} ${humanize(slice.resultingState)}` : undefined,
-    slice.projectionNames.length ? `${zh ? '展示' : 'Displays'} ${slice.projectionNames.map(humanize).join(', ')}` : undefined
+    slice.readModelNames.length ? `${zh ? '展示' : 'Displays'} ${slice.readModelNames.map(humanize).join(', ')}` : undefined
   ].filter(Boolean);
   return results.join('; ') || (zh ? '结果待业务确认' : 'Result requires business confirmation');
 };

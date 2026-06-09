@@ -42,7 +42,7 @@ export interface PrdSlice {
   operation: 'create' | 'read' | 'update' | 'delete' | 'action' | 'automation';
   command?: PrdElementSummary;
   event?: PrdElementSummary;
-  projectionNames: string[];
+  readModelNames: string[];
   resultingState?: string;
   createsAggregate: boolean;
   businessRules: string[];

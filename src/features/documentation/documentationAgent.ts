@@ -80,6 +80,6 @@ const buildDocumentationPrompt = (
 const kindLabel = (kind: DocumentationKind): string => {
   if (kind === 'prd') return 'product requirements document';
   if (kind === 'software-design') return 'software design document';
-  if (kind === 'database-design') return 'projection database design document';
+  if (kind === 'database-design') return 'read model database design document';
   return 'business process document';
 };

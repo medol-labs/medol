@@ -173,13 +173,13 @@ const selectRelevantDslKnowledge = (input: {
     });
   }
 
-  if (matches(intentText, ['projection', 'read model', 'readmodel', 'list', 'query', 'subscribe', '查询', '列表'])) {
+  if (matches(intentText, ['read model', 'readmodel', 'projection', 'list', 'query', 'subscribe', '查询', '列表'])) {
     snippets.push({
-      topic: 'projection-syntax',
+      topic: 'readmodel-syntax',
       reason: 'The request or selected DSL references read models, lists, queries, or subscriptions.',
       content: [
-        input.knowledge.syntax.projection,
-        input.knowledge.examples.find((example) => example.name === 'Read model projection')?.dsl
+        input.knowledge.syntax.readmodel,
+        input.knowledge.examples.find((example) => example.name === 'Read model')?.dsl
       ].filter(Boolean).join('\n')
     });
   }
@@ -273,7 +273,7 @@ const summarizeSlice = (slice: EmSlice): string => {
   const state = slice.resultingState ? ` Resulting state: ${slice.resultingState}.` : '';
   const creates = slice.createsAggregate ? ' It creates the aggregate.' : '';
   const hotspots = slice.hotspots.length ? ` Hotspots: ${slice.hotspots.join('; ')}.` : '';
-  return `Slice ${slice.name} has ${counts.commands} command(s), ${counts.events} event(s), ${counts.projections} read model(s), ${counts.automations} automation(s).${state}${creates}${hotspots}`;
+  return `Slice ${slice.name} has ${counts.commands} command(s), ${counts.events} event(s), ${counts.readmodels} read model(s), ${counts.automations} automation(s).${state}${creates}${hotspots}`;
 };
 
 const summarizeElement = (element: EmElement): string => {
@@ -286,7 +286,7 @@ const summarizeElement = (element: EmElement): string => {
 const countElements = (elements: EmElement[]) => ({
   commands: elements.filter((element) => element.kind === 'command').length,
   events: elements.filter((element) => element.kind === 'event').length,
-  projections: elements.filter((element) => element.kind === 'projection').length,
+  readmodels: elements.filter((element) => element.kind === 'readmodel').length,
   automations: elements.filter((element) => element.kind === 'automation').length
 });
 
@@ -316,7 +316,7 @@ const getBlockCandidates = (selectedItem: SelectedModelItem) => {
   const keywordByKind: Partial<Record<EmElement['kind'], string>> = {
     command: 'command',
     event: 'event',
-    projection: 'projection',
+    readmodel: 'readmodel',
     automation: 'automation',
     policy: 'policy',
     integration: 'integration',
@@ -327,7 +327,8 @@ const getBlockCandidates = (selectedItem: SelectedModelItem) => {
 };
 
 const findNamedBlock = (dsl: string, keyword: string, name: string): AgentDslSnippet | undefined => {
-  const pattern = new RegExp(`\\b${keyword}\\s+${escapeRegExp(name)}(?:\\[\\])?\\s*\\{`, 'm');
+  const keywordPattern = keyword === 'readmodel' ? '(?:readmodel|projection)' : keyword;
+  const pattern = new RegExp(`\\b${keywordPattern}\\s+${escapeRegExp(name)}(?:\\[\\])?\\s*\\{`, 'm');
   const match = pattern.exec(dsl);
   if (!match) return undefined;
 

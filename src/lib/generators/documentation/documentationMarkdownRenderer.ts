@@ -9,7 +9,7 @@ export const renderSoftwareDesignMarkdown = (bundle: DocumentationBundle): strin
   const lines = header(bundle, 'Software Design');
 
   section(lines, 'Architecture Overview');
-  lines.push('The system is organized around bounded contexts, event-driven aggregate workflows, read-side projections, policies, automations, and external integrations.');
+  lines.push('The system is organized around bounded contexts, event-driven aggregate workflows, read models, policies, automations, and external integrations.');
   lines.push('');
   appendDiagnostics(lines, bundle);
 
@@ -41,7 +41,7 @@ export const renderSoftwareDesignMarkdown = (bundle: DocumentationBundle): strin
   for (const workflow of bundle.workflows) {
     const result = workflow.events.map((item) => humanize(item.name)).join(', ')
       || (workflow.resultingState ? humanize(workflow.resultingState) : '-');
-    lines.push(`| ${cell(humanize(workflow.context))} | ${cell(humanize(workflow.aggregate))} | ${cell(humanize(workflow.slice))} | ${cell(workflow.commands.map((item) => humanize(item.name)).join(', ') || '-')} | ${cell(result)} | ${cell(workflow.projections.map(humanize).join(', ') || '-')} | ${cell(workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || 'System')} |`);
+    lines.push(`| ${cell(humanize(workflow.context))} | ${cell(humanize(workflow.aggregate))} | ${cell(humanize(workflow.slice))} | ${cell(workflow.commands.map((item) => humanize(item.name)).join(', ') || '-')} | ${cell(result)} | ${cell(workflow.readmodels.map(humanize).join(', ') || '-')} | ${cell(workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || 'System')} |`);
   }
   lines.push('');
 
@@ -51,7 +51,7 @@ export const renderSoftwareDesignMarkdown = (bundle: DocumentationBundle): strin
     lines.push('| View | Interaction | Capability | Command | Read Model |');
     lines.push('| --- | --- | --- | --- | --- |');
     for (const workflow of uiWorkflows) {
-      lines.push(`| ${cell(humanize(workflow.ui?.name ?? ''))} | ${cell(workflow.ui?.type ?? 'unspecified')} | ${cell(humanize(workflow.slice))} | ${cell(workflow.commands.map((item) => humanize(item.name)).join(', ') || '-')} | ${cell(workflow.projections.map(humanize).join(', ') || '-')} |`);
+      lines.push(`| ${cell(humanize(workflow.ui?.name ?? ''))} | ${cell(workflow.ui?.type ?? 'unspecified')} | ${cell(humanize(workflow.slice))} | ${cell(workflow.commands.map((item) => humanize(item.name)).join(', ') || '-')} | ${cell(workflow.readmodels.map(humanize).join(', ') || '-')} |`);
     }
   } else {
     lines.push('No UI views are explicitly modeled.');
@@ -87,41 +87,41 @@ export const renderSoftwareDesignMarkdown = (bundle: DocumentationBundle): strin
 };
 
 export const renderDatabaseDesignMarkdown = (bundle: DocumentationBundle): string => {
-  const lines = header(bundle, 'Projection Database Design');
+  const lines = header(bundle, 'Read Model Database Design');
   section(lines, 'Design Scope');
-  lines.push('This document describes the read-side data model inferred from Event Modeling projections. Storage engines, physical table names, retention, and consistency SLAs remain implementation decisions unless explicitly stated.');
+  lines.push('This document describes the read-side data model inferred from Event Modeling read models. Storage engines, physical table names, retention, and consistency SLAs remain implementation decisions unless explicitly stated.');
   lines.push('');
   appendDiagnostics(lines, bundle);
 
-  section(lines, 'Projection Inventory');
-  lines.push('| Projection | Context | Aggregate | Shape | Source Events |');
+  section(lines, 'Read Model Inventory');
+  lines.push('| Read Model | Context | Aggregate | Shape | Source Events |');
   lines.push('| --- | --- | --- | --- | --- |');
-  for (const projection of bundle.projections) {
-    lines.push(`| ${cell(humanize(projection.name))} | ${cell(humanize(projection.context))} | ${cell(humanize(projection.aggregate))} | ${projection.collection ? 'Collection' : 'Single record'} | ${cell(projection.sourceEvents.map(humanize).join(', ') || 'Not modeled')} |`);
+  for (const readmodel of bundle.readmodels) {
+    lines.push(`| ${cell(humanize(readmodel.name))} | ${cell(humanize(readmodel.context))} | ${cell(humanize(readmodel.aggregate))} | ${readmodel.collection ? 'Collection' : 'Single record'} | ${cell(readmodel.sourceEvents.map(humanize).join(', ') || 'Not modeled')} |`);
   }
   lines.push('');
 
-  for (const projection of bundle.projections) {
-    lines.push(`<!-- em:section id="database.projection.${projection.name}" source="${projection.id}" -->`);
-    lines.push(`## ${humanize(projection.name)}`);
+  for (const readmodel of bundle.readmodels) {
+    lines.push(`<!-- em:section id="database.readmodel.${readmodel.name}" source="${readmodel.id}" -->`);
+    lines.push(`## ${humanize(readmodel.name)}`);
     lines.push('');
-    lines.push(`Owner: ${humanize(projection.context)} / ${humanize(projection.aggregate)} / ${humanize(projection.slice)}`);
+    lines.push(`Owner: ${humanize(readmodel.context)} / ${humanize(readmodel.aggregate)} / ${humanize(readmodel.slice)}`);
     lines.push('');
-    lines.push(`Logical shape: ${projection.collection ? 'collection/list read model' : 'single-record read model'}`);
+    lines.push(`Logical shape: ${readmodel.collection ? 'collection/list read model' : 'single-record read model'}`);
     lines.push('');
-    lines.push(`Updated by: ${projection.sourceEvents.map(humanize).join(', ') || 'No subscribed event is explicitly modeled'}`);
+    lines.push(`Updated by: ${readmodel.sourceEvents.map(humanize).join(', ') || 'No subscribed event is explicitly modeled'}`);
     lines.push('');
-    appendFieldTable(lines, projection.fields);
+    appendFieldTable(lines, readmodel.fields);
     lines.push('### Keys And Access Paths');
     lines.push('');
     appendList(lines, [
-      projection.identifierFields.length
-        ? `Logical identifier: ${projection.identifierFields.join(', ')}.`
-        : 'Logical identifier is not explicitly marked; confirm the projection key.',
-      projection.queryFields.length
-        ? `Candidate query indexes: ${projection.queryFields.join(', ')}.`
+      readmodel.identifierFields.length
+        ? `Logical identifier: ${readmodel.identifierFields.join(', ')}.`
+        : 'Logical identifier is not explicitly marked; confirm the read model key.',
+      readmodel.queryFields.length
+        ? `Candidate query indexes: ${readmodel.queryFields.join(', ')}.`
         : 'No query fields are explicitly marked; derive indexes from API and UI access patterns.',
-      projection.collection
+      readmodel.collection
         ? 'Provide deterministic ordering and pagination for collection access.'
         : 'Define uniqueness and upsert behavior for the single-record view.'
     ]);
@@ -132,7 +132,7 @@ export const renderDatabaseDesignMarkdown = (bundle: DocumentationBundle): strin
       'Apply subscribed events idempotently.',
       'Track event position or version when replay and recovery are required.',
       'Confirm deletion, retention, backfill, and rebuild behavior.',
-      ...projection.fields
+      ...readmodel.fields
         .filter((field) => field.mapping)
         .map((field) => `${field.name}: ${formatMapping(field)}.`)
     ]);
@@ -141,9 +141,9 @@ export const renderDatabaseDesignMarkdown = (bundle: DocumentationBundle): strin
 
   section(lines, 'Cross-Cutting Database Decisions');
   appendList(lines, [
-    'Choose storage technology per projection access pattern rather than treating projections as aggregate persistence.',
+    'Choose storage technology per read model access pattern rather than treating read models as aggregate persistence.',
     'Separate write-model transaction boundaries from eventually consistent read-model updates.',
-    'Define projection rebuild, schema migration, observability, and failure recovery procedures.',
+    'Define read model rebuild, schema migration, observability, and failure recovery procedures.',
     'Validate personally identifiable or sensitive fields and define masking and retention controls.'
   ]);
   lines.push('');
@@ -174,7 +174,7 @@ export const renderProcessMarkdown = (bundle: DocumentationBundle): string => {
       lines.push(`| ${index + 1} | ${cell(workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || 'System')} | ${cell(workflow.ui ? `${humanize(workflow.ui.name)} (${workflow.ui.type ?? 'unspecified'})` : '-')} | ${cell(workflow.commands.map((item) => humanize(item.name)).join(', ') || '-')} | ${cell([
         ...workflow.events.map((item) => humanize(item.name)),
         ...(workflow.resultingState ? [`state: ${humanize(workflow.resultingState)}`] : [])
-      ].join(', ') || '-')} | ${cell(workflow.projections.map(humanize).join(', ') || '-')} | ${cell(workflow.specifications.map((specification) => humanize(specification.name)).join(', ') || '-')} |`);
+      ].join(', ') || '-')} | ${cell(workflow.readmodels.map(humanize).join(', ') || '-')} | ${cell(workflow.specifications.map((specification) => humanize(specification.name)).join(', ') || '-')} |`);
     });
     lines.push('');
 
@@ -206,7 +206,7 @@ const appendWorkflow = (lines: string[], workflow: DocumentationWorkflow): void 
   for (const command of workflow.commands) lines.push(`- Command: ${humanize(command.name)}.`);
   for (const event of workflow.events) lines.push(`- Event: ${humanize(event.name)}.`);
   if (workflow.resultingState) lines.push(`- Resulting state: ${humanize(workflow.resultingState)}.`);
-  for (const projection of workflow.projections) lines.push(`- Read-side result: ${humanize(projection)}.`);
+  for (const readmodel of workflow.readmodels) lines.push(`- Read-side result: ${humanize(readmodel)}.`);
   lines.push('');
   if (workflow.specifications.length) {
     lines.push('Acceptance scenarios:');
@@ -222,7 +222,7 @@ const appendFieldTable = (lines: string[], fields: DocumentationField[]): void =
   lines.push('### Logical Schema');
   lines.push('');
   if (!fields.length) {
-    lines.push('No projection fields are explicitly modeled.');
+    lines.push('No read model fields are explicitly modeled.');
     lines.push('');
     return;
   }
@@ -246,12 +246,12 @@ const collectGaps = (bundle: DocumentationBundle): string[] => [
     .filter((workflow) => workflow.commands.length > 0 && workflow.events.length === 0)
     .map((workflow) => `${humanize(workflow.slice)} has a command but no explicit result event.`),
   ...summarizeMissingSpecifications(bundle),
-  ...bundle.projections
-    .filter((projection) => projection.sourceEvents.length === 0)
-    .map((projection) => `${humanize(projection.name)} has no explicit event subscription.`),
-  ...bundle.projections
-    .filter((projection) => projection.identifierFields.length === 0)
-    .map((projection) => `${humanize(projection.name)} has no field marked as an identifier.`)
+  ...bundle.readmodels
+    .filter((readmodel) => readmodel.sourceEvents.length === 0)
+    .map((readmodel) => `${humanize(readmodel.name)} has no explicit event subscription.`),
+  ...bundle.readmodels
+    .filter((readmodel) => readmodel.identifierFields.length === 0)
+    .map((readmodel) => `${humanize(readmodel.name)} has no field marked as an identifier.`)
 ];
 
 const summarizeMissingSpecifications = (bundle: DocumentationBundle): string[] => {

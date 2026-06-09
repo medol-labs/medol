@@ -209,7 +209,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-8cec79e0",
+              "id": "readmodel-8cec79e0",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -518,7 +518,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-8cec79e0",
+              "id": "readmodel-8cec79e0",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -712,7 +712,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-8cec79e0",
+              "id": "readmodel-8cec79e0",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -730,7 +730,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-01e6d5d6",
+              "id": "readmodel-01e6d5d6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -752,7 +752,7 @@
       ],
       "readmodels": [
         {
-          "id": "projection-8cec79e0",
+          "id": "readmodel-8cec79e0",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -1074,7 +1074,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-8cec79e0",
+              "id": "readmodel-8cec79e0",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
@@ -1086,7 +1086,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-01e6d5d6",
+              "id": "readmodel-01e6d5d6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -1368,7 +1368,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-01e6d5d6",
+              "id": "readmodel-01e6d5d6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -1727,7 +1727,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-a5f2ffb1",
+              "id": "readmodel-a5f2ffb1",
               "type": "OUTBOUND",
               "title": "Federation Membership",
               "elementType": "READMODEL"
@@ -1996,7 +1996,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-a5f2ffb1",
+              "id": "readmodel-a5f2ffb1",
               "type": "OUTBOUND",
               "title": "Federation Membership",
               "elementType": "READMODEL"
@@ -2008,7 +2008,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-01e6d5d6",
+              "id": "readmodel-01e6d5d6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -2024,7 +2024,7 @@
       ],
       "readmodels": [
         {
-          "id": "projection-a5f2ffb1",
+          "id": "readmodel-a5f2ffb1",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -2163,7 +2163,7 @@
       "events": [],
       "readmodels": [
         {
-          "id": "projection-01e6d5d6",
+          "id": "readmodel-01e6d5d6",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -2559,7 +2559,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-4aaca98b",
+              "id": "readmodel-4aaca98b",
               "type": "OUTBOUND",
               "title": "Compute Node Inventory",
               "elementType": "READMODEL"
@@ -2891,7 +2891,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-4aaca98b",
+              "id": "readmodel-4aaca98b",
               "type": "OUTBOUND",
               "title": "Compute Node Inventory",
               "elementType": "READMODEL"
@@ -3145,13 +3145,13 @@
           ],
           "dependencies": [
             {
-              "id": "projection-8cec79e0",
+              "id": "readmodel-8cec79e0",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
             },
             {
-              "id": "projection-01e6d5d6",
+              "id": "readmodel-01e6d5d6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -3163,13 +3163,13 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-4aaca98b",
+              "id": "readmodel-4aaca98b",
               "type": "OUTBOUND",
               "title": "Compute Node Inventory",
               "elementType": "READMODEL"
             },
             {
-              "id": "projection-3d76a2ce",
+              "id": "readmodel-3d76a2ce",
               "type": "OUTBOUND",
               "title": "Node Runtime State",
               "elementType": "READMODEL"
@@ -3379,7 +3379,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-01e6d5d6",
+              "id": "readmodel-01e6d5d6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
@@ -3391,7 +3391,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-4aaca98b",
+              "id": "readmodel-4aaca98b",
               "type": "OUTBOUND",
               "title": "Compute Node Inventory",
               "elementType": "READMODEL"
@@ -3475,7 +3475,7 @@
       "events": [],
       "readmodels": [
         {
-          "id": "projection-4aaca98b",
+          "id": "readmodel-4aaca98b",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -4168,7 +4168,7 @@
               "elementType": "PROCESSOR"
             },
             {
-              "id": "projection-6e0e78ed",
+              "id": "readmodel-6e0e78ed",
               "type": "OUTBOUND",
               "title": "Dataset Capability",
               "elementType": "READMODEL"
@@ -4411,7 +4411,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-6e0e78ed",
+              "id": "readmodel-6e0e78ed",
               "type": "OUTBOUND",
               "title": "Dataset Capability",
               "elementType": "READMODEL"
@@ -4643,13 +4643,13 @@
           ],
           "dependencies": [
             {
-              "id": "projection-8cec79e0",
+              "id": "readmodel-8cec79e0",
               "type": "OUTBOUND",
               "title": "Organization Directory",
               "elementType": "READMODEL"
             },
             {
-              "id": "projection-6e0e78ed",
+              "id": "readmodel-6e0e78ed",
               "type": "OUTBOUND",
               "title": "Dataset Capability",
               "elementType": "READMODEL"
@@ -4677,7 +4677,7 @@
       ],
       "readmodels": [
         {
-          "id": "projection-6e0e78ed",
+          "id": "readmodel-6e0e78ed",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -5081,7 +5081,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-249041f2",
+              "id": "readmodel-249041f2",
               "type": "OUTBOUND",
               "title": "Training Job Board",
               "elementType": "READMODEL"
@@ -5363,7 +5363,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-249041f2",
+              "id": "readmodel-249041f2",
               "type": "OUTBOUND",
               "title": "Training Job Board",
               "elementType": "READMODEL"
@@ -5568,13 +5568,13 @@
           ],
           "dependencies": [
             {
-              "id": "projection-01e6d5d6",
+              "id": "readmodel-01e6d5d6",
               "type": "OUTBOUND",
               "title": "Federation Overview",
               "elementType": "READMODEL"
             },
             {
-              "id": "projection-249041f2",
+              "id": "readmodel-249041f2",
               "type": "OUTBOUND",
               "title": "Training Job Board",
               "elementType": "READMODEL"
@@ -5608,7 +5608,7 @@
       ],
       "readmodels": [
         {
-          "id": "projection-249041f2",
+          "id": "readmodel-249041f2",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -6189,7 +6189,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-249041f2",
+              "id": "readmodel-249041f2",
               "type": "OUTBOUND",
               "title": "Training Job Board",
               "elementType": "READMODEL"
@@ -6439,7 +6439,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-f3e7f683",
+              "id": "readmodel-f3e7f683",
               "type": "OUTBOUND",
               "title": "Round Progress",
               "elementType": "READMODEL"
@@ -6916,7 +6916,7 @@
               "elementType": "PROCESSOR"
             },
             {
-              "id": "projection-f3e7f683",
+              "id": "readmodel-f3e7f683",
               "type": "OUTBOUND",
               "title": "Round Progress",
               "elementType": "READMODEL"
@@ -7159,7 +7159,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-f3e7f683",
+              "id": "readmodel-f3e7f683",
               "type": "OUTBOUND",
               "title": "Round Progress",
               "elementType": "READMODEL"
@@ -7391,7 +7391,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-f3e7f683",
+              "id": "readmodel-f3e7f683",
               "type": "OUTBOUND",
               "title": "Round Progress",
               "elementType": "READMODEL"
@@ -7580,7 +7580,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-f3e7f683",
+              "id": "readmodel-f3e7f683",
               "type": "OUTBOUND",
               "title": "Round Progress",
               "elementType": "READMODEL"
@@ -7608,7 +7608,7 @@
       ],
       "readmodels": [
         {
-          "id": "projection-f3e7f683",
+          "id": "readmodel-f3e7f683",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -7954,7 +7954,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-2ad97c7c",
+              "id": "readmodel-2ad97c7c",
               "type": "OUTBOUND",
               "title": "Model Catalog",
               "elementType": "READMODEL"
@@ -8148,7 +8148,7 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-2ad97c7c",
+              "id": "readmodel-2ad97c7c",
               "type": "OUTBOUND",
               "title": "Model Catalog",
               "elementType": "READMODEL"
@@ -8342,7 +8342,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-2ad97c7c",
+              "id": "readmodel-2ad97c7c",
               "type": "OUTBOUND",
               "title": "Model Catalog",
               "elementType": "READMODEL"
@@ -8364,7 +8364,7 @@
       ],
       "readmodels": [
         {
-          "id": "projection-2ad97c7c",
+          "id": "readmodel-2ad97c7c",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -8712,13 +8712,13 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "projection-4aaca98b",
+              "id": "readmodel-4aaca98b",
               "type": "OUTBOUND",
               "title": "Compute Node Inventory",
               "elementType": "READMODEL"
             },
             {
-              "id": "projection-3d76a2ce",
+              "id": "readmodel-3d76a2ce",
               "type": "OUTBOUND",
               "title": "Node Runtime State",
               "elementType": "READMODEL"
@@ -8746,7 +8746,7 @@
       ],
       "readmodels": [
         {
-          "id": "projection-3d76a2ce",
+          "id": "readmodel-3d76a2ce",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",
@@ -9326,7 +9326,7 @@
           ],
           "dependencies": [
             {
-              "id": "projection-3d8d58df",
+              "id": "readmodel-3d8d58df",
               "type": "OUTBOUND",
               "title": "Compliance Audit Log",
               "elementType": "READMODEL"
@@ -9348,7 +9348,7 @@
       ],
       "readmodels": [
         {
-          "id": "projection-3d8d58df",
+          "id": "readmodel-3d8d58df",
           "tags": [],
           "elementContext": "INTERNAL",
           "modelContext": "FederationLearningPlatform",

@@ -26,6 +26,7 @@ export const registerEventModelingLanguage = (monaco: Monaco): void => {
       'ui',
       'command',
       'event',
+      'readmodel',
       'projection',
       'automation',
       'policy',

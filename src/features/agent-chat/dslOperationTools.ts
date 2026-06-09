@@ -81,7 +81,8 @@ const deleteTargetBlock = (dsl: string, target: string): { nextDsl?: string; err
 const findTargetBlock = (dsl: string, target: string) => {
   const parsedTarget = parseTarget(target);
   if (!parsedTarget) return undefined;
-  const pattern = new RegExp(`\\b${parsedTarget.kind}\\s+${escapeRegExp(parsedTarget.name)}(?:\\[\\])?\\s*\\{`, 'm');
+  const keywordPattern = parsedTarget.kind === 'readmodel' ? '(?:readmodel|projection)' : parsedTarget.kind;
+  const pattern = new RegExp(`\\b${keywordPattern}\\s+${escapeRegExp(parsedTarget.name)}(?:\\[\\])?\\s*\\{`, 'm');
   const match = pattern.exec(dsl);
   if (!match) return undefined;
   const openIndex = dsl.indexOf('{', match.index);
@@ -96,10 +97,10 @@ const findTargetBlock = (dsl: string, target: string) => {
 
 const parseTarget = (target: string): { kind: string; name: string } | undefined => {
   const normalized = target.trim();
-  const match = /^(domain|context|aggregate|slice|command|event|projection|automation|policy|integration|specification|hotspot)\s+(.+)$/i.exec(normalized);
+  const match = /^(domain|context|aggregate|slice|command|event|readmodel|projection|automation|policy|integration|specification|hotspot)\s+(.+)$/i.exec(normalized);
   if (!match) return undefined;
   return {
-    kind: match[1].toLowerCase(),
+    kind: match[1].toLowerCase() === 'projection' ? 'readmodel' : match[1].toLowerCase(),
     name: match[2].replace(/\[\]$/, '').trim()
   };
 };

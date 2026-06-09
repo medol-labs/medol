@@ -753,13 +753,22 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
     },
     {
       "$type": "ParserRule",
-      "name": "Projection",
+      "name": "ReadModel",
       "definition": {
         "$type": "Group",
         "elements": [
           {
-            "$type": "Keyword",
-            "value": "projection"
+            "$type": "Alternatives",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "readmodel"
+              },
+              {
+                "$type": "Keyword",
+                "value": "projection"
+              }
+            ]
           },
           {
             "$type": "Assignment",
@@ -812,7 +821,7 @@ export const EventModelingGrammar = (): Grammar => loadedEventModelingGrammar ??
     },
     {
       "$type": "ParserRule",
-      "name": "ProjectionElement",
+      "name": "ReadModelElement",
       "definition": {
         "$type": "Alternatives",
         "elements": [

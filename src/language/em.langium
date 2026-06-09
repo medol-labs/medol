@@ -20,7 +20,7 @@ ContextElement:
       Aggregate
     | Policy
     | Integration
-    | Projection
+    | ReadModel
     | UserJourney
     | Risk
     | Note
@@ -58,7 +58,7 @@ SliceElement:
     | Event
     | State
     | Specification
-    | Projection
+    | ReadModel
     | Automation
     | Policy
     | Hotspot
@@ -105,13 +105,13 @@ Event:
     '}'
 ;
 
-Projection:
-    'projection' name=ID listElement?='[]'? '{'
-        elements+=ProjectionElement*
+ReadModel:
+    ('readmodel' | 'projection') name=ID listElement?='[]'? '{'
+        elements+=ReadModelElement*
     '}'
 ;
 
-ProjectionElement:
+ReadModelElement:
       Field
     | Subscription
 ;

@@ -2,7 +2,7 @@ export type EmElementKind =
   | 'screen'
   | 'command'
   | 'event'
-  | 'projection'
+  | 'readmodel'
   | 'automation'
   | 'policy'
   | 'gwt'

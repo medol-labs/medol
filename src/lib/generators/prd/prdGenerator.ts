@@ -93,7 +93,7 @@ const toPrdSlice = (slice: EmSlice, aggregate: string, context: string): PrdSlic
   const ui = slice.elements.find((element) => element.kind === 'screen');
   const command = slice.elements.find((element) => element.kind === 'command');
   const event = slice.elements.find((element) => element.kind === 'event');
-  const projections = slice.elements.filter((element) => element.kind === 'projection');
+  const readmodels = slice.elements.filter((element) => element.kind === 'readmodel');
   const specifications = slice.elements.filter((element) => element.kind === 'gwt');
 
   return {
@@ -104,10 +104,10 @@ const toPrdSlice = (slice: EmSlice, aggregate: string, context: string): PrdSlic
     ...(actor ? { actor: actor.name } : {}),
     ...(ui ? { ui: ui.name } : {}),
     ...(ui?.ui?.type ? { uiType: ui.ui.type } : {}),
-    operation: inferOperation(slice, command, projections.length > 0),
+    operation: inferOperation(slice, command, readmodels.length > 0),
     ...(command ? { command: toElementSummary(command) } : {}),
     ...(event ? { event: toElementSummary(event) } : {}),
-    projectionNames: projections.map((projection) => projection.name),
+    readModelNames: readmodels.map((readmodel) => readmodel.name),
     ...(slice.resultingState ? { resultingState: slice.resultingState } : {}),
     createsAggregate: Boolean(slice.createsAggregate),
     businessRules: specifications.map((specification) => humanize(specification.name)),
@@ -125,9 +125,9 @@ const toPrdSlice = (slice: EmSlice, aggregate: string, context: string): PrdSlic
 const inferOperation = (
   slice: EmSlice,
   command: EmElement | undefined,
-  hasProjection: boolean
+  hasReadModel: boolean
 ): PrdSlice['operation'] => {
-  if (!command && hasProjection) return 'read';
+  if (!command && hasReadModel) return 'read';
   if (!command) return 'automation';
   if (slice.createsAggregate || /^(create|register|define|declare|append|record|start)/i.test(command.name)) {
     return 'create';
@@ -226,10 +226,10 @@ const collectOpenQuestions = (model: EmModel, slices: PrdSlice[]): string[] => {
   }
   const missingSpecifications = new Map<string, string[]>();
   for (const slice of slices) {
-    if (!slice.command && !slice.projectionNames.length && !slice.event) {
+    if (!slice.command && !slice.readModelNames.length && !slice.event) {
       questions.push(`Clarify the product behavior for ${humanize(slice.name)}.`);
     }
-    if (slice.command && !slice.event && !slice.projectionNames.length) {
+    if (slice.command && !slice.event && !slice.readModelNames.length) {
       questions.push(`Confirm the expected result event or read model for ${humanize(slice.name)}.`);
     }
     if (!slice.businessRules.length && slice.command) {

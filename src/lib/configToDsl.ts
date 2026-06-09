@@ -121,7 +121,7 @@ export const configToDsl = (config: ConfigRoot): string => {
         lines.push(`${pad(elementIndent)}state ${toDslId(slice.stateChange.to, 'State')}`);
       }
       for (const readmodel of slice.readmodels ?? []) {
-        appendElement(lines, 'projection', readmodel, elementIndent, readmodel.dependencies
+        appendElement(lines, 'readmodel', readmodel, elementIndent, readmodel.dependencies
           ?.filter((dependency) => dependency.elementType === 'EVENT' && dependency.title)
           .map((dependency) => `subscribe ${toDslId(dependency.title, 'Event')}`) ?? []);
       }
@@ -153,9 +153,9 @@ const formatUi = (screen: ConfigElement, indent: number): string[] => {
 
 const pad = (indent: number): string => ' '.repeat(indent);
 
-const appendElement = (lines: string[], kind: 'command' | 'event' | 'projection', element: ConfigElement, indent: number, extraLines: string[] = []): void => {
+const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel', element: ConfigElement, indent: number, extraLines: string[] = []): void => {
   const pad = ' '.repeat(indent);
-  const listMarker = kind === 'projection' && element.listElement ? '[]' : '';
+  const listMarker = kind === 'readmodel' && element.listElement ? '[]' : '';
   lines.push(`${pad}${kind} ${toDslId(element.title, kind)}${listMarker} {`);
   for (const field of element.fields ?? []) {
     lines.push(`${pad}  ${formatField(field)}`);

@@ -7,7 +7,7 @@ const sliceLaneOrder: EmElement['kind'][] = [
   'command',
   'event',
   'gwt',
-  'projection',
+  'readmodel',
   'automation',
   'policy',
   'hotspot'
@@ -19,7 +19,7 @@ const laneLabels: Partial<Record<EmElement['kind'], string>> = {
   command: 'COMMAND',
   event: 'EVENT',
   gwt: 'SPECIFICATION',
-  projection: 'READ MODEL',
+  readmodel: 'READ MODEL',
   automation: 'AUTOMATION',
   policy: 'POLICY',
   hotspot: 'HOTSPOT',
@@ -46,7 +46,7 @@ const colors: Record<
     accent: '#d6a300',
     fill: '#fff4b8'
   },
-  projection: {
+  readmodel: {
     accent: '#2f9e44',
     fill: '#dff5e3'
   },
@@ -384,7 +384,7 @@ const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, 
       metrics: {
         commands: elements.filter((element) => element.kind === 'command').length,
         events: elements.filter((element) => element.kind === 'event').length,
-        projections: elements.filter((element) => element.kind === 'projection').length,
+        readmodels: elements.filter((element) => element.kind === 'readmodel').length,
         policies: elements.filter((element) => element.kind === 'policy' || element.kind === 'automation' || element.kind === 'gwt').length,
         hotspots: elements.filter((element) => element.kind === 'hotspot').length + slice.hotspots.length
       }

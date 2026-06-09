@@ -8,7 +8,7 @@ The current modeling flow is designed around this structure:
 
 ```text
 slice 1 { command, event, GWT business rules }
-  -> slice 2 { projection }
+  -> slice 2 { read model }
   -> slice 3 { automation, command, event }
 ```
 
@@ -17,7 +17,7 @@ slice 1 { command, event, GWT business rules }
 - Custom Langium grammar for event modeling concepts.
 - React Flow rendering for slices, lanes, nodes, and relationships.
 - Slice columns arranged left to right by timeline/order.
-- Lane-based rendering for UI, command, event, GWT, projection, automation, policy, and hotspot elements.
+- Lane-based rendering for UI, command, event, GWT, read model, automation, policy, and hotspot elements.
 - DSL to `EmModel` JSON export for code generation.
 - `config.json` to DSL conversion.
 - DSL to `config.json` conversion.
@@ -231,7 +231,7 @@ The documentation generator builds a deterministic documentation model from `EmM
 
 - PRD and functional requirements
 - software architecture and application flow design
-- projection-oriented database design, including fields, keys, query candidates, source events, and mappings
+- read-model-oriented database design, including fields, keys, query candidates, source events, and mappings
 - end-to-end business process documentation with Mermaid overviews
 
 Generate one document:
@@ -301,7 +301,7 @@ context FederationLearning {
     slice FederationOverview {
       reactsTo FederationCreated
 
-      projection FederationList[] {
+      readmodel FederationList[] {
         federationId: UUID id
         federationName: String
         status: String
@@ -344,10 +344,10 @@ context FederationLearning {
 - `command`: A user or automation intent.
 - `event`: A domain fact produced by a command.
 - `specification`: GWT-style business rule node.
-- `projection`: A read model updated by events. Use `projection Name[]` to export it as a list readmodel with `listElement: true`.
+- `readmodel`: A read model updated by events. Use `readmodel Name[]` to export it as a collection read model with `listElement: true`. The legacy `projection` keyword is accepted only for migration.
 - `automation`: A process that reacts to events and emits commands.
 - `reactsTo`: Declares that a slice starts from a prior event.
-- `subscribe`: Declares that a projection subscribes to an event.
+- `subscribe`: Declares that a read model subscribes to an event.
 - `emits`: Declares that an automation emits a command.
 
 ## Field Syntax
