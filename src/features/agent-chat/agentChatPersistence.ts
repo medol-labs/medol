@@ -1,15 +1,23 @@
 import type { UIMessage } from '@tanstack/ai-client';
+import type { AgentDslPatch } from './agentTypes';
 import type { AgentUsage } from './agentUsage';
 
 const defaultAgentChatId = 'event-modeling-assistant';
 const defaultAgentChatThreadId = 'event-modeling-assistant-thread';
 const defaultStorageKey = 'event-modeling-toolkit:agent-chat:v1';
 const defaultUsageStorageKey = 'event-modeling-toolkit:agent-chat-usage:v1';
+const defaultPatchStorageKey = 'event-modeling-toolkit:agent-chat-patches:v1';
 const maxPersistedMessages = 100;
 const persistDelayMs = 250;
 
+export interface PersistedAgentChatState {
+  messages: UIMessage[];
+  patches: Record<string, AgentDslPatch>;
+  patchStates: Record<string, 'applied' | 'dismissed'>;
+}
+
 const persistTimers = new Map<string, number>();
-const pendingMessagesByChatId = new Map<string, UIMessage[]>();
+const pendingStateByChatId = new Map<string, PersistedAgentChatState>();
 const serverPersistControllers = new Map<string, AbortController>();
 
 export const getAgentChatId = (workspaceId: string): string => {
@@ -26,7 +34,6 @@ export const getAgentChatThreadId = (workspaceId: string): string => {
 
 export const loadAgentChatMessages = (chatId: string): UIMessage[] => {
   if (typeof window === 'undefined') return [];
-
   try {
     const stored = window.localStorage.getItem(storageKey(chatId));
     if (!stored) return [];
@@ -38,17 +45,27 @@ export const loadAgentChatMessages = (chatId: string): UIMessage[] => {
   }
 };
 
+export const loadAgentChatPatchState = (
+  chatId: string
+): Pick<PersistedAgentChatState, 'patches' | 'patchStates'> => {
+  if (typeof window === 'undefined') return { patches: {}, patchStates: {} };
+  try {
+    const stored = window.localStorage.getItem(patchStorageKey(chatId));
+    return stored ? parsePatchState(JSON.parse(stored)) : { patches: {}, patchStates: {} };
+  } catch {
+    return { patches: {}, patchStates: {} };
+  }
+};
+
 export const loadAgentChatUsage = (chatId: string): Record<string, AgentUsage> => {
   if (typeof window === 'undefined') return {};
-
   try {
     const stored = window.localStorage.getItem(usageStorageKey(chatId));
     if (!stored) return {};
     const parsed = JSON.parse(stored);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    if (!isRecord(parsed)) return {};
     return Object.fromEntries(
-      Object.entries(parsed)
-        .filter((entry): entry is [string, AgentUsage] => isAgentUsage(entry[1]))
+      Object.entries(parsed).filter((entry): entry is [string, AgentUsage] => isAgentUsage(entry[1]))
     );
   } catch {
     return {};
@@ -67,31 +84,35 @@ export const persistAgentChatUsage = (
   }
 };
 
-export const loadAgentChatMessagesFromServer = async (chatId: string): Promise<UIMessage[]> => {
+export const loadAgentChatStateFromServer = async (chatId: string): Promise<PersistedAgentChatState> => {
   try {
     const response = await fetch(historyUrl(chatId), {
       method: 'GET',
       headers: { Accept: 'application/json' }
     });
-    if (!response.ok) return [];
-    const body = await response.json() as { messages?: unknown };
-    if (!Array.isArray(body.messages)) return [];
-    return body.messages.map(reviveMessage).filter((message): message is UIMessage => Boolean(message));
+    if (!response.ok) return emptyPersistedState();
+    const body = await response.json() as Record<string, unknown>;
+    return {
+      messages: Array.isArray(body.messages)
+        ? body.messages.map(reviveMessage).filter((message): message is UIMessage => Boolean(message))
+        : [],
+      ...parsePatchState(body)
+    };
   } catch {
-    return [];
+    return emptyPersistedState();
   }
 };
 
-export const persistAgentChatMessages = (chatId: string, messages: UIMessage[]): void => {
+export const persistAgentChatState = (chatId: string, state: PersistedAgentChatState): void => {
   if (typeof window === 'undefined') return;
-  pendingMessagesByChatId.set(chatId, messages.slice(-maxPersistedMessages));
+  pendingStateByChatId.set(chatId, {
+    ...state,
+    messages: state.messages.slice(-maxPersistedMessages)
+  });
 
   const currentTimer = persistTimers.get(chatId);
   if (currentTimer) window.clearTimeout(currentTimer);
-  persistTimers.set(
-    chatId,
-    window.setTimeout(() => flushPendingMessages(chatId), persistDelayMs)
-  );
+  persistTimers.set(chatId, window.setTimeout(() => flushPendingState(chatId), persistDelayMs));
 };
 
 export const clearPersistedAgentChat = (chatId: string): void => {
@@ -99,32 +120,37 @@ export const clearPersistedAgentChat = (chatId: string): void => {
   const timer = persistTimers.get(chatId);
   if (timer) window.clearTimeout(timer);
   persistTimers.delete(chatId);
-  pendingMessagesByChatId.delete(chatId);
+  pendingStateByChatId.delete(chatId);
   serverPersistControllers.get(chatId)?.abort();
   serverPersistControllers.delete(chatId);
   window.localStorage.removeItem(storageKey(chatId));
   window.localStorage.removeItem(usageStorageKey(chatId));
+  window.localStorage.removeItem(patchStorageKey(chatId));
   void fetch(historyUrl(chatId), { method: 'DELETE' }).catch(() => undefined);
 };
 
-const flushPendingMessages = (chatId: string): void => {
+const flushPendingState = (chatId: string): void => {
   persistTimers.delete(chatId);
   if (typeof window === 'undefined') return;
-  const messages = pendingMessagesByChatId.get(chatId);
-  if (!messages) return;
+  const state = pendingStateByChatId.get(chatId);
+  if (!state) return;
 
   try {
-    window.localStorage.setItem(storageKey(chatId), JSON.stringify(messages));
+    window.localStorage.setItem(storageKey(chatId), JSON.stringify(state.messages));
+    window.localStorage.setItem(patchStorageKey(chatId), JSON.stringify({
+      patches: state.patches,
+      patchStates: state.patchStates
+    }));
   } catch {
     // Persistence is best-effort; storage limits must not break chat.
   } finally {
-    pendingMessagesByChatId.delete(chatId);
+    pendingStateByChatId.delete(chatId);
   }
 
-  void persistMessagesToServer(chatId, messages);
+  void persistStateToServer(chatId, state);
 };
 
-const persistMessagesToServer = async (chatId: string, messages: UIMessage[]): Promise<void> => {
+const persistStateToServer = async (chatId: string, state: PersistedAgentChatState): Promise<void> => {
   serverPersistControllers.get(chatId)?.abort();
   const controller = new AbortController();
   serverPersistControllers.set(chatId, controller);
@@ -133,7 +159,7 @@ const persistMessagesToServer = async (chatId: string, messages: UIMessage[]): P
     await fetch(historyUrl(chatId), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify(state),
       signal: controller.signal
     });
   } catch {
@@ -145,47 +171,81 @@ const persistMessagesToServer = async (chatId: string, messages: UIMessage[]): P
   }
 };
 
-const historyUrl = (chatId: string): string => {
-  return `/api/agent/history?chatId=${encodeURIComponent(chatId)}`;
-};
+const historyUrl = (chatId: string): string => `/api/agent/history?chatId=${encodeURIComponent(chatId)}`;
 
-const storageKey = (chatId: string): string => {
-  return chatId === defaultAgentChatId
-    ? defaultStorageKey
-    : `${defaultStorageKey}:${chatId}`;
-};
+const storageKey = (chatId: string): string => (
+  chatId === defaultAgentChatId ? defaultStorageKey : `${defaultStorageKey}:${chatId}`
+);
 
-const usageStorageKey = (chatId: string): string => {
-  return chatId === defaultAgentChatId
-    ? defaultUsageStorageKey
-    : `${defaultUsageStorageKey}:${chatId}`;
-};
+const usageStorageKey = (chatId: string): string => (
+  chatId === defaultAgentChatId ? defaultUsageStorageKey : `${defaultUsageStorageKey}:${chatId}`
+);
+
+const patchStorageKey = (chatId: string): string => (
+  chatId === defaultAgentChatId ? defaultPatchStorageKey : `${defaultPatchStorageKey}:${chatId}`
+);
 
 const reviveMessage = (value: unknown): UIMessage | undefined => {
-  if (!value || typeof value !== 'object') return undefined;
-  const record = value as Record<string, unknown>;
+  if (!isRecord(value)) return undefined;
   if (
-    typeof record.id !== 'string'
-    || (record.role !== 'system' && record.role !== 'user' && record.role !== 'assistant')
-    || !Array.isArray(record.parts)
+    typeof value.id !== 'string'
+    || (value.role !== 'system' && value.role !== 'user' && value.role !== 'assistant')
+    || !Array.isArray(value.parts)
   ) {
     return undefined;
   }
 
   return {
-    id: record.id,
-    role: record.role,
-    parts: record.parts as UIMessage['parts'],
-    ...(typeof record.createdAt === 'string' || typeof record.createdAt === 'number'
-      ? { createdAt: new Date(record.createdAt) }
+    id: value.id,
+    role: value.role,
+    parts: value.parts as UIMessage['parts'],
+    ...(typeof value.createdAt === 'string' || typeof value.createdAt === 'number'
+      ? { createdAt: new Date(value.createdAt) }
       : {})
   };
 };
 
-const isAgentUsage = (value: unknown): value is AgentUsage => {
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Record<string, unknown>;
-  return typeof record.provider === 'string'
-    && typeof record.model === 'string'
-    && typeof record.requestCount === 'number';
+const parsePatchState = (
+  value: unknown
+): Pick<PersistedAgentChatState, 'patches' | 'patchStates'> => {
+  if (!isRecord(value)) return { patches: {}, patchStates: {} };
+  return {
+    patches: isRecord(value.patches)
+      ? Object.fromEntries(
+          Object.entries(value.patches).filter((entry): entry is [string, AgentDslPatch] => isAgentDslPatch(entry[1]))
+        )
+      : {},
+    patchStates: isRecord(value.patchStates)
+      ? Object.fromEntries(
+          Object.entries(value.patchStates).filter(
+            (entry): entry is [string, 'applied' | 'dismissed'] => entry[1] === 'applied' || entry[1] === 'dismissed'
+          )
+        )
+      : {}
+  };
 };
+
+const isAgentDslPatch = (value: unknown): value is AgentDslPatch => {
+  if (!isRecord(value)) return false;
+  return typeof value.id === 'string'
+    && typeof value.summary === 'string'
+    && typeof value.nextDsl === 'string'
+    && Array.isArray(value.operations);
+};
+
+const isAgentUsage = (value: unknown): value is AgentUsage => {
+  if (!isRecord(value)) return false;
+  return typeof value.provider === 'string'
+    && typeof value.model === 'string'
+    && typeof value.requestCount === 'number';
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+};
+
+const emptyPersistedState = (): PersistedAgentChatState => ({
+  messages: [],
+  patches: {},
+  patchStates: {}
+});

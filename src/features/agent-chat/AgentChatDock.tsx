@@ -17,9 +17,10 @@ import {
   getAgentChatId,
   getAgentChatThreadId,
   loadAgentChatMessages,
-  loadAgentChatMessagesFromServer,
+  loadAgentChatPatchState,
+  loadAgentChatStateFromServer,
   loadAgentChatUsage,
-  persistAgentChatMessages,
+  persistAgentChatState,
   persistAgentChatUsage
 } from './agentChatPersistence';
 import { eventModelingDslKnowledgeManifest } from './dslKnowledge';
@@ -59,8 +60,13 @@ export function AgentChatDock({
   const serverHydrationPendingRef = useRef(false);
   const messagesChangedDuringServerHydrationRef = useRef(false);
   const [patchReview, setPatchReview] = useState<Record<string, { diagnostics: string[]; confirmRequired: boolean; blocked: boolean }>>({});
-  const [patchesByMessageId, setPatchesByMessageId] = useState<Record<string, AgentDslPatch>>({});
-  const [patchStateByMessageId, setPatchStateByMessageId] = useState<Record<string, 'applied' | 'dismissed'>>({});
+  const localPatchState = useMemo(() => loadAgentChatPatchState(chatId), [chatId]);
+  const [patchesByMessageId, setPatchesByMessageId] = useState<Record<string, AgentDslPatch>>(
+    () => localPatchState.patches
+  );
+  const [patchStateByMessageId, setPatchStateByMessageId] = useState<Record<string, 'applied' | 'dismissed'>>(
+    () => localPatchState.patchStates
+  );
   const [usageByMessageId, setUsageByMessageId] = useState<Record<string, AgentUsage>>(
     () => loadAgentChatUsage(chatId)
   );
@@ -131,20 +137,28 @@ export function AgentChatDock({
     if (persistedMessages.length > 0) {
       skipNextPersistenceRef.current = true;
       setMessages(persistedMessages);
+      previewLatestPendingPatch(persistedMessages, localPatchState.patches, localPatchState.patchStates, onPreviewPatch);
     }
     chatHydratedRef.current = true;
     serverHydrationPendingRef.current = true;
 
-    void loadAgentChatMessagesFromServer(chatId).then((serverMessages) => {
+    void loadAgentChatStateFromServer(chatId).then((serverState) => {
       serverHydrationPendingRef.current = false;
       if (cancelled || messagesChangedDuringServerHydrationRef.current) return;
 
-      if (serverMessages.length > 0) {
+      if (serverState.messages.length > 0) {
         skipNextPersistenceRef.current = true;
-        setMessages(serverMessages);
-        persistAgentChatMessages(chatId, serverMessages);
+        setMessages(serverState.messages);
+        setPatchesByMessageId(serverState.patches);
+        setPatchStateByMessageId(serverState.patchStates);
+        previewLatestPendingPatch(serverState.messages, serverState.patches, serverState.patchStates, onPreviewPatch);
+        persistAgentChatState(chatId, serverState);
       } else if (persistedMessages.length > 0) {
-        persistAgentChatMessages(chatId, persistedMessages);
+        persistAgentChatState(chatId, {
+          messages: persistedMessages,
+          patches: localPatchState.patches,
+          patchStates: localPatchState.patchStates
+        });
       }
     });
 
@@ -167,8 +181,12 @@ export function AgentChatDock({
     if (serverHydrationPendingRef.current) {
       messagesChangedDuringServerHydrationRef.current = true;
     }
-    persistAgentChatMessages(chatId, messages);
-  }, [messages, isThinking]);
+    persistAgentChatState(chatId, {
+      messages,
+      patches: patchesByMessageId,
+      patchStates: patchStateByMessageId
+    });
+  }, [messages, isThinking, patchesByMessageId, patchStateByMessageId]);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -463,6 +481,18 @@ const fallbackOperations = (patch: AgentDslPatch) => [{
   content: patch.preview,
   rule: patch.reason
 } satisfies AgentDslPatch['operations'][number]];
+
+const previewLatestPendingPatch = (
+  messages: UIMessage[],
+  patches: Record<string, AgentDslPatch>,
+  patchStates: Record<string, 'applied' | 'dismissed'>,
+  onPreviewPatch: (patch: AgentDslPatch) => void
+): void => {
+  const latestMessage = [...messages].reverse().find(
+    (message) => patches[message.id] && !patchStates[message.id]
+  );
+  if (latestMessage) onPreviewPatch(patches[latestMessage.id]);
+};
 
 const messageText = (message: UIMessage): string => {
   return message.parts

@@ -45,7 +45,10 @@ export const findModelItem = (
     }
 
     for (const aggregate of context.aggregates) {
-      if (selection.nodeId === aggregate.id || (selection.aggregateId === aggregate.id && !selection.nodeId)) {
+      if (
+        selection.nodeId === aggregate.id ||
+        (selection.aggregateId === aggregate.id && !selection.sliceId && !selection.nodeId)
+      ) {
         return { type: 'aggregate', name: aggregate.name, context, aggregate };
       }
 

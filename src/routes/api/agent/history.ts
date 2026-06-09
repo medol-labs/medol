@@ -13,20 +13,29 @@ export const Route = createFileRoute('/api/agent/history')({
     handlers: {
       GET: ({ request }) => {
         const chatId = getChatId(request);
+        const history = readAgentChatHistory(chatId);
         return Response.json({
           chatId,
-          messages: readAgentChatHistory(chatId)
+          ...history
         });
       },
       PUT: async ({ request }) => {
         const chatId = getChatId(request);
-        const body = await request.json() as { messages?: unknown };
+        const body = await request.json() as {
+          messages?: unknown;
+          patches?: unknown;
+          patchStates?: unknown;
+        };
         if (!Array.isArray(body.messages)) {
           return Response.json({ error: 'messages must be an array' }, { status: 400 });
         }
 
         const messages = body.messages.slice(-maxPersistedMessages);
-        writeAgentChatHistory(chatId, messages);
+        writeAgentChatHistory(chatId, {
+          messages,
+          patches: isRecord(body.patches) ? body.patches : {},
+          patchStates: isRecord(body.patchStates) ? body.patchStates : {}
+        });
         return Response.json({ chatId, count: messages.length });
       },
       DELETE: ({ request }) => {
@@ -41,4 +50,8 @@ export const Route = createFileRoute('/api/agent/history')({
 const getChatId = (request: Request): string => {
   const value = new URL(request.url).searchParams.get('chatId')?.trim();
   return value || defaultChatId;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 };

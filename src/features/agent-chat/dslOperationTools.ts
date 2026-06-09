@@ -143,7 +143,19 @@ const inferLineIndentation = (dsl: string, index: number): string => {
 };
 
 const indentContent = (content: string, indentation: string): string => {
-  return content.trim().split(/\r?\n/).map((line) => `${indentation}${line.trim()}`).join('\n');
+  const lines = content.split(/\r?\n/);
+  while (lines.length > 0 && lines[0].trim().length === 0) lines.shift();
+  while (lines.length > 0 && lines[lines.length - 1].trim().length === 0) lines.pop();
+  const nonEmptyIndentLengths = lines
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.match(/^\s*/)?.[0].length ?? 0);
+  const commonIndent = nonEmptyIndentLengths.length > 0
+    ? Math.min(...nonEmptyIndentLengths)
+    : 0;
+
+  return lines
+    .map((line) => `${indentation}${line.slice(commonIndent).trimEnd()}`)
+    .join('\n');
 };
 
 const escapeRegExp = (value: string): string => {

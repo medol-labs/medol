@@ -4,6 +4,12 @@ interface ChatHistoryRow {
   messages_json: string;
 }
 
+export interface AgentChatHistory {
+  messages: unknown[];
+  patches: Record<string, unknown>;
+  patchStates: Record<string, unknown>;
+}
+
 database.exec(`
   CREATE TABLE IF NOT EXISTS agent_chat_history (
     chat_id TEXT PRIMARY KEY,
@@ -31,22 +37,41 @@ const deleteHistory = database.prepare(`
   WHERE chat_id = ?
 `);
 
-export const readAgentChatHistory = (chatId: string): unknown[] => {
+export const readAgentChatHistory = (chatId: string): AgentChatHistory => {
   const row = selectHistory.get(chatId) as ChatHistoryRow | undefined;
-  if (!row) return [];
+  if (!row) return emptyHistory();
 
   try {
-    const messages = JSON.parse(row.messages_json);
-    return Array.isArray(messages) ? messages : [];
+    const value = JSON.parse(row.messages_json);
+    if (Array.isArray(value)) {
+      return { ...emptyHistory(), messages: value };
+    }
+    if (!value || typeof value !== 'object') return emptyHistory();
+    const record = value as Record<string, unknown>;
+    return {
+      messages: Array.isArray(record.messages) ? record.messages : [],
+      patches: isRecord(record.patches) ? record.patches : {},
+      patchStates: isRecord(record.patchStates) ? record.patchStates : {}
+    };
   } catch {
-    return [];
+    return emptyHistory();
   }
 };
 
-export const writeAgentChatHistory = (chatId: string, messages: unknown[]): void => {
-  upsertHistory.run(chatId, JSON.stringify(messages));
+export const writeAgentChatHistory = (chatId: string, history: AgentChatHistory): void => {
+  upsertHistory.run(chatId, JSON.stringify(history));
 };
 
 export const removeAgentChatHistory = (chatId: string): void => {
   deleteHistory.run(chatId);
+};
+
+const emptyHistory = (): AgentChatHistory => ({
+  messages: [],
+  patches: {},
+  patchStates: {}
+});
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 };

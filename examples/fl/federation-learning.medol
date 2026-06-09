@@ -20,6 +20,7 @@ context FederationManagement {
         organizationType: String
         contactEmail: String
         legalEntityId: String
+        test: String
       }
 
       event OrganizationRegistered {
@@ -92,7 +93,7 @@ context FederationManagement {
     slice OrganizationDirectory {
       ui OrganizationDirectory
 
-      readmodel OrganizationDirectory[] {
+      projection OrganizationDirectory[] {
         organizationId: UUID id
         organizationName: String
         organizationType: String
@@ -106,25 +107,7 @@ context FederationManagement {
         subscribe OrganizationDeactivated
         subscribe ComputeNodeTrusted
         subscribe DatasetApprovedForTraining
-        subscribe OrganizationReactivated
       }
-    }
-    slice ReactivateOrganization {
-    actor PlatformAdmin
-    ui OrganizationAdminScreen dialog
-    reactsTo OrganizationDeactivated
-    
-    command ReactivateOrganization {
-    organizationId: UUID id technical
-    reactivationNote: String?
-    }
-    
-    event OrganizationReactivated {
-    organizationId: UUID id technical
-    reactivationNote: String?
-    }
-    
-    state Active
     }
   }
 
@@ -162,7 +145,7 @@ context FederationManagement {
     slice FederationOverview {
       reactsTo ParticipantJoined
 
-      readmodel FederationOverview[] {
+      projection FederationOverview[] {
         federationId: UUID id
         federationName: String
         state: String
@@ -180,9 +163,6 @@ context FederationManagement {
         subscribe ComputeNodeTrusted
         subscribe ComputeNodeSuspended
         subscribe TrainingJobSubmitted
-        subscribe FederationActivated
-        subscribe FederationSuspended
-        subscribe FederationResumed
       }
     }
 
@@ -299,7 +279,7 @@ context FederationManagement {
     slice FederationMembershipDirectory {
       reactsTo ParticipantInvited
 
-      readmodel FederationMembershipDirectory[] {
+      projection FederationMembershipDirectory[] {
         federationId: UUID id
         organizationId: UUID id
         organizationName: String
@@ -318,59 +298,6 @@ context FederationManagement {
     }
 
 
-    slice ActivateFederation {
-    actor PlatformAdmin
-    ui FederationAdminScreen dialog
-    reactsTo FederationCreated
-    
-    command ActivateFederation {
-    federationId: UUID id technical
-    activationNote: String?
-    }
-    
-    event FederationActivated {
-    federationId: UUID id technical
-    activationNote: String?
-    }
-    
-    state Active
-    }
-    
-    slice SuspendFederation {
-    actor PlatformAdmin
-    ui FederationAdminScreen confirm
-    reactsTo FederationActivated
-    
-    command SuspendFederation {
-    federationId: UUID id technical
-    suspensionReason: String
-    }
-    
-    event FederationSuspended {
-    federationId: UUID id technical
-    suspensionReason: String
-    }
-    
-    state Suspended
-    }
-    
-    slice ResumeFederation {
-    actor PlatformAdmin
-    ui FederationAdminScreen dialog
-    reactsTo FederationSuspended
-    
-    command ResumeFederation {
-    federationId: UUID id technical
-    resumeReason: String?
-    }
-    
-    event FederationResumed {
-    federationId: UUID id technical
-    resumeReason: String?
-    }
-    
-    state Active
-    }
   }
 
   aggregate ComputeNode {
@@ -477,7 +404,7 @@ context FederationManagement {
     }
 
     slice ComputeNodeCatalog {
-      readmodel ComputeNodeCatalog[] {
+      projection ComputeNodeCatalog[] {
         nodeId: UUID id
         organizationId: UUID
         nodeName: String
@@ -499,27 +426,7 @@ context FederationManagement {
         subscribe NodeCapabilityUpdated
         subscribe ComputeNodeTrusted
         subscribe ComputeNodeSuspended
-        subscribe ComputeNodeReactivated
       }
-    }
-    slice ReactivateComputeNode {
-    actor SecurityReviewer
-    ui NodeTrustScreen dialog
-    reactsTo ComputeNodeSuspended
-    
-    command ReactivateComputeNode {
-    nodeId: UUID id technical
-    reactivationReason: String
-    attestationExpiresAt: DateTime?
-    }
-    
-    event ComputeNodeReactivated {
-    nodeId: UUID id technical
-    reactivationReason: String
-    attestationExpiresAt: DateTime?
-    }
-    
-    state Trusted
     }
   }
 }
@@ -560,7 +467,7 @@ context DatasetGovernance {
     }
 
     slice FeatureSchemaCatalog {
-      readmodel FeatureSchemaCatalog[] {
+      projection FeatureSchemaCatalog[] {
         featureSchemaId: UUID id
         domain: String
         version: Int
@@ -731,7 +638,7 @@ context DatasetGovernance {
     }
 
     slice DatasetCapability {
-      readmodel DatasetCapability[] {
+      projection DatasetCapability[] {
         datasetId: UUID id
         organizationId: UUID
         featureSchemaId: UUID
@@ -845,7 +752,7 @@ context DatasetGovernance {
     }
 
     slice DatasetRuntimeAccessCatalog {
-      readmodel DatasetRuntimeAccessCatalog[] {
+      projection DatasetRuntimeAccessCatalog[] {
         accessProfileId: UUID id
         datasetId: UUID
         nodeId: UUID
@@ -897,7 +804,7 @@ context DatasetGovernance {
     }
 
     slice TrainingEvaluationDatasetCatalog {
-      readmodel TrainingEvaluationDatasetCatalog[] {
+      projection TrainingEvaluationDatasetCatalog[] {
         datasetBundleId: UUID id
         organizationId: UUID
         nodeId: UUID
@@ -1051,7 +958,7 @@ context TrainingOrchestration {
     }
 
     slice TrainingRunConfigurationCatalog {
-      readmodel TrainingRunConfigurationCatalog[] {
+      projection TrainingRunConfigurationCatalog[] {
         trainingRunConfigurationId: UUID id
         federationId: UUID
         featureSchemaId: UUID
@@ -1236,7 +1143,7 @@ context TrainingOrchestration {
     slice TrainingParticipantEligibility {
       reactsTo TrainingJobSubmitted
 
-      readmodel TrainingParticipantEligibility[] {
+      projection TrainingParticipantEligibility[] {
         trainingJobId: UUID id
         federationId: UUID
         organizationId: UUID
@@ -1392,7 +1299,7 @@ context TrainingOrchestration {
     }
 
     slice TrainingJobDashboard {
-      readmodel TrainingJobDashboard[] {
+      projection TrainingJobDashboard[] {
         trainingJobId: UUID id
         federationId: UUID
         trainingRunConfigurationId: UUID
@@ -1639,7 +1546,7 @@ context TrainingOrchestration {
     }
 
     slice TrainingRoundProgress {
-      readmodel TrainingRoundProgress[] {
+      projection TrainingRoundProgress[] {
         trainingJobId: UUID id
         trainingRunConfigurationId: UUID
         roundId: UUID id
@@ -1791,7 +1698,7 @@ context ModelLifecycle {
     }
 
     slice ModelVersionCatalog {
-      readmodel ModelVersionCatalog[] {
+      projection ModelVersionCatalog[] {
         modelVersionId: UUID id
         trainingJobId: UUID
         finalRoundId: UUID
@@ -1845,7 +1752,7 @@ context RuntimeOperations {
     }
 
     slice RuntimeHealthDashboard {
-      readmodel RuntimeHealthDashboard[] {
+      projection RuntimeHealthDashboard[] {
         nodeId: UUID id
         federationId: UUID
         cpuLoad: Decimal
@@ -1859,9 +1766,49 @@ context RuntimeOperations {
     }
   }
 
-    aggregate TrainingAlert {
-  state Raised
-  state Resolved
+  aggregate TrainingAlert {
+    state Raised
+
+    slice RaiseTrainingAlert {
+      createsAggregate
+      reactsTo RuntimeHeartbeatRecorded
+
+      automation RaiseAlertOnNodeResourcePressure {
+        condition gpuLoad > 95
+        emits RaiseTrainingAlert
+      }
+
+      command RaiseTrainingAlert {
+        alertId: UUID id generated technical
+        nodeId: UUID
+        trainingJobId: UUID?
+        severity: String
+        message: String
+      }
+
+      event TrainingAlertRaised {
+        alertId: UUID id technical
+        nodeId: UUID
+        trainingJobId: UUID?
+        severity: String
+        message: String
+      }
+
+      state Raised
+    }
+
+    slice TrainingAlertCatalog {
+      projection TrainingAlertCatalog[] {
+        alertId: UUID id
+        nodeId: UUID
+        trainingJobId: UUID?
+        severity: String
+        message: String
+        state: String
+        subscribe TrainingAlertRaised
+      }
+    }
+  }
 
   aggregate AuditRecord {
     state Appended
@@ -1930,7 +1877,7 @@ context RuntimeOperations {
     }
 
     slice AuditRecordLog {
-      readmodel AuditRecordLog[] {
+      projection AuditRecordLog[] {
         auditRecordId: UUID id
         sourceEventName: String
         sourceEntityId: UUID?
@@ -1940,24 +1887,656 @@ context RuntimeOperations {
       }
     }
   }
-      slice ResolveTrainingAlert {
-      actor PlatformAdmin
-      ui RuntimeMonitorScreen dialog
-      reactsTo TrainingAlertRaised
-      
-      command ResolveTrainingAlert {
-      alertId: UUID id technical
-      resolutionNote: String
-      resolvedBy: String
-      }
-      
-      event TrainingAlertResolved {
-      alertId: UUID id technical
-      resolutionNote: String
-      resolvedBy: String
-      }
-      
-      state Resolved
-      }
 }
+  context KeyAndAttestationManagement {
+    note "Key and attestation management owns node attestation reports, secure aggregation key material, and dataset access credentials, replacing ad hoc cryptography fields scattered across other contexts."
+
+  aggregate NodeEncryptionKey {
+    state Generated
+    state Distributed
+    state Active
+    state Revoked
+    state Expired
+
+    slice GenerateNodeKey {
+      createsAggregate
+      actor SecurityReviewer
+      ui NodeKeyManagementScreen
+      reactsTo ComputeNodeTrusted
+
+      command GenerateNodeKey {
+        nodeKeyId: UUID id generated technical
+        nodeId: UUID
+        keyAlgorithm: String
+        keyPurpose: String
+        publicKeyRef: String
+        keyExpiresAt: DateTime
+      }
+
+      event NodeKeyGenerated {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        keyAlgorithm: String
+        keyPurpose: String
+        publicKeyRef: String
+        keyExpiresAt: DateTime
+      }
+
+      state Generated
+    }
+
+    slice DistributeNodeKey {
+      reactsTo NodeKeyGenerated
+
+      policy DistributeKeyWhenGenerated {
+        on NodeKeyGenerated
+        issue DistributeNodeKey
+      }
+
+      command DistributeNodeKey {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        distributionChannel: String
+        deliveredAt: DateTime
+      }
+
+      event NodeKeyDistributed {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        distributionChannel: String
+        deliveredAt: DateTime
+      }
+
+      state Distributed
+    }
+
+    slice ActivateNodeKey {
+      actor NodeOperator
+      ui NodeKeyManagementScreen
+      reactsTo NodeKeyDistributed
+
+      command ActivateNodeKey {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        activationNote: String?
+      }
+
+      event NodeKeyActivated {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        activationNote: String?
+      }
+
+      state Active
+    }
+
+    slice RevokeNodeKey {
+      actor SecurityReviewer
+      ui NodeKeyManagementScreen
+      reactsTo NodeKeyActivated
+
+      command RevokeNodeKey {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        revocationReason: String
+      }
+
+      event NodeKeyRevoked {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        revocationReason: String
+      }
+
+      state Revoked
+    }
+
+    slice ExpireNodeKey {
+      reactsTo NodeKeyActivated
+
+      automation ExpireNodeKeyWhenPastExpiry {
+        condition keyExpiresAt < now
+        emits ExpireNodeKey
+      }
+
+      command ExpireNodeKey {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        expiredAt: DateTime
+      }
+
+      event NodeKeyExpired {
+        nodeKeyId: UUID id technical
+        nodeId: UUID
+        expiredAt: DateTime
+      }
+
+      state Expired
+    }
+
+    slice NodeKeyCatalog {
+      readmodel NodeKeyCatalog[] {
+        nodeKeyId: UUID id
+        nodeId: UUID
+        keyAlgorithm: String
+        keyPurpose: String
+        publicKeyRef: String
+        keyExpiresAt: DateTime
+        state: String
+        revokedReason: String?
+        expiredAt: DateTime?
+        subscribe NodeKeyGenerated
+        subscribe NodeKeyDistributed
+        subscribe NodeKeyActivated
+        subscribe NodeKeyRevoked
+        subscribe NodeKeyExpired
+      }
+    }
+  }
+  
+    aggregate NodeAttestationReport {
+      state Submitted
+      state Verified
+      state Expired
+      state Revoked
+  
+      slice SubmitNodeAttestationReport {
+        createsAggregate
+        actor NodeOperator
+        ui NodeAttestationSubmissionScreen
+        reactsTo ComputeNodeRegistered
+  
+        command SubmitNodeAttestationReport {
+          attestationReportId: UUID id generated technical
+          nodeId: UUID
+          attestationType: String
+          hardwareFingerprint: String
+          measurementHash: String
+          signedBy: String
+          submittedAt: DateTime
+          expiresAt: DateTime
+        }
+  
+        event NodeAttestationReportSubmitted {
+          attestationReportId: UUID id technical
+          nodeId: UUID
+          attestationType: String
+          hardwareFingerprint: String
+          measurementHash: String
+          signedBy: String
+          submittedAt: DateTime
+          expiresAt: DateTime
+        }
+  
+        state Submitted
+      }
+  
+      slice VerifyNodeAttestationReport {
+        actor SecurityReviewer
+        ui NodeAttestationReviewScreen
+        reactsTo NodeAttestationReportSubmitted
+  
+        command VerifyNodeAttestationReport {
+          attestationReportId: UUID id technical
+          nodeId: UUID
+          verificationOutcome: String
+          verificationNote: String?
+        }
+  
+        event NodeAttestationReportVerified {
+          attestationReportId: UUID id technical
+          nodeId: UUID
+          verificationOutcome: String
+          verificationNote: String?
+          verifiedAt: DateTime
+        }
+  
+        state Verified
+      }
+  
+      slice ExpireNodeAttestationReport {
+        reactsTo NodeAttestationReportVerified
+  
+        automation ExpireAttestationWhenPastExpiry {
+          condition expiresAt < now
+          emits ExpireNodeAttestationReport
+        }
+  
+        command ExpireNodeAttestationReport {
+          attestationReportId: UUID id technical
+          nodeId: UUID
+          expiredAt: DateTime
+        }
+  
+        event NodeAttestationReportExpired {
+          attestationReportId: UUID id technical
+          nodeId: UUID
+          expiredAt: DateTime
+        }
+  
+        state Expired
+      }
+  
+      slice RevokeNodeAttestationReport {
+        actor SecurityReviewer
+        ui NodeAttestationReviewScreen
+        reactsTo NodeAttestationReportVerified
+  
+        command RevokeNodeAttestationReport {
+          attestationReportId: UUID id technical
+          nodeId: UUID
+          revokeReason: String
+        }
+  
+        event NodeAttestationReportRevoked {
+          attestationReportId: UUID id technical
+          nodeId: UUID
+          revokeReason: String
+        }
+  
+        state Revoked
+      }
+  
+      slice NodeAttestationCatalog {
+        projection NodeAttestationCatalog[] {
+          attestationReportId: UUID id
+          nodeId: UUID
+          attestationType: String
+          verificationOutcome: String?
+          verifiedAt: DateTime?
+          submittedAt: DateTime
+          expiresAt: DateTime
+          state: String
+          subscribe NodeAttestationReportSubmitted
+          subscribe NodeAttestationReportVerified
+          subscribe NodeAttestationReportExpired
+          subscribe NodeAttestationReportRevoked
+        }
+      }
+    }
+  
+    aggregate SecureAggregationKey {
+      state Generated
+      state Distributed
+      state Used
+      state Revoked
+  
+      slice GenerateSecureAggregationKey {
+        createsAggregate
+        actor MLOpsEngineer
+        ui SecureAggregationKeyScreen
+        reactsTo TrainingJobSubmitted
+  
+        command GenerateSecureAggregationKey {
+          aggregationKeyId: UUID id generated technical
+          trainingJobId: UUID
+          trainingRunConfigurationId: UUID
+          aggregationAlgorithm: String
+          keyAlgorithm: String
+          shareCount: Int
+          quorumThreshold: Int
+          generatedAt: DateTime
+          expiresAt: DateTime
+        }
+  
+        event SecureAggregationKeyGenerated {
+          aggregationKeyId: UUID id technical
+          trainingJobId: UUID
+          trainingRunConfigurationId: UUID
+          aggregationAlgorithm: String
+          keyAlgorithm: String
+          shareCount: Int
+          quorumThreshold: Int
+          generatedAt: DateTime
+          expiresAt: DateTime
+        }
+  
+        state Generated
+      }
+  
+      slice DistributeKeyShare {
+        actor MLOpsEngineer
+        ui SecureAggregationKeyScreen
+        reactsTo SecureAggregationKeyGenerated
+  
+        command DistributeKeyShare {
+          aggregationKeyId: UUID id technical
+          trainingJobId: UUID
+          nodeId: UUID
+          shareIndex: Int
+          shareMaterialRef: String
+          distributedAt: DateTime
+        }
+  
+        event SecureAggregationKeyShareDistributed {
+          aggregationKeyId: UUID id technical
+          trainingJobId: UUID
+          nodeId: UUID
+          shareIndex: Int
+          shareMaterialRef: String
+          distributedAt: DateTime
+        }
+  
+        state Distributed
+      }
+  
+      slice MarkSecureAggregationKeyUsed {
+        reactsTo GlobalModelUpdated
+  
+        automation MarkKeyUsedWhenAggregationCompletes {
+          condition aggregatedModelVersionId != null
+          emits MarkSecureAggregationKeyUsed
+        }
+  
+        command MarkSecureAggregationKeyUsed {
+          aggregationKeyId: UUID id technical
+          trainingJobId: UUID
+          roundId: UUID
+          usedAt: DateTime
+        }
+  
+        event SecureAggregationKeyUsed {
+          aggregationKeyId: UUID id technical
+          trainingJobId: UUID
+          roundId: UUID
+          usedAt: DateTime
+        }
+  
+        state Used
+      }
+  
+      slice RevokeSecureAggregationKey {
+        actor SecurityReviewer
+        ui SecureAggregationKeyScreen
+        reactsTo SecureAggregationKeyGenerated
+  
+        command RevokeSecureAggregationKey {
+          aggregationKeyId: UUID id technical
+          trainingJobId: UUID
+          revokeReason: String
+        }
+  
+        event SecureAggregationKeyRevoked {
+          aggregationKeyId: UUID id technical
+          trainingJobId: UUID
+          revokeReason: String
+        }
+  
+        state Revoked
+      }
+  
+      slice SecureAggregationKeyCatalog {
+        projection SecureAggregationKeyCatalog[] {
+          aggregationKeyId: UUID id
+          trainingJobId: UUID
+          trainingRunConfigurationId: UUID
+          aggregationAlgorithm: String
+          keyAlgorithm: String
+          shareCount: Int
+          quorumThreshold: Int
+          state: String
+          generatedAt: DateTime
+          expiresAt: DateTime
+          subscribe SecureAggregationKeyGenerated
+          subscribe SecureAggregationKeyShareDistributed
+          subscribe SecureAggregationKeyUsed
+          subscribe SecureAggregationKeyRevoked
+        }
+      }
+    }
+
+  aggregate SecureAggregationRound {
+    state Initialized
+    state SharesDistributed
+    state SharesCollected
+    state Aggregated
+    state Revoked
+
+    slice InitializeSecureAggregationRound {
+      createsAggregate
+      reactsTo SecureAggregationRequested
+
+      policy InitializeAggregationRoundWhenRequested {
+        on SecureAggregationRequested
+        issue InitializeSecureAggregationRound
+      }
+
+      command InitializeSecureAggregationRound {
+        aggregationRoundId: UUID id generated technical
+        trainingJobId: UUID
+        trainingRunConfigurationId: UUID
+        roundId: UUID
+        aggregationProvider: String
+        shareAlgorithm: String
+      }
+
+      event SecureAggregationRoundInitialized {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        trainingRunConfigurationId: UUID
+        roundId: UUID
+        aggregationProvider: String
+        shareAlgorithm: String
+      }
+
+      state Initialized
+    }
+
+    slice DistributeAggregationMaskShares {
+      actor SecureAggregationService
+      reactsTo SecureAggregationRoundInitialized
+
+      command DistributeAggregationMaskShares {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        nodeId: UUID
+        maskShareArtifactId: UUID
+      }
+
+      event AggregationMaskShareDistributed {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        nodeId: UUID
+        maskShareArtifactId: UUID
+      }
+
+      state SharesDistributed
+    }
+
+    slice CollectAggregationMaskShares {
+      actor SecureAggregationService
+      reactsTo AggregationMaskShareDistributed
+
+      command CollectAggregationMaskShares {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        collectedNodeCount: Int
+      }
+
+      event AggregationMaskSharesCollected {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        collectedNodeCount: Int
+      }
+
+      state SharesCollected
+    }
+
+    slice CompleteSecureAggregationDecrypt {
+      reactsTo AggregationMaskSharesCollected
+
+      automation CompleteDecryptionWhenSharesReady {
+        condition collectedNodeCount >= 3
+        emits CompleteSecureAggregationDecrypt
+      }
+
+      command CompleteSecureAggregationDecrypt {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        aggregatedModelVersionId: UUID
+      }
+
+      event SecureAggregationDecrypted {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        aggregatedModelVersionId: UUID
+      }
+
+      state Aggregated
+    }
+
+    slice RevokeSecureAggregationRound {
+      actor SecurityReviewer
+      ui SecureAggregationScreen
+      reactsTo SecureAggregationRoundInitialized
+
+      command RevokeSecureAggregationRound {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        revocationReason: String
+      }
+
+      event SecureAggregationRoundRevoked {
+        aggregationRoundId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        revocationReason: String
+      }
+
+      state Revoked
+    }
+
+    slice SecureAggregationRoundCatalog {
+      readmodel SecureAggregationRoundCatalog[] {
+        aggregationRoundId: UUID id
+        trainingJobId: UUID
+        trainingRunConfigurationId: UUID
+        roundId: UUID
+        aggregationProvider: String
+        shareAlgorithm: String
+        collectedNodeCount: Int
+        aggregatedModelVersionId: UUID?
+        state: String
+        revocationReason: String?
+        subscribe SecureAggregationRoundInitialized
+        subscribe AggregationMaskShareDistributed
+        subscribe AggregationMaskSharesCollected
+        subscribe SecureAggregationDecrypted
+        subscribe SecureAggregationRoundRevoked
+      }
+    }
+  }
+  
+    aggregate DatasetAccessCredential {
+      state Issued
+      state Rotated
+      state Revoked
+  
+      slice IssueDatasetAccessCredential {
+        createsAggregate
+        actor NodeOperator
+        ui DatasetAccessCredentialScreen
+        reactsTo DatasetAccessProfileConfigured
+  
+        command IssueDatasetAccessCredential {
+          credentialId: UUID id generated technical
+          accessProfileId: UUID
+          datasetId: UUID
+          nodeId: UUID
+          runtimeId: UUID
+          credentialAlgorithm: String
+          keyMaterialRef: String
+          issuedAt: DateTime
+          expiresAt: DateTime
+        }
+  
+        event DatasetAccessCredentialIssued {
+          credentialId: UUID id technical
+          accessProfileId: UUID
+          datasetId: UUID
+          nodeId: UUID
+          runtimeId: UUID
+          credentialAlgorithm: String
+          keyMaterialRef: String
+          issuedAt: DateTime
+          expiresAt: DateTime
+        }
+  
+        state Issued
+      }
+  
+      slice RotateDatasetAccessCredential {
+        actor NodeOperator
+        ui DatasetAccessCredentialScreen
+        reactsTo DatasetAccessCredentialIssued
+  
+        command RotateDatasetAccessCredential {
+          credentialId: UUID id technical
+          accessProfileId: UUID
+          previousCredentialId: UUID
+          credentialAlgorithm: String
+          keyMaterialRef: String
+          issuedAt: DateTime
+          expiresAt: DateTime
+        }
+  
+        event DatasetAccessCredentialRotated {
+          credentialId: UUID id technical
+          accessProfileId: UUID
+          previousCredentialId: UUID
+          credentialAlgorithm: String
+          keyMaterialRef: String
+          issuedAt: DateTime
+          expiresAt: DateTime
+        }
+  
+        state Rotated
+      }
+  
+      slice RevokeDatasetAccessCredential {
+        actor ComplianceOfficer
+        ui DatasetAccessCredentialScreen
+        reactsTo DatasetAccessCredentialIssued
+  
+        command RevokeDatasetAccessCredential {
+          credentialId: UUID id technical
+          accessProfileId: UUID
+          revokeReason: String
+        }
+  
+        event DatasetAccessCredentialRevoked {
+          credentialId: UUID id technical
+          accessProfileId: UUID
+          revokeReason: String
+        }
+  
+        state Revoked
+      }
+  
+      slice DatasetAccessCredentialCatalog {
+        projection DatasetAccessCredentialCatalog[] {
+          credentialId: UUID id
+          accessProfileId: UUID
+          datasetId: UUID
+          nodeId: UUID
+          runtimeId: UUID
+          credentialAlgorithm: String
+          state: String
+          issuedAt: DateTime
+          expiresAt: DateTime
+          previousCredentialId: UUID?
+          subscribe DatasetAccessCredentialIssued
+          subscribe DatasetAccessCredentialRotated
+          subscribe DatasetAccessCredentialRevoked
+        }
+      }
+    }
+    
+  }
 }

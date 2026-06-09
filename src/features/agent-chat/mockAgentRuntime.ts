@@ -92,7 +92,7 @@ const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentStructuredDslP
     operations: [{
       operation: 'insert',
       target: `slice ${slice.name}`,
-      content: snippet.trim(),
+      content: snippet.trimEnd(),
       rule: event
         ? `Subscribe the read model to ${event.name} so UI/query flows have a visible state source.`
         : 'Add a placeholder read model for later field and subscription refinement.'
@@ -115,7 +115,7 @@ const proposeHotspotPatch = (dsl: string, slice: EmSlice, prompt: string): Agent
     operations: [{
       operation: 'insert',
       target: `slice ${slice.name}`,
-      content: snippet.trim(),
+      content: snippet.trimEnd(),
       rule: 'Capture the unresolved modeling decision as a hotspot before changing structural MEDOL.'
     }],
     preview: snippet.trimEnd(),
