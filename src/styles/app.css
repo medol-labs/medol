@@ -52,6 +52,10 @@ textarea {
   background: #ffffff;
 }
 
+.preview-panel {
+  container-type: inline-size;
+}
+
 .explorer-pane {
   min-height: 0;
 }
@@ -75,6 +79,11 @@ textarea {
   padding: 16px 18px;
   border-bottom: 1px solid #d8dee8;
   background: rgba(255, 255, 255, 0.94);
+}
+
+.studio-toolbar {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
 }
 
 .pane-header {
@@ -181,20 +190,30 @@ textarea {
 }
 
 .toolbar-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: nowrap;
-  flex: 0 1 auto;
-  gap: 6px;
+  justify-content: end;
+  gap: 8px;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.toolbar-view-controls,
+.toolbar-command-controls {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+}
+
+.toolbar-view-controls {
+  padding-right: 8px;
+  border-right: 1px solid #d8dee8;
 }
 
 .eyebrow {
@@ -228,6 +247,16 @@ textarea {
   min-width: 132px;
 }
 
+.toolbar-actions .toolbar-language-select {
+  width: 64px;
+  min-width: 64px;
+}
+
+.toolbar-actions .direction-toggle,
+.toolbar-actions .toolbar-confirm {
+  min-width: 44px;
+}
+
 .toolbar-actions button,
 .collapse-button {
   min-width: 64px;
@@ -251,6 +280,67 @@ textarea {
 .toolbar-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+@container (max-width: 720px) {
+  .studio-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding-block: 12px;
+  }
+
+  .studio-toolbar > div:first-child {
+    display: none;
+  }
+
+  .toolbar-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+
+  .preview-panel .preview-tabs {
+    display: none;
+  }
+
+  .preview-panel .preview-mode-select {
+    display: block;
+    flex: 1 1 140px;
+    width: min(180px, 100%);
+    min-width: 0;
+  }
+
+  .toolbar-command-controls {
+    justify-content: flex-end;
+  }
+}
+
+@container (max-width: 520px) {
+  .toolbar-actions {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .toolbar-view-controls {
+    width: 100%;
+    padding-right: 0;
+    padding-bottom: 7px;
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .toolbar-command-controls {
+    width: 100%;
+  }
+
+  .toolbar-actions .toolbar-action-select {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .toolbar-actions .toolbar-language-select {
+    flex: 0 0 64px;
+  }
 }
 
 .diagnostics,
@@ -2087,44 +2177,6 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .studio-toolbar > div:first-child {
-    display: none;
-  }
-
-  .preview-tabs {
-    display: none;
-  }
-
-  .preview-mode-select {
-    display: block;
-    width: 120px;
-    min-width: 120px;
-    flex-basis: 120px;
-  }
-
-  .toolbar-actions {
-    gap: 5px;
-  }
-
-  .toolbar-actions select {
-    width: 116px;
-    min-width: 116px;
-  }
-
-  .toolbar-actions button {
-    min-width: 56px;
-    padding-inline: 8px;
-  }
-
-  .toolbar-actions .toolbar-confirm {
-    width: 42px;
-    min-width: 42px;
-  }
-
-  .toolbar-actions {
-    max-width: 100%;
-    justify-content: flex-start;
-  }
 }
 
 @media (max-width: 900px) {

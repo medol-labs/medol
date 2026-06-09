@@ -513,80 +513,91 @@ export function MedolStudio() {
             <h1>{activeAggregate?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}</h1>
           </div>
           <div className="toolbar-actions">
-            <div className="preview-tabs" role="tablist" aria-label="Preview mode">
+            <div className="toolbar-view-controls">
+              <div className="preview-tabs" role="tablist" aria-label="Preview mode">
+                <button
+                  type="button"
+                  className={previewMode === 'canvas' ? 'is-active' : undefined}
+                  aria-selected={previewMode === 'canvas'}
+                  onClick={() => setPreviewMode('canvas')}
+                >
+                  Model Canvas
+                </button>
+                <button
+                  type="button"
+                  className={previewMode === 'global' ? 'is-active' : undefined}
+                  aria-selected={previewMode === 'global'}
+                  onClick={() => setPreviewMode('global')}
+                >
+                  Domain Map
+                </button>
+                <button
+                  type="button"
+                  className={previewMode === 'layout' ? 'is-active' : undefined}
+                  aria-selected={previewMode === 'layout'}
+                  onClick={() => setPreviewMode('layout')}
+                >
+                  UI Preview
+                </button>
+              </div>
+              <select
+                className="preview-mode-select"
+                value={previewMode}
+                onChange={(event) => setPreviewMode(event.target.value as PreviewMode)}
+                aria-label="Preview mode"
+              >
+                <option value="canvas">Model Canvas</option>
+                <option value="global">Domain Map</option>
+                <option value="layout">UI Preview</option>
+              </select>
               <button
                 type="button"
-                className={previewMode === 'canvas' ? 'is-active' : undefined}
-                aria-selected={previewMode === 'canvas'}
-                onClick={() => setPreviewMode('canvas')}
+                className="direction-toggle"
+                onClick={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}
+                title="Toggle layout direction"
               >
-                Model Canvas
-              </button>
-              <button
-                type="button"
-                className={previewMode === 'global' ? 'is-active' : undefined}
-                aria-selected={previewMode === 'global'}
-                onClick={() => setPreviewMode('global')}
-              >
-                Domain Map
-              </button>
-              <button
-                type="button"
-                className={previewMode === 'layout' ? 'is-active' : undefined}
-                aria-selected={previewMode === 'layout'}
-                onClick={() => setPreviewMode('layout')}
-              >
-                UI Preview
+                {layoutDirection.toUpperCase()}
               </button>
             </div>
-            <select
-              className="preview-mode-select"
-              value={previewMode}
-              onChange={(event) => setPreviewMode(event.target.value as PreviewMode)}
-              aria-label="Preview mode"
-            >
-              <option value="canvas">Model Canvas</option>
-              <option value="global">Domain Map</option>
-              <option value="layout">UI Preview</option>
-            </select>
-            <button type="button" onClick={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}>
-              {layoutDirection.toUpperCase()}
-            </button>
-            <select
-              value={toolbarAction}
-              onChange={(event) => setToolbarAction(event.target.value as ToolbarAction | '')}
-              aria-label="Toolkit action"
-            >
-              <option value="" disabled>Choose action</option>
-              <option value="em-model">Export EmModel</option>
-              <option value="codegen-model">Export CodegenModel</option>
-              <option value="config">Export config</option>
-              <option value="png">Export PNG</option>
-              <option value="svg">Export SVG</option>
-              <option value="prd-ai">Generate PRD with AI</option>
-              <option value="software-design-ai">Generate software design with AI</option>
-              <option value="database-design-ai">Generate database design with AI</option>
-              <option value="process-ai">Generate process document with AI</option>
-              <option value="reset">Reset MEDOL</option>
-            </select>
-            <select
-              value={documentationLanguage}
-              onChange={(event) => setDocumentationLanguage(event.target.value as DocumentationLanguage)}
-              aria-label="Document language"
-              title="Document language"
-            >
-              <option value="en">EN</option>
-              <option value="zh-CN">中文</option>
-            </select>
-            <button
-              type="button"
-              className="toolbar-confirm"
-              aria-label="Confirm action"
-              onClick={runToolbarAction}
-              disabled={!toolbarAction || toolbarActionPending}
-            >
-              {toolbarActionPending ? 'Working' : 'OK'}
-            </button>
+            <div className="toolbar-command-controls">
+              <select
+                className="toolbar-action-select"
+                value={toolbarAction}
+                onChange={(event) => setToolbarAction(event.target.value as ToolbarAction | '')}
+                aria-label="Toolkit action"
+              >
+                <option value="" disabled>Choose action</option>
+                <option value="em-model">Export EmModel</option>
+                <option value="codegen-model">Export CodegenModel</option>
+                <option value="config">Export config</option>
+                <option value="png">Export PNG</option>
+                <option value="svg">Export SVG</option>
+                <option value="prd-ai">Generate PRD with AI</option>
+                <option value="software-design-ai">Generate software design with AI</option>
+                <option value="database-design-ai">Generate database design with AI</option>
+                <option value="process-ai">Generate process document with AI</option>
+                <option value="reset">Reset MEDOL</option>
+              </select>
+              <select
+                className="toolbar-language-select"
+                value={documentationLanguage}
+                onChange={(event) => setDocumentationLanguage(event.target.value as DocumentationLanguage)}
+                aria-label="Document language"
+                title="Document language"
+              >
+                <option value="en">EN</option>
+                <option value="zh-CN">中文</option>
+              </select>
+              <button
+                type="button"
+                className="toolbar-confirm"
+                aria-label="Confirm action"
+                onClick={runToolbarAction}
+                disabled={!toolbarAction || toolbarActionPending}
+              >
+                {toolbarActionPending ? 'Working' : 'OK'}
+              </button>
+            </div>
           </div>
         </header>
         <div className="preview-stage">
