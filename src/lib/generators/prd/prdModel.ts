@@ -34,18 +34,30 @@ export interface PrdAggregate {
 export interface PrdSlice {
   id: string;
   name: string;
+  context: string;
   aggregate: string;
   actor?: string;
   ui?: string;
+  uiType?: string;
+  operation: 'create' | 'read' | 'update' | 'delete' | 'action' | 'automation';
   command?: PrdElementSummary;
   event?: PrdElementSummary;
   projectionNames: string[];
   resultingState?: string;
   createsAggregate: boolean;
   businessRules: string[];
+  specifications: PrdSpecification[];
   dependencies: string[];
   hotspots: string[];
   sourceRefs: string[];
+}
+
+export interface PrdSpecification {
+  name: string;
+  given: string[];
+  when?: string;
+  then?: string;
+  examples: Record<string, string>;
 }
 
 export interface PrdElementSummary {

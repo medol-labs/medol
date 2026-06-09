@@ -225,6 +225,43 @@ npm run prd:generate -- examples/federation.em --trace
 
 The PRD generator emits stable Markdown section markers and a trace JSON shape so generated sections can be mapped back to source DSL nodes.
 
+## Generate Design Documents
+
+The documentation generator builds a deterministic documentation model from `EmModel`, then renders:
+
+- PRD and functional requirements
+- software architecture and application flow design
+- projection-oriented database design, including fields, keys, query candidates, source events, and mappings
+- end-to-end business process documentation with Mermaid overviews
+
+Generate one document:
+
+```bash
+npm run docs:generate -- examples/fl/federation-learning.em --kind=database-design
+```
+
+Generate a Simplified Chinese document:
+
+```bash
+npm run docs:generate -- examples/fl/federation-learning.em --kind=prd --language=zh-CN
+```
+
+Generate all document types:
+
+```bash
+npm run docs:generate -- examples/fl/federation-learning.em --kind=all
+```
+
+Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose one of the `Generate ... with AI` actions and confirm it to download an AI-refined document. The deterministic document remains the source of truth; the configured Agent provider may improve organization and explanation but is instructed to mark missing information as assumptions, recommendations, or open questions.
+
+The server endpoint is:
+
+```text
+POST /api/modeling/documents
+```
+
+It accepts `dsl`, `kind`, optional `language` (`en` or `zh-CN`), and optional `enhanceWithAi`. Supported kinds are `prd`, `software-design`, `database-design`, and `process`. PRD output is organized as routine product and delivery material: feature/CRUD inventory, UI entry points, input constraints, business outcomes, acceptance matrix, delivery checklist, and open questions.
+
 ## DSL Example
 
 ```eventmodeling

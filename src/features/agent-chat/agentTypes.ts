@@ -40,6 +40,7 @@ export interface AgentRequest {
   prompt: string;
   dsl: string;
   model: EmModel;
+  includeDslInPrompt?: boolean;
   selectedItem?: SelectedModelItem;
   dslKnowledgeManifest?: AgentDslKnowledgeManifest;
   dslKnowledge?: AgentDslKnowledge;

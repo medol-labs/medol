@@ -12,7 +12,8 @@
     "dsl:to-config": "tsx src/lib/dslToConfigCli.ts",
     "dsl:to-codegen-model": "tsx src/lib/dslToCodegenModelCli.ts",
     "dsl:to-model": "tsx src/lib/dslToEmModelCli.ts",
-    "prd:generate": "tsx src/lib/generators/prd/prdCli.ts"
+    "prd:generate": "tsx src/lib/generators/prd/prdCli.ts",
+    "docs:generate": "tsx src/lib/generators/documentation/documentationCli.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",

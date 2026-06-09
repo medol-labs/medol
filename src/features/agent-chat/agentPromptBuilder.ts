@@ -57,8 +57,9 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
       context
         ? `Recent conversation:\n${context.recentConversationSummary}`
         : undefined,
-      'Current complete DSL:',
-      request.dsl
+      request.includeDslInPrompt === false
+        ? undefined
+        : `Current complete DSL:\n${request.dsl}`
     ].filter(Boolean).join('\n\n')
   };
 };

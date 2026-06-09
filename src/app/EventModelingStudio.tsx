@@ -10,6 +10,7 @@ import { ModelExplorer } from '../features/model-explorer/ModelExplorer';
 import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
 import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
 import { useModelingWorkspace } from '../features/workspace/useModelingWorkspace';
+import { generateModelingDocument } from '../features/documentation/documentationClient';
 import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
 import { parseEventModelingDsl } from '../lib/dslParser';
 import { emModelToJson } from '../lib/emModelExport';
@@ -23,8 +24,22 @@ import { findModelItem, resolveActiveAggregate, resolveActiveContext } from './m
 import { useDebouncedValue } from './useDebouncedValue';
 import type { EmAggregate, EmContext, EmDomain, EmSlice } from '../lib/model';
 import type { AgentDslPatch } from '../features/agent-chat/agentTypes';
+import type {
+  DocumentationKind,
+  DocumentationLanguage
+} from '../lib/generators/documentation';
 
-type ToolbarAction = 'em-model' | 'codegen-model' | 'config' | 'png' | 'svg' | 'reset';
+type ToolbarAction =
+  | 'em-model'
+  | 'codegen-model'
+  | 'config'
+  | 'png'
+  | 'svg'
+  | 'prd-ai'
+  | 'software-design-ai'
+  | 'database-design-ai'
+  | 'process-ai'
+  | 'reset';
 type PreviewMode = 'canvas' | 'global' | 'layout';
 
 const getInitialLeftPanelWidth = () => {
@@ -44,6 +59,18 @@ const formatPersistenceStatus = (status: 'loading' | 'saving' | 'saved' | 'offli
   return 'Saved';
 };
 
+const isDocumentationAction = (
+  action: ToolbarAction
+): action is 'prd-ai' | 'software-design-ai' | 'database-design-ai' | 'process-ai' => {
+  return action.endsWith('-ai');
+};
+
+const documentationKindFromAction = (
+  action: 'prd-ai' | 'software-design-ai' | 'database-design-ai' | 'process-ai'
+): DocumentationKind => {
+  return action.slice(0, -3) as DocumentationKind;
+};
+
 export function EventModelingStudio() {
   const {
     dsl,
@@ -59,6 +86,8 @@ export function EventModelingStudio() {
   } = useModelingWorkspace(sampleDsl);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
   const [toolbarAction, setToolbarAction] = useState<ToolbarAction | ''>('');
+  const [toolbarActionPending, setToolbarActionPending] = useState(false);
+  const [documentationLanguage, setDocumentationLanguage] = useState<DocumentationLanguage>('en');
   const [selectedDomainId, setSelectedDomainId] = useState<string | undefined>();
   const [selectedContextId, setSelectedContextId] = useState<string | undefined>();
   const [selectedAggregateId, setSelectedAggregateId] = useState<string | undefined>();
@@ -175,6 +204,16 @@ export function EventModelingStudio() {
     URL.revokeObjectURL(url);
   };
 
+  const downloadMarkdown = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getImageExportOptions = (filename: string) => {
     const bounds = getFlowBounds(flow.nodes);
     const padding = 180;
@@ -198,26 +237,43 @@ export function EventModelingStudio() {
   };
 
   const runToolbarAction = async () => {
-    if (toolbarAction === 'em-model') {
-      downloadJson('em-model.json', emModelJson);
-    } else if (toolbarAction === 'codegen-model') {
-      downloadJson('codegen-model.json', codegenModelJson);
-    } else if (toolbarAction === 'config') {
-      downloadJson('config.json', configJson);
-    } else if (toolbarAction === 'png' && flow.nodes.length > 0) {
-      await exportFlowViewportToPng({
-        ...getImageExportOptions('event-modeling-flow.png'),
-        pixelRatio: 2
-      });
-    } else if (toolbarAction === 'svg' && flow.nodes.length > 0) {
-      exportFlowViewportToSvg(getImageExportOptions('event-modeling-flow.svg'));
-    } else if (toolbarAction === 'reset') {
-      setPreviewPatch(undefined);
-      updateDsl(sampleDsl);
-      setDslEditorVersion((version) => version + 1);
+    if (!toolbarAction || toolbarActionPending) return;
+    setToolbarActionPending(true);
+    try {
+      if (toolbarAction === 'em-model') {
+        downloadJson('em-model.json', emModelJson);
+      } else if (toolbarAction === 'codegen-model') {
+        downloadJson('codegen-model.json', codegenModelJson);
+      } else if (toolbarAction === 'config') {
+        downloadJson('config.json', configJson);
+      } else if (toolbarAction === 'png' && flow.nodes.length > 0) {
+        await exportFlowViewportToPng({
+          ...getImageExportOptions('event-modeling-flow.png'),
+          pixelRatio: 2
+        });
+      } else if (toolbarAction === 'svg' && flow.nodes.length > 0) {
+        exportFlowViewportToSvg(getImageExportOptions('event-modeling-flow.svg'));
+      } else if (isDocumentationAction(toolbarAction)) {
+        const kind = documentationKindFromAction(toolbarAction);
+        const document = await generateModelingDocument({
+          dsl,
+          kind,
+          language: documentationLanguage,
+          enhanceWithAi: true
+        });
+        if (document.warning) console.warn(document.warning);
+        downloadMarkdown(`${kind}${documentationLanguage === 'zh-CN' ? '.zh-CN' : ''}.md`, document.markdown);
+      } else if (toolbarAction === 'reset') {
+        setPreviewPatch(undefined);
+        updateDsl(sampleDsl);
+        setDslEditorVersion((version) => version + 1);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setToolbarActionPending(false);
+      setToolbarAction('');
     }
-
-    setToolbarAction('');
   };
 
   const applyAgentDsl = (nextDsl: string, focusTarget?: DslLocationTarget) => {
@@ -495,9 +551,30 @@ export function EventModelingStudio() {
               <option value="config">Export config</option>
               <option value="png">Export PNG</option>
               <option value="svg">Export SVG</option>
+              <option value="prd-ai">Generate PRD with AI</option>
+              <option value="software-design-ai">Generate software design with AI</option>
+              <option value="database-design-ai">Generate database design with AI</option>
+              <option value="process-ai">Generate process document with AI</option>
               <option value="reset">Reset DSL</option>
             </select>
-            <button type="button" className="toolbar-confirm" aria-label="Confirm action" onClick={runToolbarAction} disabled={!toolbarAction}>OK</button>
+            <select
+              value={documentationLanguage}
+              onChange={(event) => setDocumentationLanguage(event.target.value as DocumentationLanguage)}
+              aria-label="Document language"
+              title="Document language"
+            >
+              <option value="en">EN</option>
+              <option value="zh-CN">中文</option>
+            </select>
+            <button
+              type="button"
+              className="toolbar-confirm"
+              aria-label="Confirm action"
+              onClick={runToolbarAction}
+              disabled={!toolbarAction || toolbarActionPending}
+            >
+              {toolbarActionPending ? 'Working' : 'OK'}
+            </button>
           </div>
         </header>
         <div className="preview-stage">
