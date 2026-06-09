@@ -1,4 +1,4 @@
-import { parseEventModelingDsl } from '../../lib/dslParser';
+import { parseMedol } from '../../lib/dslParser';
 import type { AgentStructuredDslPatchOperation } from './agentStructuredResponse';
 
 export interface ApplyDslOperationsResult {
@@ -25,7 +25,7 @@ export const applyDslOperations = (
 
   return {
     nextDsl,
-    diagnostics: parseEventModelingDsl(nextDsl).diagnostics,
+    diagnostics: parseMedol(nextDsl).diagnostics,
     errors
   };
 };

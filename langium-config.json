@@ -1,12 +1,12 @@
 {
-  "projectName": "EventModeling",
+  "projectName": "Medol",
   "languages": [
     {
-      "id": "event-modeling",
-      "grammar": "src/language/em.langium",
-      "fileExtensions": [".em"],
+      "id": "medol",
+      "grammar": "src/language/medol.langium",
+      "fileExtensions": [".medol", ".em"],
       "textMate": {
-        "out": "syntaxes/event-modeling.tmLanguage.json"
+        "out": "syntaxes/medol.tmLanguage.json"
       }
     }
   ],

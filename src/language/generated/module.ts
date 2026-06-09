@@ -4,22 +4,22 @@
  ******************************************************************************/
 
 import type { LangiumSharedCoreServices, LangiumCoreServices, LangiumGeneratedCoreServices, LangiumGeneratedSharedCoreServices, LanguageMetaData, Module } from 'langium';
-import { EventModelingAstReflection } from './ast.js';
-import { EventModelingGrammar } from './grammar.js';
+import { MedolAstReflection } from './ast.js';
+import { MedolGrammar } from './grammar.js';
 
-export const EventModelingLanguageMetaData = {
-    languageId: 'event-modeling',
-    fileExtensions: ['.em'],
+export const MedolLanguageMetaData = {
+    languageId: 'medol',
+    fileExtensions: ['.medol', '.em'],
     caseInsensitive: false,
     mode: 'development'
 } as const satisfies LanguageMetaData;
 
-export const EventModelingGeneratedSharedModule: Module<LangiumSharedCoreServices, LangiumGeneratedSharedCoreServices> = {
-    AstReflection: () => new EventModelingAstReflection()
+export const MedolGeneratedSharedModule: Module<LangiumSharedCoreServices, LangiumGeneratedSharedCoreServices> = {
+    AstReflection: () => new MedolAstReflection()
 };
 
-export const EventModelingGeneratedModule: Module<LangiumCoreServices, LangiumGeneratedCoreServices> = {
-    Grammar: () => EventModelingGrammar(),
-    LanguageMetaData: () => EventModelingLanguageMetaData,
+export const MedolGeneratedModule: Module<LangiumCoreServices, LangiumGeneratedCoreServices> = {
+    Grammar: () => MedolGrammar(),
+    LanguageMetaData: () => MedolLanguageMetaData,
     parser: {}
 };

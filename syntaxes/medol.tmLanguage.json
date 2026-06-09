@@ -1,7 +1,8 @@
 {
-  "name": "event-modeling",
-  "scopeName": "source.event-modeling",
+  "name": "medol",
+  "scopeName": "source.medol",
   "fileTypes": [
+    ".medol",
     ".em"
   ],
   "patterns": [
@@ -9,11 +10,11 @@
       "include": "#comments"
     },
     {
-      "name": "keyword.control.event-modeling",
+      "name": "keyword.control.medol",
       "match": "\\b(actor|aggregate|automation|background|command|condition|confirm|context|createsAggregate|decision|derived|detail|dialog|domain|drawer|emits|event|example|form|from|generated|given|hotspot|id|inline|integration|issue|list|metric|note|on|policy|projection|query|reactsTo|readmodel|risk|rule|slice|source|specification|state|steps|subscribe|target|technical|then|ui|userJourney|view|when|wizard)\\b"
     },
     {
-      "name": "string.quoted.double.event-modeling",
+      "name": "string.quoted.double.medol",
       "begin": "\"",
       "end": "\"",
       "patterns": [
@@ -23,7 +24,7 @@
       ]
     },
     {
-      "name": "string.quoted.single.event-modeling",
+      "name": "string.quoted.single.medol",
       "begin": "'",
       "end": "'",
       "patterns": [
@@ -37,17 +38,17 @@
     "comments": {
       "patterns": [
         {
-          "name": "comment.block.event-modeling",
+          "name": "comment.block.medol",
           "begin": "/\\*",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.comment.event-modeling"
+              "name": "punctuation.definition.comment.medol"
             }
           },
           "end": "\\*/",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.comment.event-modeling"
+              "name": "punctuation.definition.comment.medol"
             }
           }
         },
@@ -55,16 +56,16 @@
           "begin": "//",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.whitespace.comment.leading.event-modeling"
+              "name": "punctuation.whitespace.comment.leading.medol"
             }
           },
           "end": "(?=$)",
-          "name": "comment.line.event-modeling"
+          "name": "comment.line.medol"
         }
       ]
     },
     "string-character-escape": {
-      "name": "constant.character.escape.event-modeling",
+      "name": "constant.character.escape.medol",
       "match": "\\\\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
     }
   }

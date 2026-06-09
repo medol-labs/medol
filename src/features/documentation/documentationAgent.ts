@@ -61,11 +61,11 @@ const buildDocumentationPrompt = (
 ): string => [
   `Act as a senior product and software architect. Produce the final ${kindLabel(kind)} in Markdown.`,
   language === 'zh-CN'
-    ? 'Write the complete document in Simplified Chinese. Keep DSL identifiers, code, event names, command names, field names, and source markers unchanged.'
+    ? 'Write the complete document in Simplified Chinese. Keep MEDOL identifiers, code, event names, command names, field names, and source markers unchanged.'
     : 'Write the complete document in English.',
-  'Use the deterministic draft below as the source of truth.',
+  'Use the deterministic MEDOL-derived draft below as the source of truth.',
   'Do not invent domain behavior, fields, events, integrations, SLAs, technologies, or compliance requirements.',
-  'Preserve DSL source markers and Mermaid blocks when present.',
+  'Preserve MEDOL source markers and Mermaid blocks when present.',
   'Improve structure, clarity, rationale, and implementation guidance.',
   kind === 'prd'
     ? 'Make the PRD suitable for routine product review and acceptance: retain the CRUD inventory, UI entry points, acceptance matrix, data requirements, delivery checklist, and open questions.'

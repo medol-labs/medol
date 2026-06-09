@@ -29,17 +29,17 @@ export const runMockStructuredAgent = async (
   const dslKnowledgeTopics = request.agentContext?.dslKnowledgeSnippets.map((snippet) => snippet.topic).join(', ');
   const findings = [
     `Context: ${contextName}.`,
-    dslKnowledgeVersion ? `DSL knowledge package: ${dslKnowledgeVersion}.` : 'DSL knowledge package was not provided.',
+    dslKnowledgeVersion ? `MEDOL knowledge package: ${dslKnowledgeVersion}.` : 'MEDOL knowledge package was not provided.',
     request.agentContext
-      ? `Agent context built with ${request.agentContext.modelSummary.sliceCount} slice(s); selected DSL snippet ${selectedSnippet ? `${selectedSnippet.label} (${selectedSnippet.startLine}-${selectedSnippet.endLine})` : 'not available'}.`
+      ? `Agent context built with ${request.agentContext.modelSummary.sliceCount} slice(s); selected MEDOL snippet ${selectedSnippet ? `${selectedSnippet.label} (${selectedSnippet.startLine}-${selectedSnippet.endLine})` : 'not available'}.`
       : 'Agent context builder was not used.',
-    dslKnowledgeTopics ? `Relevant DSL knowledge: ${dslKnowledgeTopics}.` : 'No relevant DSL knowledge snippets were selected.',
+    dslKnowledgeTopics ? `Relevant MEDOL knowledge: ${dslKnowledgeTopics}.` : 'No relevant MEDOL knowledge snippets were selected.',
     diagnostics > 0
       ? `There ${diagnostics === 1 ? 'is' : 'are'} ${diagnostics} parser/model warning${diagnostics === 1 ? '' : 's'} to review before codegen.`
-      : 'The current DSL parses without warnings.',
+      : 'The current MEDOL parses without warnings.',
     slice
       ? `Selected slice has ${slice.elements.filter((element) => element.kind === 'command').length} command(s), ${slice.elements.filter((element) => element.kind === 'event').length} event(s), and ${slice.elements.filter((element) => element.kind === 'readmodel').length} read model(s).`
-      : 'Select a slice when you want the agent to propose a precise DSL patch.'
+      : 'Select a slice when you want the agent to propose a precise MEDOL patch.'
   ];
 
   const patch = slice && readModelIntent.test(request.prompt)
@@ -52,8 +52,8 @@ export const runMockStructuredAgent = async (
     'I reviewed the current modeling context.',
     ...findings.map((finding) => `- ${finding}`),
     patch
-      ? `Proposed DSL patch: ${patch.summary}`
-      : 'No DSL patch was prepared because there is no selected slice yet.'
+      ? `Proposed MEDOL patch: ${patch.summary}`
+      : 'No MEDOL patch was prepared because there is no selected slice yet.'
   ].join('\n');
 
   if (!patch) {
@@ -64,11 +64,11 @@ export const runMockStructuredAgent = async (
   }
 
   return {
-    type: 'dsl_patch_proposal',
+    type: 'medol_patch_proposal',
     content: [
       'I reviewed the current modeling context.',
       ...findings.map((finding) => `- ${finding}`),
-      `Proposed DSL patch: ${patch.summary}`
+      `Proposed MEDOL patch: ${patch.summary}`
     ].join('\n'),
     patch
   };
@@ -109,14 +109,14 @@ const proposeHotspotPatch = (dsl: string, slice: EmSlice, prompt: string): Agent
 
   return {
     summary: `Add a modeling hotspot to slice ${slice.name}.`,
-    reason: 'The request needs a domain rule or modeling decision before the DSL can be safely expanded.',
+    reason: 'The request needs a domain rule or modeling decision before the MEDOL can be safely expanded.',
     target: `slice ${slice.name}`,
     changeType: 'insert',
     operations: [{
       operation: 'insert',
       target: `slice ${slice.name}`,
       content: snippet.trim(),
-      rule: 'Capture the unresolved modeling decision as a hotspot before changing structural DSL.'
+      rule: 'Capture the unresolved modeling decision as a hotspot before changing structural MEDOL.'
     }],
     preview: snippet.trimEnd(),
     focusTarget: { kind: 'slice', name: slice.name }

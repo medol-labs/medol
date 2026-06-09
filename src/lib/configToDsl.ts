@@ -217,7 +217,7 @@ const formatSources = (sources: string[]): string =>
 const runCli = (): void => {
   const input = process.argv[2];
   if (!input) {
-    console.error('Usage: npm run config:to-dsl -- ../b-config.json');
+    console.error('Usage: npm run config:to-medol -- ../b-config.json');
     process.exitCode = 1;
     return;
   }

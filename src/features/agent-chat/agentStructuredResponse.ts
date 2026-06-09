@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseEventModelingDsl } from '../../lib/dslParser';
+import { parseMedol } from '../../lib/dslParser';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
 import type { AgentDslPatch, AgentDslPatchOperation, AgentRequest, AgentResponse } from './agentTypes';
 import { applyDslOperations } from './dslOperationTools';
@@ -21,7 +21,7 @@ export interface AgentStructuredClarification {
 }
 
 export interface AgentStructuredDslPatchProposal {
-  type: 'dsl_patch_proposal';
+  type: 'medol_patch_proposal';
   content: string;
   patch: AgentStructuredDslPatch;
 }
@@ -56,7 +56,7 @@ export const agentStructuredResponseSchema = z.discriminatedUnion('type', [
     questions: z.array(z.string())
   }),
   z.object({
-    type: z.literal('dsl_patch_proposal'),
+    type: z.literal('medol_patch_proposal'),
     content: z.string(),
     patch: z.object({
       summary: z.string(),
@@ -97,7 +97,7 @@ export const normalizeAgentStructuredResponse = (
   }
 
   const patch = normalizeStructuredPatch(structuredResponse.patch, request.dsl);
-  const diagnostics = parseEventModelingDsl(patch.nextDsl).diagnostics;
+  const diagnostics = parseMedol(patch.nextDsl).diagnostics;
   const toolErrors = patch.toolErrors ?? [];
   const validationSummary = toolErrors.length > 0 || diagnostics.length > 0
     ? `\n\nPatch dry-run:\n${[
@@ -127,11 +127,15 @@ export const parseAgentStructuredResponse = (value: unknown): AgentStructuredRes
     };
   }
 
-  if (record.type !== 'dsl_patch_proposal' || typeof record.content !== 'string') return undefined;
+  if (
+    record.type !== 'medol_patch_proposal' &&
+    record.type !== 'dsl_patch_proposal'
+  ) return undefined;
+  if (typeof record.content !== 'string') return undefined;
   const patch = parseStructuredPatch(record.patch);
   if (!patch) return undefined;
   return {
-    type: 'dsl_patch_proposal',
+    type: 'medol_patch_proposal',
     content: record.content,
     patch
   };

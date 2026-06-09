@@ -6,7 +6,7 @@
 /* eslint-disable */
 import * as langium from 'langium';
 
-export const EventModelingTerminals = {
+export const MedolTerminals = {
     ID: /[_a-zA-Z][\w_]*/,
     STRING: /"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/,
     NUMBER: /-?[0-9]+(\.[0-9]+)?/,
@@ -15,9 +15,9 @@ export const EventModelingTerminals = {
     SL_COMMENT: /\/\/[^\n\r]*/,
 };
 
-export type EventModelingTerminalNames = keyof typeof EventModelingTerminals;
+export type MedolTerminalNames = keyof typeof MedolTerminals;
 
-export type EventModelingKeywordNames =
+export type MedolKeywordNames =
     | "!="
     | ","
     | "."
@@ -85,7 +85,7 @@ export type EventModelingKeywordNames =
     | "{"
     | "}";
 
-export type EventModelingTokenNames = EventModelingTerminalNames | EventModelingKeywordNames;
+export type MedolTokenNames = MedolTerminalNames | MedolKeywordNames;
 
 export interface ActorRef extends langium.AstNode {
     readonly $container: Slice | UserJourney;
@@ -989,7 +989,7 @@ export function isWhen(item: unknown): item is When {
     return reflection.isInstance(item, When.$type);
 }
 
-export type EventModelingAstType = {
+export type MedolAstType = {
     ActorRef: ActorRef
     Aggregate: Aggregate
     AggregateFeature: AggregateFeature
@@ -1050,7 +1050,7 @@ export type EventModelingAstType = {
     When: When
 }
 
-export class EventModelingAstReflection extends langium.AbstractAstReflection {
+export class MedolAstReflection extends langium.AbstractAstReflection {
     override readonly types = {
         ActorRef: {
             name: ActorRef.$type,
@@ -1673,4 +1673,4 @@ export class EventModelingAstReflection extends langium.AbstractAstReflection {
     } as const satisfies langium.AstMetaData
 }
 
-export const reflection = new EventModelingAstReflection();
+export const reflection = new MedolAstReflection();

@@ -14,7 +14,7 @@ export const eventModelingAgentMockFetcher = async function* (
   const data = (input.data ?? {}) as Partial<MockAgentForwardedProps>;
   const prompt = data.prompt ?? latestUserText(input.messages);
   const messageId = createId('assistant');
-  const model = 'event-modeling-mock';
+  const model = 'medol-mock';
   const timestamp = Date.now();
 
   yield {

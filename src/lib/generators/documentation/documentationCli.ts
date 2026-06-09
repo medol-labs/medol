@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { parseEventModelingDsl } from '../../dslParser';
+import { parseMedol } from '../../dslParser';
 import {
   generateDocumentation,
   generateDocumentationBundle
@@ -29,11 +29,11 @@ const language: DocumentationLanguage = languageArgument === 'zh-CN' || language
   : 'en';
 
 if (!input) {
-  console.error('Usage: npm run docs:generate -- ./model.em [--kind=prd|software-design|database-design|process|all] [--language=en|zh-CN] [--json]');
+  console.error('Usage: npm run docs:generate -- ./model.medol [--kind=prd|software-design|database-design|process|all] [--language=en|zh-CN] [--json]');
   process.exitCode = 1;
 } else {
   const sourceText = readFileSync(input, 'utf8');
-  const model = parseEventModelingDsl(sourceText);
+  const model = parseMedol(sourceText);
   const kind = parseKind(kindArgument);
 
   if (kind === 'all') {

@@ -5,7 +5,7 @@ import {
   type DocumentationKind,
   type DocumentationLanguage
 } from '../../../lib/generators/documentation';
-import { parseEventModelingDsl } from '../../../lib/dslParser';
+import { parseMedol } from '../../../lib/dslParser';
 
 const documentKinds = new Set<DocumentationKind>([
   'prd',
@@ -21,16 +21,18 @@ export const Route = createFileRoute('/api/modeling/documents')({
     handlers: {
       POST: async ({ request }) => {
         const body = await request.json() as {
+          medol?: unknown;
           dsl?: unknown;
           kind?: unknown;
           language?: unknown;
           enhanceWithAi?: unknown;
         };
-        if (typeof body.dsl !== 'string') {
-          return Response.json({ error: 'dsl must be a string' }, { status: 400 });
+        const medol = typeof body.medol === 'string' ? body.medol : body.dsl;
+        if (typeof medol !== 'string') {
+          return Response.json({ error: 'medol must be a string' }, { status: 400 });
         }
-        if (body.dsl.length > maxDslLength) {
-          return Response.json({ error: 'dsl is too large' }, { status: 413 });
+        if (medol.length > maxDslLength) {
+          return Response.json({ error: 'medol is too large' }, { status: 413 });
         }
         if (!isDocumentationKind(body.kind)) {
           return Response.json({ error: 'unsupported document kind' }, { status: 400 });
@@ -40,9 +42,9 @@ export const Route = createFileRoute('/api/modeling/documents')({
         }
 
         const language = body.language ?? 'en';
-        const model = parseEventModelingDsl(body.dsl);
+        const model = parseMedol(medol);
         const document = generateDocumentation(model, body.kind, {
-          sourceText: body.dsl,
+          sourceText: medol,
           language
         });
         if (!body.enhanceWithAi) {
@@ -53,7 +55,7 @@ export const Route = createFileRoute('/api/modeling/documents')({
         }
 
         const enhanced = await enhanceDocumentationWithAgent({
-          dsl: body.dsl,
+          dsl: medol,
           model,
           document
         });

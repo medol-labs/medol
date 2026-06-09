@@ -1,4 +1,4 @@
-grammar EventModeling
+grammar Medol
 
 entry Model:
     (domains+=Domain | contexts+=Context)*

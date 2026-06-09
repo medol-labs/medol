@@ -1,5 +1,5 @@
 import { createDefaultCoreModule, createDefaultSharedCoreModule, EmptyFileSystem, inject } from 'langium';
-import { EventModelingGeneratedModule, EventModelingGeneratedSharedModule } from '../language/generated/module';
+import { MedolGeneratedModule, MedolGeneratedSharedModule } from '../language/generated/module';
 import {
   isActorRef,
   isAggregate,
@@ -53,17 +53,17 @@ import { EmAggregate, EmContext, EmDomain, EmEdge, EmElement, EmField, EmFieldMa
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
-  EventModelingGeneratedSharedModule
+  MedolGeneratedSharedModule
 );
 
-const eventModelingServices = inject(
+const medolServices = inject(
   createDefaultCoreModule({ shared: sharedServices }),
-  EventModelingGeneratedModule
+  MedolGeneratedModule
 );
 
-export const parseEventModelingDsl = (text: string): EmModel => {
+export const parseMedol = (text: string): EmModel => {
   try {
-    const parseResult = eventModelingServices.parser.LangiumParser.parse<AstModel>(text);
+    const parseResult = medolServices.parser.LangiumParser.parse<AstModel>(text);
     const model = astToEmModel(parseResult.value);
 
     for (const lexerError of parseResult.lexerErrors) {
@@ -83,10 +83,12 @@ export const parseEventModelingDsl = (text: string): EmModel => {
     return model;
   } catch (error) {
     const model = emptyModel();
-    model.diagnostics.push(error instanceof Error ? error.message : 'Unable to parse current DSL');
+    model.diagnostics.push(error instanceof Error ? error.message : 'Unable to parse current MEDOL');
     return model;
   }
 };
+
+export const parseEventModelingDsl = parseMedol;
 
 export const astToEmModel = (ast: AstModel): EmModel => {
   const model = emptyModel();

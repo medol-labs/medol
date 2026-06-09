@@ -83,9 +83,9 @@ export const buildAgentContext = (input: {
 
   return {
     systemRules: [
-      'You are an Event Modeling DSL assistant.',
-      'Use the DSL knowledge reference and compact rules before proposing changes.',
-      'Prefer a focused DSL patch over a broad rewrite.',
+      'You are a MEDOL domain design assistant.',
+      'Use the MEDOL knowledge reference and compact rules before proposing changes.',
+      'Prefer a focused MEDOL patch over a broad rewrite.',
       'If a domain rule is unclear, add a hotspot or ask for clarification instead of inventing behavior.',
       'Never treat command/event field mismatches as automatically wrong; event fields may be derived.'
     ],
@@ -152,7 +152,7 @@ const selectRelevantDslKnowledge = (input: {
     },
     {
       topic: 'patch-rules',
-      reason: 'Always included because the assistant proposes DSL patches.',
+      reason: 'Always included because the assistant proposes MEDOL patches.',
       content: input.knowledge.patchRules.join('\n')
     }
   ];
@@ -160,7 +160,7 @@ const selectRelevantDslKnowledge = (input: {
   if (matches(intentText, ['field', 'from', 'derived', 'mapping', 'example', '字段', '推理', '计算'])) {
     snippets.push({
       topic: 'field-mapping',
-      reason: 'The request or selected DSL references field mapping, derived values, or examples.',
+      reason: 'The request or selected MEDOL references field mapping, derived values, or examples.',
       content: input.knowledge.fieldMappingRules.join('\n')
     });
   }
@@ -168,7 +168,7 @@ const selectRelevantDslKnowledge = (input: {
   if (matches(intentText, ['ui', 'screen', 'page', 'layout', 'form', 'dialog', 'drawer', 'confirm', '页面', '布局', '表单'])) {
     snippets.push({
       topic: 'ui-rules',
-      reason: 'The request or selected DSL references UI/page interaction semantics.',
+      reason: 'The request or selected MEDOL references UI/page interaction semantics.',
       content: input.knowledge.uiRules.join('\n')
     });
   }
@@ -176,7 +176,7 @@ const selectRelevantDslKnowledge = (input: {
   if (matches(intentText, ['read model', 'readmodel', 'projection', 'list', 'query', 'subscribe', '查询', '列表'])) {
     snippets.push({
       topic: 'readmodel-syntax',
-      reason: 'The request or selected DSL references read models, lists, queries, or subscriptions.',
+      reason: 'The request or selected MEDOL references read models, lists, queries, or subscriptions.',
       content: [
         input.knowledge.syntax.readmodel,
         input.knowledge.examples.find((example) => example.name === 'Read model')?.dsl
@@ -187,7 +187,7 @@ const selectRelevantDslKnowledge = (input: {
   if (matches(intentText, ['command', 'event', 'slice', 'createsaggregate', 'state', '命令', '事件', '状态'])) {
     snippets.push({
       topic: 'timeline-modeling',
-      reason: 'The request or selected DSL references slice timeline, command/event, creation, or state behavior.',
+      reason: 'The request or selected MEDOL references slice timeline, command/event, creation, or state behavior.',
       content: [
         input.knowledge.syntax.slice,
         input.knowledge.syntax.command,
@@ -291,7 +291,7 @@ const countElements = (elements: EmElement[]) => ({
 });
 
 const findSelectedDslSnippet = (dsl: string, selectedItem?: SelectedModelItem): AgentDslSnippet | undefined => {
-  if (!selectedItem) return sliceByLines(dsl, 1, 80, 'DSL document start');
+  if (!selectedItem) return sliceByLines(dsl, 1, 80, 'MEDOL document start');
 
   const candidates = getBlockCandidates(selectedItem);
   for (const candidate of candidates) {

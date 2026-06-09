@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { dslToEmModelJson } from './emModelExport';
+import { medolToEmModelJson } from './emModelExport';
 
 const input = process.argv[2];
 
 if (!input) {
-  console.error('Usage: npm run dsl:to-model -- ./model.em');
+  console.error('Usage: npm run medol:to-model -- ./model.medol');
   process.exitCode = 1;
 } else {
-  console.log(dslToEmModelJson(readFileSync(input, 'utf8')));
+  console.log(medolToEmModelJson(readFileSync(input, 'utf8')));
 }

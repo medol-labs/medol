@@ -12,7 +12,7 @@ import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
 import { useModelingWorkspace } from '../features/workspace/useModelingWorkspace';
 import { generateModelingDocument } from '../features/documentation/documentationClient';
 import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
-import { parseEventModelingDsl } from '../lib/dslParser';
+import { parseMedol } from '../lib/dslParser';
 import { emModelToJson } from '../lib/emModelExport';
 import { exportFlowViewportToPng, exportFlowViewportToSvg } from '../lib/exportFlowImage';
 import { toReactFlow } from '../lib/flow';
@@ -71,7 +71,7 @@ const documentationKindFromAction = (
   return action.slice(0, -3) as DocumentationKind;
 };
 
-export function EventModelingStudio() {
+export function MedolStudio() {
   const {
     dsl,
     updateDsl,
@@ -105,7 +105,7 @@ export function EventModelingStudio() {
   const [previewPatch, setPreviewPatch] = useState<AgentDslPatch | undefined>();
   const debouncedDsl = useDebouncedValue(dsl, 800);
 
-  const model = useMemo(() => parseEventModelingDsl(debouncedDsl), [debouncedDsl]);
+  const model = useMemo(() => parseMedol(debouncedDsl), [debouncedDsl]);
   const activeDomain = model.domains.find((domain) => domain.id === selectedDomainId) ?? model.domains[0];
   const activeContext = resolveActiveContext(model, selectedContextId);
   const activeAggregate = resolveActiveAggregate(activeContext, selectedAggregateId);
@@ -248,11 +248,11 @@ export function EventModelingStudio() {
         downloadJson('config.json', configJson);
       } else if (toolbarAction === 'png' && flow.nodes.length > 0) {
         await exportFlowViewportToPng({
-          ...getImageExportOptions('event-modeling-flow.png'),
+          ...getImageExportOptions('medol-model.png'),
           pixelRatio: 2
         });
       } else if (toolbarAction === 'svg' && flow.nodes.length > 0) {
-        exportFlowViewportToSvg(getImageExportOptions('event-modeling-flow.svg'));
+        exportFlowViewportToSvg(getImageExportOptions('medol-model.svg'));
       } else if (isDocumentationAction(toolbarAction)) {
         const kind = documentationKindFromAction(toolbarAction);
         const document = await generateModelingDocument({
@@ -400,8 +400,8 @@ export function EventModelingStudio() {
           <div className="grid min-h-0 min-w-0 grid-rows-[minmax(140px,var(--editor-panel-height,1fr))_6px_minmax(120px,1fr)] overflow-hidden">
             <section className="left-section left-section--editor">
               <div className="left-section__title">
-                <span>DSL</span>
-                <strong title={`DSL persistence: ${dslPersistenceStatus}`}>
+                <span>MEDOL</span>
+                <strong title={`MEDOL persistence: ${dslPersistenceStatus}`}>
                   {modelStatus} · {formatPersistenceStatus(dslPersistenceStatus)}
                 </strong>
               </div>
@@ -555,7 +555,7 @@ export function EventModelingStudio() {
               <option value="software-design-ai">Generate software design with AI</option>
               <option value="database-design-ai">Generate database design with AI</option>
               <option value="process-ai">Generate process document with AI</option>
-              <option value="reset">Reset DSL</option>
+              <option value="reset">Reset MEDOL</option>
             </select>
             <select
               value={documentationLanguage}

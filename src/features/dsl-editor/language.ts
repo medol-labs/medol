@@ -1,10 +1,10 @@
 import type { Monaco } from '@monaco-editor/react';
 
-const languageId = 'event-modeling-dsl';
+const languageId = 'medol';
 
-export const eventModelingLanguageId = languageId;
+export const medolLanguageId = languageId;
 
-export const registerEventModelingLanguage = (monaco: Monaco): void => {
+export const registerMedolLanguage = (monaco: Monaco): void => {
   const registered = monaco.languages
     .getLanguages()
     .some((language: { id: string }) => language.id === languageId);
@@ -13,7 +13,7 @@ export const registerEventModelingLanguage = (monaco: Monaco): void => {
   monaco.languages.register({ id: languageId });
   monaco.languages.setMonarchTokensProvider(languageId, {
     defaultToken: '',
-    tokenPostfix: '.em',
+    tokenPostfix: '.medol',
     keywords: [
       'domain',
       'context',
@@ -68,7 +68,7 @@ export const registerEventModelingLanguage = (monaco: Monaco): void => {
     }
   });
 
-  monaco.editor.defineTheme('event-modeling-light', {
+  monaco.editor.defineTheme('medol-light', {
     base: 'vs',
     inherit: true,
     rules: [

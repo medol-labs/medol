@@ -32,7 +32,7 @@ export const createMiniMaxAgentProvider = (config: AgentProviderConfig['minimax'
             prompt.modelingSystem,
             'Respond naturally to the user first.',
             'For an ordinary question that does not require structured modeling data, return natural language only.',
-            'When a DSL patch or structured clarification is needed, append one JSON object inside <agent-json>...</agent-json> after the natural-language response.',
+            'When a MEDOL patch or structured clarification is needed, append one JSON object inside <agent-json>...</agent-json> after the natural-language response.',
             'The JSON block is machine-readable and must not contain prose outside its JSON string values.'
           ].join('\n\n'),
           input: [
@@ -40,7 +40,7 @@ export const createMiniMaxAgentProvider = (config: AgentProviderConfig['minimax'
             '',
             'Optional structured JSON shapes:',
             '{"type":"clarification","content":"...","questions":["..."]}',
-            '{"type":"dsl_patch_proposal","content":"...","patch":{"summary":"...","reason":"...","target":"slice Name","changeType":"insert","operations":[{"operation":"insert","target":"slice Name","content":"...","rule":"..."}],"preview":"...","focusTarget":{"kind":"slice","name":"Name"}}}'
+            '{"type":"medol_patch_proposal","content":"...","patch":{"summary":"...","reason":"...","target":"slice Name","changeType":"insert","operations":[{"operation":"insert","target":"slice Name","content":"...","rule":"..."}],"preview":"...","focusTarget":{"kind":"slice","name":"Name"}}}'
           ].join('\n'),
           temperature: 0,
           reasoning: {

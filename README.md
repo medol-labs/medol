@@ -1,8 +1,8 @@
-# Event Modeling Toolkit
+# MEDOL
 
-A Langium-based event modeling DSL tool with a React Flow renderer.
+MEDOL is a Domain Design Language for describing business domains, bounded contexts, aggregates, event-modeling timelines, read models, rules, UI interactions, and code-generation intent.
 
-The toolkit lets you describe an event modeling board as text, then renders it as a slice-oriented flow. Each `slice` becomes one vertical column, and slices are arranged from left to right in the order they appear in the DSL.
+The project provides a Langium language implementation, Monaco editor, React Flow visual model, AI-assisted modeling, design-document generation, and adapters for application code generation. Each `slice` is rendered as a timeline column in the order it appears in MEDOL.
 
 The current modeling flow is designed around this structure:
 
@@ -14,30 +14,30 @@ slice 1 { command, event, GWT business rules }
 
 ## Features
 
-- Custom Langium grammar for event modeling concepts.
+- Custom Langium grammar for domain design and Event Modeling concepts.
 - React Flow rendering for slices, lanes, nodes, and relationships.
 - Slice columns arranged left to right by timeline/order.
 - Lane-based rendering for UI, command, event, GWT, read model, automation, policy, and hotspot elements.
-- DSL to `EmModel` JSON export for code generation.
-- `config.json` to DSL conversion.
-- DSL to `config.json` conversion.
-- Browser UI for editing DSL and exporting `EmModel` JSON or `config.json`.
+- MEDOL to `EmModel` JSON export for code generation.
+- `config.json` to MEDOL conversion.
+- MEDOL to `config.json` conversion.
+- Browser UI for editing MEDOL and exporting `EmModel` JSON or `config.json`.
 
 ## Project Structure
 
 ```text
-event-modeling-toolkit/
+medol/
   examples/
-    federation.em              Example DSL model
+    federation.medol              Example MEDOL model
   src/
-    language/em.langium        Langium grammar
-    lib/configToDsl.ts         config.json -> DSL converter
-    lib/dslToConfig.ts         DSL -> config.json converter
-    lib/emModelExport.ts       DSL/EmModel JSON export helpers
-    lib/dslParser.ts           Lightweight DSL model parser for the UI
-    lib/flow.ts                Event model -> React Flow nodes and edges
-    App.tsx                    Editor and canvas UI
-  langium-config.json          Langium generator config
+    language/medol.langium        Langium grammar
+    lib/configToDsl.ts           config.json -> MEDOL converter
+    lib/dslToConfig.ts           MEDOL -> config.json converter
+    lib/emModelExport.ts         MEDOL/EmModel JSON export helpers
+    lib/dslParser.ts             MEDOL parser and semantic-model adapter
+    lib/flow.ts                  Domain model -> React Flow nodes and edges
+    App.tsx                      Editor and canvas UI
+  langium-config.json            Langium generator config
 ```
 
 ## Install
@@ -58,9 +58,9 @@ Open:
 http://localhost:5173/
 ```
 
-The left panel is the DSL editor. The right panel is the React Flow event modeling canvas.
+The left panel is the MEDOL editor. The right panel is the React Flow event modeling canvas.
 
-Use `Export EmModel` in the UI to download the current DSL as `em-model.json`. Use `Export config` only when an older `config.json` consumer still needs it.
+Use `Export EmModel` in the UI to download the current MEDOL as `em-model.json`. Use `Export config` only when an older `config.json` consumer still needs it.
 
 ## Agent Provider
 
@@ -87,13 +87,15 @@ MINIMAX_MODEL=MiniMax-M3
 MINIMAX_BASE_URL=https://api.minimaxi.com/v1
 ```
 
-The runtime uses TanStack AI adapters for model access. The provider must return one structured response: `answer`, `clarification`, or `dsl_patch_proposal`.
+The runtime uses TanStack AI adapters for model access. The provider must return one structured response: `answer`, `clarification`, or `medol_patch_proposal`.
 
-Chat messages are cached in browser `localStorage` and mirrored to SQLite through the TanStack Start `/api/agent/history` route. Modeling workspaces are managed through the REST-style `/api/modeling/workspaces` API. Each workspace stores its own DSL document, which can contain one or more domains. Both use the same embedded SQLite database and require no separate backend service. The default database path is `data/event-modeling.sqlite`; override it with:
+Chat messages are cached in browser `localStorage` and mirrored to SQLite through the TanStack Start `/api/agent/history` route. Modeling workspaces are managed through the REST-style `/api/modeling/workspaces` API. Each workspace stores its own MEDOL document, which can contain one or more domains. Both use the same embedded SQLite database and require no separate backend service. The default database path is `data/medol.sqlite`; override it with:
 
 ```bash
-EVENT_MODELING_DB_PATH=./data/event-modeling.sqlite
+MEDOL_DB_PATH=./data/medol.sqlite
 ```
+
+`EVENT_MODELING_DB_PATH` and `AGENT_CHAT_DB_PATH` remain supported for existing installations.
 
 The editor depends on the `ModelingWorkspaceClient` interface rather than TanStack Start directly. To move workspace management to another backend later, implement the same API contract and set:
 
@@ -111,7 +113,7 @@ PUT    /workspaces/:workspaceId
 DELETE /workspaces/:workspaceId
 ```
 
-Workspace is the persistence boundary. A workspace owns one DSL document and its assistant conversation; the DSL document may declare multiple `domain` blocks.
+Workspace is the persistence boundary. A workspace owns one MEDOL document and its assistant conversation; the MEDOL document may declare multiple `domain` blocks.
 
 ## Build
 
@@ -121,7 +123,7 @@ npm run build
 
 ## Generate Langium Artifacts
 
-Run this after changing `src/language/em.langium`:
+Run this after changing `src/language/medol.langium`:
 
 ```bash
 npm run langium:generate
@@ -131,21 +133,21 @@ Generated files are written to:
 
 ```text
 src/language/generated/
-syntaxes/event-modeling.tmLanguage.json
+syntaxes/medol.tmLanguage.json
 ```
 
-## Convert config.json To DSL
+## Convert config.json To MEDOL
 
 ```bash
-npm run config:to-dsl -- ../b-config.json
+npm run config:to-medol -- ../b-config.json
 ```
 
-This prints DSL to stdout.
+This prints MEDOL to stdout.
 
-## Convert DSL To config.json
+## Convert MEDOL To config.json
 
 ```bash
-npm run dsl:to-config -- examples/federation.em
+npm run medol:to-config -- examples/federation.medol
 ```
 
 This prints `config.json` content to stdout.
@@ -153,13 +155,13 @@ This prints `config.json` content to stdout.
 To save it:
 
 ```bash
-npm run dsl:to-config -- examples/federation.em > config.json
+npm run medol:to-config -- examples/federation.medol > config.json
 ```
 
-## Export DSL As EmModel JSON
+## Export MEDOL As EmModel JSON
 
 ```bash
-npm run dsl:to-model -- examples/federation.em
+npm run medol:to-model -- examples/federation.medol
 ```
 
 This prints the parsed `EmModel` JSON used by the renderer and newer generators.
@@ -167,7 +169,7 @@ This prints the parsed `EmModel` JSON used by the renderer and newer generators.
 To save it:
 
 ```bash
-npm run dsl:to-model -- examples/federation.em > em-model.json
+npm run medol:to-model -- examples/federation.medol > em-model.json
 ```
 
 ## Codegen Model
@@ -175,7 +177,7 @@ npm run dsl:to-model -- examples/federation.em > em-model.json
 The toolkit now uses an internal `CodegenModel` between `EmModel` and the Martin-compatible `config.json` adapter:
 
 ```text
-.em DSL -> EmModel -> CodegenModel -> config.json
+.medol -> EmModel -> CodegenModel -> config.json
 ```
 
 `EmModel` remains the source-of-truth semantic model for the design language. `CodegenModel` is the normalized code generation view of that model. It keeps codegen-oriented information in a stable shape before it is projected into the current `config.json` format consumed by the Axon/refine generator.
@@ -193,7 +195,7 @@ The toolkit now uses an internal `CodegenModel` between `EmModel` and the Martin
 - dependencies: inbound/outbound element links with generated ids, titles, and element types
 - specifications: GWT-style given/when/then data plus field examples from specification examples
 
-The existing `dslToConfig` API is preserved. Internally, it now calls:
+The existing `dslToConfig` API remains as a compatibility alias. Internally, conversion calls:
 
 ```text
 modelToCodegenModel(model) -> codegenModelToConfig(codegenModel)
@@ -202,28 +204,28 @@ modelToCodegenModel(model) -> codegenModelToConfig(codegenModel)
 To inspect the codegen view directly:
 
 ```bash
-npm run dsl:to-codegen-model -- examples/fl/federation-learning.em
+npm run medol:to-codegen-model -- examples/fl/federation-learning.medol
 ```
 
 ## Generate PRD Markdown
 
 ```bash
-npm run prd:generate -- examples/federation.em
+npm run prd:generate -- examples/federation.medol
 ```
 
 To save it:
 
 ```bash
-npm run prd:generate -- examples/federation.em > prd.md
+npm run prd:generate -- examples/federation.medol > prd.md
 ```
 
-To inspect the DSL-to-PRD source map:
+To inspect the MEDOL-to-PRD source map:
 
 ```bash
-npm run prd:generate -- examples/federation.em --trace
+npm run prd:generate -- examples/federation.medol --trace
 ```
 
-The PRD generator emits stable Markdown section markers and a trace JSON shape so generated sections can be mapped back to source DSL nodes.
+The PRD generator emits stable Markdown section markers and a trace JSON shape so generated sections can be mapped back to source MEDOL nodes.
 
 ## Generate Design Documents
 
@@ -237,19 +239,19 @@ The documentation generator builds a deterministic documentation model from `EmM
 Generate one document:
 
 ```bash
-npm run docs:generate -- examples/fl/federation-learning.em --kind=database-design
+npm run docs:generate -- examples/fl/federation-learning.medol --kind=database-design
 ```
 
 Generate a Simplified Chinese document:
 
 ```bash
-npm run docs:generate -- examples/fl/federation-learning.em --kind=prd --language=zh-CN
+npm run docs:generate -- examples/fl/federation-learning.medol --kind=prd --language=zh-CN
 ```
 
 Generate all document types:
 
 ```bash
-npm run docs:generate -- examples/fl/federation-learning.em --kind=all
+npm run docs:generate -- examples/fl/federation-learning.medol --kind=all
 ```
 
 Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose one of the `Generate ... with AI` actions and confirm it to download an AI-refined document. The deterministic document remains the source of truth; the configured Agent provider may improve organization and explanation but is instructed to mark missing information as assumptions, recommendations, or open questions.
@@ -260,11 +262,11 @@ The server endpoint is:
 POST /api/modeling/documents
 ```
 
-It accepts `dsl`, `kind`, optional `language` (`en` or `zh-CN`), and optional `enhanceWithAi`. Supported kinds are `prd`, `software-design`, `database-design`, and `process`. PRD output is organized as routine product and delivery material: feature/CRUD inventory, UI entry points, input constraints, business outcomes, acceptance matrix, delivery checklist, and open questions.
+It accepts `medol`, `kind`, optional `language` (`en` or `zh-CN`), and optional `enhanceWithAi`. The legacy request field `dsl` remains accepted for compatibility. Supported kinds are `prd`, `software-design`, `database-design`, and `process`. PRD output is organized as routine product and delivery material: feature/CRUD inventory, UI entry points, input constraints, business outcomes, acceptance matrix, delivery checklist, and open questions.
 
-## DSL Example
+## MEDOL Example
 
-```eventmodeling
+```medol
 domain FederationLearningPlatform {
 context FederationLearning {
   aggregate Federation {
@@ -333,7 +335,7 @@ context FederationLearning {
 }
 ```
 
-## DSL Concepts
+## MEDOL Concepts
 
 - `domain`: A top-level domain that groups one or more modeling contexts.
 - `context`: A bounded modeling context inside a domain. Legacy files may still start with `context`.
@@ -376,7 +378,7 @@ Field mappings:
 - `from`: Maps a field directly from one or more upstream element or field paths.
 - `derived`: Marks a field produced from a domain rule or aggregate state rather than copied input.
 - `{ example "..." }`: Stores a field-level example value apart from specification examples.
-- `derived { from ... rule "..." example "..." }`: Keeps derivation metadata with the field. DSL-to-config writes sources and rules as field `mappings`.
+- `derived { from ... rule "..." example "..." }`: Keeps derivation metadata with the field. MEDOL-to-config writes sources and rules as field `mappings`.
 
 Cardinality:
 

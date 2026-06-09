@@ -55,7 +55,7 @@ async function* createEventModelingAgentStream(input: {
   context: AgentContextItem[];
 } & Partial<Omit<AgentRequest, 'prompt'>>): AsyncIterable<StreamChunk> {
   const messageId = createId('assistant');
-  const model = 'event-modeling-agent';
+  const model = 'medol-agent';
   const timestamp = Date.now();
 
   yield {

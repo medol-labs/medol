@@ -1,4 +1,4 @@
-import { parseEventModelingDsl } from './dslParser';
+import { parseMedol } from './dslParser';
 import type { EmModel } from './model';
 import { modelToCodegenModel } from './codegenModel';
 import { codegenModelToConfig } from './codegenToConfig';
@@ -19,10 +19,13 @@ export type {
 export { modelToCodegenModel } from './codegenModel';
 export { codegenModelToConfig } from './codegenToConfig';
 
-export const dslToCodegenModel = (dsl: string) => modelToCodegenModel(parseEventModelingDsl(dsl));
+export const medolToCodegenModel = (medol: string) => modelToCodegenModel(parseMedol(medol));
 
 export const modelToConfig = (model: EmModel): ConfigRoot =>
   codegenModelToConfig(modelToCodegenModel(model));
 
-export const dslToConfig = (dsl: string): ConfigRoot =>
-  codegenModelToConfig(dslToCodegenModel(dsl));
+export const medolToConfig = (medol: string): ConfigRoot =>
+  codegenModelToConfig(medolToCodegenModel(medol));
+
+export const dslToCodegenModel = medolToCodegenModel;
+export const dslToConfig = medolToConfig;

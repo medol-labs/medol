@@ -273,7 +273,7 @@ const summarizeMissingSpecifications = (bundle: DocumentationBundle): string[] =
 const header = (bundle: DocumentationBundle, suffix: string): string[] => [
   `# ${bundle.title} ${suffix}`,
   '',
-  `Generated from Event Modeling DSL at ${bundle.generatedAt}.`,
+  `Generated from MEDOL at ${bundle.generatedAt}.`,
   ''
 ];
 
@@ -284,7 +284,7 @@ const section = (lines: string[], title: string): void => {
 
 const appendDiagnostics = (lines: string[], bundle: DocumentationBundle): void => {
   if (!bundle.diagnostics.length) return;
-  lines.push('> The DSL contains diagnostics. Treat affected sections as incomplete until these are resolved.');
+  lines.push('> MEDOL contains diagnostics. Treat affected sections as incomplete until these are resolved.');
   lines.push('');
   appendList(lines, bundle.diagnostics);
   lines.push('');

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { parseEventModelingDsl } from '../../dslParser';
+import { parseMedol } from '../../dslParser';
 import { generatePrd } from './prdGenerator';
 import { renderPrdMarkdown } from './prdMarkdownRenderer';
 
@@ -9,11 +9,11 @@ const outputTrace = args.includes('--trace');
 const outputJson = args.includes('--json');
 
 if (!input) {
-  console.error('Usage: npm run prd:generate -- ./model.em [--trace|--json]');
+  console.error('Usage: npm run prd:generate -- ./model.medol [--trace|--json]');
   process.exitCode = 1;
 } else {
   const sourceText = readFileSync(input, 'utf8');
-  const model = parseEventModelingDsl(sourceText);
+  const model = parseMedol(sourceText);
   const result = generatePrd(model, { sourceText });
 
   if (outputTrace) {

@@ -19,8 +19,8 @@ export const renderPrdMarkdown = (
   lines.push('<!-- em:section id="prd.section.overview" -->');
   heading(lines, 2, zh ? '文档目的' : 'Document Purpose');
   lines.push(zh
-    ? '本文档根据 Event Modeling DSL 自动整理产品功能、CRUD 操作、页面入口、业务结果和验收依据，用于产品评审、研发对齐、测试用例设计和交付验收。'
-    : 'This document derives product functions, CRUD operations, UI entry points, business outcomes, and acceptance evidence from the Event Modeling DSL for product review, implementation alignment, test design, and delivery acceptance.');
+    ? '本文档根据 MEDOL 自动整理产品功能、CRUD 操作、页面入口、业务结果和验收依据，用于产品评审、研发对齐、测试用例设计和交付验收。'
+    : 'This document derives product functions, CRUD operations, UI entry points, business outcomes, and acceptance evidence from MEDOL for product review, implementation alignment, test design, and delivery acceptance.');
   lines.push('');
   lines.push(`**${zh ? '建模范围' : 'Modeled scope'}:** ${document.context.split(', ').map(humanize).join(', ')}`);
   lines.push('');
@@ -34,7 +34,7 @@ export const renderPrdMarkdown = (
   heading(lines, 2, zh ? '产品范围与角色' : 'Product Scope and Roles');
   lines.push(`**${zh ? '核心业务对象' : 'Core business objects'}:** ${document.aggregates.map((aggregate) => humanize(aggregate.name)).join(', ') || '-'}`);
   lines.push('');
-  lines.push(`**${zh ? '参与角色' : 'Actors'}:** ${document.actors.map((actor) => humanize(actor.name)).join(', ') || (zh ? 'DSL 中未明确' : 'Not explicitly modeled')}`);
+  lines.push(`**${zh ? '参与角色' : 'Actors'}:** ${document.actors.map((actor) => humanize(actor.name)).join(', ') || (zh ? 'MEDOL 中未明确' : 'Not explicitly modeled')}`);
   lines.push('');
 
   lines.push('<!-- em:section id="prd.section.featureInventory" -->');
@@ -52,7 +52,7 @@ export const renderPrdMarkdown = (
   heading(lines, 2, zh ? '模块需求与验收' : 'Module Requirements and Acceptance');
   for (const aggregate of document.aggregates) {
     heading(lines, 3, humanize(aggregate.name));
-    lines.push(`**${zh ? '生命周期' : 'Lifecycle'}:** ${aggregate.states.length ? aggregate.states.map(humanize).join(' -> ') : zh ? 'DSL 中未明确' : 'Not explicitly modeled'}`);
+    lines.push(`**${zh ? '生命周期' : 'Lifecycle'}:** ${aggregate.states.length ? aggregate.states.map(humanize).join(' -> ') : zh ? 'MEDOL 中未明确' : 'Not explicitly modeled'}`);
     lines.push('');
     const slices = document.slices.filter((slice) => slice.aggregate === aggregate.name);
     for (const slice of slices) appendSlice(lines, slice, language);
@@ -90,7 +90,7 @@ export const renderPrdMarkdown = (
       lines.push(`| ${cell(humanize(field.owner))} | ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(field.mapping ?? '-')} |`);
     }
   } else {
-    lines.push(zh ? 'DSL 中未定义需要单独说明的标识、查询、示例或映射字段。' : 'No identifier, query, example, or mapping fields require separate documentation.');
+    lines.push(zh ? 'MEDOL 中未定义需要单独说明的标识、查询、示例或映射字段。' : 'No identifier, query, example, or mapping fields require separate documentation.');
   }
   lines.push('');
 
@@ -106,7 +106,7 @@ export const renderPrdMarkdown = (
       lines.push(`| ${cell(humanize(automation.name))} | ${cell(humanize(automation.kind))} | ${cell(metadata || '-')} |`);
     }
   } else {
-    lines.push(zh ? 'DSL 中未明确自动化、策略或集成。' : 'No automation, policies, or integrations are explicitly modeled.');
+    lines.push(zh ? 'MEDOL 中未明确自动化、策略或集成。' : 'No automation, policies, or integrations are explicitly modeled.');
   }
   lines.push('');
 
@@ -115,8 +115,8 @@ export const renderPrdMarkdown = (
   appendList(lines, zh
     ? [
         '功能清单中的页面、查询和操作均可访问，实际权限范围需由业务方确认。',
-        '命令输入字段的必填、可选、标识和示例约束与 DSL 一致。',
-        '操作成功后产生约定事件，并进入 DSL 指定的业务状态。',
+        '命令输入字段的必填、可选、标识和示例约束与 MEDOL 一致。',
+        '操作成功后产生约定事件，并进入 MEDOL 指定的业务状态。',
         'Read Model 能根据订阅事件更新，并满足列表或详情查询需要。',
         'derived 字段按 rule 计算，from 字段能追踪到来源字段。',
         '错误提示、重复提交、并发冲突、权限拒绝和操作幂等策略需在开发前确认。',
@@ -124,7 +124,7 @@ export const renderPrdMarkdown = (
       ]
     : [
         'Every page, query, and operation in the feature inventory is accessible; final authorization scope requires business confirmation.',
-        'Required, optional, identifier, and example constraints match command input fields in the DSL.',
+        'Required, optional, identifier, and example constraints match command input fields in the MEDOL.',
         'Successful operations produce the modeled event and transition to the modeled business state.',
         'Read models update from subscribed events and support the required list or detail access.',
         'Derived fields follow their rule and directly mapped fields remain traceable to their source.',
@@ -170,7 +170,7 @@ const appendSlice = (
     lines.push('');
     appendSpecifications(lines, slice.specifications, language);
   } else if (slice.command) {
-    lines.push(`> ${zh ? 'DSL 尚未为该操作定义 specification，以下验收矩阵仅依据 command、event 和 state 自动推导。' : 'The DSL does not define a specification for this operation; the acceptance matrix is inferred only from command, event, and state semantics.'}`);
+    lines.push(`> ${zh ? 'MEDOL 尚未为该操作定义 specification，以下验收矩阵仅依据 command、event 和 state 自动推导。' : 'The MEDOL does not define a specification for this operation; the acceptance matrix is inferred only from command, event, and state semantics.'}`);
     lines.push('');
   }
   if (slice.hotspots.length) {
@@ -310,7 +310,7 @@ const appendFields = (
 };
 
 const localizeOpenQuestion = (question: string): string => {
-  if (question.startsWith('Resolve DSL diagnostic:')) return question.replace('Resolve DSL diagnostic:', '修复 DSL 诊断：');
+  if (question.startsWith('Resolve MEDOL diagnostic:')) return question.replace('Resolve MEDOL diagnostic:', '修复 MEDOL 诊断：');
   if (question.startsWith('Clarify the product behavior for')) return question.replace('Clarify the product behavior for', '明确以下功能的产品行为：');
   if (question.startsWith('Confirm the expected result event or read model for')) return question.replace('Confirm the expected result event or read model for', '确认以下功能的结果事件或 Read Model：');
   if (question.startsWith('Add acceptance criteria for')) return question.replace('Add acceptance criteria for', '补充以下功能的验收标准：');

@@ -222,7 +222,7 @@ const collectAutomations = (model: EmModel): PrdAutomation[] =>
 const collectOpenQuestions = (model: EmModel, slices: PrdSlice[]): string[] => {
   const questions: string[] = [];
   for (const diagnostic of model.diagnostics) {
-    questions.push(`Resolve DSL diagnostic: ${diagnostic}`);
+    questions.push(`Resolve MEDOL diagnostic: ${diagnostic}`);
   }
   const missingSpecifications = new Map<string, string[]>();
   for (const slice of slices) {

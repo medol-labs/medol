@@ -11,18 +11,18 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
   const selectedSnippet = context?.selectedDslSnippet;
 
   const modelingSystem = [
-    ...(context?.systemRules ?? ['You are an Event Modeling DSL assistant.']),
+    ...(context?.systemRules ?? ['You are a MEDOL domain design assistant.']),
     '',
-    'You can answer ordinary questions that are unrelated to the DSL or Event Modeling.',
-    'Only propose a DSL patch when the user explicitly requests or clearly needs a model change.',
+    'You can answer ordinary questions that are unrelated to MEDOL or domain design.',
+    'Only propose a MEDOL patch when the user explicitly requests or clearly needs a model change.',
     '',
     'Modeling rules:',
-    '- Use dsl_patch_proposal only when you can produce focused DSL operations.',
-    '- Do not output nextDsl; the server applies operations to the current DSL.',
+    '- Use medol_patch_proposal only when you can produce focused MEDOL operations.',
+    '- Do not output nextDsl; the server applies operations to the current MEDOL.',
     '- Do not silently invent domain rules; use clarification or add a hotspot when behavior is unclear.',
-    '- Preserve unrelated DSL exactly as much as possible.',
+    '- Preserve unrelated MEDOL exactly as much as possible.',
     '- For patch operations, use targets like "slice CreateOrder", "readmodel OrderList", "command CreateOrder".',
-    '- Insert operations must include the DSL fragment in content.'
+    '- Insert operations must include the MEDOL fragment in content.'
   ].join('\n');
 
   return {
@@ -42,24 +42,24 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
         ? `Model summary:\n${JSON.stringify(context.modelSummary, null, 2)}`
         : undefined,
       context
-        ? `DSL knowledge reference:\n${context.dslKnowledgeRef.title} ${context.dslKnowledgeRef.version}\n${context.dslKnowledgeRef.compactRules.join('\n')}`
+        ? `MEDOL knowledge reference:\n${context.dslKnowledgeRef.title} ${context.dslKnowledgeRef.version}\n${context.dslKnowledgeRef.compactRules.join('\n')}`
         : undefined,
       context?.dslKnowledgeSnippets.length
-        ? `Relevant DSL knowledge snippets:\n${context.dslKnowledgeSnippets.map((snippet) => [
+        ? `Relevant MEDOL knowledge snippets:\n${context.dslKnowledgeSnippets.map((snippet) => [
             `Topic: ${snippet.topic}`,
             `Reason: ${snippet.reason}`,
             snippet.content
           ].join('\n')).join('\n\n')}`
         : undefined,
       selectedSnippet
-        ? `Selected DSL snippet (${selectedSnippet.label}, lines ${selectedSnippet.startLine}-${selectedSnippet.endLine}):\n${selectedSnippet.text}`
+        ? `Selected MEDOL snippet (${selectedSnippet.label}, lines ${selectedSnippet.startLine}-${selectedSnippet.endLine}):\n${selectedSnippet.text}`
         : undefined,
       context
         ? `Recent conversation:\n${context.recentConversationSummary}`
         : undefined,
       request.includeDslInPrompt === false
         ? undefined
-        : `Current complete DSL:\n${request.dsl}`
+        : `Current complete MEDOL:\n${request.dsl}`
     ].filter(Boolean).join('\n\n')
   };
 };
@@ -74,21 +74,21 @@ const outputContract = {
     content: 'Explain why more domain information is needed.',
     questions: ['One focused question.']
   },
-  dsl_patch_proposal: {
-    type: 'dsl_patch_proposal',
+  medol_patch_proposal: {
+    type: 'medol_patch_proposal',
     content: 'Short explanation shown in chat.',
     patch: {
       summary: 'Human-readable patch summary.',
-      reason: 'Why this DSL change is appropriate.',
-      target: 'DSL element being changed.',
+      reason: 'Why this MEDOL change is appropriate.',
+      target: 'MEDOL element being changed.',
       changeType: 'insert | update | delete',
       operations: [{
         operation: 'insert | replace | delete',
-        target: 'DSL element or block.',
-        content: 'Inserted or replacement DSL fragment.',
+        target: 'MEDOL element or block.',
+        content: 'Inserted or replacement MEDOL fragment.',
         rule: 'Domain or modeling rule behind the change.'
       }],
-      preview: 'Short DSL fragment preview.',
+      preview: 'Short MEDOL fragment preview.',
       focusTarget: {
         kind: 'domain | context | aggregate | slice',
         name: 'Element name'

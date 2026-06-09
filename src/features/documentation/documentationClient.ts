@@ -22,7 +22,7 @@ export const generateModelingDocument = async (input: {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      dsl: input.dsl,
+      medol: input.dsl,
       kind: input.kind,
       language: input.language ?? 'en',
       enhanceWithAi: Boolean(input.enhanceWithAi)

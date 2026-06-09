@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import type { EmModel } from '../../lib/model';
-import { parseEventModelingDsl } from '../../lib/dslParser';
+import { parseMedol } from '../../lib/dslParser';
 import { useDebouncedValue } from '../../app/useDebouncedValue';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
 import type { SelectedModelItem } from '../../app/modelSelection';
@@ -118,7 +118,7 @@ export function AgentChatDock({
   const contextLabel = selectedItem
     ? `${selectedItem.type}: ${selectedItem.name}`
     : 'domain model';
-  const statusLabel = isParsingPending ? 'Parsing DSL' : contextLabel;
+  const statusLabel = isParsingPending ? 'Parsing MEDOL' : contextLabel;
   const canSend = draft.trim().length > 0 && !isThinking;
   const sessionUsage = useMemo(
     () => sumAgentUsage(Object.values(usageByMessageId)),
@@ -219,7 +219,7 @@ export function AgentChatDock({
       setPatchReview((current) => ({
         ...current,
         [messageId]: {
-          diagnostics: ['The DSL changed after this proposal was generated. Ask the assistant to regenerate the patch before applying it.'],
+          diagnostics: ['The MEDOL changed after this proposal was generated. Ask the assistant to regenerate the patch before applying it.'],
           confirmRequired: false,
           blocked: true
         }
@@ -227,7 +227,7 @@ export function AgentChatDock({
       return;
     }
 
-    const validation = parseEventModelingDsl(patch.nextDsl);
+    const validation = parseMedol(patch.nextDsl);
     const blocked = validation.domains.length === 0 && validation.contexts.length === 0;
     const existingReview = patchReview[messageId];
 
@@ -416,7 +416,7 @@ function PatchProposalCard({ patch, patchState, review, onApply, onDismiss }: Pa
           </div>
         ))}
       </div>
-      <div className="agent-chat-patch__editor-note">Previewing this change in the DSL editor.</div>
+      <div className="agent-chat-patch__editor-note">Previewing this change in the MEDOL editor.</div>
       {review && (
         <div className={review.blocked ? 'agent-chat-patch__validation is-blocked' : 'agent-chat-patch__validation'}>
           <strong>{review.blocked ? 'Patch cannot be applied' : 'Dry-run found warnings'}</strong>
@@ -427,7 +427,7 @@ function PatchProposalCard({ patch, patchState, review, onApply, onDismiss }: Pa
               ))}
             </ul>
           ) : (
-            <span>The generated DSL did not produce a model.</span>
+            <span>The generated MEDOL did not produce a model.</span>
           )}
         </div>
       )}
