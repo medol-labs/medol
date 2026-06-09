@@ -10,9 +10,11 @@ import {
   useNodesState
 } from '@xyflow/react';
 import { OverviewNode } from '../../components/OverviewNode';
+import { ContextOverviewNode } from '../../components/ContextOverviewNode';
 
 const nodeTypes = {
-  overviewNode: OverviewNode
+  overviewNode: OverviewNode,
+  contextOverview: ContextOverviewNode
 };
 
 interface GlobalMapProps {

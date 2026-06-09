@@ -78,6 +78,7 @@ const colors: Record<
 
 interface SliceLayout {
   slice: EmSlice;
+  lanes: EmElement['kind'][];
   laneHeights: number[];
   height: number;
 }
@@ -87,20 +88,24 @@ export interface ReactFlowOptions {
   aggregateId?: string;
   sliceId?: string;
   compactSlices?: boolean;
+  showFields?: boolean;
 }
 
 const columnWidth = 330;
 const columnGap = 36;
-const aggregateLabelWidth = 150;
+const aggregateLabelWidth = 220;
 const aggregateGap = 64;
 const externalRowHeight = 150;
-const nodeStride = 88;
 const laneMinHeight = 112;
 const headerHeight = 42;
 const aggregatePadding = 18;
 const startX = 32;
 const contextPadding = 24;
 const contextHeaderHeight = 44;
+const compactColumns = 4;
+const compactColumnWidth = 250;
+const compactColumnGap = 24;
+const compactRowHeight = 166;
 
 export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
@@ -150,12 +155,7 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
     for (const context of contexts) {
       const aggregateLayouts = context.aggregates.map((aggregate) => ({
         aggregate,
-        width:
-          aggregateLabelWidth +
-          Math.max(aggregate.slices.length, 1) * columnWidth +
-          Math.max(aggregate.slices.length - 1, 0) * columnGap +
-          aggregatePadding * 2,
-        height: 250
+        ...compactAggregateSize(aggregate.slices.length)
       }));
       const contextWidth = Math.max(...aggregateLayouts.map((layout) => layout.width), 520) + contextPadding * 2;
       const contextHeight =
@@ -209,7 +209,7 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
   } else {
   for (const context of contexts) {
     for (const aggregate of context.aggregates) {
-      const sliceLayouts = aggregate.slices.map(toSliceLayout);
+      const sliceLayouts = toAggregateSliceLayouts(aggregate.slices, options.showFields ?? false);
       const aggregateWidth =
         aggregateLabelWidth +
         Math.max(aggregate.slices.length, 1) * columnWidth +
@@ -253,7 +253,7 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
 
       for (const [sliceIndex, layout] of sliceLayouts.entries()) {
         const sliceX = aggregateLabelWidth + aggregatePadding + sliceIndex * (columnWidth + columnGap);
-        addSliceNodes(nodes, layout, aggregate.id, { x: sliceX, y: aggregatePadding });
+        addSliceNodes(nodes, layout, aggregate.id, { x: sliceX, y: aggregatePadding }, options.showFields ?? false);
       }
 
       currentY += aggregateHeight + aggregateGap;
@@ -320,12 +320,7 @@ const addCompactAggregateNodes = (
   parentId: string,
   position: { x: number; y: number }
 ): void => {
-  const aggregateWidth =
-    aggregateLabelWidth +
-    Math.max(aggregate.slices.length, 1) * columnWidth +
-    Math.max(aggregate.slices.length - 1, 0) * columnGap +
-    aggregatePadding * 2;
-  const aggregateHeight = 250;
+  const { width: aggregateWidth, height: aggregateHeight } = compactAggregateSize(aggregate.slices.length);
 
   nodes.push({
     id: aggregate.id,
@@ -363,10 +358,23 @@ const addCompactAggregateNodes = (
 
   for (const [sliceIndex, slice] of aggregate.slices.entries()) {
     nodes.push(toSliceSummaryNode(slice, {
-      x: aggregateLabelWidth + aggregatePadding + sliceIndex * (columnWidth + columnGap),
-      y: 54
+      x: aggregateLabelWidth + aggregatePadding + (sliceIndex % compactColumns) * (compactColumnWidth + compactColumnGap),
+      y: 54 + Math.floor(sliceIndex / compactColumns) * compactRowHeight
     }, aggregate.id));
   }
+};
+
+const compactAggregateSize = (sliceCount: number): { width: number; height: number } => {
+  const columns = Math.min(Math.max(sliceCount, 1), compactColumns);
+  const rows = Math.max(Math.ceil(sliceCount / compactColumns), 1);
+  return {
+    width:
+      aggregateLabelWidth +
+      columns * compactColumnWidth +
+      Math.max(columns - 1, 0) * compactColumnGap +
+      aggregatePadding * 2,
+    height: Math.max(250, 54 + rows * compactRowHeight + 24)
+  };
 };
 
 const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, parentId: string): Node => {
@@ -390,7 +398,7 @@ const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, 
       }
     },
     style: {
-      width: 250,
+      width: 220,
       height: 138
     }
   };
@@ -420,20 +428,33 @@ const toEdgeVisual = (label?: string): {
   return { stroke: '#94a3b8', strokeWidth: 1.8, labelColor: '#334155' };
 };
 
-const toSliceLayout = (slice: EmSlice): SliceLayout => {
-  const laneHeights = sliceLaneOrder.map((lane) => {
-    const count = slice.elements.filter((element) => element.kind === lane).length;
-    return Math.max(laneMinHeight, count * nodeStride + 44);
+const toAggregateSliceLayouts = (slices: EmSlice[], showFields: boolean): SliceLayout[] => {
+  const lanes = sliceLaneOrder.filter((lane) =>
+    slices.some((slice) => slice.elements.some((element) => element.kind === lane))
+  );
+  const laneHeights = lanes.map((lane) => {
+    const maxContentHeight = Math.max(
+      ...slices.map((slice) => {
+        const elements = slice.elements.filter((element) => element.kind === lane);
+        return elements.reduce(
+          (total, element) => total + elementHeight(element, showFields) + 14,
+          0
+        );
+      }),
+      laneMinHeight - 44
+    );
+    return Math.max(laneMinHeight, maxContentHeight + 44);
   });
   const height = headerHeight + laneHeights.reduce((sum, laneHeight) => sum + laneHeight, 0) + 30;
-  return { slice, laneHeights, height };
+  return slices.map((slice) => ({ slice, lanes, laneHeights, height }));
 };
 
 const addSliceNodes = (
   nodes: Node[],
   layout: SliceLayout,
   aggregateId: string,
-  position: { x: number; y: number }
+  position: { x: number; y: number },
+  showFields: boolean
 ): void => {
   nodes.push({
     id: layout.slice.id,
@@ -466,7 +487,7 @@ const addSliceNodes = (
   });
 
   let laneTop = headerHeight;
-  for (const [laneIndex, lane] of sliceLaneOrder.entries()) {
+  for (const [laneIndex, lane] of layout.lanes.entries()) {
     nodes.push({
       id: `${layout.slice.id}/lane/${lane}`,
       type: 'laneLabel',
@@ -480,20 +501,26 @@ const addSliceNodes = (
     laneTop += layout.laneHeights[laneIndex];
   }
 
-  const laneCounts = new Map<EmElement['kind'], number>();
+  const lanePositions = new Map<EmElement['kind'], number>();
   const laneOffsets = toLaneOffsets(layout.laneHeights, headerHeight);
   for (const element of layout.slice.elements) {
-    const lane = Math.max(sliceLaneOrder.indexOf(element.kind), 0);
-    const laneCount = laneCounts.get(element.kind) ?? 0;
-    laneCounts.set(element.kind, laneCount + 1);
+    const lane = layout.lanes.indexOf(element.kind);
+    if (lane < 0) continue;
+    const lanePosition = lanePositions.get(element.kind) ?? 0;
+    lanePositions.set(element.kind, lanePosition + elementHeight(element, showFields) + 14);
     nodes.push(toNode(element, {
       x: 34,
-      y: laneOffsets[lane] + 28 + laneCount * nodeStride
-    }, layout.slice.id));
+      y: laneOffsets[lane] + 28 + lanePosition
+    }, layout.slice.id, showFields));
   }
 };
 
-const toNode = (element: EmElement, position: { x: number; y: number }, parentId?: string): Node => {
+const toNode = (
+  element: EmElement,
+  position: { x: number; y: number },
+  parentId?: string,
+  showFields = false
+): Node => {
   const color = colors[element.kind];
   return {
     id: element.id,
@@ -505,10 +532,17 @@ const toNode = (element: EmElement, position: { x: number; y: number }, parentId
       kind: element.kind,
       name: element.name,
       fields: element.fields,
+      showFields,
       accent: color.accent,
       fill: color.fill
-    }
+    },
+    style: showFields ? { minHeight: elementHeight(element, true) } : undefined
   };
+};
+
+const elementHeight = (element: EmElement, showFields: boolean): number => {
+  if (!showFields || element.fields.length === 0) return 76;
+  return 58 + element.fields.length * 20 + 18;
 };
 
 const toLaneOffsets = (laneHeights: number[], top: number): number[] => {

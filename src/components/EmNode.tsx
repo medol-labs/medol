@@ -7,6 +7,7 @@ interface EmNodeData extends Record<string, unknown> {
   fields: EmField[];
   accent: string;
   fill: string;
+  showFields?: boolean;
 }
 
 const labels: Record<EmElementKind, string> = {
@@ -23,13 +24,13 @@ const labels: Record<EmElementKind, string> = {
   integration: 'Integration'
 };
 
-export function EmNode({ data }: NodeProps) {
+export function EmNode({ data, selected }: NodeProps) {
   const node = data as EmNodeData;
-  const fields = node.fields.slice(0, 5);
-  const hiddenCount = Math.max(node.fields.length - fields.length, 0);
+  const showFields = node.showFields === true;
+  const fields = showFields ? node.fields : [];
 
   return (
-    <section className="em-node" style={{ borderColor: node.accent, background: node.fill }}>
+    <section className={selected ? 'em-node is-selected' : 'em-node'} style={{ borderColor: node.accent, background: node.fill }}>
       <Handle type="target" position={Position.Left} />
       <header className="em-node__header">
         <span className="em-node__kind" style={{ color: node.accent }}>{labels[node.kind]}</span>
@@ -43,8 +44,10 @@ export function EmNode({ data }: NodeProps) {
               <code>{field.type}{field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}</code>
             </li>
           ))}
-          {hiddenCount > 0 && <li className="em-node__more">+ {hiddenCount} fields</li>}
         </ul>
+      )}
+      {!showFields && node.fields.length > 0 && (
+        <div className="em-node__field-count">{node.fields.length} fields</div>
       )}
       <Handle type="source" position={Position.Right} />
     </section>

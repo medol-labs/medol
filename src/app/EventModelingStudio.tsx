@@ -1,5 +1,5 @@
 import { getViewportForBounds } from '@xyflow/react';
-import { useMemo, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type PointerEvent } from 'react';
 import { DslEditor } from '../features/dsl-editor/DslEditor';
 import { findDslLine, type DslLocationTarget } from '../features/dsl-editor/dslLocation';
 import { AgentChatDock } from '../features/agent-chat/AgentChatDock';
@@ -93,6 +93,7 @@ export function MedolStudio() {
   const [selectedAggregateId, setSelectedAggregateId] = useState<string | undefined>();
   const [selectedSliceId, setSelectedSliceId] = useState<string | undefined>();
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
+  const [canvasShowFields, setCanvasShowFields] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [agentPanelOpen, setAgentPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
@@ -110,13 +111,16 @@ export function MedolStudio() {
   const activeContext = resolveActiveContext(model, selectedContextId);
   const activeAggregate = resolveActiveAggregate(activeContext, selectedAggregateId);
   const displayContext = selectedContextId ? activeContext : undefined;
-  const domainOverviewMode = Boolean(selectedDomainId && !selectedContextId && previewMode === 'canvas');
+  const contextOverviewMode = previewMode === 'canvas'
+    && !selectedAggregateId
+    && !selectedSliceId;
   const flow = useMemo(() => toReactFlow(model, {
-    contextId: selectedContextId ? activeContext?.id : undefined,
-    aggregateId: activeAggregate?.id,
+    contextId: activeContext?.id,
+    aggregateId: selectedAggregateId ? activeAggregate?.id : undefined,
     sliceId: selectedSliceId,
-    compactSlices: domainOverviewMode
-  }), [model, selectedContextId, activeContext?.id, activeAggregate?.id, selectedSliceId, domainOverviewMode]);
+    compactSlices: contextOverviewMode,
+    showFields: canvasShowFields
+  }), [model, activeContext?.id, activeAggregate?.id, selectedAggregateId, selectedSliceId, contextOverviewMode, canvasShowFields]);
   const codegenModel = useMemo(() => modelToCodegenModel(model), [model]);
   const layoutPreview = useMemo(() => toLayoutPreviewModel(codegenModel), [codegenModel]);
   const overviewFlow = useMemo(() => toOverviewFlow(model), [model]);
@@ -140,13 +144,21 @@ export function MedolStudio() {
         ? 'Valid'
         : `${model.diagnostics.length} warnings`;
 
+  useEffect(() => {
+    setSelectedDomainId(undefined);
+    setSelectedContextId(undefined);
+    setSelectedAggregateId(undefined);
+    setSelectedSliceId(undefined);
+    setSelectedNodeId(undefined);
+  }, [activeWorkspaceId]);
+
   const selectDomain = (domain: EmDomain) => {
     setSelectedDomainId(domain.id);
     setSelectedContextId(undefined);
     setSelectedAggregateId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
-    setPreviewMode('canvas');
+    setPreviewMode('global');
     setDslFocusTarget({ kind: 'domain', name: domain.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -166,7 +178,7 @@ export function MedolStudio() {
     setSelectedContextId(context.id);
     setSelectedAggregateId(aggregate.id);
     setSelectedSliceId(undefined);
-    setSelectedNodeId(aggregate.id);
+    setSelectedNodeId(undefined);
     setDslFocusTarget({ kind: 'aggregate', name: aggregate.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -176,7 +188,7 @@ export function MedolStudio() {
     setSelectedContextId(context.id);
     setSelectedAggregateId(aggregate.id);
     setSelectedSliceId(slice.id);
-    setSelectedNodeId(slice.id);
+    setSelectedNodeId(undefined);
     setDslFocusTarget({ kind: 'slice', name: slice.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -508,7 +520,7 @@ export function MedolStudio() {
                 aria-selected={previewMode === 'canvas'}
                 onClick={() => setPreviewMode('canvas')}
               >
-                Event Canvas
+                Model Canvas
               </button>
               <button
                 type="button"
@@ -516,7 +528,7 @@ export function MedolStudio() {
                 aria-selected={previewMode === 'global'}
                 onClick={() => setPreviewMode('global')}
               >
-                Global Map
+                Domain Map
               </button>
               <button
                 type="button"
@@ -524,7 +536,7 @@ export function MedolStudio() {
                 aria-selected={previewMode === 'layout'}
                 onClick={() => setPreviewMode('layout')}
               >
-                Layout Preview
+                UI Preview
               </button>
             </div>
             <select
@@ -533,9 +545,9 @@ export function MedolStudio() {
               onChange={(event) => setPreviewMode(event.target.value as PreviewMode)}
               aria-label="Preview mode"
             >
-              <option value="canvas">Event Canvas</option>
-              <option value="global">Global Map</option>
-              <option value="layout">Layout Preview</option>
+              <option value="canvas">Model Canvas</option>
+              <option value="global">Domain Map</option>
+              <option value="layout">UI Preview</option>
             </select>
             <button type="button" onClick={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}>
               {layoutDirection.toUpperCase()}
@@ -579,7 +591,15 @@ export function MedolStudio() {
         </header>
         <div className="preview-stage">
           {previewMode === 'canvas' ? (
-            <SemanticCanvas nodes={flow.nodes} edges={flow.edges} onSelectNode={setSelectedNodeId} />
+            <SemanticCanvas
+              nodes={flow.nodes}
+              edges={flow.edges}
+              showFields={canvasShowFields}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+              onClearSelection={() => setSelectedNodeId(undefined)}
+              onShowFieldsChange={setCanvasShowFields}
+            />
           ) : previewMode === 'global' ? (
             <GlobalMap nodes={overviewFlow.nodes} edges={overviewFlow.edges} onSelectAggregate={selectOverviewAggregate} />
           ) : (
@@ -587,11 +607,13 @@ export function MedolStudio() {
           )}
         </div>
         <footer className="studio-status">
-          <strong>{previewMode === 'global' ? overviewFlow.nodes.length : flow.nodes.length}</strong> nodes
-          <strong>{previewMode === 'global' ? overviewFlow.edges.length : flow.edges.length}</strong> edges
-          {isParsingPending && <span>parsing</span>}
-          {domainOverviewMode && <span>domain overview</span>}
+          <strong>{modelStatus}</strong>
+          {previewMode === 'canvas' && <span>model canvas</span>}
+          {previewMode === 'global' && <span>domain map</span>}
+          {previewMode === 'layout' && <span>ui preview</span>}
+          {contextOverviewMode && <span>context overview</span>}
           {selectedSliceId && <span>slice focused</span>}
+          {selectedNodeId && <span>element focused</span>}
           {model.diagnostics.map((diagnostic) => (
             <span key={diagnostic}>{diagnostic}</span>
           ))}

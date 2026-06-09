@@ -7,13 +7,14 @@ interface ElementOwner {
   element: EmElement;
 }
 
-const contextWidth = 430;
+const contextWidth = 584;
 const contextPadding = 22;
 const contextGap = 54;
 const cardWidth = 250;
 const cardHeight = 148;
 const cardGap = 22;
 const cardsPerRow = 2;
+const contextHeaderHeight = 112;
 
 export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
@@ -22,7 +23,11 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
 
   for (const context of model.contexts) {
     const rowCount = Math.max(Math.ceil(context.aggregates.length / cardsPerRow), 1);
-    const contextHeight = contextPadding * 2 + 46 + rowCount * cardHeight + Math.max(rowCount - 1, 0) * cardGap;
+    const contextHeight =
+      contextPadding * 2 +
+      contextHeaderHeight +
+      rowCount * cardHeight +
+      Math.max(rowCount - 1, 0) * cardGap;
 
     nodes.push({
       id: context.id,
@@ -41,6 +46,28 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
       }
     });
 
+    nodes.push({
+      id: `${context.id}/overview`,
+      type: 'contextOverview',
+      parentId: context.id,
+      extent: 'parent',
+      position: { x: contextPadding, y: contextPadding },
+      draggable: false,
+      selectable: false,
+      data: {
+        title: context.name,
+        note: context.notes[0],
+        aggregates: context.aggregates.length,
+        slices: context.aggregates.reduce((total, aggregate) => total + aggregate.slices.length, 0),
+        integrations: context.looseElements.filter((element) => element.kind === 'integration').length,
+        risks: context.risks.length
+      },
+      style: {
+        width: contextWidth - contextPadding * 2,
+        height: contextHeaderHeight - 14
+      }
+    });
+
     for (const [index, aggregate] of context.aggregates.entries()) {
       const row = Math.floor(index / cardsPerRow);
       const column = index % cardsPerRow;
@@ -51,7 +78,7 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
         extent: 'parent',
         position: {
           x: contextPadding + column * (cardWidth + cardGap),
-          y: contextPadding + 36 + row * (cardHeight + cardGap)
+          y: contextPadding + contextHeaderHeight + row * (cardHeight + cardGap)
         },
         data: {
           kind: 'aggregate',
