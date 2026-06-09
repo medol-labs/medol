@@ -1,3 +1,11 @@
+import {
+  Bell,
+  ChevronRight,
+  CircleUserRound,
+  LayoutDashboard,
+  MoreHorizontal,
+  Search
+} from 'lucide-react';
 import type { LayoutAction, LayoutModule, LayoutPage, LayoutPreviewModel } from '../lib/layoutPreview';
 
 interface LayoutPreviewProps {
@@ -5,21 +13,34 @@ interface LayoutPreviewProps {
 }
 
 export function LayoutPreview({ model }: LayoutPreviewProps) {
+  const pageCount = model.contexts.reduce(
+    (total, context) => total + context.modules.reduce((count, module) => count + module.pages.length, 0),
+    0
+  );
+
   return (
     <div className="layout-preview">
-      <header className="layout-preview__header">
-        <div>
-          <p className="eyebrow">Application layout</p>
-          <h2>{model.title}</h2>
+      <header className="layout-preview__topbar">
+        <div className="layout-preview__brand">
+          <span>{model.title.slice(0, 1).toUpperCase()}</span>
+          <strong>{model.title}</strong>
         </div>
-        <div className="layout-preview__summary">
-          <span>{model.contexts.length} contexts</span>
-          <span>{model.contexts.reduce((total, context) => total + context.modules.length, 0)} modules</span>
+        <label className="layout-preview__search">
+          <Search size={14} />
+          <span>Search application</span>
+        </label>
+        <div className="layout-preview__account">
+          <button type="button" aria-label="Notifications"><Bell size={16} /></button>
+          <CircleUserRound size={22} />
         </div>
       </header>
 
       <div className="layout-preview__body">
-        <nav className="layout-preview__nav" aria-label="Application modules">
+        <nav className="layout-preview__nav" aria-label="Application pages">
+          <a className="layout-preview__nav-home" href="#layout-home">
+            <LayoutDashboard size={15} />
+            Overview
+          </a>
           {model.contexts.map((context) => (
             <section key={context.id}>
               <strong>{context.title}</strong>
@@ -30,208 +51,160 @@ export function LayoutPreview({ model }: LayoutPreviewProps) {
           ))}
         </nav>
 
-        <div className="layout-preview__modules">
+        <main className="layout-preview__workspace" id="layout-home">
+          <div className="layout-preview__page-heading">
+            <div>
+              <p>Application preview</p>
+              <h2>Workspace overview</h2>
+            </div>
+            <div className="layout-preview__summary">
+              <span>{model.contexts.length} contexts</span>
+              <span>{pageCount} pages</span>
+            </div>
+          </div>
+
           {model.contexts.map((context) => (
             <section className="layout-context" key={context.id}>
               <div className="layout-context__title">
                 <span>{context.title}</span>
               </div>
               {context.modules.map((module) => (
-                <ModulePreview key={module.id} module={module} />
+                <ModulePreview key={module.id} module={module} contextTitle={context.title} />
               ))}
             </section>
           ))}
-        </div>
+        </main>
       </div>
     </div>
   );
 }
 
 function ModuleNav({ module }: { module: LayoutModule }) {
-  const listPages = module.pages.filter((page) => page.kind === 'list');
-  const attachedCommandIds = new Set(listPages.flatMap((page) => page.actions.map((action) => action.id)));
-  const commands = uniqueActions(module.slices.flatMap((slice) => slice.commands));
-  const standaloneCommands = commands.filter((command) => !attachedCommandIds.has(command.id));
+  const navigablePages = module.pages.filter((page) => page.kind === 'list' || page.kind === 'detail');
 
   return (
     <div className="layout-preview__nav-module">
-      <a className="layout-preview__nav-module-link" href={`#${module.id}`}>{module.title}</a>
-      {listPages.length > 0 && (
-        <div className="layout-preview__nav-lists">
-          {listPages.map((page) => (
-            <ListNavItem key={page.id} page={page} />
-          ))}
-        </div>
-      )}
-      {standaloneCommands.length > 0 && (
-        <div className="layout-preview__nav-group">
-          <span>Other commands</span>
-          {standaloneCommands.map((command) => (
-            <a key={command.id} href={`#${command.id}`}>
-              <small>{command.uiType ?? (command.emphasis ? 'create' : 'cmd')}</small>
-              {command.title}
-            </a>
-          ))}
-        </div>
-      )}
+      <span className="layout-preview__nav-module-title">{module.title}</span>
+      {navigablePages.map((page) => (
+        <a key={page.id} href={`#${page.id}`}>
+          <span>{page.title}</span>
+          <ChevronRight size={12} />
+        </a>
+      ))}
     </div>
   );
 }
 
-function ListNavItem({ page }: { page: LayoutPage }) {
-  const commands = page.actions.filter((action): action is LayoutAction & { kind: 'command' } => action.kind === 'command');
-
-  return (
-    <div className="layout-preview__nav-list">
-      <a className="layout-preview__nav-list-link" href={`#${page.id}`}>
-        <small>list</small>
-        {page.title}
-      </a>
-      {commands.length > 0 && (
-        <div className="layout-preview__nav-group">
-          <span>Commands</span>
-          {commands.map((command) => (
-            <a key={command.id} href={`#${command.id}`}>
-              <small>{command.uiType ?? (command.emphasis ? 'create' : 'cmd')}</small>
-              {command.title}
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ModulePreview({ module }: { module: LayoutModule }) {
-  const commands = module.slices.flatMap((slice) => slice.commands);
-  const events = module.slices.flatMap((slice) => slice.events);
-  const readmodels = module.slices.flatMap((slice) => slice.readmodels);
-  const processors = module.slices.flatMap((slice) => slice.processors);
+function ModulePreview({ module, contextTitle }: { module: LayoutModule; contextTitle: string }) {
+  const commands = uniqueActions(module.slices.flatMap((slice) => slice.commands));
 
   return (
     <article className="layout-module" id={module.id}>
       <header className="layout-module__header">
         <div>
-          <p>{module.aggregate}</p>
+          <p>{contextTitle} / {module.aggregate}</p>
           <h3>{module.title}</h3>
         </div>
-        {module.states.length > 0 && (
-          <ol className="layout-states" aria-label={`${module.title} states`}>
-            {module.states.map((state) => (
-              <li key={state}>{state}</li>
-            ))}
-          </ol>
-        )}
+        <div className="layout-module__operations">
+          {commands.slice(0, 4).map((command) => (
+            <button className={command.emphasis ? 'is-primary' : undefined} key={command.id} type="button">
+              {command.title}
+            </button>
+          ))}
+          {commands.length > 4 && (
+            <button className="is-icon" type="button" aria-label="More commands">
+              <MoreHorizontal size={16} />
+            </button>
+          )}
+        </div>
       </header>
 
-      <div className="layout-module__grid">
-        <section className="layout-panel layout-panel--pages">
-          <div className="layout-panel__title">
-            <span>Pages</span>
-            <small>{module.pages.length}</small>
-          </div>
-          <div className="layout-pages">
-            {module.pages.map((page) => (
-              <div className="layout-page" id={page.id} key={page.id}>
-                <div className="layout-page__chrome">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <div className="layout-page__body">
-                  <small>{page.source}</small>
-                  <strong>{page.title}</strong>
-                  <div className="layout-wireframe">
-                    <span className={`layout-wireframe__block layout-wireframe__block--${page.kind}`} />
-                    <span />
-                    <span />
-                  </div>
-                  {page.actions.length > 0 && (
-                    <div className="layout-page__actions">
-                      {page.actions.map((action) => (
-                        <span className={action.emphasis ? 'is-emphasis' : undefined} key={action.id}>
-                          {action.title}
-                          {action.uiType && <small>{action.uiType}</small>}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+      {module.states.length > 0 && (
+        <div className="layout-module__states">
+          <span>Lifecycle</span>
+          {module.states.map((state) => <em key={state}>{state}</em>)}
+        </div>
+      )}
 
-        <section className="layout-panel">
-          <div className="layout-panel__title">
-            <span>Interactions</span>
-            <small>{module.slices.length}</small>
-          </div>
-          <div className="layout-flows">
-            {module.slices.map((slice) => (
-              <div className="layout-flow" key={slice.id}>
-                <div className="layout-flow__name">
-                  <strong>{slice.title}</strong>
-                  {slice.createsAggregate && <span>creates aggregate</span>}
-                </div>
-                <ActionList title="Command" kind="command" items={slice.commands} anchorItems />
-                <ActionList title="Event" kind="event" items={slice.events} />
-                <ActionList title="View" kind="readmodel" items={slice.readmodels} />
-                {slice.processors.length > 0 && <ActionList title="Auto" kind="processor" items={slice.processors} />}
-                {slice.stateChange && <div className="layout-flow__state">state: {slice.stateChange}</div>}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="layout-panel">
-          <div className="layout-panel__title">
-            <span>Inventory</span>
-            <small>{commands.length + events.length + readmodels.length + processors.length}</small>
-          </div>
-          <div className="layout-inventory">
-            <ActionList title="Commands" kind="command" items={commands} />
-            <ActionList title="Events" kind="event" items={events} />
-            <ActionList title="Read models" kind="readmodel" items={readmodels} />
-            {processors.length > 0 && <ActionList title="Processors" kind="processor" items={processors} />}
-          </div>
-        </section>
+      <div className="layout-pages">
+        {module.pages.map((page) => (
+          <PagePreview key={page.id} page={page} />
+        ))}
       </div>
     </article>
   );
 }
 
-function ActionList({
-  title,
-  kind,
-  items,
-  anchorItems = false
-}: {
-  title: string;
-  kind: 'command' | 'event' | 'readmodel' | 'processor';
-  items: Array<{ id: string; title: string; emphasis?: boolean; uiType?: string }>;
-  anchorItems?: boolean;
-}) {
+function PagePreview({ page }: { page: LayoutPage }) {
   return (
-    <div className="layout-action-list">
-      <span>{title}</span>
-      {items.length > 0 ? (
+    <section className={`layout-page layout-page--${page.kind}`} id={page.id}>
+      <header className="layout-page__header">
         <div>
-          {items.map((item) => (
-            <em className={`${item.emphasis ? 'is-emphasis ' : ''}is-${kind}`} id={anchorItems ? item.id : undefined} key={item.id}>
-              {item.title}
-              {item.uiType && <small>{item.uiType}</small>}
-            </em>
+          <small>{page.source}</small>
+          <strong>{page.title}</strong>
+        </div>
+        <div className="layout-page__actions">
+          {page.actions.slice(0, 3).map((action) => (
+            <button className={action.emphasis ? 'is-primary' : undefined} key={action.id} type="button">
+              {action.title}
+            </button>
           ))}
         </div>
-      ) : (
-        <small>None</small>
-      )}
+      </header>
+      <PageBody kind={page.kind} />
+    </section>
+  );
+}
+
+function PageBody({ kind }: { kind: LayoutPage['kind'] }) {
+  if (kind === 'list') {
+    return (
+      <div className="layout-page__list">
+        <div className="layout-page__list-tools">
+          <span><Search size={13} /> Search records</span>
+          <button type="button">Filter</button>
+        </div>
+        <div className="layout-page__table">
+          <div className="is-header"><span>Name</span><span>Status</span><span>Updated</span><span /></div>
+          {[0, 1, 2].map((row) => (
+            <div key={row}><span /><span><i /></span><span /></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === 'command') {
+    return (
+      <div className="layout-page__form">
+        {[0, 1, 2, 3].map((field) => (
+          <label key={field}><span>Field label</span><i /></label>
+        ))}
+        <div><button type="button">Cancel</button><button className="is-primary" type="button">Submit</button></div>
+      </div>
+    );
+  }
+
+  if (kind === 'automation') {
+    return (
+      <div className="layout-page__automation">
+        <span>Active workflow</span>
+        <div><i /><i /><i /></div>
+        <small>Runs automatically when its trigger is received.</small>
+      </div>
+    );
+  }
+
+  return (
+    <div className="layout-page__detail">
+      {[0, 1, 2, 3].map((item) => (
+        <div key={item}><small>Attribute</small><span /></div>
+      ))}
     </div>
   );
 }
 
-const uniqueActions = <T extends { id: string }>(items: T[]): T[] => {
+const uniqueActions = <T extends LayoutAction>(items: T[]): T[] => {
   const seen = new Set<string>();
   return items.filter((item) => {
     if (seen.has(item.id)) return false;
