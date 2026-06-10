@@ -2,7 +2,6 @@ export type EmElementKind =
   | 'screen'
   | 'command'
   | 'event'
-  | 'error'
   | 'readmodel'
   | 'automation'
   | 'policy'

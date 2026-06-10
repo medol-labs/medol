@@ -149,7 +149,7 @@ const sliceMetrics = (slices: EmAggregate['slices']): Record<string, number> => 
     slices: slices.length,
     commands: elements.filter((element) => element.kind === 'command').length,
     events: elements.filter((element) => element.kind === 'event').length,
-    errors: elements.filter((element) => element.kind === 'error').length,
+    rejects: elements.filter((element) => element.kind === 'gwt' && element.metadata?.thenReject).length,
     readmodels: elements.filter((element) => element.kind === 'readmodel').length,
     hotspots: elements.filter((element) => element.kind === 'hotspot').length + slices.flatMap((slice) => slice.hotspots).length
   };
@@ -167,7 +167,7 @@ const aggregateMetrics = (aggregate: EmAggregate): Record<string, number> => {
     slices: aggregate.slices.length,
     commands: elements.filter((element) => element.kind === 'command').length,
     events: elements.filter((element) => element.kind === 'event').length,
-    errors: elements.filter((element) => element.kind === 'error').length,
+    rejects: elements.filter((element) => element.kind === 'gwt' && element.metadata?.thenReject).length,
     readmodels: elements.filter((element) => element.kind === 'readmodel').length,
     hotspots: elements.filter((element) => element.kind === 'hotspot').length + aggregate.slices.flatMap((slice) => slice.hotspots).length
   };

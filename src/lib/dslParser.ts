@@ -15,7 +15,6 @@ import {
   isHotspot,
   isIntegration,
   isDecision,
-  isDomainError,
   isMetric,
   isNote,
   isNumberLiteral,
@@ -41,7 +40,6 @@ import type {
   Context as AstContext,
   Domain as AstDomain,
   Constraint as AstConstraint,
-  DomainError as AstDomainError,
   Event as AstEvent,
   Expression,
   Field as AstField,
@@ -267,7 +265,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
   }
 
   for (const element of elements) {
-    if (isCommand(element) || isEvent(element) || isDomainError(element) || isReadModel(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
+    if (isCommand(element) || isEvent(element) || isReadModel(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
       const parsed = parseElement(element, sliceId, aggregateId);
       slice.elements.push(parsed);
       collectElementEdges(element, parsed.id, edges);
@@ -285,7 +283,6 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
   const screens = slice.elements.filter((element) => element.kind === 'screen');
   const command = slice.elements.find((element) => element.kind === 'command');
   const event = slice.elements.find((element) => element.kind === 'event');
-  const domainError = slice.elements.find((element) => element.kind === 'error');
 
   for (const screen of screens) {
     if (command) {
@@ -295,10 +292,6 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
   if (command && event) {
     edges.push(edge(command.id, event.id, 'emits'));
   }
-  if (command && domainError) {
-    edges.push(edge(command.id, domainError.id, 'rejects'));
-  }
-
   return slice;
 };
 
@@ -318,14 +311,12 @@ const parseUi = (uiRef: AstUiRef): EmUi | undefined => {
 };
 
 const parseElement = (
-  node: AstCommand | AstEvent | AstDomainError | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
+  node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
   scopeId: string,
   aggregateId?: string
 ): EmElement => {
   const kind = isReadModel(node)
     ? 'readmodel'
-    : isDomainError(node)
-      ? 'error'
     : isSpecification(node)
       ? 'gwt'
       : node.$type.toLowerCase();
@@ -342,7 +333,7 @@ const parseElement = (
   };
 };
 
-const parseElementFields = (node: AstCommand | AstEvent | AstDomainError | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration): EmField[] => {
+const parseElementFields = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration): EmField[] => {
   if (isCommand(node) || isEvent(node)) {
     return (node.fields ?? []).map(parseField);
   }
@@ -402,12 +393,8 @@ const parseFieldMapping = (field: AstField): EmFieldMapping | undefined => {
 
 const formatFieldSource = (source: FieldSource): string => source.parts.join('.');
 
-const parseElementMetadata = (node: AstCommand | AstEvent | AstDomainError | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration): Record<string, string> => {
+const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration): Record<string, string> => {
   const metadata: Record<string, string> = {};
-
-  if (isDomainError(node) && node.description) {
-    metadata.description = node.description;
-  }
 
   if (isPolicy(node)) {
     if (node.event?.$refText) metadata.on = node.event.$refText;
@@ -424,7 +411,7 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstDomainError | Ast
     });
     if (node.when?.command?.$refText) metadata.when = node.when.command.$refText;
     if (node.then?.event?.$refText) metadata.then = node.then.event.$refText;
-    if (node.then?.error?.$refText) metadata.thenError = node.then.error.$refText;
+    if (node.then?.rejection) metadata.thenReject = node.then.rejection;
     for (const assignment of node.when?.condition?.assignments ?? []) {
       metadata[`example:${assignment.field}`] = formatLiteral(assignment.value);
     }
@@ -434,7 +421,7 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstDomainError | Ast
 };
 
 const collectElementEdges = (
-  node: AstCommand | AstEvent | AstDomainError | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
+  node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
   sourceId: string,
   edges: EmEdge[]
 ): void => {
@@ -461,7 +448,6 @@ const collectElementEdges = (
     }
     if (node.when?.command?.$refText) edges.push(edge(`ref/command/${node.when.command.$refText}`, sourceId, 'when'));
     if (node.then?.event?.$refText) edges.push(edge(sourceId, `ref/event/${node.then.event.$refText}`, 'then'));
-    if (node.then?.error?.$refText) edges.push(edge(sourceId, `ref/error/${node.then.error.$refText}`, 'then'));
   }
 
   if (isIntegration(node)) {

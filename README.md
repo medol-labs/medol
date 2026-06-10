@@ -11,7 +11,7 @@ MEDOL treats domain design as a versionable, executable specification rather tha
 The project combines two development ideas:
 
 - **Agentic development**: a modeling agent understands MEDOL syntax, the current domain model, the selected modeling element, and project-specific knowledge. It can discuss requirements, identify missing decisions, and propose focused MEDOL patches. Changes remain reviewable in the editor before they are applied.
-- **Spec-driven development**: MEDOL is the source of truth for business behavior and implementation intent. Commands, events, errors, read models, consistency constraints, UI interactions, examples, and Given-When-Then specifications are captured before downstream documents or code are generated.
+- **Spec-driven development**: MEDOL is the source of truth for business behavior and implementation intent. Commands, events, business rejections, read models, consistency constraints, UI interactions, examples, and Given-When-Then specifications are captured before downstream documents or code are generated.
 
 The intended delivery loop is:
 
@@ -241,7 +241,7 @@ The toolkit now uses an internal `CodegenModel` between `EmModel` and the Martin
 - fields: name, type, cardinality, optional/id/generated/technical/query flags, field-level `example`, and optional source metadata
 - field source metadata: direct mappings and derived mappings with source paths and optional rule text
 - dependencies: inbound/outbound element links with generated ids, titles, and element types
-- specifications: GWT-style given/when/then data plus field examples from specification examples
+- specifications: GWT-style given/when/then data, inline business rejections, and field examples from specification examples
 
 The existing `dslToConfig` API remains as a compatibility alias. Internally, conversion calls:
 
@@ -394,6 +394,7 @@ context FederationLearning {
 - `command`: A user or automation intent.
 - `event`: A domain fact produced by a command.
 - `specification`: GWT-style business rule node.
+- `then reject "description"`: An expected business rejection for a specification. Rejections are inline outcomes, not separately declared domain elements.
 - `readmodel`: A read model updated by events. Use `readmodel Name[]` to export it as a collection read model with `listElement: true`. The legacy `projection` keyword is accepted only for migration.
 - `automation`: A process that reacts to events and emits commands.
 - `reactsTo`: Declares that a slice starts from a prior event.

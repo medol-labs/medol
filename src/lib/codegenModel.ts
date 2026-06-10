@@ -151,7 +151,7 @@ export interface CodegenSpecification {
   title: string;
   given: CodegenSpecificationElement[];
   when: CodegenSpecificationElement[];
-  then: CodegenSpecificationElement[] | CodegenSpecificationError;
+  then: CodegenSpecificationElement[] | CodegenSpecificationReject;
 }
 
 export interface CodegenSpecificationElement {
@@ -161,7 +161,7 @@ export interface CodegenSpecificationElement {
   fields: Array<{ name: string; example?: string }>;
 }
 
-export interface CodegenSpecificationError {
+export interface CodegenSpecificationReject {
   title: string;
   id: string;
   description: string;
@@ -201,7 +201,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
 
   const elementsByReference = new Map<string, EmElement>();
   for (const element of elementsById.values()) {
-    if (element.kind === 'command' || element.kind === 'event' || element.kind === 'error') {
+    if (element.kind === 'command' || element.kind === 'event') {
       elementsByReference.set(`${element.kind}:${element.name}`, element);
     }
   }
@@ -388,7 +388,7 @@ const toCodegenSpecification = (
     .map(({ event, examples: givenExamples }) => toCodegenSpecificationElement(event, 'EVENT', givenExamples));
   const when = metadata.when ? elementsByReference.get(`command:${metadata.when}`) : undefined;
   const then = metadata.then ? elementsByReference.get(`event:${metadata.then}`) : undefined;
-  const thenError = metadata.thenError ? elementsByReference.get(`error:${metadata.thenError}`) : undefined;
+  const thenReject = metadata.thenReject;
   const examples = specExamples(metadata);
 
   return {
@@ -400,15 +400,15 @@ const toCodegenSpecification = (
     when: when ? [toCodegenSpecificationElement(when, 'COMMAND', examples)] : [],
     then: then
       ? [toCodegenSpecificationElement(then, 'EVENT', examples)]
-      : thenError
+      : thenReject
         ? {
-            title: humanize(thenError.name),
-            id: stableId(thenError.kind, thenError.id),
-            description: thenError.metadata?.description ?? ''
+            title: 'Rejected',
+            id: stableId('spec-reject', element.id),
+            description: thenReject
           }
         : {
             title: humanize(element.name),
-            id: stableId('spec-error', element.id),
+            id: stableId('spec-reject', element.id),
             description: ''
           }
   };

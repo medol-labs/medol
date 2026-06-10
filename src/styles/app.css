@@ -1532,6 +1532,13 @@ textarea {
   text-transform: uppercase;
 }
 
+.em-node__outcome {
+  margin: 8px 10px;
+  color: #991b1b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .em-node__fields {
   display: grid;
   gap: 1px;

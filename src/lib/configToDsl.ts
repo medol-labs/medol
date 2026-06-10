@@ -178,7 +178,6 @@ const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void 
 
   for (const command of slice.commands ?? []) appendElement(lines, 'command', command, elementIndent);
   for (const event of slice.events ?? []) appendElement(lines, 'event', event, elementIndent);
-  appendSpecificationErrors(lines, slice.specifications ?? [], elementIndent);
   if (slice.stateChange?.to) lines.push(`${pad(elementIndent)}state ${toDslId(slice.stateChange.to, 'State')}`);
   for (const readmodel of slice.readmodels ?? []) {
     appendElement(lines, 'readmodel', readmodel, elementIndent, readmodel.dependencies
@@ -196,22 +195,6 @@ const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void 
   }
   for (const specification of slice.specifications ?? []) appendSpecification(lines, specification, elementIndent);
   lines.push(`${pad(indent)}}`);
-};
-
-const appendSpecificationErrors = (
-  lines: string[],
-  specifications: ConfigSpecification[],
-  indent: number
-): void => {
-  const seen = new Set<string>();
-  for (const specification of specifications) {
-    if (Array.isArray(specification.then) || specification.then?.type !== 'SPEC_ERROR') continue;
-    const name = toDslId(specification.then.title || specification.title, 'DomainError');
-    if (seen.has(name)) continue;
-    seen.add(name);
-    const description = specification.then.description ? ` ${quote(specification.then.description)}` : '';
-    lines.push(`${pad(indent)}error ${name}${description}`);
-  }
 };
 
 const appendSpecification = (
@@ -233,7 +216,7 @@ const appendSpecification = (
   }
   appendSpecificationWhen(lines, when, indent + 2);
   if (!Array.isArray(specification.then) && specification.then?.type === 'SPEC_ERROR') {
-    lines.push(`${pad(indent + 2)}then error ${toDslId(then.title, 'DomainError')}`);
+    lines.push(`${pad(indent + 2)}then reject ${quote(specification.then.description || specification.then.title || 'Rejected by domain rule')}`);
   } else {
     lines.push(`${pad(indent + 2)}then ${toDslId(then.title, 'Event')}`);
   }

@@ -191,7 +191,7 @@ const appendSpecifications = (
     lines.push(`- **${humanize(specification.name)}**`);
     lines.push(`  - ${zh ? '假设' : 'Given'}: ${specification.given.map(humanize).join(', ') || (zh ? '未明确' : 'Unspecified')}`);
     lines.push(`  - ${zh ? '当' : 'When'}: ${specification.when ? humanize(specification.when) : zh ? '未明确' : 'Unspecified'}`);
-    lines.push(`  - ${zh ? '则' : 'Then'}: ${specification.then ? humanize(specification.then) : zh ? '未明确' : 'Unspecified'}`);
+    lines.push(`  - ${zh ? '则' : 'Then'}: ${specification.reject ? `${zh ? '拒绝' : 'Reject'}: ${specification.reject}` : specification.then ? humanize(specification.then) : zh ? '未明确' : 'Unspecified'}`);
     if (Object.keys(specification.examples).length) {
       lines.push(`  - ${zh ? '示例' : 'Examples'}: ${Object.entries(specification.examples).map(([key, value]) => `${key}=${value}`).join(', ')}`);
     }
@@ -215,7 +215,11 @@ const buildAcceptanceScenarios = (
     return slice.specifications.map((specification) => ({
       given: specification.given.map(humanize).join(', ') || (zh ? '未明确' : 'Unspecified'),
       when: specification.when ? humanize(specification.when) : slice.command ? humanize(slice.command.name) : humanize(slice.name),
-      then: specification.then ? humanize(specification.then) : formatResult(slice, language),
+      then: specification.reject
+        ? `${zh ? '拒绝' : 'Reject'}: ${specification.reject}`
+        : specification.then
+          ? humanize(specification.then)
+          : formatResult(slice, language),
       source: `specification ${humanize(specification.name)}`
     }));
   }

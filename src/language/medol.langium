@@ -59,7 +59,6 @@ SliceElement:
     | ReactsTo
     | Command
     | Event
-    | DomainError
     | State
     | Specification
     | ReadModel
@@ -142,10 +141,6 @@ Event:
     '}'
 ;
 
-DomainError:
-    'error' name=ID description=STRING?
-;
-
 ReadModel:
     ('readmodel' | 'projection') name=ID listElement?='[]'? '{'
         elements+=ReadModelElement*
@@ -207,7 +202,7 @@ When:
 ;
 
 Then:
-    'then' (event=[Event:ID] | 'error' error=[DomainError:ID])
+    'then' (event=[Event:ID] | 'reject' rejection=STRING)
 ;
 
 Example:

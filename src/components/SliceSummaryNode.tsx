@@ -8,7 +8,7 @@ export interface SliceSummaryNodeData extends Record<string, unknown> {
   metrics: {
     commands: number;
     events: number;
-    errors: number;
+    rejects: number;
     readmodels: number;
     policies: number;
     hotspots: number;
@@ -37,10 +37,10 @@ export function SliceSummaryNode({ data }: NodeProps) {
           <dt>Evt</dt>
           <dd>{node.metrics.events}</dd>
         </div>
-        {node.metrics.errors > 0 && (
+        {node.metrics.rejects > 0 && (
           <div>
-            <dt>Err</dt>
-            <dd>{node.metrics.errors}</dd>
+            <dt>Reject</dt>
+            <dd>{node.metrics.rejects}</dd>
           </div>
         )}
         <div>

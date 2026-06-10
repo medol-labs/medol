@@ -156,6 +156,7 @@ const toPrdSpecification = (element: EmElement): PrdSpecification => {
       .map(([, value]) => value),
     ...(metadata.when ? { when: metadata.when } : {}),
     ...(metadata.then ? { then: metadata.then } : {}),
+    ...(metadata.thenReject ? { reject: metadata.thenReject } : {}),
     examples: Object.fromEntries(
       Object.entries(metadata)
         .filter(([key]) => key.startsWith('example:'))

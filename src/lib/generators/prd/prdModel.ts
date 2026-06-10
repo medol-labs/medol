@@ -57,6 +57,7 @@ export interface PrdSpecification {
   given: string[];
   when?: string;
   then?: string;
+  reject?: string;
   examples: Record<string, string>;
 }
 

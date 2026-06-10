@@ -6,7 +6,6 @@ const sliceLaneOrder: EmElement['kind'][] = [
   'screen',
   'command',
   'event',
-  'error',
   'gwt',
   'readmodel',
   'automation',
@@ -19,7 +18,6 @@ const laneLabels: Partial<Record<EmElement['kind'], string>> = {
   screen: 'UI',
   command: 'COMMAND',
   event: 'EVENT',
-  error: 'ERROR',
   gwt: 'SPECIFICATION',
   readmodel: 'READ MODEL',
   automation: 'AUTOMATION',
@@ -47,10 +45,6 @@ const colors: Record<
   event: {
     accent: '#d6a300',
     fill: '#fff4b8'
-  },
-  error: {
-    accent: '#dc2626',
-    fill: '#fee2e2'
   },
   readmodel: {
     accent: '#2f9e44',
@@ -433,7 +427,7 @@ const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, 
       metrics: {
         commands: elements.filter((element) => element.kind === 'command').length,
         events: elements.filter((element) => element.kind === 'event').length,
-        errors: elements.filter((element) => element.kind === 'error').length,
+        rejects: elements.filter((element) => element.kind === 'gwt' && element.metadata?.thenReject).length,
         readmodels: elements.filter((element) => element.kind === 'readmodel').length,
         policies: elements.filter((element) => element.kind === 'policy' || element.kind === 'automation' || element.kind === 'gwt').length,
         hotspots: elements.filter((element) => element.kind === 'hotspot').length + slice.hotspots.length
@@ -583,6 +577,7 @@ const toNode = (
       name: element.name,
       fields: element.fields,
       showFields,
+      ...(element.metadata?.thenReject ? { outcome: `Reject: ${element.metadata.thenReject}` } : {}),
       accent: color.accent,
       fill: color.fill
     },
@@ -591,6 +586,7 @@ const toNode = (
 };
 
 const elementHeight = (element: EmElement, showFields: boolean): number => {
+  if (element.metadata?.thenReject) return 112;
   if (!showFields || element.fields.length === 0) return 76;
   return 58 + element.fields.length * 20 + 18;
 };

@@ -212,7 +212,12 @@ const appendWorkflow = (lines: string[], workflow: DocumentationWorkflow): void 
     lines.push('Acceptance scenarios:');
     lines.push('');
     for (const specification of workflow.specifications) {
-      lines.push(`- ${humanize(specification.name)}: given ${specification.given.map(humanize).join(', ') || 'unspecified precondition'}, when ${specification.when ? humanize(specification.when) : 'unspecified action'}, then ${specification.then ? humanize(specification.then) : 'unspecified result'}.`);
+      const result = specification.reject
+        ? `reject "${specification.reject}"`
+        : specification.then
+          ? humanize(specification.then)
+          : 'unspecified result';
+      lines.push(`- ${humanize(specification.name)}: given ${specification.given.map(humanize).join(', ') || 'unspecified precondition'}, when ${specification.when ? humanize(specification.when) : 'unspecified action'}, then ${result}.`);
     }
     lines.push('');
   }

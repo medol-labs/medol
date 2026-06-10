@@ -49,7 +49,6 @@ export type MedolKeywordNames =
     | "domain"
     | "drawer"
     | "emits"
-    | "error"
     | "event"
     | "example"
     | "form"
@@ -70,6 +69,7 @@ export type MedolKeywordNames =
     | "query"
     | "reactsTo"
     | "readmodel"
+    | "reject"
     | "risk"
     | "rule"
     | "slice"
@@ -356,23 +356,6 @@ export const Domain = {
 
 export function isDomain(item: unknown): item is Domain {
     return reflection.isInstance(item, Domain.$type);
-}
-
-export interface DomainError extends langium.AstNode {
-    readonly $container: Slice;
-    readonly $type: 'DomainError';
-    description?: string;
-    name: string;
-}
-
-export const DomainError = {
-    $type: 'DomainError',
-    description: 'description',
-    name: 'name'
-} as const;
-
-export function isDomainError(item: unknown): item is DomainError {
-    return reflection.isInstance(item, DomainError.$type);
 }
 
 export interface Emits extends langium.AstNode {
@@ -823,7 +806,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | DomainError | Event | Hotspot | Policy | ReactsTo | ReadModel | SliceTags | Specification | State | UiRef;
+export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | Event | Hotspot | Policy | ReactsTo | ReadModel | SliceTags | Specification | State | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -1033,14 +1016,14 @@ export function isTarget(item: unknown): item is Target {
 export interface Then extends langium.AstNode {
     readonly $container: Specification;
     readonly $type: 'Then';
-    error?: langium.Reference<DomainError>;
     event?: langium.Reference<Event>;
+    rejection?: string;
 }
 
 export const Then = {
     $type: 'Then',
-    error: 'error',
-    event: 'event'
+    event: 'event',
+    rejection: 'rejection'
 } as const;
 
 export function isThen(item: unknown): item is Then {
@@ -1139,7 +1122,6 @@ export type MedolAstType = {
     CreatesAggregateMarker: CreatesAggregateMarker
     Decision: Decision
     Domain: Domain
-    DomainError: DomainError
     Emits: Emits
     Event: Event
     EventStep: EventStep
@@ -1375,18 +1357,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: []
-        },
-        DomainError: {
-            name: DomainError.$type,
-            properties: {
-                description: {
-                    name: DomainError.description
-                },
-                name: {
-                    name: DomainError.name
-                }
-            },
-            superTypes: [SliceElement.$type]
         },
         Emits: {
             name: Emits.$type,
@@ -1843,13 +1813,12 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Then: {
             name: Then.$type,
             properties: {
-                error: {
-                    name: Then.error,
-                    referenceType: DomainError.$type
-                },
                 event: {
                     name: Then.event,
                     referenceType: Event.$type
+                },
+                rejection: {
+                    name: Then.rejection
                 }
             },
             superTypes: []

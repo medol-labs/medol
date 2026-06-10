@@ -80,6 +80,7 @@ export interface DocumentationSpecification {
   given: string[];
   when?: string;
   then?: string;
+  reject?: string;
   examples: Record<string, string>;
 }
 

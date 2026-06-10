@@ -8,6 +8,7 @@ interface EmNodeData extends Record<string, unknown> {
   accent: string;
   fill: string;
   showFields?: boolean;
+  outcome?: string;
 }
 
 const labels: Record<EmElementKind, string> = {
@@ -15,7 +16,6 @@ const labels: Record<EmElementKind, string> = {
   screen: 'UI',
   command: 'Command',
   event: 'Event',
-  error: 'Error',
   readmodel: 'Read Model',
   automation: 'Automation',
   policy: 'Policy',
@@ -37,6 +37,7 @@ export function EmNode({ data, selected }: NodeProps) {
         <span className="em-node__kind" style={{ color: node.accent }}>{labels[node.kind]}</span>
         <strong>{node.name}</strong>
       </header>
+      {node.outcome && <p className="em-node__outcome">{node.outcome}</p>}
       {fields.length > 0 && (
         <ul className="em-node__fields">
           {fields.map((field) => (

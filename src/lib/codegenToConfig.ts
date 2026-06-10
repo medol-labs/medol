@@ -250,7 +250,7 @@ const toConfigSpecification = (specification: CodegenSpecification): ConfigSpeci
     ? specification.then.map((element) => toConfigSpecificationElement(element))
     : {
         title: specification.then.title,
-        id: specification.then.id || stableId('spec-error', specification.id),
+        id: specification.then.id || stableId('spec-reject', specification.id),
         description: specification.then.description,
         type: 'SPEC_ERROR',
         fields: []

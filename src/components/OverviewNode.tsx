@@ -8,7 +8,7 @@ export interface OverviewNodeData extends Record<string, unknown> {
     slices?: number;
     commands?: number;
     events?: number;
-    errors?: number;
+    rejects?: number;
     readmodels?: number;
     hotspots?: number;
   };
@@ -20,7 +20,7 @@ export function OverviewNode({ data }: NodeProps) {
     ['Slices', node.metrics.slices],
     ['Cmd', node.metrics.commands],
     ['Evt', node.metrics.events],
-    ['Err', node.metrics.errors],
+    ['Reject', node.metrics.rejects],
     ['Read', node.metrics.readmodels],
     ['Hot', node.metrics.hotspots]
   ].filter(([, value]) => typeof value === 'number' && value > 0);
