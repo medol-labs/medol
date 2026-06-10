@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import { EmElement, EmModel, EmSlice } from './model';
+import { EmContext, EmElement, EmModel, EmSlice } from './model';
 
 const sliceLaneOrder: EmElement['kind'][] = [
   'actor',
@@ -120,7 +120,7 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
     .filter((context) => !options.contextId || context.id === options.contextId)
     .map((context) => ({
       ...context,
-      aggregates: context.aggregates
+      aggregates: toCanvasGroups(context)
         .filter((aggregate) => !options.aggregateId || aggregate.id === options.aggregateId)
         .map((aggregate) => ({
           ...aggregate,
@@ -320,6 +320,40 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
   return { nodes, edges };
 };
 
+const toCanvasGroups = (context: EmContext): Array<{
+  id: string;
+  name: string;
+  states: string[];
+  slices: EmSlice[];
+}> => {
+  const assignedSliceIds = new Set<string>();
+  const constraintGroups = context.constraints.map((constraint) => {
+    const slices = context.slices.filter((slice) => {
+      if (!constraint.sliceIds.includes(slice.id) || assignedSliceIds.has(slice.id)) return false;
+      assignedSliceIds.add(slice.id);
+      return true;
+    });
+    return {
+      id: constraint.id,
+      name: `Constraint / ${constraint.name}`,
+      states: [],
+      slices
+    };
+  }).filter((group) => group.slices.length > 0);
+  const unboundedSlices = context.slices.filter((slice) => !assignedSliceIds.has(slice.id));
+
+  return [
+    ...context.aggregates,
+    ...constraintGroups,
+    ...(unboundedSlices.length > 0 ? [{
+      id: `${context.id}/context-slices`,
+      name: 'Context Slices',
+      states: [],
+      slices: unboundedSlices
+    }] : [])
+  ];
+};
+
 const addCompactAggregateNodes = (
   nodes: Node[],
   aggregate: { id: string; name: string; states: string[]; slices: EmSlice[] },
@@ -395,6 +429,7 @@ const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, 
       name: slice.name,
       resultingState: slice.resultingState,
       createsAggregate: slice.createsAggregate,
+      tags: slice.tags.length,
       metrics: {
         commands: elements.filter((element) => element.kind === 'command').length,
         events: elements.filter((element) => element.kind === 'event').length,
@@ -493,7 +528,12 @@ const addSliceNodes = (
     draggable: false,
     selectable: false,
     position: { x: 0, y: 9 },
-    data: { label: layout.slice.resultingState ? `${layout.slice.name} -> ${layout.slice.resultingState}` : layout.slice.name }
+    data: {
+      label: [
+        layout.slice.resultingState ? `${layout.slice.name} -> ${layout.slice.resultingState}` : layout.slice.name,
+        layout.slice.tags.length > 0 ? `${layout.slice.tags.length} tags` : undefined
+      ].filter(Boolean).join(' · ')
+    }
   });
 
   let laneTop = headerHeight;

@@ -49,12 +49,10 @@ export interface LayoutAction {
 
 export const toLayoutPreviewModel = (model: CodegenModel): LayoutPreviewModel => ({
   title: model.domain ?? 'Event Modeled Application',
-  contexts: model.contexts.map((context) => ({
-    id: context.id,
-    title: context.title,
-    modules: context.aggregates.map((aggregate) => {
+  contexts: model.contexts.map((context) => {
+    const aggregateModules = context.aggregates.map((aggregate) => {
       const aggregateSlices = model.slices.filter(
-        (slice) => slice.context === context.name && slice.aggregate.name === aggregate.name
+        (slice) => slice.context === context.name && slice.aggregate?.name === aggregate.name
       );
       const states = model.aggregates.find((item) => item.name === aggregate.name)?.states ?? [];
 
@@ -66,8 +64,41 @@ export const toLayoutPreviewModel = (model: CodegenModel): LayoutPreviewModel =>
         slices: aggregateSlices.map(toLayoutSlice),
         pages: toLayoutPages(aggregateSlices)
       };
-    })
-  }))
+    });
+    const constraintModules = context.constraints.map((constraint) => {
+      const constraintSlices = model.slices.filter(
+        (slice) => slice.context === context.name && slice.constraints.includes(constraint.name)
+      );
+      return {
+        id: constraint.id,
+        title: constraint.title,
+        aggregate: `Constraint / ${constraint.name}`,
+        states: [],
+        slices: constraintSlices.map(toLayoutSlice),
+        pages: toLayoutPages(constraintSlices)
+      };
+    });
+    const unboundedSlices = model.slices.filter(
+      (slice) => slice.context === context.name && !slice.aggregate && slice.constraints.length === 0
+    );
+
+    return {
+      id: context.id,
+      title: context.title,
+      modules: [
+        ...aggregateModules,
+        ...constraintModules,
+        ...(unboundedSlices.length > 0 ? [{
+          id: `${context.id}/unbounded`,
+          title: 'Context Slices',
+          aggregate: 'Context',
+          states: [],
+          slices: unboundedSlices.map(toLayoutSlice),
+          pages: toLayoutPages(unboundedSlices)
+        }] : [])
+      ]
+    };
+  })
 });
 
 const toLayoutSlice = (slice: CodegenSlice): LayoutSlice => ({

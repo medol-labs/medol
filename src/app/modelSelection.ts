@@ -40,7 +40,10 @@ export const findModelItem = (
   }
 
   for (const context of model.contexts) {
-    if (selection.nodeId === context.id || (selection.contextId === context.id && !selection.nodeId && !selection.aggregateId)) {
+    if (
+      selection.nodeId === context.id ||
+      (selection.contextId === context.id && !selection.nodeId && !selection.aggregateId && !selection.sliceId)
+    ) {
       return { type: 'context', name: context.name, context };
     }
 
@@ -70,6 +73,22 @@ export const findModelItem = (
         if (element) {
           return { type: 'element', name: element.name, context, aggregate, slice, element };
         }
+      }
+    }
+
+    for (const slice of context.slices) {
+      if (
+        selection.nodeId === slice.id ||
+        selection.nodeId === `${slice.id}/header` ||
+        selection.nodeId === `${slice.id}/summary` ||
+        (selection.sliceId === slice.id && !selection.nodeId)
+      ) {
+        return { type: 'slice', name: slice.name, context, slice };
+      }
+
+      const element = slice.elements.find((candidate) => candidate.id === selection.nodeId);
+      if (element) {
+        return { type: 'element', name: element.name, context, slice, element };
       }
     }
 

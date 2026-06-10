@@ -224,7 +224,10 @@ const selectRelevantDslKnowledge = (input: {
 
 const summarizeModel = (model: EmModel, selectedItem?: SelectedModelItem): AgentModelSummary => {
   const aggregates = model.contexts.flatMap((context) => context.aggregates);
-  const slices = aggregates.flatMap((aggregate) => aggregate.slices);
+  const slices = model.contexts.flatMap((context) => [
+    ...context.slices,
+    ...context.aggregates.flatMap((aggregate) => aggregate.slices)
+  ]);
   const elements = [
     ...slices.flatMap((slice) => slice.elements),
     ...model.contexts.flatMap((context) => context.looseElements)
@@ -273,7 +276,10 @@ const summarizeSlice = (slice: EmSlice): string => {
   const state = slice.resultingState ? ` Resulting state: ${slice.resultingState}.` : '';
   const creates = slice.createsAggregate ? ' It creates the aggregate.' : '';
   const hotspots = slice.hotspots.length ? ` Hotspots: ${slice.hotspots.join('; ')}.` : '';
-  return `Slice ${slice.name} has ${counts.commands} command(s), ${counts.events} event(s), ${counts.errors} error(s), ${counts.readmodels} read model(s), ${counts.automations} automation(s).${state}${creates}${hotspots}`;
+  const tags = slice.tags.length
+    ? ` Selection tags: ${slice.tags.map((tag) => tag.expression ? `${tag.name}=${tag.expression}` : tag.name).join(', ')}.`
+    : '';
+  return `Slice ${slice.name} has ${counts.commands} command(s), ${counts.events} event(s), ${counts.errors} error(s), ${counts.readmodels} read model(s), ${counts.automations} automation(s).${state}${creates}${tags}${hotspots}`;
 };
 
 const summarizeElement = (element: EmElement): string => {

@@ -1,0 +1,60 @@
+domain MethodCatalog {
+  context MethodManagement {
+    slice RegisterMethod {
+      tags {
+        methodId
+        methodCode = normalize(code)
+      }
+
+      command RegisterMethod {
+        methodId: UUID id generated technical
+        code: String
+        name: String
+      }
+
+      event MethodRegistered {
+        methodId: UUID id technical
+        code: String
+        name: String
+      }
+
+      error MethodCodeAlreadyExists "A method with the normalized code already exists"
+
+      specification "Reject a duplicate method code" {
+        given MethodRegistered {
+          code = "PAYMENT"
+        }
+        when RegisterMethod {
+          code = "payment"
+        }
+        then error MethodCodeAlreadyExists
+      }
+    }
+
+    slice RenameMethod {
+      tags {
+        methodId
+        methodCode = normalize(code)
+      }
+
+      reactsTo MethodRegistered
+
+      command RenameMethod {
+        methodId: UUID id technical
+        code: String
+        name: String
+      }
+
+      event MethodRenamed {
+        methodId: UUID id technical
+        code: String
+        name: String
+      }
+    }
+
+    constraint Method {
+      slice RegisterMethod
+      slice RenameMethod
+    }
+  }
+}

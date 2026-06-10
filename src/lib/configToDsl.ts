@@ -69,6 +69,8 @@ interface ConfigSlice {
   specifications?: ConfigSpecification[];
   stateChange?: ConfigStateChange;
   aggregates?: Array<{ name?: string; title?: string }>;
+  tags?: Array<{ name?: string; expression?: string }>;
+  constraints?: string[];
 }
 
 interface ConfigAggregate {
@@ -82,12 +84,14 @@ interface ConfigRoot {
   context?: string;
   aggregates?: ConfigAggregate[];
   slices?: ConfigSlice[];
+  constraints?: Array<{ name?: string; slices?: Array<{ name?: string; title?: string }> }>;
 }
 
 export const configToDsl = (config: ConfigRoot): string => {
   const domainName = config.domain ? toDslId(config.domain, 'Domain') : undefined;
   const contextName = toDslId(config.context || config.slices?.[0]?.context || 'EventModel');
   const grouped = new Map<string, ConfigSlice[]>();
+  const directSlices: ConfigSlice[] = [];
   const aggregateStates = new Map<string, string[]>();
 
   for (const aggregate of config.aggregates ?? []) {
@@ -99,11 +103,15 @@ export const configToDsl = (config: ConfigRoot): string => {
     const aggregateName =
       slice.aggregates?.[0]?.name ||
       slice.aggregates?.[0]?.title ||
-      slice.commands?.[0]?.aggregate ||
-      'Default';
+      slice.commands?.[0]?.aggregate;
+    if (!aggregateName) {
+      directSlices.push(slice);
+      continue;
+    }
     const aggregateId = toDslId(aggregateName, 'Aggregate');
     grouped.set(aggregateId, [...(grouped.get(aggregateId) ?? []), slice]);
   }
+  const constraints = config.constraints?.length ? config.constraints : deriveConstraints(config.slices ?? []);
 
   const contextIndent = domainName ? 2 : 0;
   const aggregateIndent = contextIndent + 2;
@@ -120,44 +128,14 @@ export const configToDsl = (config: ConfigRoot): string => {
     for (const state of aggregateStates.get(aggregateName) ?? []) {
       lines.push(`${pad(aggregateIndent + 2)}state ${toDslId(state, 'State')}`);
     }
-    for (const slice of slices) {
-      lines.push(`${pad(sliceIndent)}slice ${toDslId(slice.title, 'Slice')} {`);
-      if (slice.commands?.some((command) => command.createsAggregate)) {
-        lines.push(`${pad(elementIndent)}createsAggregate`);
-      }
-      const screen = slice.screens?.[0];
-      if (screen?.title) {
-        lines.push(...formatUi(screen, elementIndent));
-      }
-
-      for (const command of slice.commands ?? []) {
-        appendElement(lines, 'command', command, elementIndent);
-      }
-      for (const event of slice.events ?? []) {
-        appendElement(lines, 'event', event, elementIndent);
-      }
-      appendSpecificationErrors(lines, slice.specifications ?? [], elementIndent);
-      if (slice.stateChange?.to) {
-        lines.push(`${pad(elementIndent)}state ${toDslId(slice.stateChange.to, 'State')}`);
-      }
-      for (const readmodel of slice.readmodels ?? []) {
-        appendElement(lines, 'readmodel', readmodel, elementIndent, readmodel.dependencies
-          ?.filter((dependency) => dependency.elementType === 'EVENT' && dependency.title)
-          .map((dependency) => `subscribe ${toDslId(dependency.title, 'Event')}`) ?? []);
-      }
-      for (const processor of slice.processors ?? []) {
-        lines.push(`${pad(elementIndent)}automation ${toDslId(processor.title, 'Automation')} {`);
-        for (const dependency of processor.dependencies ?? []) {
-          if (dependency.elementType === 'COMMAND' && dependency.title) {
-            lines.push(`${pad(elementIndent + 2)}emits ${toDslId(dependency.title, 'Command')}`);
-          }
-        }
-        lines.push(`${pad(elementIndent)}}`);
-      }
-      for (const specification of slice.specifications ?? []) {
-        appendSpecification(lines, specification, elementIndent);
-      }
-      lines.push(`${pad(sliceIndent)}}`);
+    for (const slice of slices) appendSlice(lines, slice, sliceIndent);
+    lines.push(`${pad(aggregateIndent)}}`);
+  }
+  for (const slice of directSlices) appendSlice(lines, slice, aggregateIndent);
+  for (const constraint of constraints) {
+    lines.push(`${pad(aggregateIndent)}constraint ${toDslId(constraint.name, 'Boundary')} {`);
+    for (const slice of constraint.slices ?? []) {
+      lines.push(`${pad(aggregateIndent + 2)}slice ${toDslId(slice.name || slice.title, 'Slice')}`);
     }
     lines.push(`${pad(aggregateIndent)}}`);
   }
@@ -166,6 +144,58 @@ export const configToDsl = (config: ConfigRoot): string => {
     lines.push('}');
   }
   return lines.join('\n');
+};
+
+const deriveConstraints = (
+  slices: ConfigSlice[]
+): NonNullable<ConfigRoot['constraints']> => {
+  const constraints = new Map<string, Array<{ name?: string; title?: string }>>();
+  for (const slice of slices) {
+    if (!slice.title) continue;
+    for (const constraint of slice.constraints ?? []) {
+      constraints.set(constraint, [...(constraints.get(constraint) ?? []), { title: slice.title }]);
+    }
+  }
+  return [...constraints].map(([name, constraintSlices]) => ({ name, slices: constraintSlices }));
+};
+
+const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void => {
+  const elementIndent = indent + 2;
+  lines.push(`${pad(indent)}slice ${toDslId(slice.title, 'Slice')} {`);
+  if ((slice.tags ?? []).length > 0) {
+    lines.push(`${pad(elementIndent)}tags {`);
+    for (const tag of slice.tags ?? []) {
+      const expression = tag.expression ? ` = ${tag.expression}` : '';
+      lines.push(`${pad(elementIndent + 2)}${toDslId(tag.name, 'tag')}${expression}`);
+    }
+    lines.push(`${pad(elementIndent)}}`);
+  }
+  if (slice.commands?.some((command) => command.createsAggregate)) {
+    lines.push(`${pad(elementIndent)}createsAggregate`);
+  }
+  const screen = slice.screens?.[0];
+  if (screen?.title) lines.push(...formatUi(screen, elementIndent));
+
+  for (const command of slice.commands ?? []) appendElement(lines, 'command', command, elementIndent);
+  for (const event of slice.events ?? []) appendElement(lines, 'event', event, elementIndent);
+  appendSpecificationErrors(lines, slice.specifications ?? [], elementIndent);
+  if (slice.stateChange?.to) lines.push(`${pad(elementIndent)}state ${toDslId(slice.stateChange.to, 'State')}`);
+  for (const readmodel of slice.readmodels ?? []) {
+    appendElement(lines, 'readmodel', readmodel, elementIndent, readmodel.dependencies
+      ?.filter((dependency) => dependency.elementType === 'EVENT' && dependency.title)
+      .map((dependency) => `subscribe ${toDslId(dependency.title, 'Event')}`) ?? []);
+  }
+  for (const processor of slice.processors ?? []) {
+    lines.push(`${pad(elementIndent)}automation ${toDslId(processor.title, 'Automation')} {`);
+    for (const dependency of processor.dependencies ?? []) {
+      if (dependency.elementType === 'COMMAND' && dependency.title) {
+        lines.push(`${pad(elementIndent + 2)}emits ${toDslId(dependency.title, 'Command')}`);
+      }
+    }
+    lines.push(`${pad(elementIndent)}}`);
+  }
+  for (const specification of slice.specifications ?? []) appendSpecification(lines, specification, elementIndent);
+  lines.push(`${pad(indent)}}`);
 };
 
 const appendSpecificationErrors = (

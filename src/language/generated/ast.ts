@@ -19,6 +19,8 @@ export type MedolTerminalNames = keyof typeof MedolTerminals;
 
 export type MedolKeywordNames =
     | "!="
+    | "("
+    | ")"
     | ","
     | "."
     | ":"
@@ -37,6 +39,7 @@ export type MedolKeywordNames =
     | "command"
     | "condition"
     | "confirm"
+    | "constraint"
     | "context"
     | "createsAggregate"
     | "decision"
@@ -75,6 +78,7 @@ export type MedolKeywordNames =
     | "state"
     | "steps"
     | "subscribe"
+    | "tags"
     | "target"
     | "technical"
     | "then"
@@ -248,6 +252,38 @@ export function isCondition(item: unknown): item is Condition {
     return reflection.isInstance(item, Condition.$type);
 }
 
+export interface Constraint extends langium.AstNode {
+    readonly $container: Context;
+    readonly $type: 'Constraint';
+    name: string;
+    slices: Array<ConstraintSliceRef>;
+}
+
+export const Constraint = {
+    $type: 'Constraint',
+    name: 'name',
+    slices: 'slices'
+} as const;
+
+export function isConstraint(item: unknown): item is Constraint {
+    return reflection.isInstance(item, Constraint.$type);
+}
+
+export interface ConstraintSliceRef extends langium.AstNode {
+    readonly $container: Constraint;
+    readonly $type: 'ConstraintSliceRef';
+    slice: langium.Reference<Slice>;
+}
+
+export const ConstraintSliceRef = {
+    $type: 'ConstraintSliceRef',
+    slice: 'slice'
+} as const;
+
+export function isConstraintSliceRef(item: unknown): item is ConstraintSliceRef {
+    return reflection.isInstance(item, ConstraintSliceRef.$type);
+}
+
 export interface Context extends langium.AstNode {
     readonly $container: Domain | Model;
     readonly $type: 'Context';
@@ -265,7 +301,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Aggregate | Decision | Integration | Metric | Note | Policy | ReadModel | Risk | UserJourney;
+export type ContextElement = Aggregate | Constraint | Decision | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | UserJourney;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -771,7 +807,7 @@ export function isRisk(item: unknown): item is Risk {
 }
 
 export interface Slice extends langium.AstNode {
-    readonly $container: Aggregate;
+    readonly $container: Aggregate | Context;
     readonly $type: 'Slice';
     elements: Array<SliceElement>;
     name: string;
@@ -787,7 +823,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | DomainError | Event | Hotspot | Policy | ReactsTo | ReadModel | Specification | State | UiRef;
+export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | DomainError | Event | Hotspot | Policy | ReactsTo | ReadModel | SliceTags | Specification | State | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -795,6 +831,38 @@ export const SliceElement = {
 
 export function isSliceElement(item: unknown): item is SliceElement {
     return reflection.isInstance(item, SliceElement.$type);
+}
+
+export interface SliceTag extends langium.AstNode {
+    readonly $container: SliceTags;
+    readonly $type: 'SliceTag';
+    expression?: TagExpression;
+    name: string;
+}
+
+export const SliceTag = {
+    $type: 'SliceTag',
+    expression: 'expression',
+    name: 'name'
+} as const;
+
+export function isSliceTag(item: unknown): item is SliceTag {
+    return reflection.isInstance(item, SliceTag.$type);
+}
+
+export interface SliceTags extends langium.AstNode {
+    readonly $container: Slice;
+    readonly $type: 'SliceTags';
+    tags: Array<SliceTag>;
+}
+
+export const SliceTags = {
+    $type: 'SliceTags',
+    tags: 'tags'
+} as const;
+
+export function isSliceTags(item: unknown): item is SliceTags {
+    return reflection.isInstance(item, SliceTags.$type);
 }
 
 export interface Source extends langium.AstNode {
@@ -903,6 +971,48 @@ export const Subscription = {
 
 export function isSubscription(item: unknown): item is Subscription {
     return reflection.isInstance(item, Subscription.$type);
+}
+
+export type TagExpression = TagFunctionCall | TagReference;
+
+export const TagExpression = {
+    $type: 'TagExpression'
+} as const;
+
+export function isTagExpression(item: unknown): item is TagExpression {
+    return reflection.isInstance(item, TagExpression.$type);
+}
+
+export interface TagFunctionCall extends langium.AstNode {
+    readonly $container: SliceTag | TagFunctionCall;
+    readonly $type: 'TagFunctionCall';
+    arguments: Array<TagExpression>;
+    function: string;
+}
+
+export const TagFunctionCall = {
+    $type: 'TagFunctionCall',
+    arguments: 'arguments',
+    function: 'function'
+} as const;
+
+export function isTagFunctionCall(item: unknown): item is TagFunctionCall {
+    return reflection.isInstance(item, TagFunctionCall.$type);
+}
+
+export interface TagReference extends langium.AstNode {
+    readonly $container: SliceTag | TagFunctionCall;
+    readonly $type: 'TagReference';
+    parts: Array<string>;
+}
+
+export const TagReference = {
+    $type: 'TagReference',
+    parts: 'parts'
+} as const;
+
+export function isTagReference(item: unknown): item is TagReference {
+    return reflection.isInstance(item, TagReference.$type);
 }
 
 export interface Target extends langium.AstNode {
@@ -1022,6 +1132,8 @@ export type MedolAstType = {
     Command: Command
     CommandStep: CommandStep
     Condition: Condition
+    Constraint: Constraint
+    ConstraintSliceRef: ConstraintSliceRef
     Context: Context
     ContextElement: ContextElement
     CreatesAggregateMarker: CreatesAggregateMarker
@@ -1058,6 +1170,8 @@ export type MedolAstType = {
     Risk: Risk
     Slice: Slice
     SliceElement: SliceElement
+    SliceTag: SliceTag
+    SliceTags: SliceTags
     Source: Source
     Specification: Specification
     State: State
@@ -1065,6 +1179,9 @@ export type MedolAstType = {
     Steps: Steps
     StringLiteral: StringLiteral
     Subscription: Subscription
+    TagExpression: TagExpression
+    TagFunctionCall: TagFunctionCall
+    TagReference: TagReference
     Target: Target
     Then: Then
     UiRef: UiRef
@@ -1184,6 +1301,29 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [AutomationElement.$type]
+        },
+        Constraint: {
+            name: Constraint.$type,
+            properties: {
+                name: {
+                    name: Constraint.name
+                },
+                slices: {
+                    name: Constraint.slices,
+                    defaultValue: []
+                }
+            },
+            superTypes: [ContextElement.$type]
+        },
+        ConstraintSliceRef: {
+            name: ConstraintSliceRef.$type,
+            properties: {
+                slice: {
+                    name: ConstraintSliceRef.slice,
+                    referenceType: Slice.$type
+                }
+            },
+            superTypes: []
         },
         Context: {
             name: Context.$type,
@@ -1557,13 +1697,35 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: Slice.name
                 }
             },
-            superTypes: [AggregateFeature.$type]
+            superTypes: [AggregateFeature.$type, ContextElement.$type]
         },
         SliceElement: {
             name: SliceElement.$type,
             properties: {
             },
             superTypes: []
+        },
+        SliceTag: {
+            name: SliceTag.$type,
+            properties: {
+                expression: {
+                    name: SliceTag.expression
+                },
+                name: {
+                    name: SliceTag.name
+                }
+            },
+            superTypes: []
+        },
+        SliceTags: {
+            name: SliceTags.$type,
+            properties: {
+                tags: {
+                    name: SliceTags.tags,
+                    defaultValue: []
+                }
+            },
+            superTypes: [SliceElement.$type]
         },
         Source: {
             name: Source.$type,
@@ -1639,6 +1801,35 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [ReadModelElement.$type]
+        },
+        TagExpression: {
+            name: TagExpression.$type,
+            properties: {
+            },
+            superTypes: []
+        },
+        TagFunctionCall: {
+            name: TagFunctionCall.$type,
+            properties: {
+                arguments: {
+                    name: TagFunctionCall.arguments,
+                    defaultValue: []
+                },
+                function: {
+                    name: TagFunctionCall.function
+                }
+            },
+            superTypes: [TagExpression.$type]
+        },
+        TagReference: {
+            name: TagReference.$type,
+            properties: {
+                parts: {
+                    name: TagReference.parts,
+                    defaultValue: []
+                }
+            },
+            superTypes: [TagExpression.$type]
         },
         Target: {
             name: Target.$type,

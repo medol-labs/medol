@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 
 export interface OverviewNodeData extends Record<string, unknown> {
-  kind: 'aggregate' | 'integration';
+  kind: 'aggregate' | 'constraint' | 'integration';
   title: string;
   contextName?: string;
   metrics: {
@@ -29,7 +29,7 @@ export function OverviewNode({ data }: NodeProps) {
     <section className={`overview-node overview-node--${node.kind}`}>
       <Handle type="target" position={Position.Left} />
       <header>
-        <span>{node.kind === 'aggregate' ? 'Aggregate' : 'Integration'}</span>
+        <span>{node.kind === 'aggregate' ? 'Aggregate' : node.kind === 'constraint' ? 'Consistency Constraint' : 'Integration'}</span>
         <strong>{node.title}</strong>
         {node.contextName && <small>{node.contextName}</small>}
       </header>

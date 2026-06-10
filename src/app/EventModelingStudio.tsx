@@ -183,10 +183,10 @@ export function MedolStudio() {
     setDslFocusVersion((version) => version + 1);
   };
 
-  const selectSlice = (context: EmContext, aggregate: EmAggregate, slice: EmSlice) => {
+  const selectSlice = (context: EmContext, aggregate: EmAggregate | undefined, slice: EmSlice) => {
     setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
     setSelectedContextId(context.id);
-    setSelectedAggregateId(aggregate.id);
+    setSelectedAggregateId(aggregate?.id);
     setSelectedSliceId(slice.id);
     setSelectedNodeId(undefined);
     setDslFocusTarget({ kind: 'slice', name: slice.name });

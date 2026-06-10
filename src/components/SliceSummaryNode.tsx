@@ -4,6 +4,7 @@ export interface SliceSummaryNodeData extends Record<string, unknown> {
   name: string;
   resultingState?: string;
   createsAggregate?: boolean;
+  tags?: number;
   metrics: {
     commands: number;
     events: number;
@@ -21,7 +22,10 @@ export function SliceSummaryNode({ data }: NodeProps) {
     <section className="slice-summary-node">
       <Handle type="target" position={Position.Left} />
       <header>
-        <span>{node.createsAggregate ? 'Entry Slice' : node.resultingState ?? 'Slice'}</span>
+        <span>
+          {node.createsAggregate ? 'Entry Slice' : node.resultingState ?? 'Slice'}
+          {node.tags ? ` · ${node.tags} tags` : ''}
+        </span>
         <strong>{node.name}</strong>
       </header>
       <dl>

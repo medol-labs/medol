@@ -22,7 +22,24 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
   let currentX = 32;
 
   for (const context of model.contexts) {
-    const rowCount = Math.max(Math.ceil(context.aggregates.length / cardsPerRow), 1);
+    const overviewItems = [
+      ...context.aggregates.map((aggregate) => ({
+        id: overviewAggregateNodeId(aggregate.id),
+        kind: 'aggregate' as const,
+        title: aggregate.name,
+        metrics: aggregateMetrics(aggregate)
+      })),
+      ...context.constraints.map((constraint) => {
+        const slices = context.slices.filter((slice) => constraint.sliceIds.includes(slice.id));
+        return {
+          id: `overview/constraint/${constraint.id}`,
+          kind: 'constraint' as const,
+          title: constraint.name,
+          metrics: sliceMetrics(slices)
+        };
+      })
+    ];
+    const rowCount = Math.max(Math.ceil(overviewItems.length / cardsPerRow), 1);
     const contextHeight =
       contextPadding * 2 +
       contextHeaderHeight +
@@ -58,7 +75,8 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
         title: context.name,
         note: context.notes[0],
         aggregates: context.aggregates.length,
-        slices: context.aggregates.reduce((total, aggregate) => total + aggregate.slices.length, 0),
+        constraints: context.constraints.length,
+        slices: context.slices.length + context.aggregates.reduce((total, aggregate) => total + aggregate.slices.length, 0),
         integrations: context.looseElements.filter((element) => element.kind === 'integration').length,
         risks: context.risks.length
       },
@@ -68,11 +86,11 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
       }
     });
 
-    for (const [index, aggregate] of context.aggregates.entries()) {
+    for (const [index, item] of overviewItems.entries()) {
       const row = Math.floor(index / cardsPerRow);
       const column = index % cardsPerRow;
       nodes.push({
-        id: overviewAggregateNodeId(aggregate.id),
+        id: item.id,
         type: 'overviewNode',
         parentId: context.id,
         extent: 'parent',
@@ -81,10 +99,10 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
           y: contextPadding + contextHeaderHeight + row * (cardHeight + cardGap)
         },
         data: {
-          kind: 'aggregate',
-          title: aggregate.name,
+          kind: item.kind,
+          title: item.title,
           contextName: context.name,
-          metrics: aggregateMetrics(aggregate)
+          metrics: item.metrics
         },
         style: {
           width: cardWidth,
@@ -125,6 +143,18 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
   return { nodes, edges };
 };
 
+const sliceMetrics = (slices: EmAggregate['slices']): Record<string, number> => {
+  const elements = slices.flatMap((slice) => slice.elements);
+  return {
+    slices: slices.length,
+    commands: elements.filter((element) => element.kind === 'command').length,
+    events: elements.filter((element) => element.kind === 'event').length,
+    errors: elements.filter((element) => element.kind === 'error').length,
+    readmodels: elements.filter((element) => element.kind === 'readmodel').length,
+    hotspots: elements.filter((element) => element.kind === 'hotspot').length + slices.flatMap((slice) => slice.hotspots).length
+  };
+};
+
 export const overviewAggregateNodeId = (aggregateId: string): string => `overview/aggregate/${aggregateId}`;
 
 export const aggregateIdFromOverviewNodeId = (nodeId: string): string | undefined => {
@@ -151,6 +181,11 @@ const collectElementOwners = (model: EmModel): Map<string, ElementOwner> => {
         for (const element of slice.elements) {
           owners.set(element.id, { context, aggregate, element });
         }
+      }
+    }
+    for (const slice of context.slices) {
+      for (const element of slice.elements) {
+        owners.set(element.id, { context, element });
       }
     }
 

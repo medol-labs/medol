@@ -49,9 +49,11 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
   ],
   syntax: {
     domain: 'domain Name { context ... } groups bounded contexts under a business domain.',
-    context: 'context Name { aggregate | policy | integration | readmodel | userJourney | risk | note | decision | metric } describes a bounded context.',
+    context: 'context Name { aggregate | slice | constraint | policy | integration | readmodel | userJourney | risk | note | decision | metric } describes a bounded context.',
     aggregate: 'aggregate Name { state StateName | slice SliceName { ... } } owns lifecycle states and timeline slices.',
-    slice: 'slice Name { actor | createsAggregate | ui | reactsTo | command | event | error | state | specification | readmodel | automation | policy | hotspot } describes one timeline capability.',
+    slice: 'slice Name { tags { tagName | tagName = expression } actor | createsAggregate | ui | reactsTo | command | event | error | state | specification | readmodel | automation | policy | hotspot } describes one timeline capability and may live directly under context.',
+    tags: 'tags { methodId methodCode = normalize(code) } declares event-selection values used to evaluate consistency constraints; a bare tag uses its same-named value.',
+    constraint: 'constraint Name { slice SliceName* } groups context slices governed by the same consistency rule without prescribing a technical implementation.',
     command: 'command Name { fieldName: Type attributes? mapping? details? example? } represents user or system intent.',
     event: 'event Name { fieldName: Type attributes? mapping? details? } records a fact after command/rule processing.',
     error: 'error Name "Business rejection description"? represents an expected domain rejection; reference it with then error Name in a specification.',
@@ -72,6 +74,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Use reactsTo when a slice starts from a prior event instead of a direct UI/user command.',
     'Do not force commands and events to have identical fields. Events should contain the important recorded facts.',
     'Use error for expected business rejection outcomes only. Keep technical failures outside the domain timeline.',
+    'For consistency-constraint modeling, place slices directly under context, declare their selection tags, and reference them from constraint blocks. Do not invent an aggregate merely as a container.',
     'Prefer explicit rule/hotspot notes for domain logic that code generation or a human must later implement.'
   ],
   fieldMappingRules: [
@@ -94,6 +97,28 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Never remove existing MEDOL content unless the user explicitly asks for deletion.'
   ],
   examples: [
+    {
+      name: 'Dynamic consistency boundary',
+      dsl: [
+        'slice RegisterMethod {',
+        '  tags {',
+        '    methodId',
+        '    methodCode = normalize(code)',
+        '  }',
+        '  command RegisterMethod {',
+        '    methodId: UUID id',
+        '    code: String',
+        '  }',
+        '  event MethodRegistered {',
+        '    methodId: UUID id',
+        '    code: String',
+        '  }',
+        '}',
+        'constraint Method {',
+        '  slice RegisterMethod',
+        '}'
+      ].join('\n')
+    },
     {
       name: 'Create aggregate slice',
       dsl: [
@@ -165,7 +190,8 @@ export const eventModelingDslKnowledgeManifest: AgentDslKnowledgeManifest = {
     'Use field mappings with from or derived. Add rule/example details only when they clarify known domain logic.',
     'Use ui type to express interaction style. Command UI types include form/dialog/drawer/confirm/wizard/inline/background; read surfaces include list/detail.',
     'Use readmodel Name[] with subscribe EventName when modeling information fed by events.',
-    'Use error Name "description" plus then error Name for expected business rejection outcomes.'
+    'Use error Name "description" plus then error Name for expected business rejection outcomes.',
+    'Use context-level slices with tags and constraint references for cross-slice consistency rules; existing aggregate syntax remains valid.'
   ]
 };
 

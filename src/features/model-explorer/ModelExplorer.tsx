@@ -10,7 +10,7 @@ interface ModelExplorerProps {
   onSelectDomain: (domain: EmDomain) => void;
   onSelectContext: (context: EmContext) => void;
   onSelectAggregate: (context: EmContext, aggregate: EmAggregate) => void;
-  onSelectSlice: (context: EmContext, aggregate: EmAggregate, slice: EmSlice) => void;
+  onSelectSlice: (context: EmContext, aggregate: EmAggregate | undefined, slice: EmSlice) => void;
 }
 
 export function ModelExplorer({
@@ -138,6 +138,56 @@ export function ModelExplorer({
                 </div>
                               );
                             })}
+                            {context.constraints.map((constraint) => {
+                              const constraintCollapsed = collapsed.has(constraint.id);
+                              const slices = context.slices.filter((slice) => constraint.sliceIds.includes(slice.id));
+                              return (
+                                <div key={constraint.id} className="explorer-aggregate">
+                                  <div className="explorer-row">
+                                    <button
+                                      type="button"
+                                      className="explorer-toggle"
+                                      aria-label={constraintCollapsed ? `Expand ${constraint.name}` : `Collapse ${constraint.name}`}
+                                      onClick={() => toggle(constraint.id)}
+                                    >
+                                      {constraintCollapsed ? '+' : '-'}
+                                    </button>
+                                    <button type="button" className="explorer-item explorer-item--nested" onClick={() => toggle(constraint.id)}>
+                                      <span>Consistency Constraint · {slices.length} slices</span>
+                                      <strong>{constraint.name}</strong>
+                                    </button>
+                                  </div>
+                                  {!constraintCollapsed && (
+                                    <div className="explorer-slices">
+                                      {slices.map((slice) => (
+                                        <button
+                                          key={slice.id}
+                                          type="button"
+                                          className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                                          onClick={() => onSelectSlice(context, undefined, slice)}
+                                        >
+                                          <span>{slice.tags.length} tags</span>
+                                          <strong>{slice.name}</strong>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {context.slices
+                              .filter((slice) => !context.constraints.some((constraint) => constraint.sliceIds.includes(slice.id)))
+                              .map((slice) => (
+                                <button
+                                  key={slice.id}
+                                  type="button"
+                                  className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                                  onClick={() => onSelectSlice(context, undefined, slice)}
+                                >
+                                  <span>Context Slice · {slice.tags.length} tags</span>
+                                  <strong>{slice.name}</strong>
+                                </button>
+                              ))}
                           </div>
                         )}
                       </section>

@@ -1,5 +1,5 @@
 import { flattenElements } from '../../dslParser';
-import type { EmElement, EmField, EmModel } from '../../model';
+import type { EmElement, EmField, EmModel, EmSlice } from '../../model';
 import { humanize } from '../../name';
 import { generatePrd } from '../prd/prdGenerator';
 import { renderPrdMarkdown } from '../prd/prdMarkdownRenderer';
@@ -88,14 +88,25 @@ export const buildDocumentationBundle = (
   }));
 
   const workflows = model.contexts.flatMap((context) =>
-    context.aggregates.flatMap((aggregate) =>
-      aggregate.slices.map((slice) => {
+    [
+      ...context.aggregates.flatMap((aggregate) =>
+        aggregate.slices.map((slice) => toWorkflow(context.name, aggregate.name, slice))
+      ),
+      ...context.slices.map((slice) => toWorkflow(
+        context.name,
+        context.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => `Constraint:${constraint.name}`).join(', ') || 'Context',
+        slice
+      ))
+    ]
+  );
+
+  function toWorkflow(contextName: string, owner: string, slice: EmSlice) {
         const actor = slice.elements.find((element) => element.kind === 'actor');
         const screen = slice.elements.find((element) => element.kind === 'screen');
         return {
           id: slice.id,
-          context: context.name,
-          aggregate: aggregate.name,
+          context: contextName,
+          aggregate: owner,
           slice: slice.name,
           ...(actor ? { actor: actor.name } : {}),
           ...(screen
@@ -119,20 +130,33 @@ export const buildDocumentationBundle = (
           ...(slice.resultingState ? { resultingState: slice.resultingState } : {}),
           hotspots: slice.hotspots
         };
-      })
-    )
-  );
+  }
 
   const readmodels = model.contexts.flatMap((context) =>
-    context.aggregates.flatMap((aggregate) =>
-      aggregate.slices.flatMap((slice) =>
-        slice.elements
-          .filter(isKind('readmodel'))
-          .map<DocumentationReadModel>((readmodel) => ({
+    [
+      ...context.aggregates.flatMap((aggregate) =>
+        aggregate.slices.flatMap((slice) =>
+          toDocumentationReadModels(context.name, aggregate.name, slice)
+        )
+      ),
+      ...context.slices.flatMap((slice) =>
+        toDocumentationReadModels(
+          context.name,
+          context.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => `Constraint:${constraint.name}`).join(', ') || 'Context',
+          slice
+        )
+      )
+    ]
+  );
+
+  function toDocumentationReadModels(contextName: string, owner: string, slice: EmSlice): DocumentationReadModel[] {
+    return slice.elements
+      .filter(isKind('readmodel'))
+      .map<DocumentationReadModel>((readmodel) => ({
             id: readmodel.id,
             name: readmodel.name,
-            context: context.name,
-            aggregate: aggregate.name,
+            context: contextName,
+            aggregate: owner,
             slice: slice.name,
             collection: Boolean(readmodel.listElement),
             fields: readmodel.fields.map(toDocumentationField),
@@ -146,10 +170,8 @@ export const buildDocumentationBundle = (
             identifierFields: readmodel.fields
               .filter((field) => field.attributes.includes('id'))
               .map((field) => field.name)
-          }))
-      )
-    )
-  );
+          }));
+  }
 
   const integrations = model.contexts.flatMap((context) =>
     context.looseElements

@@ -7,6 +7,7 @@ import {
   isBinaryExpr,
   isCommand,
   isCreatesAggregateMarker,
+  isConstraint,
   isEvent,
   isField,
   isFieldDerivation,
@@ -24,6 +25,7 @@ import {
   isRefExpr,
   isRisk,
   isSlice,
+  isSliceTags,
   isSource,
   isSpecification,
   isState,
@@ -38,6 +40,7 @@ import type {
   Command as AstCommand,
   Context as AstContext,
   Domain as AstDomain,
+  Constraint as AstConstraint,
   DomainError as AstDomainError,
   Event as AstEvent,
   Expression,
@@ -48,10 +51,11 @@ import type {
   Policy as AstPolicy,
   ReadModel as AstReadModel,
   Slice as AstSlice,
+  TagExpression,
   Specification as AstSpecification,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmAggregate, EmContext, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, emptyModel } from './model';
+import { EmAggregate, EmContext, EmConstraint, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, emptyModel } from './model';
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
@@ -128,6 +132,8 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     id: domainId ? `${domainId}/context/${contextName}` : scopedId('context', contextName),
     name: contextName,
     aggregates: [],
+    slices: [],
+    constraints: [],
     looseElements: [],
     notes: [],
     risks: [],
@@ -138,6 +144,14 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   for (const element of node.elements ?? []) {
     if (isAggregate(element)) {
       context.aggregates.push(parseAggregate(element, context.id, edges));
+      continue;
+    }
+    if (isSlice(element)) {
+      context.slices.push(parseSlice(element, context.id, edges));
+      continue;
+    }
+    if (isConstraint(element)) {
+      context.constraints.push(parseConstraint(element, context.id));
       continue;
     }
     if (isNote(element)) {
@@ -163,7 +177,26 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     }
   }
 
+  const slicesByName = new Map(allContextSlices(context).map((slice) => [slice.name, slice.id]));
+  for (const constraint of context.constraints) {
+    constraint.sliceIds = constraint.sliceNames
+      .map((sliceName) => slicesByName.get(sliceName))
+      .filter((sliceId): sliceId is string => Boolean(sliceId));
+  }
+
   return context;
+};
+
+const parseConstraint = (node: AstConstraint, contextId: string): EmConstraint => {
+  const name = safeName(node.name, 'UnnamedConstraint');
+  return {
+    id: `${contextId}/constraint/${name}`,
+    name,
+    sliceNames: (node.slices ?? [])
+      .map((sliceRef) => sliceRef.slice?.$refText)
+      .filter((sliceName): sliceName is string => Boolean(sliceName)),
+    sliceIds: []
+  };
 };
 
 const parseAggregate = (node: AstAggregate, contextId: string, edges: EmEdge[]): EmAggregate => {
@@ -182,23 +215,28 @@ const parseAggregate = (node: AstAggregate, contextId: string, edges: EmEdge[]):
       continue;
     }
     if (isSlice(feature)) {
-      aggregate.slices.push(parseSlice(feature, aggregateId, edges));
+      aggregate.slices.push(parseSlice(feature, aggregateId, edges, aggregateId));
     }
   }
 
   return aggregate;
 };
 
-const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSlice => {
+const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateId?: string): EmSlice => {
   const sliceName = safeName(node.name, 'UnnamedSlice');
   const elements = node.elements ?? [];
-  const sliceId = `${aggregateId}/slice/${sliceName}`;
+  const sliceId = `${scopeId}/slice/${sliceName}`;
+  const tags = elements.find(isSliceTags)?.tags ?? [];
   const slice: EmSlice = {
     id: sliceId,
     name: sliceName,
-    aggregateId,
+    ...(aggregateId ? { aggregateId } : {}),
     createsAggregate: elements.some(isCreatesAggregateMarker),
     resultingState: elements.find(isState)?.name,
+    tags: tags.map((tag) => ({
+      name: tag.name,
+      ...(tag.expression ? { expression: formatTagExpression(tag.expression) } : {})
+    })),
     hotspots: elements.filter(isHotspot).map((hotspot) => hotspot.value),
     elements: []
   };
@@ -211,7 +249,7 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
       name: actorRef.actor,
       fields: [],
       sliceId,
-      aggregateId
+      ...(aggregateId ? { aggregateId } : {})
     });
   }
 
@@ -223,7 +261,7 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
       name: uiRef.view,
       fields: [],
       sliceId,
-      aggregateId,
+      ...(aggregateId ? { aggregateId } : {}),
       ...(parseUi(uiRef) ? { ui: parseUi(uiRef) } : {})
     });
   }
@@ -262,6 +300,13 @@ const parseSlice = (node: AstSlice, aggregateId: string, edges: EmEdge[]): EmSli
   }
 
   return slice;
+};
+
+const formatTagExpression = (expression: TagExpression): string => {
+  if (expression.$type === 'TagReference') {
+    return expression.parts.join('.');
+  }
+  return `${expression.function}(${expression.arguments.map(formatTagExpression).join(', ')})`;
 };
 
 const parseUi = (uiRef: AstUiRef): EmUi | undefined => {
@@ -464,10 +509,16 @@ const validateReferences = (model: EmModel): void => {
 export const flattenElements = (model: EmModel): EmElement[] =>
   model.contexts.flatMap((context) => [
     ...context.looseElements,
+    ...context.slices.flatMap((slice) => slice.elements),
     ...context.aggregates.flatMap((aggregate) =>
       aggregate.slices.flatMap((slice) => slice.elements)
     )
   ]);
+
+export const allContextSlices = (context: EmContext): EmSlice[] => [
+  ...context.slices,
+  ...context.aggregates.flatMap((aggregate) => aggregate.slices)
+];
 
 const dedupeEdges = (model: EmModel): void => {
   const seen = new Set<string>();

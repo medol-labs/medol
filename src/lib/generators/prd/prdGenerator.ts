@@ -48,9 +48,16 @@ const buildPrdDocument = (model: EmModel, id: string, title: string): PrdDocumen
   const decisions = contexts.flatMap((context) => context.decisions);
   const metrics = contexts.flatMap((context) => context.metrics);
   const slices = contexts.flatMap((context) =>
-    context.aggregates.flatMap((aggregate) =>
-      aggregate.slices.map((slice) => toPrdSlice(slice, aggregate.name, context.name))
-    )
+    [
+      ...context.aggregates.flatMap((aggregate) =>
+        aggregate.slices.map((slice) => toPrdSlice(slice, aggregate.name, context.name))
+      ),
+      ...context.slices.map((slice) => toPrdSlice(
+        slice,
+        context.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => `Constraint:${constraint.name}`).join(', ') || 'Context',
+        context.name
+      ))
+    ]
   );
 
   return {

@@ -1,4 +1,5 @@
 import type { EmElement, EmField, EmModel, EmSlice } from './model';
+import { allContextSlices } from './dslParser';
 import { humanize } from './name';
 
 export interface CodegenModel {
@@ -6,6 +7,7 @@ export interface CodegenModel {
   domain?: string;
   contexts: CodegenContext[];
   aggregates: CodegenAggregate[];
+  constraints: CodegenConstraint[];
   actors: CodegenActor[];
   slices: CodegenSlice[];
 }
@@ -19,6 +21,16 @@ export interface CodegenContext {
   decisions: string[];
   metrics: string[];
   aggregates: Array<{ id: string; name: string; title: string }>;
+  constraints: Array<{ id: string; name: string; title: string }>;
+  slices: Array<{ id: string; name: string; title: string }>;
+}
+
+export interface CodegenConstraint {
+  id: string;
+  name: string;
+  title: string;
+  context: string;
+  slices: Array<{ id: string; name: string; title: string }>;
 }
 
 export interface CodegenAggregate {
@@ -43,7 +55,9 @@ export interface CodegenSlice {
   title: string;
   chapter: string;
   context: string;
-  aggregate: CodegenAggregateRef;
+  aggregate?: CodegenAggregateRef;
+  tags: CodegenSliceTag[];
+  constraints: string[];
   commands: CodegenElement[];
   events: CodegenElement[];
   readmodels: CodegenElement[];
@@ -53,6 +67,11 @@ export interface CodegenSlice {
   actors: CodegenActor[];
   hotspots: string[];
   stateChange?: CodegenStateChange;
+}
+
+export interface CodegenSliceTag {
+  name: string;
+  expression?: string;
 }
 
 export interface CodegenAggregateRef {
@@ -164,16 +183,17 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         states: aggregate.states
       });
 
-      for (const slice of aggregate.slices) {
-        for (const element of slice.elements) {
-          elementsById.set(element.id, element);
-          if (element.kind === 'actor') {
-            actorRecords.set(element.name, {
-              id: stableId('actor', element.name),
-              name: element.name,
-              title: humanize(element.name)
-            });
-          }
+    }
+
+    for (const slice of allContextSlices(contextItem)) {
+      for (const element of slice.elements) {
+        elementsById.set(element.id, element);
+        if (element.kind === 'actor') {
+          actorRecords.set(element.name, {
+            id: stableId('actor', element.name),
+            name: element.name,
+            title: humanize(element.name)
+          });
         }
       }
     }
@@ -199,9 +219,21 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           contextItem.name,
           slices.length,
           dependenciesByElementId,
-          elementsByReference
+          elementsByReference,
+          contextItem.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => constraint.name)
         ));
       }
+    }
+    for (const slice of contextItem.slices) {
+      slices.push(toCodegenSlice(
+        slice,
+        undefined,
+        contextItem.name,
+        slices.length,
+        dependenciesByElementId,
+        elementsByReference,
+        contextItem.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => constraint.name)
+      ));
     }
   }
 
@@ -216,9 +248,29 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
       risks: contextItem.risks,
       decisions: contextItem.decisions,
       metrics: contextItem.metrics,
-      aggregates: contextItem.aggregates.map((aggregate) => toCodegenAggregateRef(aggregate.name))
+      aggregates: contextItem.aggregates.map((aggregate) => toCodegenAggregateRef(aggregate.name)),
+      constraints: contextItem.constraints.map((constraint) => ({
+        id: stableId('constraint', constraint.id),
+        name: constraint.name,
+        title: humanize(constraint.name)
+      })),
+      slices: contextItem.slices.map(toCodegenSliceRef)
     })),
     aggregates: [...aggregateRecords.values()],
+    constraints: model.contexts.flatMap((contextItem) => contextItem.constraints.map((constraint) => ({
+      id: stableId('constraint', constraint.id),
+      name: constraint.name,
+      title: humanize(constraint.name),
+      context: contextItem.name,
+      slices: constraint.sliceNames.map((sliceName) => {
+        const slice = allContextSlices(contextItem).find((candidate) => candidate.name === sliceName);
+        return slice ? toCodegenSliceRef(slice) : {
+          id: stableId('slice', `${contextItem.id}/slice/${sliceName}`),
+          name: sliceName,
+          title: humanize(sliceName)
+        };
+      })
+    }))),
     actors: [...actorRecords.values()],
     slices
   };
@@ -226,11 +278,12 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
 
 const toCodegenSlice = (
   slice: EmSlice,
-  aggregate: CodegenAggregateRef,
+  aggregate: CodegenAggregateRef | undefined,
   context: string,
   index: number,
   dependenciesByElementId: Map<string, CodegenDependency[]>,
-  elementsByReference: Map<string, EmElement>
+  elementsByReference: Map<string, EmElement>,
+  constraints: string[] = []
 ): CodegenSlice => {
   const commands = slice.elements.filter((element) => element.kind === 'command');
   const events = slice.elements.filter((element) => element.kind === 'event');
@@ -253,7 +306,9 @@ const toCodegenSlice = (
     title: humanize(slice.name),
     chapter: context,
     context,
-    aggregate,
+    ...(aggregate ? { aggregate } : {}),
+    tags: slice.tags,
+    constraints,
     commands: commands.map((element, commandIndex) =>
       toCodegenElement(
         element,
@@ -280,7 +335,7 @@ const toCodegenSlice = (
 const toCodegenElement = (
   element: EmElement,
   type: CodegenElementType,
-  aggregate: CodegenAggregateRef,
+  aggregate: CodegenAggregateRef | undefined,
   context: string,
   sliceName: string,
   dependenciesByElementId: Map<string, CodegenDependency[]>,
@@ -293,12 +348,18 @@ const toCodegenElement = (
   type,
   modelContext: context,
   slice: humanize(sliceName),
-  aggregate,
+  ...(aggregate ? { aggregate } : {}),
   fields: element.fields.map(toCodegenField),
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   ...(createsAggregate ? { createsAggregate } : {}),
   ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {})
+});
+
+const toCodegenSliceRef = (slice: EmSlice): { id: string; name: string; title: string } => ({
+  id: stableId('slice', slice.id),
+  name: slice.name,
+  title: humanize(slice.name)
 });
 
 const toCodegenStateChange = (slice: EmSlice, events: EmElement[]): CodegenStateChange => {

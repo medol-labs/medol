@@ -18,6 +18,8 @@ Context:
 
 ContextElement:
       Aggregate
+    | Slice
+    | Constraint
     | Policy
     | Integration
     | ReadModel
@@ -52,6 +54,7 @@ Slice:
 SliceElement:
       ActorRef
     | CreatesAggregateMarker
+    | SliceTags
     | UiRef
     | ReactsTo
     | Command
@@ -63,6 +66,39 @@ SliceElement:
     | Automation
     | Policy
     | Hotspot
+;
+
+SliceTags:
+    'tags' '{'
+        tags+=SliceTag*
+    '}'
+;
+
+SliceTag:
+    name=ID ('=' expression=TagExpression)?
+;
+
+TagExpression:
+      TagFunctionCall
+    | TagReference
+;
+
+TagFunctionCall:
+    function=ID '(' (arguments+=TagExpression (',' arguments+=TagExpression)*)? ')'
+;
+
+TagReference:
+    parts+=ID ('.' parts+=ID)*
+;
+
+Constraint:
+    'constraint' name=ID '{'
+        slices+=ConstraintSliceRef*
+    '}'
+;
+
+ConstraintSliceRef:
+    'slice' slice=[Slice:ID]
 ;
 
 ActorRef:

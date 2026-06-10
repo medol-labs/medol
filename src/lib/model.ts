@@ -60,8 +60,21 @@ export interface EmSlice {
   aggregateId?: string;
   createsAggregate?: boolean;
   resultingState?: string;
+  tags: EmSliceTag[];
   hotspots: string[];
   elements: EmElement[];
+}
+
+export interface EmSliceTag {
+  name: string;
+  expression?: string;
+}
+
+export interface EmConstraint {
+  id: string;
+  name: string;
+  sliceNames: string[];
+  sliceIds: string[];
 }
 
 export interface EmAggregate {
@@ -75,6 +88,8 @@ export interface EmContext {
   id: string;
   name: string;
   aggregates: EmAggregate[];
+  slices: EmSlice[];
+  constraints: EmConstraint[];
   looseElements: EmElement[];
   notes: string[];
   risks: string[];
