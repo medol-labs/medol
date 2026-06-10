@@ -94,7 +94,7 @@ export const buildDocumentationBundle = (
       ),
       ...context.slices.map((slice) => toWorkflow(
         context.name,
-        context.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => `Constraint:${constraint.name}`).join(', ') || 'Context',
+        context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => `Concept:${concept.name}`).join(', ') || 'Context',
         slice
       ))
     ]
@@ -142,7 +142,7 @@ export const buildDocumentationBundle = (
       ...context.slices.flatMap((slice) =>
         toDocumentationReadModels(
           context.name,
-          context.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => `Constraint:${constraint.name}`).join(', ') || 'Context',
+          context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => `Concept:${concept.name}`).join(', ') || 'Context',
           slice
         )
       )

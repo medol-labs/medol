@@ -720,13 +720,13 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
     },
     {
       "$type": "ParserRule",
-      "name": "Constraint",
+      "name": "Concept",
       "definition": {
         "$type": "Group",
         "elements": [
           {
             "$type": "Keyword",
-            "value": "constraint"
+            "value": "concept"
           },
           {
             "$type": "Assignment",
@@ -769,7 +769,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
     },
     {
       "$type": "ParserRule",
-      "name": "ConstraintSliceRef",
+      "name": "ConceptSliceRef",
       "definition": {
         "$type": "Group",
         "elements": [

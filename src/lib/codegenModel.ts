@@ -7,7 +7,7 @@ export interface CodegenModel {
   domain?: string;
   contexts: CodegenContext[];
   aggregates: CodegenAggregate[];
-  constraints: CodegenConstraint[];
+  concepts: CodegenConcept[];
   actors: CodegenActor[];
   slices: CodegenSlice[];
 }
@@ -21,11 +21,11 @@ export interface CodegenContext {
   decisions: string[];
   metrics: string[];
   aggregates: Array<{ id: string; name: string; title: string }>;
-  constraints: Array<{ id: string; name: string; title: string }>;
+  concepts: Array<{ id: string; name: string; title: string }>;
   slices: Array<{ id: string; name: string; title: string }>;
 }
 
-export interface CodegenConstraint {
+export interface CodegenConcept {
   id: string;
   name: string;
   title: string;
@@ -57,7 +57,7 @@ export interface CodegenSlice {
   context: string;
   aggregate?: CodegenAggregateRef;
   tags: CodegenSliceTag[];
-  constraints: string[];
+  concepts: string[];
   commands: CodegenElement[];
   events: CodegenElement[];
   readmodels: CodegenElement[];
@@ -220,7 +220,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           slices.length,
           dependenciesByElementId,
           elementsByReference,
-          contextItem.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => constraint.name)
+          contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name)
         ));
       }
     }
@@ -232,7 +232,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         slices.length,
         dependenciesByElementId,
         elementsByReference,
-        contextItem.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => constraint.name)
+        contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name)
       ));
     }
   }
@@ -249,20 +249,20 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
       decisions: contextItem.decisions,
       metrics: contextItem.metrics,
       aggregates: contextItem.aggregates.map((aggregate) => toCodegenAggregateRef(aggregate.name)),
-      constraints: contextItem.constraints.map((constraint) => ({
-        id: stableId('constraint', constraint.id),
-        name: constraint.name,
-        title: humanize(constraint.name)
+      concepts: contextItem.concepts.map((concept) => ({
+        id: stableId('concept', concept.id),
+        name: concept.name,
+        title: humanize(concept.name)
       })),
       slices: contextItem.slices.map(toCodegenSliceRef)
     })),
     aggregates: [...aggregateRecords.values()],
-    constraints: model.contexts.flatMap((contextItem) => contextItem.constraints.map((constraint) => ({
-      id: stableId('constraint', constraint.id),
-      name: constraint.name,
-      title: humanize(constraint.name),
+    concepts: model.contexts.flatMap((contextItem) => contextItem.concepts.map((concept) => ({
+      id: stableId('concept', concept.id),
+      name: concept.name,
+      title: humanize(concept.name),
       context: contextItem.name,
-      slices: constraint.sliceNames.map((sliceName) => {
+      slices: concept.sliceNames.map((sliceName) => {
         const slice = allContextSlices(contextItem).find((candidate) => candidate.name === sliceName);
         return slice ? toCodegenSliceRef(slice) : {
           id: stableId('slice', `${contextItem.id}/slice/${sliceName}`),
@@ -283,7 +283,7 @@ const toCodegenSlice = (
   index: number,
   dependenciesByElementId: Map<string, CodegenDependency[]>,
   elementsByReference: Map<string, EmElement>,
-  constraints: string[] = []
+  concepts: string[] = []
 ): CodegenSlice => {
   const commands = slice.elements.filter((element) => element.kind === 'command');
   const events = slice.elements.filter((element) => element.kind === 'event');
@@ -308,7 +308,7 @@ const toCodegenSlice = (
     context,
     ...(aggregate ? { aggregate } : {}),
     tags: slice.tags,
-    constraints,
+    concepts,
     commands: commands.map((element, commandIndex) =>
       toCodegenElement(
         element,

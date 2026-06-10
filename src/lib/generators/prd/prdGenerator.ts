@@ -54,7 +54,7 @@ const buildPrdDocument = (model: EmModel, id: string, title: string): PrdDocumen
       ),
       ...context.slices.map((slice) => toPrdSlice(
         slice,
-        context.constraints.filter((constraint) => constraint.sliceIds.includes(slice.id)).map((constraint) => `Constraint:${constraint.name}`).join(', ') || 'Context',
+        context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => `Concept:${concept.name}`).join(', ') || 'Context',
         context.name
       ))
     ]

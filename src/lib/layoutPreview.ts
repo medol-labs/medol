@@ -65,21 +65,21 @@ export const toLayoutPreviewModel = (model: CodegenModel): LayoutPreviewModel =>
         pages: toLayoutPages(aggregateSlices)
       };
     });
-    const constraintModules = context.constraints.map((constraint) => {
-      const constraintSlices = model.slices.filter(
-        (slice) => slice.context === context.name && slice.constraints.includes(constraint.name)
+    const conceptModules = context.concepts.map((concept) => {
+      const conceptSlices = model.slices.filter(
+        (slice) => slice.context === context.name && slice.concepts.includes(concept.name)
       );
       return {
-        id: constraint.id,
-        title: constraint.title,
-        aggregate: `Constraint / ${constraint.name}`,
+        id: concept.id,
+        title: concept.title,
+        aggregate: `Concept / ${concept.name}`,
         states: [],
-        slices: constraintSlices.map(toLayoutSlice),
-        pages: toLayoutPages(constraintSlices)
+        slices: conceptSlices.map(toLayoutSlice),
+        pages: toLayoutPages(conceptSlices)
       };
     });
     const unboundedSlices = model.slices.filter(
-      (slice) => slice.context === context.name && !slice.aggregate && slice.constraints.length === 0
+      (slice) => slice.context === context.name && !slice.aggregate && slice.concepts.length === 0
     );
 
     return {
@@ -87,7 +87,7 @@ export const toLayoutPreviewModel = (model: CodegenModel): LayoutPreviewModel =>
       title: context.title,
       modules: [
         ...aggregateModules,
-        ...constraintModules,
+        ...conceptModules,
         ...(unboundedSlices.length > 0 ? [{
           id: `${context.id}/unbounded`,
           title: 'Context Slices',

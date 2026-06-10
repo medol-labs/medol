@@ -18,7 +18,7 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
       'domain',
       'context',
       'aggregate',
-      'constraint',
+      'concept',
       'state',
       'slice',
       'tags',

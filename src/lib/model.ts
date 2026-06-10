@@ -69,7 +69,7 @@ export interface EmSliceTag {
   expression?: string;
 }
 
-export interface EmConstraint {
+export interface EmConcept {
   id: string;
   name: string;
   sliceNames: string[];
@@ -88,7 +88,7 @@ export interface EmContext {
   name: string;
   aggregates: EmAggregate[];
   slices: EmSlice[];
-  constraints: EmConstraint[];
+  concepts: EmConcept[];
   looseElements: EmElement[];
   notes: string[];
   risks: string[];

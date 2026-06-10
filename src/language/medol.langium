@@ -19,7 +19,7 @@ Context:
 ContextElement:
       Aggregate
     | Slice
-    | Constraint
+    | Concept
     | Policy
     | Integration
     | ReadModel
@@ -90,13 +90,13 @@ TagReference:
     parts+=ID ('.' parts+=ID)*
 ;
 
-Constraint:
-    'constraint' name=ID '{'
-        slices+=ConstraintSliceRef*
+Concept:
+    'concept' name=ID '{'
+        slices+=ConceptSliceRef*
     '}'
 ;
 
-ConstraintSliceRef:
+ConceptSliceRef:
     'slice' slice=[Slice:ID]
 ;
 

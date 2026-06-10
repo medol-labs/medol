@@ -29,12 +29,12 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
         title: aggregate.name,
         metrics: aggregateMetrics(aggregate)
       })),
-      ...context.constraints.map((constraint) => {
-        const slices = context.slices.filter((slice) => constraint.sliceIds.includes(slice.id));
+      ...context.concepts.map((concept) => {
+        const slices = context.slices.filter((slice) => concept.sliceIds.includes(slice.id));
         return {
-          id: `overview/constraint/${constraint.id}`,
-          kind: 'constraint' as const,
-          title: constraint.name,
+          id: `overview/concept/${concept.id}`,
+          kind: 'concept' as const,
+          title: concept.name,
           metrics: sliceMetrics(slices)
         };
       })
@@ -75,7 +75,7 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
         title: context.name,
         note: context.notes[0],
         aggregates: context.aggregates.length,
-        constraints: context.constraints.length,
+        concepts: context.concepts.length,
         slices: context.slices.length + context.aggregates.reduce((total, aggregate) => total + aggregate.slices.length, 0),
         integrations: context.looseElements.filter((element) => element.kind === 'integration').length,
         risks: context.risks.length

@@ -50,7 +50,7 @@ domain MethodCatalog {
       }
     }
 
-    constraint Method {
+    concept Method {
       slice RegisterMethod
       slice RenameMethod
     }

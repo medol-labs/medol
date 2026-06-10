@@ -11,7 +11,7 @@ MEDOL treats domain design as a versionable, executable specification rather tha
 The project combines two development ideas:
 
 - **Agentic development**: a modeling agent understands MEDOL syntax, the current domain model, the selected modeling element, and project-specific knowledge. It can discuss requirements, identify missing decisions, and propose focused MEDOL patches. Changes remain reviewable in the editor before they are applied.
-- **Spec-driven development**: MEDOL is the source of truth for business behavior and implementation intent. Commands, events, business rejections, read models, consistency constraints, UI interactions, examples, and Given-When-Then specifications are captured before downstream documents or code are generated.
+- **Spec-driven development**: MEDOL is the source of truth for business behavior and implementation intent. Commands, events, business rejections, read models, business concepts, UI interactions, examples, and Given-When-Then specifications are captured before downstream documents or code are generated.
 
 The intended delivery loop is:
 
@@ -47,7 +47,7 @@ This supports an agentic, spec-driven workflow in which:
 4. Semantic validation checks model structure and relationships.
 5. Product requirements, software design, database design, processes, and acceptance material are derived from the reviewed model.
 6. Code generators consume a normalized `CodegenModel`, keeping technical generation concerns separate from domain design.
-7. New implementation knowledge can be recorded back into MEDOL as rules, examples, mappings, constraints, or hotspots.
+7. New implementation knowledge can be recorded back into MEDOL as rules, examples, mappings, concepts, or hotspots.
 
 The current modeling flow is designed around this structure:
 
@@ -388,7 +388,9 @@ context FederationLearning {
 - `domain`: A top-level domain that groups one or more modeling contexts.
 - `context`: A bounded modeling context inside a domain. Legacy files may still start with `context`.
 - `aggregate`: A domain aggregate containing states and slices.
+- `concept`: A named business concept shared by context-level slices. It groups related behavior through slice references without prescribing aggregate or consistency-boundary implementation.
 - `slice`: A timeline column in the event modeling board.
+- `tags`: Selection values used to identify the concept instance involved in a slice. Tag expressions may normalize or derive values.
 - `createsAggregate`: Marks a slice whose command creates a new aggregate instance.
 - `ui`: A screen or view reference.
 - `command`: A user or automation intent.

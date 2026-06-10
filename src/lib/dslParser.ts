@@ -7,7 +7,7 @@ import {
   isBinaryExpr,
   isCommand,
   isCreatesAggregateMarker,
-  isConstraint,
+  isConcept,
   isEvent,
   isField,
   isFieldDerivation,
@@ -39,7 +39,7 @@ import type {
   Command as AstCommand,
   Context as AstContext,
   Domain as AstDomain,
-  Constraint as AstConstraint,
+  Concept as AstConcept,
   Event as AstEvent,
   Expression,
   Field as AstField,
@@ -53,7 +53,7 @@ import type {
   Specification as AstSpecification,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmAggregate, EmContext, EmConstraint, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, emptyModel } from './model';
+import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, emptyModel } from './model';
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
@@ -131,7 +131,7 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     name: contextName,
     aggregates: [],
     slices: [],
-    constraints: [],
+    concepts: [],
     looseElements: [],
     notes: [],
     risks: [],
@@ -148,8 +148,8 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
       context.slices.push(parseSlice(element, context.id, edges));
       continue;
     }
-    if (isConstraint(element)) {
-      context.constraints.push(parseConstraint(element, context.id));
+    if (isConcept(element)) {
+      context.concepts.push(parseConcept(element, context.id));
       continue;
     }
     if (isNote(element)) {
@@ -176,8 +176,8 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   }
 
   const slicesByName = new Map(allContextSlices(context).map((slice) => [slice.name, slice.id]));
-  for (const constraint of context.constraints) {
-    constraint.sliceIds = constraint.sliceNames
+  for (const concept of context.concepts) {
+    concept.sliceIds = concept.sliceNames
       .map((sliceName) => slicesByName.get(sliceName))
       .filter((sliceId): sliceId is string => Boolean(sliceId));
   }
@@ -185,10 +185,10 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   return context;
 };
 
-const parseConstraint = (node: AstConstraint, contextId: string): EmConstraint => {
-  const name = safeName(node.name, 'UnnamedConstraint');
+const parseConcept = (node: AstConcept, contextId: string): EmConcept => {
+  const name = safeName(node.name, 'UnnamedConcept');
   return {
-    id: `${contextId}/constraint/${name}`,
+    id: `${contextId}/concept/${name}`,
     name,
     sliceNames: (node.slices ?? [])
       .map((sliceRef) => sliceRef.slice?.$refText)

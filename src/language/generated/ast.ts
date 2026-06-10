@@ -37,9 +37,9 @@ export type MedolKeywordNames =
     | "automation"
     | "background"
     | "command"
+    | "concept"
     | "condition"
     | "confirm"
-    | "constraint"
     | "context"
     | "createsAggregate"
     | "decision"
@@ -237,6 +237,38 @@ export function isCommandStep(item: unknown): item is CommandStep {
     return reflection.isInstance(item, CommandStep.$type);
 }
 
+export interface Concept extends langium.AstNode {
+    readonly $container: Context;
+    readonly $type: 'Concept';
+    name: string;
+    slices: Array<ConceptSliceRef>;
+}
+
+export const Concept = {
+    $type: 'Concept',
+    name: 'name',
+    slices: 'slices'
+} as const;
+
+export function isConcept(item: unknown): item is Concept {
+    return reflection.isInstance(item, Concept.$type);
+}
+
+export interface ConceptSliceRef extends langium.AstNode {
+    readonly $container: Concept;
+    readonly $type: 'ConceptSliceRef';
+    slice: langium.Reference<Slice>;
+}
+
+export const ConceptSliceRef = {
+    $type: 'ConceptSliceRef',
+    slice: 'slice'
+} as const;
+
+export function isConceptSliceRef(item: unknown): item is ConceptSliceRef {
+    return reflection.isInstance(item, ConceptSliceRef.$type);
+}
+
 export interface Condition extends langium.AstNode {
     readonly $container: Automation;
     readonly $type: 'Condition';
@@ -250,38 +282,6 @@ export const Condition = {
 
 export function isCondition(item: unknown): item is Condition {
     return reflection.isInstance(item, Condition.$type);
-}
-
-export interface Constraint extends langium.AstNode {
-    readonly $container: Context;
-    readonly $type: 'Constraint';
-    name: string;
-    slices: Array<ConstraintSliceRef>;
-}
-
-export const Constraint = {
-    $type: 'Constraint',
-    name: 'name',
-    slices: 'slices'
-} as const;
-
-export function isConstraint(item: unknown): item is Constraint {
-    return reflection.isInstance(item, Constraint.$type);
-}
-
-export interface ConstraintSliceRef extends langium.AstNode {
-    readonly $container: Constraint;
-    readonly $type: 'ConstraintSliceRef';
-    slice: langium.Reference<Slice>;
-}
-
-export const ConstraintSliceRef = {
-    $type: 'ConstraintSliceRef',
-    slice: 'slice'
-} as const;
-
-export function isConstraintSliceRef(item: unknown): item is ConstraintSliceRef {
-    return reflection.isInstance(item, ConstraintSliceRef.$type);
 }
 
 export interface Context extends langium.AstNode {
@@ -301,7 +301,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Aggregate | Constraint | Decision | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | UserJourney;
+export type ContextElement = Aggregate | Concept | Decision | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | UserJourney;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -1114,9 +1114,9 @@ export type MedolAstType = {
     BinaryExpr: BinaryExpr
     Command: Command
     CommandStep: CommandStep
+    Concept: Concept
+    ConceptSliceRef: ConceptSliceRef
     Condition: Condition
-    Constraint: Constraint
-    ConstraintSliceRef: ConstraintSliceRef
     Context: Context
     ContextElement: ContextElement
     CreatesAggregateMarker: CreatesAggregateMarker
@@ -1275,6 +1275,29 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [StepValue.$type]
         },
+        Concept: {
+            name: Concept.$type,
+            properties: {
+                name: {
+                    name: Concept.name
+                },
+                slices: {
+                    name: Concept.slices,
+                    defaultValue: []
+                }
+            },
+            superTypes: [ContextElement.$type]
+        },
+        ConceptSliceRef: {
+            name: ConceptSliceRef.$type,
+            properties: {
+                slice: {
+                    name: ConceptSliceRef.slice,
+                    referenceType: Slice.$type
+                }
+            },
+            superTypes: []
+        },
         Condition: {
             name: Condition.$type,
             properties: {
@@ -1283,29 +1306,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [AutomationElement.$type]
-        },
-        Constraint: {
-            name: Constraint.$type,
-            properties: {
-                name: {
-                    name: Constraint.name
-                },
-                slices: {
-                    name: Constraint.slices,
-                    defaultValue: []
-                }
-            },
-            superTypes: [ContextElement.$type]
-        },
-        ConstraintSliceRef: {
-            name: ConstraintSliceRef.$type,
-            properties: {
-                slice: {
-                    name: ConstraintSliceRef.slice,
-                    referenceType: Slice.$type
-                }
-            },
-            superTypes: []
         },
         Context: {
             name: Context.$type,

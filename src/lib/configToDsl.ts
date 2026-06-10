@@ -70,7 +70,7 @@ interface ConfigSlice {
   stateChange?: ConfigStateChange;
   aggregates?: Array<{ name?: string; title?: string }>;
   tags?: Array<{ name?: string; expression?: string }>;
-  constraints?: string[];
+  concepts?: string[];
 }
 
 interface ConfigAggregate {
@@ -84,7 +84,7 @@ interface ConfigRoot {
   context?: string;
   aggregates?: ConfigAggregate[];
   slices?: ConfigSlice[];
-  constraints?: Array<{ name?: string; slices?: Array<{ name?: string; title?: string }> }>;
+  concepts?: Array<{ name?: string; slices?: Array<{ name?: string; title?: string }> }>;
 }
 
 export const configToDsl = (config: ConfigRoot): string => {
@@ -111,7 +111,7 @@ export const configToDsl = (config: ConfigRoot): string => {
     const aggregateId = toDslId(aggregateName, 'Aggregate');
     grouped.set(aggregateId, [...(grouped.get(aggregateId) ?? []), slice]);
   }
-  const constraints = config.constraints?.length ? config.constraints : deriveConstraints(config.slices ?? []);
+  const concepts = config.concepts?.length ? config.concepts : deriveConcepts(config.slices ?? []);
 
   const contextIndent = domainName ? 2 : 0;
   const aggregateIndent = contextIndent + 2;
@@ -132,9 +132,9 @@ export const configToDsl = (config: ConfigRoot): string => {
     lines.push(`${pad(aggregateIndent)}}`);
   }
   for (const slice of directSlices) appendSlice(lines, slice, aggregateIndent);
-  for (const constraint of constraints) {
-    lines.push(`${pad(aggregateIndent)}constraint ${toDslId(constraint.name, 'Boundary')} {`);
-    for (const slice of constraint.slices ?? []) {
+  for (const concept of concepts) {
+    lines.push(`${pad(aggregateIndent)}concept ${toDslId(concept.name, 'Concept')} {`);
+    for (const slice of concept.slices ?? []) {
       lines.push(`${pad(aggregateIndent + 2)}slice ${toDslId(slice.name || slice.title, 'Slice')}`);
     }
     lines.push(`${pad(aggregateIndent)}}`);
@@ -146,17 +146,17 @@ export const configToDsl = (config: ConfigRoot): string => {
   return lines.join('\n');
 };
 
-const deriveConstraints = (
+const deriveConcepts = (
   slices: ConfigSlice[]
-): NonNullable<ConfigRoot['constraints']> => {
-  const constraints = new Map<string, Array<{ name?: string; title?: string }>>();
+): NonNullable<ConfigRoot['concepts']> => {
+  const concepts = new Map<string, Array<{ name?: string; title?: string }>>();
   for (const slice of slices) {
     if (!slice.title) continue;
-    for (const constraint of slice.constraints ?? []) {
-      constraints.set(constraint, [...(constraints.get(constraint) ?? []), { title: slice.title }]);
+    for (const concept of slice.concepts ?? []) {
+      concepts.set(concept, [...(concepts.get(concept) ?? []), { title: slice.title }]);
     }
   }
-  return [...constraints].map(([name, constraintSlices]) => ({ name, slices: constraintSlices }));
+  return [...concepts].map(([name, conceptSlices]) => ({ name, slices: conceptSlices }));
 };
 
 const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void => {

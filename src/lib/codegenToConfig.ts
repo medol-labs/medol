@@ -109,7 +109,7 @@ interface ConfigSlice {
   context: string;
   sliceType: 'STATE_CHANGE';
   tags: Array<{ name: string; expression?: string }>;
-  constraints: string[];
+  concepts: string[];
   commands: ConfigElement[];
   events: ConfigElement[];
   readmodels: ConfigElement[];
@@ -129,7 +129,7 @@ export interface ConfigRoot {
   flows: [];
   aggregates: Array<{ id: string; name: string; title: string; fields: []; states: string[] }>;
   actors: Array<{ id: string; name: string; title: string }>;
-  constraints: Array<{
+  concepts: Array<{
     id: string;
     name: string;
     title: string;
@@ -161,7 +161,7 @@ export const codegenModelToConfig = (model: CodegenModel): ConfigRoot => ({
     states: aggregate.states
   })),
   actors: model.actors,
-  constraints: model.constraints,
+  concepts: model.concepts,
   ...(model.domain ? { domain: model.domain } : {}),
   context: getPrimaryContextName(model),
   codeGen: {
@@ -185,7 +185,7 @@ const toConfigSlice = (slice: CodegenSlice): ConfigSlice => ({
   context: slice.context,
   sliceType: 'STATE_CHANGE',
   tags: slice.tags,
-  constraints: slice.constraints,
+  concepts: slice.concepts,
   commands: slice.commands.map(toConfigElement),
   events: slice.events.map(toConfigElement),
   readmodels: slice.readmodels.map(toConfigElement),

@@ -4,7 +4,7 @@ interface ContextOverviewNodeData extends Record<string, unknown> {
   title: string;
   note?: string;
   aggregates: number;
-  constraints: number;
+  concepts: number;
   slices: number;
   integrations: number;
   risks: number;
@@ -22,7 +22,7 @@ export function ContextOverviewNode({ data }: NodeProps) {
       </div>
       <dl>
         <div><dt>Aggregates</dt><dd>{context.aggregates}</dd></div>
-        <div><dt>Constraints</dt><dd>{context.constraints}</dd></div>
+        <div><dt>Concepts</dt><dd>{context.concepts}</dd></div>
         <div><dt>Slices</dt><dd>{context.slices}</dd></div>
         <div><dt>Integrations</dt><dd>{context.integrations}</dd></div>
         <div><dt>Risks</dt><dd>{context.risks}</dd></div>

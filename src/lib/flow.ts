@@ -321,15 +321,15 @@ const toCanvasGroups = (context: EmContext): Array<{
   slices: EmSlice[];
 }> => {
   const assignedSliceIds = new Set<string>();
-  const constraintGroups = context.constraints.map((constraint) => {
+  const conceptGroups = context.concepts.map((concept) => {
     const slices = context.slices.filter((slice) => {
-      if (!constraint.sliceIds.includes(slice.id) || assignedSliceIds.has(slice.id)) return false;
+      if (!concept.sliceIds.includes(slice.id) || assignedSliceIds.has(slice.id)) return false;
       assignedSliceIds.add(slice.id);
       return true;
     });
     return {
-      id: constraint.id,
-      name: `Constraint / ${constraint.name}`,
+      id: concept.id,
+      name: `Concept / ${concept.name}`,
       states: [],
       slices
     };
@@ -338,7 +338,7 @@ const toCanvasGroups = (context: EmContext): Array<{
 
   return [
     ...context.aggregates,
-    ...constraintGroups,
+    ...conceptGroups,
     ...(unboundedSlices.length > 0 ? [{
       id: `${context.id}/context-slices`,
       name: 'Context Slices',

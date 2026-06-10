@@ -138,26 +138,26 @@ export function ModelExplorer({
                 </div>
                               );
                             })}
-                            {context.constraints.map((constraint) => {
-                              const constraintCollapsed = collapsed.has(constraint.id);
-                              const slices = context.slices.filter((slice) => constraint.sliceIds.includes(slice.id));
+                            {context.concepts.map((concept) => {
+                              const conceptCollapsed = collapsed.has(concept.id);
+                              const slices = context.slices.filter((slice) => concept.sliceIds.includes(slice.id));
                               return (
-                                <div key={constraint.id} className="explorer-aggregate">
+                                <div key={concept.id} className="explorer-aggregate">
                                   <div className="explorer-row">
                                     <button
                                       type="button"
                                       className="explorer-toggle"
-                                      aria-label={constraintCollapsed ? `Expand ${constraint.name}` : `Collapse ${constraint.name}`}
-                                      onClick={() => toggle(constraint.id)}
+                                      aria-label={conceptCollapsed ? `Expand ${concept.name}` : `Collapse ${concept.name}`}
+                                      onClick={() => toggle(concept.id)}
                                     >
-                                      {constraintCollapsed ? '+' : '-'}
+                                      {conceptCollapsed ? '+' : '-'}
                                     </button>
-                                    <button type="button" className="explorer-item explorer-item--nested" onClick={() => toggle(constraint.id)}>
-                                      <span>Consistency Constraint · {slices.length} slices</span>
-                                      <strong>{constraint.name}</strong>
+                                    <button type="button" className="explorer-item explorer-item--nested" onClick={() => toggle(concept.id)}>
+                                      <span>Concept · {slices.length} slices</span>
+                                      <strong>{concept.name}</strong>
                                     </button>
                                   </div>
-                                  {!constraintCollapsed && (
+                                  {!conceptCollapsed && (
                                     <div className="explorer-slices">
                                       {slices.map((slice) => (
                                         <button
@@ -176,7 +176,7 @@ export function ModelExplorer({
                               );
                             })}
                             {context.slices
-                              .filter((slice) => !context.constraints.some((constraint) => constraint.sliceIds.includes(slice.id)))
+                              .filter((slice) => !context.concepts.some((concept) => concept.sliceIds.includes(slice.id)))
                               .map((slice) => (
                                 <button
                                   key={slice.id}
