@@ -21,7 +21,7 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
     '- Do not output nextDsl; the server applies operations to the current MEDOL.',
     '- Do not silently invent domain rules; use clarification or add a hotspot when behavior is unclear.',
     '- Preserve unrelated MEDOL exactly as much as possible.',
-    '- For patch operations, use targets like "slice CreateOrder", "readmodel OrderList", "command CreateOrder".',
+    '- For patch operations, use targets like "slice CreateOrder", "readmodel OrderList", "command CreateOrder", or "error OrderAlreadyExists".',
     '- Insert operations must include the MEDOL fragment in content.'
   ].join('\n');
 

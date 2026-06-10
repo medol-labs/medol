@@ -97,7 +97,7 @@ const findTargetBlock = (dsl: string, target: string) => {
 
 const parseTarget = (target: string): { kind: string; name: string } | undefined => {
   const normalized = target.trim();
-  const match = /^(domain|context|aggregate|slice|command|event|readmodel|projection|automation|policy|integration|specification|hotspot)\s+(.+)$/i.exec(normalized);
+  const match = /^(domain|context|aggregate|slice|command|event|error|readmodel|projection|automation|policy|integration|specification|hotspot)\s+(.+)$/i.exec(normalized);
   if (!match) return undefined;
   return {
     kind: match[1].toLowerCase() === 'projection' ? 'readmodel' : match[1].toLowerCase(),

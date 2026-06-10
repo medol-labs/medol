@@ -15,6 +15,7 @@ const labels: Record<EmElementKind, string> = {
   screen: 'UI',
   command: 'Command',
   event: 'Event',
+  error: 'Error',
   readmodel: 'Read Model',
   automation: 'Automation',
   policy: 'Policy',

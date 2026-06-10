@@ -46,6 +46,7 @@ export type MedolKeywordNames =
     | "domain"
     | "drawer"
     | "emits"
+    | "error"
     | "event"
     | "example"
     | "form"
@@ -321,6 +322,23 @@ export function isDomain(item: unknown): item is Domain {
     return reflection.isInstance(item, Domain.$type);
 }
 
+export interface DomainError extends langium.AstNode {
+    readonly $container: Slice;
+    readonly $type: 'DomainError';
+    description?: string;
+    name: string;
+}
+
+export const DomainError = {
+    $type: 'DomainError',
+    description: 'description',
+    name: 'name'
+} as const;
+
+export function isDomainError(item: unknown): item is DomainError {
+    return reflection.isInstance(item, DomainError.$type);
+}
+
 export interface Emits extends langium.AstNode {
     readonly $container: Automation | Integration;
     readonly $type: 'Emits';
@@ -384,7 +402,7 @@ export function isExample(item: unknown): item is Example {
 }
 
 export interface ExampleBlock extends langium.AstNode {
-    readonly $container: Example | When;
+    readonly $container: Example | Given | When;
     readonly $type: 'ExampleBlock';
     assignments: Array<Assignment>;
 }
@@ -522,11 +540,13 @@ export function isFieldSourceMapping(item: unknown): item is FieldSourceMapping 
 export interface Given extends langium.AstNode {
     readonly $container: Specification;
     readonly $type: 'Given';
+    condition?: ExampleBlock;
     event: langium.Reference<Event>;
 }
 
 export const Given = {
     $type: 'Given',
+    condition: 'condition',
     event: 'event'
 } as const;
 
@@ -767,7 +787,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | Event | Hotspot | Policy | ReactsTo | ReadModel | Specification | State | UiRef;
+export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | DomainError | Event | Hotspot | Policy | ReactsTo | ReadModel | Specification | State | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -903,11 +923,13 @@ export function isTarget(item: unknown): item is Target {
 export interface Then extends langium.AstNode {
     readonly $container: Specification;
     readonly $type: 'Then';
-    event: langium.Reference<Event>;
+    error?: langium.Reference<DomainError>;
+    event?: langium.Reference<Event>;
 }
 
 export const Then = {
     $type: 'Then',
+    error: 'error',
     event: 'event'
 } as const;
 
@@ -1005,6 +1027,7 @@ export type MedolAstType = {
     CreatesAggregateMarker: CreatesAggregateMarker
     Decision: Decision
     Domain: Domain
+    DomainError: DomainError
     Emits: Emits
     Event: Event
     EventStep: EventStep
@@ -1213,6 +1236,18 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: []
         },
+        DomainError: {
+            name: DomainError.$type,
+            properties: {
+                description: {
+                    name: DomainError.description
+                },
+                name: {
+                    name: DomainError.name
+                }
+            },
+            superTypes: [SliceElement.$type]
+        },
         Emits: {
             name: Emits.$type,
             properties: {
@@ -1351,6 +1386,9 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Given: {
             name: Given.$type,
             properties: {
+                condition: {
+                    name: Given.condition
+                },
                 event: {
                     name: Given.event,
                     referenceType: Event.$type
@@ -1614,6 +1652,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Then: {
             name: Then.$type,
             properties: {
+                error: {
+                    name: Then.error,
+                    referenceType: DomainError.$type
+                },
                 event: {
                     name: Then.event,
                     referenceType: Event.$type

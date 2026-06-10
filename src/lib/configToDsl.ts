@@ -40,6 +40,24 @@ interface ConfigStateChange {
   to?: string;
 }
 
+interface ConfigSpecificationElement {
+  title?: string;
+  fields?: Array<{ name?: string; example?: string }>;
+}
+
+interface ConfigSpecificationError {
+  title?: string;
+  description?: string;
+  type?: 'SPEC_ERROR';
+}
+
+interface ConfigSpecification {
+  title?: string;
+  given?: ConfigSpecificationElement[];
+  when?: ConfigSpecificationElement[];
+  then?: ConfigSpecificationElement[] | ConfigSpecificationError;
+}
+
 interface ConfigSlice {
   title?: string;
   context?: string;
@@ -48,6 +66,7 @@ interface ConfigSlice {
   screens?: ConfigElement[];
   readmodels?: ConfigElement[];
   processors?: ConfigElement[];
+  specifications?: ConfigSpecification[];
   stateChange?: ConfigStateChange;
   aggregates?: Array<{ name?: string; title?: string }>;
 }
@@ -117,6 +136,7 @@ export const configToDsl = (config: ConfigRoot): string => {
       for (const event of slice.events ?? []) {
         appendElement(lines, 'event', event, elementIndent);
       }
+      appendSpecificationErrors(lines, slice.specifications ?? [], elementIndent);
       if (slice.stateChange?.to) {
         lines.push(`${pad(elementIndent)}state ${toDslId(slice.stateChange.to, 'State')}`);
       }
@@ -134,6 +154,9 @@ export const configToDsl = (config: ConfigRoot): string => {
         }
         lines.push(`${pad(elementIndent)}}`);
       }
+      for (const specification of slice.specifications ?? []) {
+        appendSpecification(lines, specification, elementIndent);
+      }
       lines.push(`${pad(sliceIndent)}}`);
     }
     lines.push(`${pad(aggregateIndent)}}`);
@@ -143,6 +166,100 @@ export const configToDsl = (config: ConfigRoot): string => {
     lines.push('}');
   }
   return lines.join('\n');
+};
+
+const appendSpecificationErrors = (
+  lines: string[],
+  specifications: ConfigSpecification[],
+  indent: number
+): void => {
+  const seen = new Set<string>();
+  for (const specification of specifications) {
+    if (Array.isArray(specification.then) || specification.then?.type !== 'SPEC_ERROR') continue;
+    const name = toDslId(specification.then.title || specification.title, 'DomainError');
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const description = specification.then.description ? ` ${quote(specification.then.description)}` : '';
+    lines.push(`${pad(indent)}error ${name}${description}`);
+  }
+};
+
+const appendSpecification = (
+  lines: string[],
+  specification: ConfigSpecification,
+  indent: number
+): void => {
+  const when = specification.when?.[0];
+  const then = Array.isArray(specification.then)
+    ? specification.then[0]
+    : specification.then?.type === 'SPEC_ERROR'
+      ? specification.then
+      : undefined;
+  if (!when?.title || !then?.title) return;
+
+  lines.push(`${pad(indent)}specification ${quote(specification.title || 'Business rule')} {`);
+  for (const given of specification.given ?? []) {
+    if (given.title) appendSpecificationGiven(lines, given, indent + 2);
+  }
+  appendSpecificationWhen(lines, when, indent + 2);
+  if (!Array.isArray(specification.then) && specification.then?.type === 'SPEC_ERROR') {
+    lines.push(`${pad(indent + 2)}then error ${toDslId(then.title, 'DomainError')}`);
+  } else {
+    lines.push(`${pad(indent + 2)}then ${toDslId(then.title, 'Event')}`);
+  }
+  lines.push(`${pad(indent)}}`);
+};
+
+const appendSpecificationGiven = (
+  lines: string[],
+  given: ConfigSpecificationElement,
+  indent: number
+): void => {
+  const examples = specificationExamples(given);
+  const eventName = toDslId(given.title, 'Event');
+  if (examples.length === 0) {
+    lines.push(`${pad(indent)}given ${eventName}`);
+    return;
+  }
+
+  lines.push(`${pad(indent)}given ${eventName} {`);
+  appendSpecificationAssignments(lines, examples, indent + 2);
+  lines.push(`${pad(indent)}}`);
+};
+
+const appendSpecificationWhen = (
+  lines: string[],
+  when: ConfigSpecificationElement,
+  indent: number
+): void => {
+  const examples = specificationExamples(when);
+  const commandName = toDslId(when.title, 'Command');
+  if (examples.length === 0) {
+    lines.push(`${pad(indent)}when ${commandName}`);
+    return;
+  }
+
+  lines.push(`${pad(indent)}when ${commandName} {`);
+  appendSpecificationAssignments(lines, examples, indent + 2);
+  lines.push(`${pad(indent)}}`);
+};
+
+const specificationExamples = (
+  element: ConfigSpecificationElement
+): Array<{ name: string; example: string }> => (
+  (element.fields ?? []).filter(
+    (field): field is { name: string; example: string } => Boolean(field.name && field.example !== undefined)
+  )
+);
+
+const appendSpecificationAssignments = (
+  lines: string[],
+  examples: Array<{ name: string; example: string }>,
+  indent: number
+): void => {
+  for (const field of examples) {
+    lines.push(`${pad(indent)}${toDslId(field.name, 'field')} = ${quote(field.example)}`);
+  }
 };
 
 const formatUi = (screen: ConfigElement, indent: number): string[] => {

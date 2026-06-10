@@ -273,7 +273,7 @@ const summarizeSlice = (slice: EmSlice): string => {
   const state = slice.resultingState ? ` Resulting state: ${slice.resultingState}.` : '';
   const creates = slice.createsAggregate ? ' It creates the aggregate.' : '';
   const hotspots = slice.hotspots.length ? ` Hotspots: ${slice.hotspots.join('; ')}.` : '';
-  return `Slice ${slice.name} has ${counts.commands} command(s), ${counts.events} event(s), ${counts.readmodels} read model(s), ${counts.automations} automation(s).${state}${creates}${hotspots}`;
+  return `Slice ${slice.name} has ${counts.commands} command(s), ${counts.events} event(s), ${counts.errors} error(s), ${counts.readmodels} read model(s), ${counts.automations} automation(s).${state}${creates}${hotspots}`;
 };
 
 const summarizeElement = (element: EmElement): string => {
@@ -286,6 +286,7 @@ const summarizeElement = (element: EmElement): string => {
 const countElements = (elements: EmElement[]) => ({
   commands: elements.filter((element) => element.kind === 'command').length,
   events: elements.filter((element) => element.kind === 'event').length,
+  errors: elements.filter((element) => element.kind === 'error').length,
   readmodels: elements.filter((element) => element.kind === 'readmodel').length,
   automations: elements.filter((element) => element.kind === 'automation').length
 });
@@ -316,6 +317,7 @@ const getBlockCandidates = (selectedItem: SelectedModelItem) => {
   const keywordByKind: Partial<Record<EmElement['kind'], string>> = {
     command: 'command',
     event: 'event',
+    error: 'error',
     readmodel: 'readmodel',
     automation: 'automation',
     policy: 'policy',

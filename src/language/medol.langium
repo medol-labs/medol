@@ -56,6 +56,7 @@ SliceElement:
     | ReactsTo
     | Command
     | Event
+    | DomainError
     | State
     | Specification
     | ReadModel
@@ -103,6 +104,10 @@ Event:
     'event' name=ID '{'
         fields+=Field*
     '}'
+;
+
+DomainError:
+    'error' name=ID description=STRING?
 ;
 
 ReadModel:
@@ -157,6 +162,7 @@ Specification:
 
 Given:
     'given' event=[Event:ID]
+    condition=ExampleBlock?
 ;
 
 When:
@@ -165,7 +171,7 @@ When:
 ;
 
 Then:
-    'then' event=[Event:ID]
+    'then' (event=[Event:ID] | 'error' error=[DomainError:ID])
 ;
 
 Example:

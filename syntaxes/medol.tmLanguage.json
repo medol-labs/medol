@@ -11,7 +11,7 @@
     },
     {
       "name": "keyword.control.medol",
-      "match": "\\b(actor|aggregate|automation|background|command|condition|confirm|context|createsAggregate|decision|derived|detail|dialog|domain|drawer|emits|event|example|form|from|generated|given|hotspot|id|inline|integration|issue|list|metric|note|on|policy|projection|query|reactsTo|readmodel|risk|rule|slice|source|specification|state|steps|subscribe|target|technical|then|ui|userJourney|view|when|wizard)\\b"
+      "match": "\\b(actor|aggregate|automation|background|command|condition|confirm|context|createsAggregate|decision|derived|detail|dialog|domain|drawer|emits|error|event|example|form|from|generated|given|hotspot|id|inline|integration|issue|list|metric|note|on|policy|projection|query|reactsTo|readmodel|risk|rule|slice|source|specification|state|steps|subscribe|target|technical|then|ui|userJourney|view|when|wizard)\\b"
     },
     {
       "name": "string.quoted.double.medol",

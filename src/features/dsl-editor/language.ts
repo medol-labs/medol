@@ -26,6 +26,7 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
       'ui',
       'command',
       'event',
+      'error',
       'readmodel',
       'projection',
       'automation',

@@ -51,14 +51,15 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     domain: 'domain Name { context ... } groups bounded contexts under a business domain.',
     context: 'context Name { aggregate | policy | integration | readmodel | userJourney | risk | note | decision | metric } describes a bounded context.',
     aggregate: 'aggregate Name { state StateName | slice SliceName { ... } } owns lifecycle states and timeline slices.',
-    slice: 'slice Name { actor | createsAggregate | ui | reactsTo | command | event | state | specification | readmodel | automation | policy | hotspot } describes one timeline capability.',
+    slice: 'slice Name { actor | createsAggregate | ui | reactsTo | command | event | error | state | specification | readmodel | automation | policy | hotspot } describes one timeline capability.',
     command: 'command Name { fieldName: Type attributes? mapping? details? example? } represents user or system intent.',
     event: 'event Name { fieldName: Type attributes? mapping? details? } records a fact after command/rule processing.',
+    error: 'error Name "Business rejection description"? represents an expected domain rejection; reference it with then error Name in a specification.',
     readmodel: 'readmodel Name[]? { subscribe EventName? fieldName: Type ... } represents information available for queries and UI. [] marks collection semantics.',
     ui: 'ui ViewName type? attaches a UI surface to a slice. Supported types: list, detail, form, dialog, drawer, confirm, wizard, inline, background.',
     state: 'state StateName inside an aggregate declares a lifecycle state. state StateName inside a slice marks the resulting state.',
     createsAggregate: 'createsAggregate marks the command slice that creates the aggregate instance.',
-    specification: 'specification "Name" { given EventName* ui ...? when CommandName {...}? then EventName } captures behavior examples.',
+    specification: 'specification "Name" { given EventName { field = value }* ui ...? when CommandName { field = value }? then EventName | then error ErrorName } captures successful and rejected behavior examples.',
     automation: 'automation Name { condition expression emits CommandName } captures automatic behavior.',
     policy: 'policy Name { on EventName issue CommandName } captures event-triggered command policy.',
     hotspot: 'hotspot "..." records open questions, unclear rules, or decisions that are not ready to encode.'
@@ -70,6 +71,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Use state in aggregate for possible lifecycle states and state in slice for the resulting state after that slice.',
     'Use reactsTo when a slice starts from a prior event instead of a direct UI/user command.',
     'Do not force commands and events to have identical fields. Events should contain the important recorded facts.',
+    'Use error for expected business rejection outcomes only. Keep technical failures outside the domain timeline.',
     'Prefer explicit rule/hotspot notes for domain logic that code generation or a human must later implement.'
   ],
   fieldMappingRules: [
@@ -133,6 +135,21 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
         '  state: String',
         '}'
       ].join('\n')
+    },
+    {
+      name: 'Business rejection',
+      dsl: [
+        'error OrganizationAlreadyExists "An organization with this legal identity already exists"',
+        'specification "Reject duplicate organization" {',
+        '  given OrganizationRegistered {',
+        '    organizationName = "Acme"',
+        '  }',
+        '  when RegisterOrganization {',
+        '    organizationName = "Acme"',
+        '  }',
+        '  then error OrganizationAlreadyExists',
+        '}'
+      ].join('\n')
     }
   ]
 };
@@ -147,7 +164,8 @@ export const eventModelingDslKnowledgeManifest: AgentDslKnowledgeManifest = {
     ...eventModelingDslKnowledge.requiredInstructions,
     'Use field mappings with from or derived. Add rule/example details only when they clarify known domain logic.',
     'Use ui type to express interaction style. Command UI types include form/dialog/drawer/confirm/wizard/inline/background; read surfaces include list/detail.',
-    'Use readmodel Name[] with subscribe EventName when modeling information fed by events.'
+    'Use readmodel Name[] with subscribe EventName when modeling information fed by events.',
+    'Use error Name "description" plus then error Name for expected business rejection outcomes.'
   ]
 };
 

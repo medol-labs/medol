@@ -6,6 +6,7 @@ const sliceLaneOrder: EmElement['kind'][] = [
   'screen',
   'command',
   'event',
+  'error',
   'gwt',
   'readmodel',
   'automation',
@@ -18,6 +19,7 @@ const laneLabels: Partial<Record<EmElement['kind'], string>> = {
   screen: 'UI',
   command: 'COMMAND',
   event: 'EVENT',
+  error: 'ERROR',
   gwt: 'SPECIFICATION',
   readmodel: 'READ MODEL',
   automation: 'AUTOMATION',
@@ -45,6 +47,10 @@ const colors: Record<
   event: {
     accent: '#d6a300',
     fill: '#fff4b8'
+  },
+  error: {
+    accent: '#dc2626',
+    fill: '#fee2e2'
   },
   readmodel: {
     accent: '#2f9e44',
@@ -392,6 +398,7 @@ const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, 
       metrics: {
         commands: elements.filter((element) => element.kind === 'command').length,
         events: elements.filter((element) => element.kind === 'event').length,
+        errors: elements.filter((element) => element.kind === 'error').length,
         readmodels: elements.filter((element) => element.kind === 'readmodel').length,
         policies: elements.filter((element) => element.kind === 'policy' || element.kind === 'automation' || element.kind === 'gwt').length,
         hotspots: elements.filter((element) => element.kind === 'hotspot').length + slice.hotspots.length
@@ -412,6 +419,9 @@ const toEdgeVisual = (label?: string): {
 } => {
   if (label === 'emits') {
     return { stroke: '#ea580c', strokeWidth: 2.4, labelColor: '#9a3412' };
+  }
+  if (label === 'rejects') {
+    return { stroke: '#dc2626', strokeWidth: 2.2, labelColor: '#991b1b' };
   }
   if (label === 'updates') {
     return { stroke: '#16a34a', strokeWidth: 2.2, strokeDasharray: '5 5', labelColor: '#166534' };

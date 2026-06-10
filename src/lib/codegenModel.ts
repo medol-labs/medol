@@ -181,7 +181,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
 
   const elementsByReference = new Map<string, EmElement>();
   for (const element of elementsById.values()) {
-    if (element.kind === 'command' || element.kind === 'event') {
+    if (element.kind === 'command' || element.kind === 'event' || element.kind === 'error') {
       elementsByReference.set(`${element.kind}:${element.name}`, element);
     }
   }
@@ -319,11 +319,15 @@ const toCodegenSpecification = (
   const given = Object.entries(metadata)
     .filter(([key]) => /^given\d+$/.test(key))
     .sort(([left], [right]) => Number(left.slice(5)) - Number(right.slice(5)))
-    .map(([, eventName]) => elementsByReference.get(`event:${eventName}`))
-    .filter((event): event is EmElement => Boolean(event))
-    .map((event) => toCodegenSpecificationElement(event, 'EVENT'));
+    .map(([key, eventName]) => ({
+      event: elementsByReference.get(`event:${eventName}`),
+      examples: givenSpecExamples(metadata, Number(key.slice(5)))
+    }))
+    .filter((item): item is { event: EmElement; examples: Record<string, string> } => Boolean(item.event))
+    .map(({ event, examples: givenExamples }) => toCodegenSpecificationElement(event, 'EVENT', givenExamples));
   const when = metadata.when ? elementsByReference.get(`command:${metadata.when}`) : undefined;
   const then = metadata.then ? elementsByReference.get(`event:${metadata.then}`) : undefined;
+  const thenError = metadata.thenError ? elementsByReference.get(`error:${metadata.thenError}`) : undefined;
   const examples = specExamples(metadata);
 
   return {
@@ -335,11 +339,17 @@ const toCodegenSpecification = (
     when: when ? [toCodegenSpecificationElement(when, 'COMMAND', examples)] : [],
     then: then
       ? [toCodegenSpecificationElement(then, 'EVENT', examples)]
-      : {
-          title: humanize(element.name),
-          id: stableId('spec-error', element.id),
-          description: ''
-        }
+      : thenError
+        ? {
+            title: humanize(thenError.name),
+            id: stableId(thenError.kind, thenError.id),
+            description: thenError.metadata?.description ?? ''
+          }
+        : {
+            title: humanize(element.name),
+            id: stableId('spec-error', element.id),
+            description: ''
+          }
   };
 };
 
@@ -363,6 +373,18 @@ const specExamples = (metadata: Record<string, string>): Record<string, string> 
       .filter(([key]) => key.startsWith('example:'))
       .map(([key, value]) => [key.slice('example:'.length), value])
   );
+
+const givenSpecExamples = (
+  metadata: Record<string, string>,
+  givenIndex: number
+): Record<string, string> => {
+  const prefix = `givenExample:${givenIndex}:`;
+  return Object.fromEntries(
+    Object.entries(metadata)
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, value]) => [key.slice(prefix.length), value])
+  );
+};
 
 const toCodegenField = (field: EmField): CodegenField => ({
   name: field.name,
