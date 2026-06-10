@@ -2,7 +2,52 @@
 
 MEDOL is a Domain Design Language for describing business domains, bounded contexts, aggregates, event-modeling timelines, read models, rules, UI interactions, and code-generation intent.
 
-The project provides a Langium language implementation, Monaco editor, React Flow visual model, AI-assisted modeling, design-document generation, and adapters for application code generation. Each `slice` is rendered as a timeline column in the order it appears in MEDOL.
+The project provides a Langium language implementation, Monaco editor, React Flow visual model, agentic modeling workflow, design-document generation, and adapters for application code generation. Each `slice` is rendered as a timeline column in the order it appears in MEDOL.
+
+## Project Vision
+
+MEDOL treats domain design as a versionable, executable specification rather than a collection of disconnected diagrams and documents. The same model can drive collaborative Event Modeling, acceptance specifications, product and software documentation, UI layout previews, and application code generation.
+
+The project combines two development ideas:
+
+- **Agentic development**: a modeling agent understands MEDOL syntax, the current domain model, the selected modeling element, and project-specific knowledge. It can discuss requirements, identify missing decisions, and propose focused MEDOL patches. Changes remain reviewable in the editor before they are applied.
+- **Spec-driven development**: MEDOL is the source of truth for business behavior and implementation intent. Commands, events, errors, read models, consistency constraints, UI interactions, examples, and Given-When-Then specifications are captured before downstream documents or code are generated.
+
+The intended delivery loop is:
+
+```text
+domain conversation and uploaded knowledge
+  -> agent-assisted MEDOL modeling
+  -> semantic validation and visual review
+  -> executable specifications and design documents
+  -> frontend and backend generation
+  -> implementation feedback returned to the model
+```
+
+AI is used as a collaborator around the specification, not as an opaque replacement for it. Deterministic parsing, semantic models, validation, previews, and generators keep generated results traceable to reviewed MEDOL source.
+
+## Development Model
+
+MEDOL connects discovery and implementation through a shared semantic model:
+
+```text
+MEDOL source
+  -> EmModel
+  -> Event Canvas / Domain Map / Layout Preview
+  -> documentation and acceptance material
+  -> CodegenModel
+  -> frontend and backend generators
+```
+
+This supports an agentic, spec-driven workflow in which:
+
+1. People and agents clarify the domain through conversation and Event Modeling.
+2. The agent proposes explicit MEDOL changes instead of silently rewriting the application.
+3. The editor previews the patch and keeps the human in control of applying it.
+4. Semantic validation checks model structure and relationships.
+5. Product requirements, software design, database design, processes, and acceptance material are derived from the reviewed model.
+6. Code generators consume a normalized `CodegenModel`, keeping technical generation concerns separate from domain design.
+7. New implementation knowledge can be recorded back into MEDOL as rules, examples, mappings, constraints, or hotspots.
 
 The current modeling flow is designed around this structure:
 
@@ -18,7 +63,10 @@ slice 1 { command, event, GWT business rules }
 - React Flow rendering for slices, lanes, nodes, and relationships.
 - Slice columns arranged left to right by timeline/order.
 - Lane-based rendering for UI, command, event, GWT, read model, automation, policy, and hotspot elements.
+- Agentic conversation with persisted history, project knowledge, MEDOL patch proposals, editor diff preview, and explicit apply.
+- Spec-driven generation of PRD, software design, database design, process, and acceptance material.
 - MEDOL to `EmModel` JSON export for code generation.
+- MEDOL to normalized `CodegenModel` export for frontend and backend generators.
 - `config.json` to MEDOL conversion.
 - MEDOL to `config.json` conversion.
 - Browser UI for editing MEDOL and exporting `EmModel` JSON or `config.json`.
