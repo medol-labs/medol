@@ -43,14 +43,17 @@ type ToolbarAction =
 type PreviewMode = 'canvas' | 'global' | 'layout';
 
 const getInitialLeftPanelWidth = () => {
-  if (typeof window === 'undefined') return 520;
-  return Math.max(420, Math.floor((window.innerWidth - 320 - 48) / 2));
+  if (typeof window === 'undefined') return 820;
+  const availableWidth = Math.max(360, window.innerWidth - 42 - 220 - 6);
+  return Math.min(880, availableWidth, Math.max(360, Math.floor(window.innerWidth * 0.58)));
 };
 
 const getInitialEditorPanelHeight = () => {
   if (typeof window === 'undefined') return 420;
   return Math.floor((window.innerHeight - 120) / 2);
 };
+
+const getInitialExplorerPanelWidth = () => 240;
 
 const formatPersistenceStatus = (status: 'loading' | 'saving' | 'saved' | 'offline'): string => {
   if (status === 'loading') return 'Loading';
@@ -100,6 +103,7 @@ export function MedolStudio() {
   const [layoutDirection, setLayoutDirection] = useState<'ltr' | 'rtl'>('ltr');
   const [leftPanelWidth, setLeftPanelWidth] = useState(getInitialLeftPanelWidth);
   const [editorPanelHeight, setEditorPanelHeight] = useState(getInitialEditorPanelHeight);
+  const [explorerPanelWidth, setExplorerPanelWidth] = useState(getInitialExplorerPanelWidth);
   const [dslFocusTarget, setDslFocusTarget] = useState<DslLocationTarget | undefined>();
   const [dslFocusVersion, setDslFocusVersion] = useState(0);
   const [dslEditorVersion, setDslEditorVersion] = useState(0);
@@ -318,13 +322,35 @@ export function MedolStudio() {
 
     const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
       const rightWidth = rightPanelOpen ? 320 : 42;
-      const agentWidth = agentPanelOpen ? 320 : 36;
-      const previewMinWidth = 260;
+      const previewMinWidth = 220;
       const resizeHandleWidth = 6;
-      const maxWidth = Math.max(window.innerWidth - rightWidth - agentWidth - previewMinWidth - resizeHandleWidth, 80);
+      const maxWidth = Math.max(window.innerWidth - rightWidth - previewMinWidth - resizeHandleWidth, 360);
       const dragDelta = layoutDirection === 'rtl' ? startX - moveEvent.clientX : moveEvent.clientX - startX;
-      const nextWidth = Math.min(Math.max(startWidth + dragDelta, 80), maxWidth);
+      const nextWidth = Math.min(Math.max(startWidth + dragDelta, 360), maxWidth);
       setLeftPanelWidth(nextWidth);
+      setExplorerPanelWidth((current) => Math.min(current, Math.max(nextWidth - 186, 140)));
+    };
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  const resizeWorkbenchRows = (event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const startY = event.clientY;
+    const startHeight = editorPanelHeight;
+
+    const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const modelingMinHeight = 180;
+      const assistantMinHeight = 150;
+      const reservedHeight = 120;
+      const maxHeight = Math.max(window.innerHeight - reservedHeight - assistantMinHeight, modelingMinHeight);
+      const nextHeight = Math.min(Math.max(startHeight + moveEvent.clientY - startY, modelingMinHeight), maxHeight);
+      setEditorPanelHeight(nextHeight);
     };
     const onPointerUp = () => {
       window.removeEventListener('pointermove', onPointerMove);
@@ -337,16 +363,18 @@ export function MedolStudio() {
 
   const resizeExplorerPanel = (event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
-    const startY = event.clientY;
-    const startHeight = editorPanelHeight;
+    const startX = event.clientX;
+    const startWidth = explorerPanelWidth;
 
     const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
-      const explorerMinHeight = 140;
-      const editorMinHeight = 140;
-      const reservedHeight = 178;
-      const maxHeight = Math.max(window.innerHeight - reservedHeight - explorerMinHeight, editorMinHeight);
-      const nextHeight = Math.min(Math.max(startHeight + moveEvent.clientY - startY, editorMinHeight), maxHeight);
-      setEditorPanelHeight(nextHeight);
+      const explorerMinWidth = 140;
+      const editorMinWidth = 180;
+      const maxWidth = Math.max(leftPanelWidth - editorMinWidth - 6, explorerMinWidth);
+      const nextWidth = Math.min(
+        Math.max(startWidth + moveEvent.clientX - startX, explorerMinWidth),
+        maxWidth
+      );
+      setExplorerPanelWidth(nextWidth);
     };
     const onPointerUp = () => {
       window.removeEventListener('pointermove', onPointerMove);
@@ -359,16 +387,14 @@ export function MedolStudio() {
 
   const editorColumn = leftPanelOpen ? `${leftPanelWidth}px` : '42px';
   const resizeColumn = leftPanelOpen ? '6px' : '0px';
-  const agentColumn = agentPanelOpen ? '320px' : '16px';
   const inspectorColumn = rightPanelOpen ? '320px' : '42px';
   const gridTemplateColumns = layoutDirection === 'ltr'
-    ? `${editorColumn} ${agentColumn} ${resizeColumn} minmax(0, 1fr) ${inspectorColumn}`
-    : `${inspectorColumn} minmax(0, 1fr) ${resizeColumn} ${agentColumn} ${editorColumn}`;
-  const editorGridColumn = layoutDirection === 'ltr' ? 1 : 5;
-  const agentGridColumn = layoutDirection === 'ltr' ? 2 : 4;
-  const resizeGridColumn = 3;
-  const previewGridColumn = layoutDirection === 'ltr' ? 4 : 2;
-  const inspectorGridColumn = layoutDirection === 'ltr' ? 5 : 1;
+    ? `${editorColumn} ${resizeColumn} minmax(0, 1fr) ${inspectorColumn}`
+    : `${inspectorColumn} minmax(0, 1fr) ${resizeColumn} ${editorColumn}`;
+  const editorGridColumn = layoutDirection === 'ltr' ? 1 : 4;
+  const resizeGridColumn = layoutDirection === 'ltr' ? 2 : 3;
+  const resolvedPreviewGridColumn = layoutDirection === 'ltr' ? 3 : 2;
+  const inspectorGridColumn = layoutDirection === 'ltr' ? 4 : 1;
   const isRtlLayout = layoutDirection === 'rtl';
 
   return (
@@ -378,7 +404,8 @@ export function MedolStudio() {
         gridTemplateColumns,
         gridTemplateRows: 'minmax(0, 1fr)',
         '--left-panel-width': `${leftPanelWidth}px`,
-        '--editor-panel-height': `${editorPanelHeight}px`
+        '--editor-panel-height': `${editorPanelHeight}px`,
+        '--explorer-panel-width': `${explorerPanelWidth}px`
       } as CSSProperties}
     >
       {leftPanelOpen && (
@@ -409,42 +436,90 @@ export function MedolStudio() {
             </div>
             <button type="button" className="collapse-button" onClick={() => setLeftPanelOpen(false)}>Hide</button>
           </header>
-          <div className="grid min-h-0 min-w-0 grid-rows-[minmax(140px,var(--editor-panel-height,1fr))_6px_minmax(120px,1fr)] overflow-hidden">
-            <section className="left-section left-section--editor">
-              <div className="left-section__title">
-                <span>MEDOL</span>
-                <strong title={`MEDOL persistence: ${dslPersistenceStatus}`}>
-                  {modelStatus} · {formatPersistenceStatus(dslPersistenceStatus)}
-                </strong>
-              </div>
-              <DslEditor
-                key={`${activeWorkspaceId ?? 'loading'}:${workspaceRevision}:${dslEditorVersion}`}
-                value={dsl}
-                diagnostics={model.diagnostics}
-                patchPreview={previewPatch ? { baseDsl: previewPatch.baseDsl ?? dsl, nextDsl: previewPatch.nextDsl } : undefined}
-                focusLine={dslFocusLine}
-                focusVersion={dslFocusVersion}
-                onChange={updateDsl}
+          <div
+            className={`grid min-h-0 min-w-0 overflow-hidden ${
+              agentPanelOpen
+                ? 'grid-rows-[minmax(180px,var(--editor-panel-height,1fr))_6px_minmax(150px,1fr)]'
+                : 'grid-rows-[minmax(0,1fr)_32px]'
+            }`}
+          >
+            <div className="grid min-h-0 min-w-0 grid-cols-[var(--explorer-panel-width,240px)_6px_minmax(0,1fr)] overflow-hidden">
+              <ModelExplorer
+                model={model}
+                activeDomainId={selectedDomainId}
+                activeContextId={selectedContextId}
+                activeAggregateId={selectedAggregateId}
+                activeSliceId={selectedSliceId}
+                onSelectDomain={selectDomain}
+                onSelectContext={selectContext}
+                onSelectAggregate={selectAggregate}
+                onSelectSlice={selectSlice}
               />
-            </section>
-            <div
-              className="explorer-resize-handle"
-              role="separator"
-              aria-orientation="horizontal"
-              aria-label="Resize explorer panel"
-              onPointerDown={resizeExplorerPanel}
-            />
-            <ModelExplorer
-              model={model}
-              activeDomainId={selectedDomainId}
-              activeContextId={selectedContextId}
-              activeAggregateId={selectedAggregateId}
-              activeSliceId={selectedSliceId}
-              onSelectDomain={selectDomain}
-              onSelectContext={selectContext}
-              onSelectAggregate={selectAggregate}
-              onSelectSlice={selectSlice}
-            />
+              <div
+                className="explorer-resize-handle explorer-resize-handle--vertical"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize explorer panel"
+                onPointerDown={resizeExplorerPanel}
+              />
+              <section className="left-section left-section--editor">
+                <div className="left-section__title">
+                  <span>MEDOL</span>
+                  <strong title={`MEDOL persistence: ${dslPersistenceStatus}`}>
+                    {modelStatus} · {formatPersistenceStatus(dslPersistenceStatus)}
+                  </strong>
+                </div>
+                <DslEditor
+                  key={`${activeWorkspaceId ?? 'loading'}:${workspaceRevision}:${dslEditorVersion}`}
+                  value={dsl}
+                  diagnostics={model.diagnostics}
+                  patchPreview={previewPatch ? { baseDsl: previewPatch.baseDsl ?? dsl, nextDsl: previewPatch.nextDsl } : undefined}
+                  focusLine={dslFocusLine}
+                  focusVersion={dslFocusVersion}
+                  onChange={updateDsl}
+                />
+              </section>
+            </div>
+            {agentPanelOpen && (
+              <div
+                className="explorer-resize-handle"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize assistant panel"
+                onPointerDown={resizeWorkbenchRows}
+              />
+            )}
+            {agentPanelOpen ? (
+              <section className="agent-panel agent-panel--horizontal">
+                <header className="pane-header pane-header--inline agent-panel__header">
+                  <div>
+                    <h2>Assistant</h2>
+                  </div>
+                  <button type="button" className="collapse-button" onClick={() => setAgentPanelOpen(false)}>Hide</button>
+                </header>
+                {activeWorkspaceId && (
+                  <AgentChatDock
+                    key={activeWorkspaceId}
+                    workspaceId={activeWorkspaceId}
+                    dsl={dsl}
+                    model={model}
+                    selectedItem={selectedItem}
+                    isParsingPending={isParsingPending}
+                    onApplyDsl={applyAgentDsl}
+                    onPreviewPatch={previewAgentPatch}
+                    onClearPatchPreview={clearAgentPatchPreview}
+                  />
+                )}
+              </section>
+            ) : (
+              <button
+                type="button"
+                className="agent-panel-rail agent-panel-rail--horizontal"
+                onClick={() => setAgentPanelOpen(true)}
+              >
+                Assistant
+              </button>
+            )}
           </div>
         </aside>
       )}
@@ -468,44 +543,9 @@ export function MedolStudio() {
           Editor
         </button>
       )}
-      {agentPanelOpen ? (
-        <aside
-          className="agent-panel"
-          style={{ gridColumn: agentGridColumn, gridRow: 1 }}
-        >
-          <header className="pane-header pane-header--inline agent-panel__header">
-            <div>
-              <h2>Assistant</h2>
-            </div>
-            <button type="button" className="collapse-button" onClick={() => setAgentPanelOpen(false)}>Hide</button>
-          </header>
-          {activeWorkspaceId && (
-            <AgentChatDock
-              key={activeWorkspaceId}
-              workspaceId={activeWorkspaceId}
-              dsl={dsl}
-              model={model}
-              selectedItem={selectedItem}
-              isParsingPending={isParsingPending}
-              onApplyDsl={applyAgentDsl}
-              onPreviewPatch={previewAgentPatch}
-              onClearPatchPreview={clearAgentPatchPreview}
-            />
-          )}
-        </aside>
-      ) : (
-        <button
-          type="button"
-          className="agent-panel-rail"
-          style={{ gridColumn: agentGridColumn, gridRow: 1 }}
-          onClick={() => setAgentPanelOpen(true)}
-        >
-          Assistant
-        </button>
-      )}
       <section
         className="preview-panel grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[#f4f7fb]"
-        style={{ gridColumn: previewGridColumn, gridRow: 1 }}
+        style={{ gridColumn: resolvedPreviewGridColumn, gridRow: 1 }}
       >
         <header className="studio-toolbar">
           <div>
