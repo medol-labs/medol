@@ -53,6 +53,9 @@ interface ConfigSpecificationError {
 
 interface ConfigSpecification {
   title?: string;
+  specification?: string;
+  rule?: string;
+  expressions?: string[];
   given?: ConfigSpecificationElement[];
   when?: ConfigSpecificationElement[];
   then?: ConfigSpecificationElement[] | ConfigSpecificationError;
@@ -193,11 +196,70 @@ const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void 
     }
     lines.push(`${pad(elementIndent)}}`);
   }
-  for (const specification of slice.specifications ?? []) appendSpecification(lines, specification, elementIndent);
+  appendSpecifications(lines, slice.specifications ?? [], elementIndent);
+  lines.push(`${pad(indent)}}`);
+};
+
+const appendSpecifications = (
+  lines: string[],
+  specifications: ConfigSpecification[],
+  indent: number
+): void => {
+  const grouped = new Map<string, ConfigSpecification[]>();
+  for (const specification of specifications) {
+    if (!specification.specification && !specification.rule) {
+      appendSpecification(lines, specification, indent);
+      continue;
+    }
+    const name = specification.specification || specification.title || 'Business rule';
+    grouped.set(name, [...(grouped.get(name) ?? []), specification]);
+  }
+
+  for (const [name, scenarios] of grouped) {
+    const definition = scenarios[0];
+    lines.push(`${pad(indent)}specification ${quote(name)} {`);
+    if (definition.rule?.trim()) {
+      appendMultilineRule(lines, definition.rule, indent + 2);
+    }
+    if ((definition.expressions?.length ?? 0) > 0) {
+      lines.push(`${pad(indent + 2)}expression {`);
+      for (const expression of definition.expressions ?? []) {
+        lines.push(`${pad(indent + 4)}${expression}`);
+      }
+      lines.push(`${pad(indent + 2)}}`);
+    }
+    for (const scenario of scenarios) appendScenario(lines, scenario, indent + 2);
+    lines.push(`${pad(indent)}}`);
+  }
+};
+
+const appendMultilineRule = (lines: string[], rule: string, indent: number): void => {
+  lines.push(`${pad(indent)}rule """`);
+  for (const line of rule.split(/\r?\n/)) lines.push(`${pad(indent + 2)}${line}`);
+  lines.push(`${pad(indent)}"""`);
+};
+
+const appendScenario = (
+  lines: string[],
+  specification: ConfigSpecification,
+  indent: number
+): void => {
+  lines.push(`${pad(indent)}scenario ${quote(specification.title || 'Scenario')} {`);
+  appendSpecificationBody(lines, specification, indent + 2);
   lines.push(`${pad(indent)}}`);
 };
 
 const appendSpecification = (
+  lines: string[],
+  specification: ConfigSpecification,
+  indent: number
+): void => {
+  lines.push(`${pad(indent)}specification ${quote(specification.title || 'Business rule')} {`);
+  appendSpecificationBody(lines, specification, indent + 2);
+  lines.push(`${pad(indent)}}`);
+};
+
+const appendSpecificationBody = (
   lines: string[],
   specification: ConfigSpecification,
   indent: number
@@ -210,17 +272,15 @@ const appendSpecification = (
       : undefined;
   if (!when?.title || !then?.title) return;
 
-  lines.push(`${pad(indent)}specification ${quote(specification.title || 'Business rule')} {`);
   for (const given of specification.given ?? []) {
-    if (given.title) appendSpecificationGiven(lines, given, indent + 2);
+    if (given.title) appendSpecificationGiven(lines, given, indent);
   }
-  appendSpecificationWhen(lines, when, indent + 2);
+  appendSpecificationWhen(lines, when, indent);
   if (!Array.isArray(specification.then) && specification.then?.type === 'SPEC_ERROR') {
-    lines.push(`${pad(indent + 2)}then reject ${quote(specification.then.description || specification.then.title || 'Rejected by domain rule')}`);
+    lines.push(`${pad(indent)}then reject ${quote(specification.then.description || specification.then.title || 'Rejected by domain rule')}`);
   } else {
-    lines.push(`${pad(indent + 2)}then ${toDslId(then.title, 'Event')}`);
+    lines.push(`${pad(indent)}then ${toDslId(then.title, 'Event')}`);
   }
-  lines.push(`${pad(indent)}}`);
 };
 
 const appendSpecificationGiven = (

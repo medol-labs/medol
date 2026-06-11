@@ -9,6 +9,7 @@ interface EmNodeData extends Record<string, unknown> {
   fill: string;
   showFields?: boolean;
   outcome?: string;
+  details?: string[];
 }
 
 const labels: Record<EmElementKind, string> = {
@@ -38,6 +39,11 @@ export function EmNode({ data, selected }: NodeProps) {
         <strong>{node.name}</strong>
       </header>
       {node.outcome && <p className="em-node__outcome">{node.outcome}</p>}
+      {node.details && node.details.length > 0 && (
+        <ul className="em-node__details">
+          {node.details.map((detail) => <li key={detail}>{detail}</li>)}
+        </ul>
+      )}
       {fields.length > 0 && (
         <ul className="em-node__fields">
           {fields.map((field) => (

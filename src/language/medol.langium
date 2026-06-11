@@ -184,11 +184,78 @@ Policy:
 
 Specification:
     'specification' name=STRING '{'
+        (
+            ('rule' rule=MULTILINE_STRING)?
+            ('expression' '{'
+                expressions+=ValidationExpression*
+            '}')?
+            scenarios+=Scenario+
+        |
+            givens+=Given*
+            ui=UiRef?
+            when=When
+            then=Then
+        )
+    '}'
+;
+
+Scenario:
+    'scenario' name=STRING '{'
         givens+=Given*
         ui=UiRef?
         when=When
         then=Then
     '}'
+;
+
+ValidationExpression:
+      UniqueValidation
+    | RequiredValidation
+    | FormatValidation
+    | LengthValidation
+    | RangeValidation
+    | MatchesValidation
+    | OneOfValidation
+    | AssertValidation
+;
+
+UniqueValidation:
+    'unique' target=FieldSource
+;
+
+RequiredValidation:
+    'required' target=FieldSource
+;
+
+FormatValidation:
+    'format' target=FieldSource format=ID
+;
+
+LengthValidation:
+    'length' target=FieldSource min=NUMBER '..' max=NUMBER
+;
+
+RangeValidation:
+    'range' target=FieldSource min=NUMBER '..' max=NUMBER
+;
+
+MatchesValidation:
+    'matches' target=FieldSource pattern=STRING
+;
+
+OneOfValidation:
+    'oneOf' target=FieldSource values+=Literal (',' values+=Literal)*
+;
+
+AssertValidation:
+    'assert' left=ValidationOperand
+    operator=('>' | '<' | '>=' | '<=' | '==' | '!=')
+    right=ValidationOperand
+;
+
+ValidationOperand:
+      FieldSource
+    | Literal
 ;
 
 Given:
@@ -377,6 +444,9 @@ NumberLiteral:
 
 terminal ID returns string:
     /[_a-zA-Z][\w_]*/;
+
+terminal MULTILINE_STRING returns string:
+    /"""[\s\S]*?"""/;
 
 terminal STRING returns string:
     /"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/;

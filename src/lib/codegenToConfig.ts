@@ -86,6 +86,9 @@ interface ConfigSpecification {
   chapter: string;
   sliceName: string;
   title: string;
+  specification?: string;
+  rule?: string;
+  expressions: string[];
   given: ConfigSpecificationElement[];
   when: ConfigSpecificationElement[];
   then: ConfigSpecificationElement[] | ConfigSpecificationError;
@@ -244,6 +247,9 @@ const toConfigSpecification = (specification: CodegenSpecification): ConfigSpeci
   chapter: specification.chapter,
   sliceName: specification.sliceName,
   title: specification.title,
+  ...(specification.specification ? { specification: specification.specification } : {}),
+  ...(specification.rule ? { rule: specification.rule } : {}),
+  expressions: specification.expressions,
   given: specification.given.map((element) => toConfigSpecificationElement(element)),
   when: specification.when.map((element) => toConfigSpecificationElement(element)),
   then: Array.isArray(specification.then)

@@ -188,7 +188,12 @@ const appendSpecifications = (
 ): void => {
   const zh = language === 'zh-CN';
   for (const specification of specifications) {
-    lines.push(`- **${humanize(specification.name)}**`);
+    const title = specification.specification
+      ? `${humanize(specification.specification)} / ${humanize(specification.name)}`
+      : humanize(specification.name);
+    lines.push(`- **${title}**`);
+    if (specification.rule) lines.push(`  - ${zh ? '规则' : 'Rule'}: ${specification.rule.replace(/\n/g, ' ')}`);
+    if (specification.expressions.length) lines.push(`  - ${zh ? '表达式' : 'Expressions'}: ${specification.expressions.join('; ')}`);
     lines.push(`  - ${zh ? '假设' : 'Given'}: ${specification.given.map(humanize).join(', ') || (zh ? '未明确' : 'Unspecified')}`);
     lines.push(`  - ${zh ? '当' : 'When'}: ${specification.when ? humanize(specification.when) : zh ? '未明确' : 'Unspecified'}`);
     lines.push(`  - ${zh ? '则' : 'Then'}: ${specification.reject ? `${zh ? '拒绝' : 'Reject'}: ${specification.reject}` : specification.then ? humanize(specification.then) : zh ? '未明确' : 'Unspecified'}`);

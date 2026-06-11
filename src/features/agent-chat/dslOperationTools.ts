@@ -82,7 +82,10 @@ const findTargetBlock = (dsl: string, target: string) => {
   const parsedTarget = parseTarget(target);
   if (!parsedTarget) return undefined;
   const keywordPattern = parsedTarget.kind === 'readmodel' ? '(?:readmodel|projection)' : parsedTarget.kind;
-  const pattern = new RegExp(`\\b${keywordPattern}\\s+${escapeRegExp(parsedTarget.name)}(?:\\[\\])?\\s*\\{`, 'm');
+  const namePattern = parsedTarget.kind === 'specification' || parsedTarget.kind === 'scenario' || parsedTarget.kind === 'hotspot'
+    ? `"${escapeRegExp(parsedTarget.name)}"`
+    : `${escapeRegExp(parsedTarget.name)}(?:\\[\\])?`;
+  const pattern = new RegExp(`\\b${keywordPattern}\\s+${namePattern}\\s*\\{`, 'm');
   const match = pattern.exec(dsl);
   if (!match) return undefined;
   const openIndex = dsl.indexOf('{', match.index);
@@ -97,11 +100,11 @@ const findTargetBlock = (dsl: string, target: string) => {
 
 const parseTarget = (target: string): { kind: string; name: string } | undefined => {
   const normalized = target.trim();
-  const match = /^(domain|context|aggregate|concept|slice|command|event|readmodel|projection|automation|policy|integration|specification|hotspot)\s+(.+)$/i.exec(normalized);
+  const match = /^(domain|context|aggregate|concept|slice|command|event|readmodel|projection|automation|policy|integration|specification|scenario|hotspot)\s+(.+)$/i.exec(normalized);
   if (!match) return undefined;
   return {
     kind: match[1].toLowerCase() === 'projection' ? 'readmodel' : match[1].toLowerCase(),
-    name: match[2].replace(/\[\]$/, '').trim()
+    name: match[2].replace(/\[\]$/, '').trim().replace(/^"|"$/g, '')
   };
 };
 
@@ -109,12 +112,27 @@ const findBlockEnd = (text: string, openIndex: number): number => {
   if (openIndex < 0) return -1;
   let depth = 0;
   let quote: '"' | undefined;
+  let inMultilineString = false;
   for (let index = openIndex; index < text.length; index += 1) {
     const char = text[index];
     const previous = text[index - 1];
 
+    if (inMultilineString) {
+      if (text.startsWith('"""', index)) {
+        inMultilineString = false;
+        index += 2;
+      }
+      continue;
+    }
+
     if (quote) {
       if (char === quote && previous !== '\\') quote = undefined;
+      continue;
+    }
+
+    if (text.startsWith('"""', index)) {
+      inMultilineString = true;
+      index += 2;
       continue;
     }
 

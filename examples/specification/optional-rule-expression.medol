@@ -1,0 +1,39 @@
+domain OptionalSpecificationDefinition {
+  context OrganizationManagement {
+    aggregate Organization {
+      slice RegisterOrganization {
+        command RegisterOrganization {
+          organizationName: String
+        }
+
+        event OrganizationRegistered {
+          organizationName: String
+        }
+
+        specification "Organization Registration Succeeds" {
+          scenario "Register an organization" {
+            when RegisterOrganization {
+              organizationName = "Acme"
+            }
+            then OrganizationRegistered
+          }
+        }
+
+        specification "Organization Registration Is Valid" {
+          rule """
+          """
+
+          expression {
+          }
+
+          scenario "Register a valid organization" {
+            when RegisterOrganization {
+              organizationName = "Acme"
+            }
+            then OrganizationRegistered
+          }
+        }
+      }
+    }
+  }
+}

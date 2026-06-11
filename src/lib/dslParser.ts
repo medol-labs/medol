@@ -49,8 +49,11 @@ import type {
   Policy as AstPolicy,
   ReadModel as AstReadModel,
   Slice as AstSlice,
+  Scenario as AstScenario,
   TagExpression,
   Specification as AstSpecification,
+  ValidationExpression,
+  ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
 import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, emptyModel } from './model';
@@ -265,6 +268,14 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
   }
 
   for (const element of elements) {
+    if (isSpecification(element) && element.scenarios.length > 0) {
+      for (const scenario of element.scenarios) {
+        const parsed = parseScenarioElement(element, scenario, sliceId, aggregateId);
+        slice.elements.push(parsed);
+        collectScenarioEdges(scenario, parsed.id, edges);
+      }
+      continue;
+    }
     if (isCommand(element) || isEvent(element) || isReadModel(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
       const parsed = parseElement(element, sliceId, aggregateId);
       slice.elements.push(parsed);
@@ -294,6 +305,94 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
   }
   return slice;
 };
+
+const parseScenarioElement = (
+  specification: AstSpecification,
+  scenario: AstScenario,
+  sliceId: string,
+  aggregateId?: string
+): EmElement => ({
+  id: `${sliceId}/gwt/${safeName(specification.name, 'UnnamedSpecification')}/${safeName(scenario.name, 'UnnamedScenario')}`,
+  kind: 'gwt',
+  name: safeName(scenario.name, 'UnnamedScenario'),
+  fields: [],
+  sliceId,
+  aggregateId,
+  metadata: {
+    specification: safeName(specification.name, 'UnnamedSpecification'),
+    ...(specification.rule ? { rule: normalizeMultilineString(specification.rule) } : {}),
+    ...Object.fromEntries(
+      specification.expressions.map((expression, index) => [`expression${index + 1}`, formatValidationExpression(expression)])
+    ),
+    ...parseScenarioMetadata(scenario)
+  }
+});
+
+const parseScenarioMetadata = (
+  scenario: Pick<AstScenario, 'givens' | 'when' | 'then'>
+): Record<string, string> => {
+  const metadata: Record<string, string> = {};
+  scenario.givens.forEach((given, index) => {
+    const givenIndex = index + 1;
+    if (given.event?.$refText) metadata[`given${givenIndex}`] = given.event.$refText;
+    for (const assignment of given.condition?.assignments ?? []) {
+      metadata[`givenExample:${givenIndex}:${assignment.field}`] = formatLiteral(assignment.value);
+    }
+  });
+  if (scenario.when?.command?.$refText) metadata.when = scenario.when.command.$refText;
+  if (scenario.then?.event?.$refText) metadata.then = scenario.then.event.$refText;
+  if (scenario.then?.rejection) metadata.thenReject = scenario.then.rejection;
+  for (const assignment of scenario.when?.condition?.assignments ?? []) {
+    metadata[`example:${assignment.field}`] = formatLiteral(assignment.value);
+  }
+  return metadata;
+};
+
+const collectScenarioEdges = (scenario: AstScenario, sourceId: string, edges: EmEdge[]): void => {
+  for (const given of scenario.givens) {
+    if (given.event?.$refText) edges.push(edge(`ref/event/${given.event.$refText}`, sourceId, 'given'));
+  }
+  if (scenario.when?.command?.$refText) edges.push(edge(`ref/command/${scenario.when.command.$refText}`, sourceId, 'when'));
+  if (scenario.then?.event?.$refText) edges.push(edge(sourceId, `ref/event/${scenario.then.event.$refText}`, 'then'));
+};
+
+const normalizeMultilineString = (value: string): string => {
+  const content = value.startsWith('"""') && value.endsWith('"""') ? value.slice(3, -3) : value;
+  const lines = content
+    .replace(/^\s*\r?\n/, '')
+    .replace(/\r?\n\s*$/, '')
+    .split(/\r?\n/);
+  const indents = lines.filter((line) => line.trim()).map((line) => line.match(/^\s*/)?.[0].length ?? 0);
+  const indentation = indents.length > 0 ? Math.min(...indents) : 0;
+  return lines.map((line) => line.slice(indentation)).join('\n').trim();
+};
+
+const formatValidationExpression = (expression: ValidationExpression): string => {
+  switch (expression.$type) {
+    case 'UniqueValidation':
+      return `unique ${formatFieldSource(expression.target)}`;
+    case 'RequiredValidation':
+      return `required ${formatFieldSource(expression.target)}`;
+    case 'FormatValidation':
+      return `format ${formatFieldSource(expression.target)} ${expression.format}`;
+    case 'LengthValidation':
+      return `length ${formatFieldSource(expression.target)} ${expression.min}..${expression.max}`;
+    case 'RangeValidation':
+      return `range ${formatFieldSource(expression.target)} ${expression.min}..${expression.max}`;
+    case 'MatchesValidation':
+      return `matches ${formatFieldSource(expression.target)} ${JSON.stringify(expression.pattern)}`;
+    case 'OneOfValidation':
+      return `oneOf ${formatFieldSource(expression.target)} ${expression.values.map(formatValidationLiteral).join(', ')}`;
+    case 'AssertValidation':
+      return `assert ${formatValidationOperand(expression.left)} ${expression.operator} ${formatValidationOperand(expression.right)}`;
+  }
+};
+
+const formatValidationOperand = (operand: ValidationOperand): string =>
+  operand.$type === 'FieldSource' ? formatFieldSource(operand) : formatValidationLiteral(operand);
+
+const formatValidationLiteral = (literal: Expression): string =>
+  isStringLiteral(literal) ? JSON.stringify(literal.value) : formatLiteral(literal);
 
 const formatTagExpression = (expression: TagExpression): string => {
   if (expression.$type === 'TagReference') {

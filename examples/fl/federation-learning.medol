@@ -19,8 +19,6 @@ context FederationManagement {
         organizationName: String
         organizationType: String
         contactEmail: String
-        legalEntityId: String
-        test: String
       }
 
       event OrganizationRegistered {
@@ -28,10 +26,29 @@ context FederationManagement {
         organizationName: String
         organizationType: String
         contactEmail: String
-        legalEntityId: String
       }
 
       state Registered
+
+      specification "Organization Name Unique" {
+        rule """
+          Active organization names must be unique.
+        """
+
+        expression {
+          unique Organization.organizationName
+        }
+
+        scenario "Reject Duplicate Organization" {
+          given OrganizationRegistered {
+            organizationName = "Acme"
+          }
+          when RegisterOrganization {
+            organizationName = "Acme"
+          }
+          then reject "Organization Already Exists"
+        }
+      }
     }
 
     slice VerifyOrganizationIdentity {

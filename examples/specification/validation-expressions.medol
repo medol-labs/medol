@@ -1,0 +1,63 @@
+domain ValidationExamples {
+  context AccountManagement {
+    aggregate Account {
+      slice RegisterAccount {
+        createsAggregate
+
+        command RegisterAccount {
+          accountId: UUID id generated technical
+          email: String
+          displayName: String
+          age: Int
+          role: String
+        }
+
+        event AccountRegistered {
+          accountId: UUID id technical
+          email: String
+          displayName: String
+          age: Int
+          role: String
+        }
+
+        specification "Account Registration Valid" {
+          rule """
+            Accounts require a valid adult owner, a supported role,
+            and a unique email address.
+          """
+
+          expression {
+            unique Account.email
+            required RegisterAccount.email
+            format RegisterAccount.email email
+            length RegisterAccount.displayName 2..100
+            range RegisterAccount.age 18..120
+            matches RegisterAccount.displayName "^[A-Za-z ]+$"
+            oneOf RegisterAccount.role "Admin", "Member"
+            assert RegisterAccount.age >= 18
+          }
+
+          scenario "Register a valid account" {
+            when RegisterAccount {
+              email = "owner@example.com"
+              displayName = "Example Owner"
+              age = 32
+              role = "Member"
+            }
+            then AccountRegistered
+          }
+
+          scenario "Reject an underage account owner" {
+            when RegisterAccount {
+              email = "young@example.com"
+              displayName = "Young Owner"
+              age = 16
+              role = "Member"
+            }
+            then reject "Account Owner Must Be An Adult"
+          }
+        }
+      }
+    }
+  }
+}

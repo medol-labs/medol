@@ -283,6 +283,18 @@ const summarizeSlice = (slice: EmSlice): string => {
 };
 
 const summarizeElement = (element: EmElement): string => {
+  if (element.kind === 'gwt') {
+    const specification = element.metadata?.specification
+      ? ` Specification: ${element.metadata.specification}.`
+      : '';
+    const rule = element.metadata?.rule ? ` Rule: ${element.metadata.rule}` : '';
+    const expressions = Object.entries(element.metadata ?? {})
+      .filter(([key]) => /^expression\d+$/.test(key))
+      .sort(([left], [right]) => Number(left.slice(10)) - Number(right.slice(10)))
+      .map(([, value]) => value);
+    const validation = expressions.length ? ` Validations: ${expressions.join('; ')}.` : '';
+    return `Scenario ${element.name}.${specification}${rule}${validation}`;
+  }
   const fieldSummary = element.fields.length
     ? `fields ${element.fields.map((field) => field.name).join(', ')}`
     : 'no fields';
@@ -327,7 +339,8 @@ const getBlockCandidates = (selectedItem: SelectedModelItem) => {
     automation: 'automation',
     policy: 'policy',
     integration: 'integration',
-    hotspot: 'hotspot'
+    hotspot: 'hotspot',
+    gwt: selectedItem.element.metadata?.specification ? 'scenario' : 'specification'
   };
   const keyword = keywordByKind[selectedItem.element.kind];
   return keyword ? [{ keyword, name: selectedItem.element.name }] : [];
@@ -335,7 +348,10 @@ const getBlockCandidates = (selectedItem: SelectedModelItem) => {
 
 const findNamedBlock = (dsl: string, keyword: string, name: string): AgentDslSnippet | undefined => {
   const keywordPattern = keyword === 'readmodel' ? '(?:readmodel|projection)' : keyword;
-  const pattern = new RegExp(`\\b${keywordPattern}\\s+${escapeRegExp(name)}(?:\\[\\])?\\s*\\{`, 'm');
+  const namePattern = keyword === 'specification' || keyword === 'scenario' || keyword === 'hotspot'
+    ? `"${escapeRegExp(name)}"`
+    : `${escapeRegExp(name)}(?:\\[\\])?`;
+  const pattern = new RegExp(`\\b${keywordPattern}\\s+${namePattern}\\s*\\{`, 'm');
   const match = pattern.exec(dsl);
   if (!match) return undefined;
 
@@ -408,10 +424,19 @@ const contentToText = (content: unknown): string => {
 const findBlockEnd = (text: string, openIndex: number): number => {
   let depth = 0;
   let inString = false;
+  let inMultilineString = false;
   let escaped = false;
 
   for (let index = openIndex; index < text.length; index += 1) {
     const char = text[index];
+
+    if (inMultilineString) {
+      if (text.startsWith('"""', index)) {
+        inMultilineString = false;
+        index += 2;
+      }
+      continue;
+    }
 
     if (inString) {
       if (escaped) escaped = false;
@@ -420,7 +445,10 @@ const findBlockEnd = (text: string, openIndex: number): number => {
       continue;
     }
 
-    if (char === '"') inString = true;
+    if (text.startsWith('"""', index)) {
+      inMultilineString = true;
+      index += 2;
+    } else if (char === '"') inString = true;
     else if (char === '{') depth += 1;
     else if (char === '}') {
       depth -= 1;

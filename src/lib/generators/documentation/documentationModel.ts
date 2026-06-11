@@ -77,6 +77,9 @@ export interface DocumentationField {
 
 export interface DocumentationSpecification {
   name: string;
+  specification?: string;
+  rule?: string;
+  expressions: string[];
   given: string[];
   when?: string;
   then?: string;

@@ -578,6 +578,15 @@ const toNode = (
       fields: element.fields,
       showFields,
       ...(element.metadata?.thenReject ? { outcome: `Reject: ${element.metadata.thenReject}` } : {}),
+      ...(element.kind === 'gwt' ? {
+        details: [
+          ...(element.metadata?.specification ? [`Spec: ${element.metadata.specification}`] : []),
+          ...Object.entries(element.metadata ?? {})
+            .filter(([key]) => /^expression\d+$/.test(key))
+            .sort(([left], [right]) => Number(left.slice(10)) - Number(right.slice(10)))
+            .map(([, expression]) => expression)
+        ]
+      } : {}),
       accent: color.accent,
       fill: color.fill
     },
@@ -586,7 +595,7 @@ const toNode = (
 };
 
 const elementHeight = (element: EmElement, showFields: boolean): number => {
-  if (element.metadata?.thenReject) return 112;
+  if (element.kind === 'gwt' && (element.metadata?.thenReject || element.metadata?.specification)) return 142;
   if (!showFields || element.fields.length === 0) return 76;
   return 58 + element.fields.length * 20 + 18;
 };

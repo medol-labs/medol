@@ -19,6 +19,16 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
       'context',
       'aggregate',
       'concept',
+      'scenario',
+      'expression',
+      'unique',
+      'required',
+      'format',
+      'length',
+      'range',
+      'matches',
+      'oneOf',
+      'assert',
       'state',
       'slice',
       'tags',
@@ -51,6 +61,7 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
     tokenizer: {
       root: [
         [/\/\/.*$/, 'comment'],
+        [/"""/, 'string', '@multilineString'],
         [/"([^"\\]|\\.)*$/, 'string.invalid'],
         [/"/, 'string', '@string'],
         [/[{}[\]():,]/, 'delimiter'],
@@ -67,6 +78,11 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
         [/[^\\"]+/, 'string'],
         [/\\./, 'string.escape'],
         [/"/, 'string', '@pop']
+      ],
+      multilineString: [
+        [/"""/, 'string', '@pop'],
+        [/[^"]+/, 'string'],
+        [/"/, 'string']
       ]
     }
   });

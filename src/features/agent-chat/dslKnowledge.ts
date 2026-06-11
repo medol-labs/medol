@@ -60,7 +60,8 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     ui: 'ui ViewName type? attaches a UI surface to a slice. Supported types: list, detail, form, dialog, drawer, confirm, wizard, inline, background.',
     state: 'state StateName inside an aggregate declares a lifecycle state. state StateName inside a slice marks the resulting state.',
     createsAggregate: 'createsAggregate marks the command slice that creates the aggregate instance.',
-    specification: 'specification "Name" { given EventName { field = value }* ui ...? when CommandName { field = value }? then EventName | then reject "Business rejection description" } captures successful and rejected behavior examples.',
+    specification: 'specification "Rule name" { rule """multi-line rule"""? expression { validation* }? scenario "Example" { given* when then }+ } defines a business rule once and verifies it with one or more concrete scenarios. rule and expression are independently optional; at least one scenario is required. The legacy single-scenario GWT form remains readable.',
+    expression: 'expression supports unique Path, required Path, format Path FormatName, length Path min..max, range Path min..max, matches Path "pattern", oneOf Path value1, value2, and assert Operand operator Operand.',
     automation: 'automation Name { condition expression emits CommandName } captures automatic behavior.',
     policy: 'policy Name { on EventName issue CommandName } captures event-triggered command policy.',
     hotspot: 'hotspot "..." records open questions, unclear rules, or decisions that are not ready to encode.'
@@ -73,6 +74,8 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Use reactsTo when a slice starts from a prior event instead of a direct UI/user command.',
     'Do not force commands and events to have identical fields. Events should contain the important recorded facts.',
     'Use then reject "description" for expected business rejection outcomes. Keep technical failures outside the domain timeline.',
+    'A specification is the rule definition; scenarios are concrete test examples. Do not treat a scenario as the rule itself.',
+    'Use structured expressions for machine-readable validation and the triple-quoted rule text for domain meaning.',
     'For concept modeling, place slices directly under context, declare their selection tags, and reference them from concept blocks. Do not invent an aggregate merely as a container.',
     'Prefer explicit rule/hotspot notes for domain logic that code generation or a human must later implement.'
   ],
@@ -163,14 +166,22 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     {
       name: 'Business rejection',
       dsl: [
-        'specification "Reject duplicate organization" {',
-        '  given OrganizationRegistered {',
-        '    organizationName = "Acme"',
+        'specification "Organization Name Unique" {',
+        '  rule """',
+        '    Active organization names must be unique.',
+        '  """',
+        '  expression {',
+        '    unique Organization.organizationName',
         '  }',
-        '  when RegisterOrganization {',
-        '    organizationName = "Acme"',
+        '  scenario "Reject Duplicate Organization" {',
+        '    given OrganizationRegistered {',
+        '      organizationName = "Acme"',
+        '    }',
+        '    when RegisterOrganization {',
+        '      organizationName = "Acme"',
+        '    }',
+        '    then reject "Organization name already exists"',
         '  }',
-        '  then reject "An organization with this legal identity already exists"',
         '}'
       ].join('\n')
     }
@@ -189,6 +200,7 @@ export const eventModelingDslKnowledgeManifest: AgentDslKnowledgeManifest = {
     'Use ui type to express interaction style. Command UI types include form/dialog/drawer/confirm/wizard/inline/background; read surfaces include list/detail.',
     'Use readmodel Name[] with subscribe EventName when modeling information fed by events.',
     'Use then reject "description" for expected business rejection outcomes; rejection is part of the specification and is not declared as a separate element.',
+    'Define reusable business meaning with specification rule and expression; place concrete examples in scenario blocks.',
     'Use context-level slices with tags and concept references when multiple slices operate on the same business concept; existing aggregate syntax remains valid.'
   ]
 };

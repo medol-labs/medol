@@ -1539,6 +1539,16 @@ textarea {
   line-height: 1.35;
 }
 
+.em-node__details {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0 10px 9px 24px;
+  color: #5b21b6;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
 .em-node__fields {
   display: grid;
   gap: 1px;

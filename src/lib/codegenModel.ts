@@ -149,6 +149,9 @@ export interface CodegenSpecification {
   chapter: string;
   sliceName: string;
   title: string;
+  specification?: string;
+  rule?: string;
+  expressions: string[];
   given: CodegenSpecificationElement[];
   when: CodegenSpecificationElement[];
   then: CodegenSpecificationElement[] | CodegenSpecificationReject;
@@ -396,6 +399,12 @@ const toCodegenSpecification = (
     chapter: context,
     sliceName: humanize(sliceName),
     title: humanize(element.name),
+    ...(metadata.specification ? { specification: metadata.specification } : {}),
+    ...(metadata.rule ? { rule: metadata.rule } : {}),
+    expressions: Object.entries(metadata)
+      .filter(([key]) => /^expression\d+$/.test(key))
+      .sort(([left], [right]) => Number(left.slice(10)) - Number(right.slice(10)))
+      .map(([, expression]) => expression),
     given,
     when: when ? [toCodegenSpecificationElement(when, 'COMMAND', examples)] : [],
     then: then

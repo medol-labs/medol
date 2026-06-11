@@ -18,14 +18,27 @@ domain MethodCatalog {
         name: String
       }
 
-      specification "Reject a duplicate method code" {
-        given MethodRegistered {
-          code = "PAYMENT"
+      specification "Method Code Unique" {
+        rule """
+          Active method codes must be unique after normalization.
+        """
+
+        expression {
+          unique Method.code
+          required RegisterMethod.code
+          length RegisterMethod.code 2..40
+          matches RegisterMethod.code "^[A-Za-z0-9_-]+$"
         }
-        when RegisterMethod {
-          code = "payment"
+
+        scenario "Reject a duplicate method code" {
+          given MethodRegistered {
+            code = "PAYMENT"
+          }
+          when RegisterMethod {
+            code = "payment"
+          }
+          then reject "A method with the normalized code already exists"
         }
-        then reject "A method with the normalized code already exists"
       }
     }
 
