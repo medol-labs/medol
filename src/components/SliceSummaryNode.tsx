@@ -3,8 +3,8 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 export interface SliceSummaryNodeData extends Record<string, unknown> {
   name: string;
   resultingState?: string;
-  createsAggregate?: boolean;
-  tags?: number;
+  startsLifecycle?: boolean;
+  tags: string[];
   metrics: {
     commands: number;
     events: number;
@@ -23,11 +23,15 @@ export function SliceSummaryNode({ data }: NodeProps) {
       <Handle type="target" position={Position.Left} />
       <header>
         <span>
-          {node.createsAggregate ? 'Entry Slice' : node.resultingState ?? 'Slice'}
-          {node.tags ? ` · ${node.tags} tags` : ''}
+          {node.startsLifecycle ? 'Lifecycle Start' : node.resultingState ?? 'Slice'}
         </span>
         <strong>{node.name}</strong>
       </header>
+      {node.tags.length > 0 && (
+        <ul className="slice-summary-node__tags">
+          {node.tags.map((tag) => <li key={tag}>{tag}</li>)}
+        </ul>
+      )}
       <dl>
         <div>
           <dt>Cmd</dt>

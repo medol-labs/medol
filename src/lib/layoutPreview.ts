@@ -27,7 +27,7 @@ export interface LayoutSlice {
   events: LayoutAction[];
   readmodels: LayoutAction[];
   processors: LayoutAction[];
-  createsAggregate: boolean;
+  startsLifecycle: boolean;
   stateChange?: string;
 }
 
@@ -108,7 +108,7 @@ const toLayoutSlice = (slice: CodegenSlice): LayoutSlice => ({
   events: slice.events.map((event) => toAction(event, 'event')),
   readmodels: slice.readmodels.map((readmodel) => toAction(readmodel, 'readmodel')),
   processors: slice.processors.map((processor) => toAction(processor, 'processor')),
-  createsAggregate: slice.commands.some((command) => command.createsAggregate),
+  startsLifecycle: slice.commands.some((command) => command.startsLifecycle),
   ...(slice.stateChange ? { stateChange: slice.stateChange.to } : {})
 });
 
@@ -148,8 +148,8 @@ const toLayoutPages = (slices: CodegenSlice[]): LayoutPage[] => {
       id: `command-${command.id}`,
       title: command.title,
       kind: 'command',
-      source: command.createsAggregate ? 'Create flow' : 'Command form',
-      actions: [toAction(command, 'command', command.createsAggregate)]
+      source: command.startsLifecycle ? 'Lifecycle start' : 'Command form',
+      actions: [toAction(command, 'command', command.startsLifecycle)]
     });
   }
 
@@ -168,7 +168,7 @@ const toLayoutPages = (slices: CodegenSlice[]): LayoutPage[] => {
     title: slice.title,
     kind: 'command',
     source: 'Interaction flow',
-    actions: slice.commands.map((command) => toAction(command, 'command', command.createsAggregate))
+    actions: slice.commands.map((command) => toAction(command, 'command', command.startsLifecycle))
   }));
 };
 
@@ -188,12 +188,12 @@ const relatedCommands = (element: CodegenElement, slices: CodegenSlice[]): Layou
     .filter((command) => inboundIds.has(command.id));
 
   if (commands.length > 0) {
-    return commands.map((command) => toAction(command, 'command', command.createsAggregate));
+    return commands.map((command) => toAction(command, 'command', command.startsLifecycle));
   }
 
   return slices
     .filter((slice) => slice.readmodels.some((readmodel) => readmodel.id === element.id) || slice.screens.some((screen) => screen.id === element.id))
-    .flatMap((slice) => slice.commands.map((command) => toAction(command, 'command', command.createsAggregate)));
+    .flatMap((slice) => slice.commands.map((command) => toAction(command, 'command', command.startsLifecycle)));
 };
 
 const timelineCommands = (element: CodegenElement, slices: CodegenSlice[]): LayoutAction[] => {
@@ -203,7 +203,7 @@ const timelineCommands = (element: CodegenElement, slices: CodegenSlice[]): Layo
   if (ownerIndex < 0) return [];
 
   return uniqueElements(slices.slice(0, ownerIndex).flatMap((slice) => slice.commands))
-    .map((command) => toAction(command, 'command', command.createsAggregate));
+    .map((command) => toAction(command, 'command', command.startsLifecycle));
 };
 
 const toPageKind = (uiType?: CodegenUiType): LayoutPage['kind'] => {

@@ -237,7 +237,7 @@ The toolkit now uses an internal `CodegenModel` between `EmModel` and the Martin
 - aggregates: id, name, title, owning context, states, and aggregate fields placeholder
 - slices: id, index, name, title, `chapter`, context, aggregate reference, hotspots, actors, and optional state change
 - elements: commands, events, readmodels, screens, processors, and specifications
-- element codegen data: id, name, title, type, model context, slice, aggregate, fields, dependencies, `createsAggregate`, and `listElement`
+- element codegen data: id, name, title, type, model context, slice, aggregate, fields, dependencies, `startsLifecycle`, and `listElement`
 - fields: name, type, cardinality, optional/id/generated/technical/query flags, field-level `example`, and optional source metadata
 - field source metadata: direct mappings and derived mappings with source paths and optional rule text
 - dependencies: inbound/outbound element links with generated ids, titles, and element types
@@ -322,7 +322,7 @@ context FederationLearning {
     state Active
 
     slice CreateFederation {
-      createsAggregate
+      startsLifecycle
       actor Admin
       ui CreateFederationScreen
 
@@ -387,17 +387,19 @@ context FederationLearning {
 
 - `domain`: A top-level domain that groups one or more modeling contexts.
 - `context`: A bounded modeling context inside a domain. Legacy files may still start with `context`.
+- `type`: A reusable context-level value type. It carries field-level `format`, `length`, `range`, `matches`, or `oneOf` constraints.
 - `aggregate`: A domain aggregate containing states and slices.
-- `concept`: A named business concept shared by context-level slices. It groups related behavior through slice references without prescribing aggregate or consistency-boundary implementation.
+- `concept`: A named business concept shared by context-level slices. It declares the concept's states and groups related behavior through slice references without prescribing aggregate or consistency-boundary implementation.
 - `slice`: A timeline column in the event modeling board.
+- `state`: Inside an aggregate or concept, declares an allowed lifecycle state; inside a slice, declares that slice's resulting state.
 - `tags`: Selection values used to identify the concept instance involved in a slice. Tag expressions may normalize or derive values.
-- `createsAggregate`: Marks a slice whose command creates a new aggregate instance.
+- `startsLifecycle`: Marks the entry slice that begins a business concept lifecycle without choosing Aggregate or DCB implementation.
 - `ui`: A screen or view reference.
 - `command`: A user or automation intent.
 - `event`: A domain fact produced by a command.
 - `specification`: GWT-style business rule node.
 - `rule """..."""`: Optional multi-line domain meaning for a specification.
-- `expression`: Optional machine-readable validations for a specification: `unique`, `required`, `format`, `length`, `range`, `matches`, `oneOf`, and `assert`.
+- `expression`: Optional machine-readable business invariants for a specification: `unique` and `assert`.
 - `scenario`: A concrete Given-When-Then example that verifies its containing specification.
 - `then reject "description"`: An expected business rejection for a specification. Rejections are inline outcomes, not separately declared domain elements.
 - `readmodel`: A read model updated by events. Use `readmodel Name[]` to export it as a collection read model with `listElement: true`. The legacy `projection` keyword is accepted only for migration.
@@ -409,6 +411,19 @@ context FederationLearning {
 ## Field Syntax
 
 ```text
+type Email = String {
+  format email
+}
+
+type OrganizationName = String {
+  length 2..100
+  matches "^[A-Za-z ]+$"
+}
+
+type OrganizationType = String {
+  oneOf "Company", "University"
+}
+
 fieldName: Type
 fieldName: Type?
 fieldName: Type[]
@@ -419,6 +434,8 @@ computedName: Type derived
 computedName: Type derived from Aggregate.policy
 computedName: Type derived { from Aggregate.state, Command.input rule "Explain the domain rule." example "42" }
 ```
+
+Fields without `?` are required. Reusable value types carry intrinsic field validity; specifications carry business invariants that depend on domain meaning, state, or other instances.
 
 Supported field attributes:
 

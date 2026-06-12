@@ -20,10 +20,10 @@ const nodeTypes = {
 interface GlobalMapProps {
   nodes: Node[];
   edges: Edge[];
-  onSelectAggregate: (aggregateId: string) => void;
+  onSelectGroup: (nodeId: string) => void;
 }
 
-export function GlobalMap({ nodes, edges, onSelectAggregate }: GlobalMapProps) {
+export function GlobalMap({ nodes, edges, onSelectGroup }: GlobalMapProps) {
   const [localNodes, setLocalNodes, onNodesChange] = useNodesState(nodes);
   const [localEdges, setLocalEdges, onEdgesChange] = useEdgesState(edges);
 
@@ -53,7 +53,7 @@ export function GlobalMap({ nodes, edges, onSelectAggregate }: GlobalMapProps) {
         deleteKeyCode={null}
         selectionKeyCode={null}
         multiSelectionKeyCode={null}
-        onNodeClick={(_, node) => onSelectAggregate(node.id)}
+        onNodeClick={(_, node) => onSelectGroup(node.id)}
       >
         <Background gap={24} size={1} color="#dbe3ef" />
         <MiniMap pannable zoomable />

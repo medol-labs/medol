@@ -86,6 +86,7 @@ interface SliceLayout {
 export interface ReactFlowOptions {
   contextId?: string;
   aggregateId?: string;
+  conceptId?: string;
   sliceId?: string;
   compactSlices?: boolean;
   showFields?: boolean;
@@ -97,7 +98,8 @@ const aggregateLabelWidth = 220;
 const aggregateGap = 64;
 const externalRowHeight = 150;
 const laneMinHeight = 112;
-const headerHeight = 42;
+const headerHeight = 68;
+const conceptHeaderHeight = 64;
 const aggregatePadding = 18;
 const startX = 32;
 const contextPadding = 24;
@@ -105,7 +107,7 @@ const contextHeaderHeight = 44;
 const compactColumns = 4;
 const compactColumnWidth = 250;
 const compactColumnGap = 24;
-const compactRowHeight = 166;
+const compactRowHeight = 194;
 
 export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
@@ -115,7 +117,10 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
     .map((context) => ({
       ...context,
       aggregates: toCanvasGroups(context)
-        .filter((aggregate) => !options.aggregateId || aggregate.id === options.aggregateId)
+        .filter((group) =>
+          (!options.aggregateId || group.id === options.aggregateId)
+          && (!options.conceptId || group.id === options.conceptId)
+        )
         .map((aggregate) => ({
           ...aggregate,
           slices: aggregate.slices.filter((slice) => !options.sliceId || slice.id === options.sliceId)
@@ -155,7 +160,7 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
     for (const context of contexts) {
       const aggregateLayouts = context.aggregates.map((aggregate) => ({
         aggregate,
-        ...compactAggregateSize(aggregate.slices.length)
+        ...compactAggregateSize(aggregate.slices.length, aggregate)
       }));
       const contextWidth = Math.max(...aggregateLayouts.map((layout) => layout.width), 520) + contextPadding * 2;
       const contextHeight =
@@ -211,13 +216,14 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
     for (const aggregate of context.aggregates) {
       const sliceLayouts = toAggregateSliceLayouts(aggregate.slices, options.showFields ?? false);
       const aggregateWidth =
-        aggregateLabelWidth +
+        groupLabelWidth(aggregate) +
         Math.max(aggregate.slices.length, 1) * columnWidth +
         Math.max(aggregate.slices.length - 1, 0) * columnGap +
         aggregatePadding * 2;
       const aggregateHeight =
         Math.max(...sliceLayouts.map((layout) => layout.height), headerHeight + laneMinHeight + 30) +
-        aggregatePadding * 2;
+        aggregatePadding * 2 +
+        groupTopOffset(aggregate);
 
       nodes.push({
         id: aggregate.id,
@@ -230,30 +236,22 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
           width: aggregateWidth,
           height: aggregateHeight,
           borderRadius: 8,
-          border: '1px solid #c6d3e1',
-          background: 'rgba(248, 250, 252, 0.72)',
+          border: aggregate.kind === 'concept' ? '1px solid #8fb7b1' : '1px solid #c6d3e1',
+          background: aggregate.kind === 'concept'
+            ? 'rgba(240, 253, 250, 0.68)'
+            : 'rgba(248, 250, 252, 0.72)',
           pointerEvents: 'none'
         }
       });
 
-      nodes.push(toNode({
-        id: `${aggregate.id}/label`,
-        kind: 'aggregate',
-        name: aggregate.name,
-        fields: aggregate.states.map((state) => ({
-          name: state,
-          type: 'state',
-          cardinality: 'Single',
-          attributes: []
-        }))
-      }, {
-        x: 16,
-        y: 54
-      }, aggregate.id));
+      addGroupIdentityNode(nodes, aggregate, aggregateWidth);
 
       for (const [sliceIndex, layout] of sliceLayouts.entries()) {
-        const sliceX = aggregateLabelWidth + aggregatePadding + sliceIndex * (columnWidth + columnGap);
-        addSliceNodes(nodes, layout, aggregate.id, { x: sliceX, y: aggregatePadding }, options.showFields ?? false);
+        const sliceX = groupLabelWidth(aggregate) + aggregatePadding + sliceIndex * (columnWidth + columnGap);
+        addSliceNodes(nodes, layout, aggregate.id, {
+          x: sliceX,
+          y: aggregatePadding + groupTopOffset(aggregate)
+        }, options.showFields ?? false);
       }
 
       currentY += aggregateHeight + aggregateGap;
@@ -314,12 +312,15 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
   return { nodes, edges };
 };
 
-const toCanvasGroups = (context: EmContext): Array<{
+interface CanvasGroup {
   id: string;
   name: string;
+  kind: 'aggregate' | 'concept' | 'context';
   states: string[];
   slices: EmSlice[];
-}> => {
+}
+
+const toCanvasGroups = (context: EmContext): CanvasGroup[] => {
   const assignedSliceIds = new Set<string>();
   const conceptGroups = context.concepts.map((concept) => {
     const slices = context.slices.filter((slice) => {
@@ -329,19 +330,21 @@ const toCanvasGroups = (context: EmContext): Array<{
     });
     return {
       id: concept.id,
-      name: `Concept / ${concept.name}`,
-      states: [],
+      name: concept.name,
+      kind: 'concept' as const,
+      states: concept.states,
       slices
     };
   }).filter((group) => group.slices.length > 0);
   const unboundedSlices = context.slices.filter((slice) => !assignedSliceIds.has(slice.id));
 
   return [
-    ...context.aggregates,
+    ...context.aggregates.map((aggregate) => ({ ...aggregate, kind: 'aggregate' as const })),
     ...conceptGroups,
     ...(unboundedSlices.length > 0 ? [{
       id: `${context.id}/context-slices`,
       name: 'Context Slices',
+      kind: 'context' as const,
       states: [],
       slices: unboundedSlices
     }] : [])
@@ -350,11 +353,11 @@ const toCanvasGroups = (context: EmContext): Array<{
 
 const addCompactAggregateNodes = (
   nodes: Node[],
-  aggregate: { id: string; name: string; states: string[]; slices: EmSlice[] },
+  aggregate: CanvasGroup,
   parentId: string,
   position: { x: number; y: number }
 ): void => {
-  const { width: aggregateWidth, height: aggregateHeight } = compactAggregateSize(aggregate.slices.length);
+  const { width: aggregateWidth, height: aggregateHeight } = compactAggregateSize(aggregate.slices.length, aggregate);
 
   nodes.push({
     id: aggregate.id,
@@ -369,45 +372,90 @@ const addCompactAggregateNodes = (
       width: aggregateWidth,
       height: aggregateHeight,
       borderRadius: 8,
-      border: '1px solid #c6d3e1',
-      background: 'rgba(248, 250, 252, 0.78)',
+      border: aggregate.kind === 'concept' ? '1px solid #8fb7b1' : '1px solid #c6d3e1',
+      background: aggregate.kind === 'concept'
+        ? 'rgba(240, 253, 250, 0.68)'
+        : 'rgba(248, 250, 252, 0.78)',
       pointerEvents: 'none'
     }
   });
 
-  nodes.push(toNode({
-    id: `${aggregate.id}/label`,
-    kind: 'aggregate',
-    name: aggregate.name,
-    fields: aggregate.states.map((state) => ({
-      name: state,
-      type: 'state',
-      cardinality: 'Single',
-      attributes: []
-    }))
-  }, {
-    x: 16,
-    y: 54
-  }, aggregate.id));
+  addGroupIdentityNode(nodes, aggregate, aggregateWidth);
 
   for (const [sliceIndex, slice] of aggregate.slices.entries()) {
     nodes.push(toSliceSummaryNode(slice, {
-      x: aggregateLabelWidth + aggregatePadding + (sliceIndex % compactColumns) * (compactColumnWidth + compactColumnGap),
-      y: 54 + Math.floor(sliceIndex / compactColumns) * compactRowHeight
+      x: groupLabelWidth(aggregate) + aggregatePadding + (sliceIndex % compactColumns) * (compactColumnWidth + compactColumnGap),
+      y: (aggregate.kind === 'concept' ? aggregatePadding + conceptHeaderHeight : 54)
+        + Math.floor(sliceIndex / compactColumns) * compactRowHeight
     }, aggregate.id));
   }
 };
 
-const compactAggregateSize = (sliceCount: number): { width: number; height: number } => {
+const groupLabelWidth = (group: CanvasGroup): number =>
+  group.kind === 'concept' ? 0 : aggregateLabelWidth;
+
+const groupTopOffset = (group: CanvasGroup): number =>
+  group.kind === 'concept' ? conceptHeaderHeight : 0;
+
+const addGroupIdentityNode = (
+  nodes: Node[],
+  group: CanvasGroup,
+  groupWidth: number
+): void => {
+  if (group.kind === 'concept') {
+    nodes.push({
+      id: `${group.id}/label`,
+      type: 'conceptHeader',
+      parentId: group.id,
+      extent: 'parent',
+      position: { x: aggregatePadding, y: 12 },
+      draggable: false,
+      selectable: false,
+      data: {
+        name: group.name,
+        states: group.states,
+        sliceCount: group.slices.length
+      },
+      style: {
+        width: groupWidth - aggregatePadding * 2,
+        height: 48
+      }
+    });
+    return;
+  }
+
+  nodes.push(toNode({
+    id: `${group.id}/label`,
+    kind: 'aggregate',
+    name: group.name,
+    fields: group.states.map((state) => ({
+      name: state,
+      type: 'state',
+      cardinality: 'Single',
+      attributes: []
+    })),
+    metadata: {
+      groupKind: group.kind
+    }
+  }, {
+    x: 16,
+    y: 54
+  }, group.id));
+};
+
+const formatSliceTags = (slice: EmSlice): string[] =>
+  slice.tags.map((tag) => tag.expression ? `${tag.name} = ${tag.expression}` : tag.name);
+
+const compactAggregateSize = (sliceCount: number, group?: CanvasGroup): { width: number; height: number } => {
   const columns = Math.min(Math.max(sliceCount, 1), compactColumns);
   const rows = Math.max(Math.ceil(sliceCount / compactColumns), 1);
   return {
     width:
-      aggregateLabelWidth +
+      (group ? groupLabelWidth(group) : aggregateLabelWidth) +
       columns * compactColumnWidth +
       Math.max(columns - 1, 0) * compactColumnGap +
       aggregatePadding * 2,
-    height: Math.max(250, 54 + rows * compactRowHeight + 24)
+    height: Math.max(250, 54 + rows * compactRowHeight + 24 + (group ? groupTopOffset(group) : 0))
   };
 };
 
@@ -422,8 +470,8 @@ const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, 
     data: {
       name: slice.name,
       resultingState: slice.resultingState,
-      createsAggregate: slice.createsAggregate,
-      tags: slice.tags.length,
+      startsLifecycle: slice.startsLifecycle,
+      tags: formatSliceTags(slice),
       metrics: {
         commands: elements.filter((element) => element.kind === 'command').length,
         events: elements.filter((element) => element.kind === 'event').length,
@@ -435,7 +483,7 @@ const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, 
     },
     style: {
       width: 220,
-      height: 138
+      height: 166
     }
   };
 };
@@ -523,10 +571,10 @@ const addSliceNodes = (
     selectable: false,
     position: { x: 0, y: 9 },
     data: {
-      label: [
-        layout.slice.resultingState ? `${layout.slice.name} -> ${layout.slice.resultingState}` : layout.slice.name,
-        layout.slice.tags.length > 0 ? `${layout.slice.tags.length} tags` : undefined
-      ].filter(Boolean).join(' · ')
+      name: layout.slice.name,
+      resultingState: layout.slice.resultingState,
+      startsLifecycle: layout.slice.startsLifecycle,
+      tags: formatSliceTags(layout.slice)
     }
   });
 
@@ -566,6 +614,7 @@ const toNode = (
   showFields = false
 ): Node => {
   const color = colors[element.kind];
+  const resolvedShowFields = showFields || Boolean(element.metadata?.groupKind);
   return {
     id: element.id,
     type: 'emElement',
@@ -576,7 +625,7 @@ const toNode = (
       kind: element.kind,
       name: element.name,
       fields: element.fields,
-      showFields,
+      showFields: resolvedShowFields,
       ...(element.metadata?.thenReject ? { outcome: `Reject: ${element.metadata.thenReject}` } : {}),
       ...(element.kind === 'gwt' ? {
         details: [
@@ -587,10 +636,12 @@ const toNode = (
             .map(([, expression]) => expression)
         ]
       } : {}),
+      ...(element.metadata?.groupKind === 'concept' ? { kindLabel: 'Concept' } : {}),
+      ...(element.metadata?.groupKind === 'context' ? { kindLabel: 'Context' } : {}),
       accent: color.accent,
       fill: color.fill
     },
-    style: showFields ? { minHeight: elementHeight(element, true) } : undefined
+    style: resolvedShowFields ? { minHeight: elementHeight(element, true) } : undefined
   };
 };
 

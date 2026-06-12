@@ -44,7 +44,7 @@ export interface PrdSlice {
   event?: PrdElementSummary;
   readModelNames: string[];
   resultingState?: string;
-  createsAggregate: boolean;
+  startsLifecycle: boolean;
   businessRules: string[];
   specifications: PrdSpecification[];
   dependencies: string[];

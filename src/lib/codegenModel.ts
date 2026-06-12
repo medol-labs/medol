@@ -6,6 +6,7 @@ export interface CodegenModel {
   rootPackage: 'tech.medo';
   domain?: string;
   contexts: CodegenContext[];
+  valueTypes: CodegenValueType[];
   aggregates: CodegenAggregate[];
   concepts: CodegenConcept[];
   actors: CodegenActor[];
@@ -20,9 +21,26 @@ export interface CodegenContext {
   risks: string[];
   decisions: string[];
   metrics: string[];
+  valueTypes: Array<{ id: string; name: string; title: string }>;
   aggregates: Array<{ id: string; name: string; title: string }>;
-  concepts: Array<{ id: string; name: string; title: string }>;
+  concepts: Array<{ id: string; name: string; title: string; states: string[] }>;
   slices: Array<{ id: string; name: string; title: string }>;
+}
+
+export type CodegenValueTypeConstraint =
+  | { kind: 'format'; format: string }
+  | { kind: 'length'; min: number; max: number }
+  | { kind: 'range'; min: number; max: number }
+  | { kind: 'matches'; pattern: string }
+  | { kind: 'oneOf'; values: Array<string | number> };
+
+export interface CodegenValueType {
+  id: string;
+  name: string;
+  title: string;
+  context: string;
+  baseType: string;
+  constraints: CodegenValueTypeConstraint[];
 }
 
 export interface CodegenConcept {
@@ -30,6 +48,7 @@ export interface CodegenConcept {
   name: string;
   title: string;
   context: string;
+  states: string[];
   slices: Array<{ id: string; name: string; title: string }>;
 }
 
@@ -90,7 +109,7 @@ export interface CodegenElement {
   aggregate?: CodegenAggregateRef;
   fields: CodegenField[];
   dependencies: CodegenDependency[];
-  createsAggregate?: boolean;
+  startsLifecycle?: boolean;
   listElement?: boolean;
   ui?: CodegenUi;
 }
@@ -251,20 +270,35 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
       risks: contextItem.risks,
       decisions: contextItem.decisions,
       metrics: contextItem.metrics,
+      valueTypes: contextItem.valueTypes.map((valueType) => ({
+        id: stableId('type', valueType.id),
+        name: valueType.name,
+        title: humanize(valueType.name)
+      })),
       aggregates: contextItem.aggregates.map((aggregate) => toCodegenAggregateRef(aggregate.name)),
       concepts: contextItem.concepts.map((concept) => ({
         id: stableId('concept', concept.id),
         name: concept.name,
-        title: humanize(concept.name)
+        title: humanize(concept.name),
+        states: concept.states
       })),
       slices: contextItem.slices.map(toCodegenSliceRef)
     })),
+    valueTypes: model.contexts.flatMap((contextItem) => contextItem.valueTypes.map((valueType) => ({
+      id: stableId('type', valueType.id),
+      name: valueType.name,
+      title: humanize(valueType.name),
+      context: contextItem.name,
+      baseType: valueType.baseType,
+      constraints: valueType.constraints
+    }))),
     aggregates: [...aggregateRecords.values()],
     concepts: model.contexts.flatMap((contextItem) => contextItem.concepts.map((concept) => ({
       id: stableId('concept', concept.id),
       name: concept.name,
       title: humanize(concept.name),
       context: contextItem.name,
+      states: concept.states,
       slices: concept.sliceNames.map((sliceName) => {
         const slice = allContextSlices(contextItem).find((candidate) => candidate.name === sliceName);
         return slice ? toCodegenSliceRef(slice) : {
@@ -320,7 +354,7 @@ const toCodegenSlice = (
         context,
         slice.name,
         dependenciesByElementId,
-        slice.createsAggregate && commandIndex === 0,
+        slice.startsLifecycle && commandIndex === 0,
         screens[0]?.ui
       )
     ),
@@ -342,7 +376,7 @@ const toCodegenElement = (
   context: string,
   sliceName: string,
   dependenciesByElementId: Map<string, CodegenDependency[]>,
-  createsAggregate = false,
+  startsLifecycle = false,
   ui?: CodegenUi
 ): CodegenElement => ({
   id: stableId(element.kind, element.id),
@@ -354,7 +388,7 @@ const toCodegenElement = (
   ...(aggregate ? { aggregate } : {}),
   fields: element.fields.map(toCodegenField),
   dependencies: dependenciesByElementId.get(element.id) ?? [],
-  ...(createsAggregate ? { createsAggregate } : {}),
+  ...(startsLifecycle ? { startsLifecycle } : {}),
   ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {})
 });

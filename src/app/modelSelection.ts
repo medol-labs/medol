@@ -1,19 +1,21 @@
-import type { EmAggregate, EmContext, EmDomain, EmElement, EmModel, EmSlice } from '../lib/model';
+import type { EmAggregate, EmConcept, EmContext, EmDomain, EmElement, EmModel, EmSlice } from '../lib/model';
 
 export interface StudioSelection {
   domainId?: string;
   contextId?: string;
   aggregateId?: string;
+  conceptId?: string;
   sliceId?: string;
   nodeId?: string;
 }
 
 export interface SelectedModelItem {
-  type: 'domain' | 'context' | 'aggregate' | 'slice' | 'element';
+  type: 'domain' | 'context' | 'aggregate' | 'concept' | 'slice' | 'element';
   name: string;
   domain?: EmDomain;
   context?: EmContext;
   aggregate?: EmAggregate;
+  concept?: EmConcept;
   slice?: EmSlice;
   element?: EmElement;
 }
@@ -29,6 +31,13 @@ export const resolveActiveAggregate = (
   return context?.aggregates.find((aggregate) => aggregate.id === aggregateId);
 };
 
+export const resolveActiveConcept = (
+  context: EmContext | undefined,
+  conceptId?: string
+): EmConcept | undefined => {
+  return context?.concepts.find((concept) => concept.id === conceptId);
+};
+
 export const findModelItem = (
   model: EmModel,
   selection: StudioSelection
@@ -42,9 +51,19 @@ export const findModelItem = (
   for (const context of model.contexts) {
     if (
       selection.nodeId === context.id ||
-      (selection.contextId === context.id && !selection.nodeId && !selection.aggregateId && !selection.sliceId)
+      (selection.contextId === context.id && !selection.nodeId && !selection.aggregateId && !selection.conceptId && !selection.sliceId)
     ) {
       return { type: 'context', name: context.name, context };
+    }
+
+    for (const concept of context.concepts) {
+      if (
+        selection.nodeId === concept.id ||
+        selection.nodeId === `${concept.id}/label` ||
+        (selection.conceptId === concept.id && !selection.sliceId && !selection.nodeId)
+      ) {
+        return { type: 'concept', name: concept.name, context, concept };
+      }
     }
 
     for (const aggregate of context.aggregates) {
@@ -77,18 +96,19 @@ export const findModelItem = (
     }
 
     for (const slice of context.slices) {
+      const concept = context.concepts.find((candidate) => candidate.sliceIds.includes(slice.id));
       if (
         selection.nodeId === slice.id ||
         selection.nodeId === `${slice.id}/header` ||
         selection.nodeId === `${slice.id}/summary` ||
         (selection.sliceId === slice.id && !selection.nodeId)
       ) {
-        return { type: 'slice', name: slice.name, context, slice };
+        return { type: 'slice', name: slice.name, context, concept, slice };
       }
 
       const element = slice.elements.find((candidate) => candidate.id === selection.nodeId);
       if (element) {
-        return { type: 'element', name: element.name, context, slice, element };
+        return { type: 'element', name: element.name, context, concept, slice, element };
       }
     }
 

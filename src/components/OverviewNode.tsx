@@ -5,6 +5,7 @@ export interface OverviewNodeData extends Record<string, unknown> {
   title: string;
   contextName?: string;
   metrics: {
+    states?: number;
     slices?: number;
     commands?: number;
     events?: number;
@@ -17,6 +18,7 @@ export interface OverviewNodeData extends Record<string, unknown> {
 export function OverviewNode({ data }: NodeProps) {
   const node = data as OverviewNodeData;
   const metrics = [
+    ['States', node.metrics.states],
     ['Slices', node.metrics.slices],
     ['Cmd', node.metrics.commands],
     ['Evt', node.metrics.events],

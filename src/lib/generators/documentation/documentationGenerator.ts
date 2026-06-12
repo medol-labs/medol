@@ -126,7 +126,7 @@ export const buildDocumentationBundle = (
           specifications: slice.elements
             .filter(isKind('gwt'))
             .map(toDocumentationSpecification),
-          createsAggregate: Boolean(slice.createsAggregate),
+          startsLifecycle: Boolean(slice.startsLifecycle),
           ...(slice.resultingState ? { resultingState: slice.resultingState } : {}),
           hotspots: slice.hotspots
         };

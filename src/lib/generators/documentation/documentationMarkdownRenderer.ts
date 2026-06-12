@@ -200,7 +200,7 @@ const appendWorkflow = (lines: string[], workflow: DocumentationWorkflow): void 
   lines.push('');
   lines.push(`Aggregate: ${humanize(workflow.aggregate)}`);
   lines.push('');
-  if (workflow.createsAggregate) lines.push(`- Creates a new ${humanize(workflow.aggregate)}.`);
+  if (workflow.startsLifecycle) lines.push(`- Starts the ${humanize(workflow.aggregate)} lifecycle.`);
   if (workflow.actor) lines.push(`- Initiated by ${humanize(workflow.actor)}.`);
   if (workflow.ui) lines.push(`- Interaction: ${humanize(workflow.ui.name)} (${workflow.ui.type ?? 'unspecified'}).`);
   for (const command of workflow.commands) lines.push(`- Command: ${humanize(command.name)}.`);

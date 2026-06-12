@@ -260,7 +260,7 @@ const formatUi = (slice: PrdSlice, language: DocumentationLanguage): string => {
 const formatResult = (slice: PrdSlice, language: DocumentationLanguage): string => {
   const zh = language === 'zh-CN';
   const results = [
-    slice.createsAggregate ? `${zh ? '创建' : 'Creates'} ${humanize(slice.aggregate)}` : undefined,
+    slice.startsLifecycle ? `${zh ? '启动生命周期' : 'Starts lifecycle'} ${humanize(slice.aggregate)}` : undefined,
     slice.event ? `${zh ? '产生事件' : 'Produces'} ${humanize(slice.event.name)}` : undefined,
     slice.resultingState ? `${zh ? '状态变为' : 'State becomes'} ${humanize(slice.resultingState)}` : undefined,
     slice.readModelNames.length ? `${zh ? '展示' : 'Displays'} ${slice.readModelNames.map(humanize).join(', ')}` : undefined

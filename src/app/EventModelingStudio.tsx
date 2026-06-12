@@ -17,12 +17,12 @@ import { emModelToJson } from '../lib/emModelExport';
 import { exportFlowViewportToPng, exportFlowViewportToSvg } from '../lib/exportFlowImage';
 import { toReactFlow } from '../lib/flow';
 import { toLayoutPreviewModel } from '../lib/layoutPreview';
-import { aggregateIdFromOverviewNodeId, toOverviewFlow } from '../lib/overviewFlow';
+import { aggregateIdFromOverviewNodeId, conceptIdFromOverviewNodeId, toOverviewFlow } from '../lib/overviewFlow';
 import { sampleDsl } from '../lib/sampleDsl';
 import { getFlowBounds } from './flowBounds';
-import { findModelItem, resolveActiveAggregate, resolveActiveContext } from './modelSelection';
+import { findModelItem, resolveActiveAggregate, resolveActiveConcept, resolveActiveContext } from './modelSelection';
 import { useDebouncedValue } from './useDebouncedValue';
-import type { EmAggregate, EmContext, EmDomain, EmSlice } from '../lib/model';
+import type { EmAggregate, EmConcept, EmContext, EmDomain, EmSlice } from '../lib/model';
 import type { AgentDslPatch } from '../features/agent-chat/agentTypes';
 import type {
   DocumentationKind,
@@ -94,6 +94,7 @@ export function MedolStudio() {
   const [selectedDomainId, setSelectedDomainId] = useState<string | undefined>();
   const [selectedContextId, setSelectedContextId] = useState<string | undefined>();
   const [selectedAggregateId, setSelectedAggregateId] = useState<string | undefined>();
+  const [selectedConceptId, setSelectedConceptId] = useState<string | undefined>();
   const [selectedSliceId, setSelectedSliceId] = useState<string | undefined>();
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [canvasShowFields, setCanvasShowFields] = useState(false);
@@ -114,17 +115,20 @@ export function MedolStudio() {
   const activeDomain = model.domains.find((domain) => domain.id === selectedDomainId) ?? model.domains[0];
   const activeContext = resolveActiveContext(model, selectedContextId);
   const activeAggregate = resolveActiveAggregate(activeContext, selectedAggregateId);
+  const activeConcept = resolveActiveConcept(activeContext, selectedConceptId);
   const displayContext = selectedContextId ? activeContext : undefined;
   const contextOverviewMode = previewMode === 'canvas'
     && !selectedAggregateId
+    && !selectedConceptId
     && !selectedSliceId;
   const flow = useMemo(() => toReactFlow(model, {
     contextId: activeContext?.id,
     aggregateId: selectedAggregateId ? activeAggregate?.id : undefined,
+    conceptId: selectedConceptId ? activeConcept?.id : undefined,
     sliceId: selectedSliceId,
     compactSlices: contextOverviewMode,
     showFields: canvasShowFields
-  }), [model, activeContext?.id, activeAggregate?.id, selectedAggregateId, selectedSliceId, contextOverviewMode, canvasShowFields]);
+  }), [model, activeContext?.id, activeAggregate?.id, activeConcept?.id, selectedAggregateId, selectedConceptId, selectedSliceId, contextOverviewMode, canvasShowFields]);
   const codegenModel = useMemo(() => modelToCodegenModel(model), [model]);
   const layoutPreview = useMemo(() => toLayoutPreviewModel(codegenModel), [codegenModel]);
   const overviewFlow = useMemo(() => toOverviewFlow(model), [model]);
@@ -132,9 +136,10 @@ export function MedolStudio() {
     domainId: selectedDomainId,
     contextId: selectedContextId,
     aggregateId: selectedAggregateId,
+    conceptId: selectedConceptId,
     sliceId: selectedSliceId,
     nodeId: selectedNodeId
-  }), [model, selectedDomainId, selectedContextId, selectedAggregateId, selectedSliceId, selectedNodeId]);
+  }), [model, selectedDomainId, selectedContextId, selectedAggregateId, selectedConceptId, selectedSliceId, selectedNodeId]);
   const emModelJson = useMemo(() => emModelToJson(model), [model]);
   const codegenModelJson = useMemo(() => JSON.stringify(codegenModel, null, 2), [codegenModel]);
   const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
@@ -152,6 +157,7 @@ export function MedolStudio() {
     setSelectedDomainId(undefined);
     setSelectedContextId(undefined);
     setSelectedAggregateId(undefined);
+    setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
   }, [activeWorkspaceId]);
@@ -160,6 +166,7 @@ export function MedolStudio() {
     setSelectedDomainId(domain.id);
     setSelectedContextId(undefined);
     setSelectedAggregateId(undefined);
+    setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
     setPreviewMode('global');
@@ -171,6 +178,7 @@ export function MedolStudio() {
     setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
     setSelectedContextId(context.id);
     setSelectedAggregateId(undefined);
+    setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
     setDslFocusTarget({ kind: 'context', name: context.name });
@@ -181,9 +189,22 @@ export function MedolStudio() {
     setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
     setSelectedContextId(context.id);
     setSelectedAggregateId(aggregate.id);
+    setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
     setDslFocusTarget({ kind: 'aggregate', name: aggregate.name });
+    setDslFocusVersion((version) => version + 1);
+  };
+
+  const selectConcept = (context: EmContext, concept: EmConcept) => {
+    setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
+    setSelectedContextId(context.id);
+    setSelectedAggregateId(undefined);
+    setSelectedConceptId(concept.id);
+    setSelectedSliceId(undefined);
+    setSelectedNodeId(undefined);
+    setPreviewMode('canvas');
+    setDslFocusTarget({ kind: 'concept', name: concept.name });
     setDslFocusVersion((version) => version + 1);
   };
 
@@ -191,22 +212,35 @@ export function MedolStudio() {
     setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
     setSelectedContextId(context.id);
     setSelectedAggregateId(aggregate?.id);
+    setSelectedConceptId(aggregate
+      ? undefined
+      : context.concepts.find((concept) => concept.sliceIds.includes(slice.id))?.id);
     setSelectedSliceId(slice.id);
     setSelectedNodeId(undefined);
     setDslFocusTarget({ kind: 'slice', name: slice.name });
     setDslFocusVersion((version) => version + 1);
   };
 
-  const selectOverviewAggregate = (nodeId: string) => {
+  const selectOverviewGroup = (nodeId: string) => {
     const aggregateId = aggregateIdFromOverviewNodeId(nodeId);
-    if (!aggregateId) return;
+    if (aggregateId) {
+      for (const context of model.contexts) {
+        const aggregate = context.aggregates.find((candidate) => candidate.id === aggregateId);
+        if (!aggregate) continue;
+        selectAggregate(context, aggregate);
+        setPreviewMode('canvas');
+        return;
+      }
+    }
 
-    for (const context of model.contexts) {
-      const aggregate = context.aggregates.find((candidate) => candidate.id === aggregateId);
-      if (!aggregate) continue;
-      selectAggregate(context, aggregate);
-      setPreviewMode('canvas');
-      return;
+    const conceptId = conceptIdFromOverviewNodeId(nodeId);
+    if (conceptId) {
+      for (const context of model.contexts) {
+        const concept = context.concepts.find((candidate) => candidate.id === conceptId);
+        if (!concept) continue;
+        selectConcept(context, concept);
+        return;
+      }
     }
   };
 
@@ -425,6 +459,7 @@ export function MedolStudio() {
                   setSelectedDomainId(undefined);
                   setSelectedContextId(undefined);
                   setSelectedAggregateId(undefined);
+                  setSelectedConceptId(undefined);
                   setSelectedSliceId(undefined);
                   setSelectedNodeId(undefined);
                   void switchWorkspace(workspaceId);
@@ -449,10 +484,12 @@ export function MedolStudio() {
                 activeDomainId={selectedDomainId}
                 activeContextId={selectedContextId}
                 activeAggregateId={selectedAggregateId}
+                activeConceptId={selectedConceptId}
                 activeSliceId={selectedSliceId}
                 onSelectDomain={selectDomain}
                 onSelectContext={selectContext}
                 onSelectAggregate={selectAggregate}
+                onSelectConcept={selectConcept}
                 onSelectSlice={selectSlice}
               />
               <div
@@ -550,7 +587,7 @@ export function MedolStudio() {
         <header className="studio-toolbar">
           <div>
             <p className="eyebrow">{displayContext?.name ?? activeDomain?.name ?? 'Event Modeling'}</p>
-            <h1>{activeAggregate?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}</h1>
+            <h1>{activeAggregate?.name ?? activeConcept?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}</h1>
           </div>
           <div className="toolbar-actions">
             <div className="toolbar-view-controls">
@@ -652,7 +689,7 @@ export function MedolStudio() {
               onShowFieldsChange={setCanvasShowFields}
             />
           ) : previewMode === 'global' ? (
-            <GlobalMap nodes={overviewFlow.nodes} edges={overviewFlow.edges} onSelectAggregate={selectOverviewAggregate} />
+            <GlobalMap nodes={overviewFlow.nodes} edges={overviewFlow.edges} onSelectGroup={selectOverviewGroup} />
           ) : (
             <LayoutPreview model={layoutPreview} />
           )}

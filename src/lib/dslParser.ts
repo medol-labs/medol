@@ -6,7 +6,7 @@ import {
   isAutomation,
   isBinaryExpr,
   isCommand,
-  isCreatesAggregateMarker,
+  isStartsLifecycleMarker,
   isConcept,
   isEvent,
   isField,
@@ -31,7 +31,13 @@ import {
   isStringLiteral,
   isSubscription,
   isTarget,
-  isUiRef
+  isTypeFormatConstraint,
+  isTypeLengthConstraint,
+  isTypeMatchesConstraint,
+  isTypeOneOfConstraint,
+  isTypeRangeConstraint,
+  isUiRef,
+  isValueType
 } from '../language/generated/ast';
 import type {
   Aggregate as AstAggregate,
@@ -51,12 +57,14 @@ import type {
   Slice as AstSlice,
   Scenario as AstScenario,
   TagExpression,
+  ValueType as AstValueType,
+  ValueTypeConstraint,
   Specification as AstSpecification,
   ValidationExpression,
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, emptyModel } from './model';
+import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel } from './model';
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
@@ -74,10 +82,16 @@ export const parseMedol = (text: string): EmModel => {
     const model = astToEmModel(parseResult.value);
 
     for (const lexerError of parseResult.lexerErrors) {
-      model.diagnostics.push(lexerError.message);
+      const location = lexerError.line != null
+        ? `Line ${lexerError.line}${lexerError.column != null ? `:${lexerError.column}` : ''}: `
+        : '';
+      model.diagnostics.push(`${location}${lexerError.message}`);
     }
     for (const parserError of parseResult.parserErrors) {
-      model.diagnostics.push(parserError.message);
+      const line = parserError.token.startLine;
+      const column = parserError.token.startColumn;
+      const location = line != null ? `Line ${line}${column != null ? `:${column}` : ''}: ` : '';
+      model.diagnostics.push(`${location}${parserError.message}`);
     }
 
     if (model.contexts.length === 0 && text.trim().length > 0) {
@@ -132,6 +146,7 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   const context: EmContext = {
     id: domainId ? `${domainId}/context/${contextName}` : scopedId('context', contextName),
     name: contextName,
+    valueTypes: [],
     aggregates: [],
     slices: [],
     concepts: [],
@@ -143,6 +158,10 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   };
 
   for (const element of node.elements ?? []) {
+    if (isValueType(element)) {
+      context.valueTypes.push(parseValueType(element, context.id));
+      continue;
+    }
     if (isAggregate(element)) {
       context.aggregates.push(parseAggregate(element, context.id, edges));
       continue;
@@ -188,12 +207,48 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   return context;
 };
 
+const parseValueType = (node: AstValueType, contextId: string): EmValueType => {
+  const name = safeName(node.name, 'UnnamedType');
+  return {
+    id: `${contextId}/type/${name}`,
+    name,
+    baseType: safeName(node.baseType, 'String'),
+    constraints: (node.constraints ?? []).map(parseValueTypeConstraint)
+  };
+};
+
+const parseValueTypeConstraint = (constraint: ValueTypeConstraint): EmValueTypeConstraint => {
+  if (isTypeFormatConstraint(constraint)) {
+    return { kind: 'format', format: constraint.format };
+  }
+  if (isTypeLengthConstraint(constraint)) {
+    return { kind: 'length', min: constraint.min, max: constraint.max };
+  }
+  if (isTypeRangeConstraint(constraint)) {
+    return { kind: 'range', min: constraint.min, max: constraint.max };
+  }
+  if (isTypeMatchesConstraint(constraint)) {
+    return { kind: 'matches', pattern: constraint.pattern };
+  }
+  if (isTypeOneOfConstraint(constraint)) {
+    return {
+      kind: 'oneOf',
+      values: constraint.values.map((value) => value.value)
+    };
+  }
+  throw new Error('Unsupported value type constraint');
+};
+
 const parseConcept = (node: AstConcept, contextId: string): EmConcept => {
   const name = safeName(node.name, 'UnnamedConcept');
   return {
     id: `${contextId}/concept/${name}`,
     name,
-    sliceNames: (node.slices ?? [])
+    states: (node.features ?? [])
+      .filter(isState)
+      .map((state) => safeName(state.name, 'UnnamedState')),
+    sliceNames: (node.features ?? [])
+      .filter((feature) => !isState(feature))
       .map((sliceRef) => sliceRef.slice?.$refText)
       .filter((sliceName): sliceName is string => Boolean(sliceName)),
     sliceIds: []
@@ -232,7 +287,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
     id: sliceId,
     name: sliceName,
     ...(aggregateId ? { aggregateId } : {}),
-    createsAggregate: elements.some(isCreatesAggregateMarker),
+    startsLifecycle: elements.some(isStartsLifecycleMarker),
     resultingState: elements.find(isState)?.name,
     tags: tags.map((tag) => ({
       name: tag.name,
@@ -371,18 +426,6 @@ const formatValidationExpression = (expression: ValidationExpression): string =>
   switch (expression.$type) {
     case 'UniqueValidation':
       return `unique ${formatFieldSource(expression.target)}`;
-    case 'RequiredValidation':
-      return `required ${formatFieldSource(expression.target)}`;
-    case 'FormatValidation':
-      return `format ${formatFieldSource(expression.target)} ${expression.format}`;
-    case 'LengthValidation':
-      return `length ${formatFieldSource(expression.target)} ${expression.min}..${expression.max}`;
-    case 'RangeValidation':
-      return `range ${formatFieldSource(expression.target)} ${expression.min}..${expression.max}`;
-    case 'MatchesValidation':
-      return `matches ${formatFieldSource(expression.target)} ${JSON.stringify(expression.pattern)}`;
-    case 'OneOfValidation':
-      return `oneOf ${formatFieldSource(expression.target)} ${expression.values.map(formatValidationLiteral).join(', ')}`;
     case 'AssertValidation':
       return `assert ${formatValidationOperand(expression.left)} ${expression.operator} ${formatValidationOperand(expression.right)}`;
   }

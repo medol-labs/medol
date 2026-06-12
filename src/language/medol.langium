@@ -17,7 +17,8 @@ Context:
 ;
 
 ContextElement:
-      Aggregate
+      ValueType
+    | Aggregate
     | Slice
     | Concept
     | Policy
@@ -28,6 +29,40 @@ ContextElement:
     | Note
     | Decision
     | Metric
+;
+
+ValueType:
+    'type' name=ID '=' baseType=ID ('{'
+        constraints+=ValueTypeConstraint*
+    '}')?
+;
+
+ValueTypeConstraint:
+      TypeFormatConstraint
+    | TypeLengthConstraint
+    | TypeRangeConstraint
+    | TypeMatchesConstraint
+    | TypeOneOfConstraint
+;
+
+TypeFormatConstraint:
+    'format' format=ID
+;
+
+TypeLengthConstraint:
+    'length' min=NUMBER '..' max=NUMBER
+;
+
+TypeRangeConstraint:
+    'range' min=NUMBER '..' max=NUMBER
+;
+
+TypeMatchesConstraint:
+    'matches' pattern=STRING
+;
+
+TypeOneOfConstraint:
+    'oneOf' values+=Literal (',' values+=Literal)*
 ;
 
 Aggregate:
@@ -53,7 +88,7 @@ Slice:
 
 SliceElement:
       ActorRef
-    | CreatesAggregateMarker
+    | StartsLifecycleMarker
     | SliceTags
     | UiRef
     | ReactsTo
@@ -92,8 +127,13 @@ TagReference:
 
 Concept:
     'concept' name=ID '{'
-        slices+=ConceptSliceRef*
+        features+=ConceptFeature*
     '}'
+;
+
+ConceptFeature:
+      State
+    | ConceptSliceRef
 ;
 
 ConceptSliceRef:
@@ -104,8 +144,8 @@ ActorRef:
     'actor' actor=ID
 ;
 
-CreatesAggregateMarker:
-    createsAggregate?='createsAggregate'
+StartsLifecycleMarker:
+    startsLifecycle?='startsLifecycle'
 ;
 
 UiRef:
@@ -210,41 +250,11 @@ Scenario:
 
 ValidationExpression:
       UniqueValidation
-    | RequiredValidation
-    | FormatValidation
-    | LengthValidation
-    | RangeValidation
-    | MatchesValidation
-    | OneOfValidation
     | AssertValidation
 ;
 
 UniqueValidation:
     'unique' target=FieldSource
-;
-
-RequiredValidation:
-    'required' target=FieldSource
-;
-
-FormatValidation:
-    'format' target=FieldSource format=ID
-;
-
-LengthValidation:
-    'length' target=FieldSource min=NUMBER '..' max=NUMBER
-;
-
-RangeValidation:
-    'range' target=FieldSource min=NUMBER '..' max=NUMBER
-;
-
-MatchesValidation:
-    'matches' target=FieldSource pattern=STRING
-;
-
-OneOfValidation:
-    'oneOf' target=FieldSource values+=Literal (',' values+=Literal)*
 ;
 
 AssertValidation:

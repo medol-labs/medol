@@ -1,5 +1,10 @@
 domain MethodCatalog {
   context MethodManagement {
+    type MethodCode = String {
+      length 2..40
+      matches "^[A-Za-z0-9_-]+$"
+    }
+
     slice RegisterMethod {
       tags {
         methodId
@@ -8,13 +13,13 @@ domain MethodCatalog {
 
       command RegisterMethod {
         methodId: UUID id generated technical
-        code: String
+        code: MethodCode
         name: String
       }
 
       event MethodRegistered {
         methodId: UUID id technical
-        code: String
+        code: MethodCode
         name: String
       }
 
@@ -25,9 +30,6 @@ domain MethodCatalog {
 
         expression {
           unique Method.code
-          required RegisterMethod.code
-          length RegisterMethod.code 2..40
-          matches RegisterMethod.code "^[A-Za-z0-9_-]+$"
         }
 
         scenario "Reject a duplicate method code" {
@@ -52,13 +54,13 @@ domain MethodCatalog {
 
       command RenameMethod {
         methodId: UUID id technical
-        code: String
+        code: MethodCode
         name: String
       }
 
       event MethodRenamed {
         methodId: UUID id technical
-        code: String
+        code: MethodCode
         name: String
       }
     }

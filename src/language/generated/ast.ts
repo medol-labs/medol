@@ -44,7 +44,6 @@ export type MedolKeywordNames =
     | "condition"
     | "confirm"
     | "context"
-    | "createsAggregate"
     | "decision"
     | "derived"
     | "detail"
@@ -79,13 +78,13 @@ export type MedolKeywordNames =
     | "reactsTo"
     | "readmodel"
     | "reject"
-    | "required"
     | "risk"
     | "rule"
     | "scenario"
     | "slice"
     | "source"
     | "specification"
+    | "startsLifecycle"
     | "state"
     | "steps"
     | "subscribe"
@@ -93,6 +92,7 @@ export type MedolKeywordNames =
     | "target"
     | "technical"
     | "then"
+    | "type"
     | "ui"
     | "unique"
     | "userJourney"
@@ -271,18 +271,28 @@ export function isCommandStep(item: unknown): item is CommandStep {
 export interface Concept extends langium.AstNode {
     readonly $container: Context;
     readonly $type: 'Concept';
+    features: Array<ConceptFeature>;
     name: string;
-    slices: Array<ConceptSliceRef>;
 }
 
 export const Concept = {
     $type: 'Concept',
-    name: 'name',
-    slices: 'slices'
+    features: 'features',
+    name: 'name'
 } as const;
 
 export function isConcept(item: unknown): item is Concept {
     return reflection.isInstance(item, Concept.$type);
+}
+
+export type ConceptFeature = ConceptSliceRef | State;
+
+export const ConceptFeature = {
+    $type: 'ConceptFeature'
+} as const;
+
+export function isConceptFeature(item: unknown): item is ConceptFeature {
+    return reflection.isInstance(item, ConceptFeature.$type);
 }
 
 export interface ConceptSliceRef extends langium.AstNode {
@@ -332,7 +342,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Aggregate | Concept | Decision | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | UserJourney;
+export type ContextElement = Aggregate | Concept | Decision | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | UserJourney | ValueType;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -340,21 +350,6 @@ export const ContextElement = {
 
 export function isContextElement(item: unknown): item is ContextElement {
     return reflection.isInstance(item, ContextElement.$type);
-}
-
-export interface CreatesAggregateMarker extends langium.AstNode {
-    readonly $container: Slice;
-    readonly $type: 'CreatesAggregateMarker';
-    createsAggregate: boolean;
-}
-
-export const CreatesAggregateMarker = {
-    $type: 'CreatesAggregateMarker',
-    createsAggregate: 'createsAggregate'
-} as const;
-
-export function isCreatesAggregateMarker(item: unknown): item is CreatesAggregateMarker {
-    return reflection.isInstance(item, CreatesAggregateMarker.$type);
 }
 
 export interface Decision extends langium.AstNode {
@@ -558,7 +553,7 @@ export function isFieldName(item: unknown): item is FieldName {
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | FieldDerivation | FieldDetails | FieldSourceMapping | FormatValidation | LengthValidation | MatchesValidation | OneOfValidation | RangeValidation | RequiredValidation | UniqueValidation;
+    readonly $container: AssertValidation | FieldDerivation | FieldDetails | FieldSourceMapping | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -585,23 +580,6 @@ export const FieldSourceMapping = {
 
 export function isFieldSourceMapping(item: unknown): item is FieldSourceMapping {
     return reflection.isInstance(item, FieldSourceMapping.$type);
-}
-
-export interface FormatValidation extends langium.AstNode {
-    readonly $container: Specification;
-    readonly $type: 'FormatValidation';
-    format: string;
-    target: FieldSource;
-}
-
-export const FormatValidation = {
-    $type: 'FormatValidation',
-    format: 'format',
-    target: 'target'
-} as const;
-
-export function isFormatValidation(item: unknown): item is FormatValidation {
-    return reflection.isInstance(item, FormatValidation.$type);
 }
 
 export interface Given extends langium.AstNode {
@@ -663,25 +641,6 @@ export function isIntegrationElement(item: unknown): item is IntegrationElement 
     return reflection.isInstance(item, IntegrationElement.$type);
 }
 
-export interface LengthValidation extends langium.AstNode {
-    readonly $container: Specification;
-    readonly $type: 'LengthValidation';
-    max: number;
-    min: number;
-    target: FieldSource;
-}
-
-export const LengthValidation = {
-    $type: 'LengthValidation',
-    max: 'max',
-    min: 'min',
-    target: 'target'
-} as const;
-
-export function isLengthValidation(item: unknown): item is LengthValidation {
-    return reflection.isInstance(item, LengthValidation.$type);
-}
-
 export type Literal = NumberLiteral | StringLiteral;
 
 export const Literal = {
@@ -690,23 +649,6 @@ export const Literal = {
 
 export function isLiteral(item: unknown): item is Literal {
     return reflection.isInstance(item, Literal.$type);
-}
-
-export interface MatchesValidation extends langium.AstNode {
-    readonly $container: Specification;
-    readonly $type: 'MatchesValidation';
-    pattern: string;
-    target: FieldSource;
-}
-
-export const MatchesValidation = {
-    $type: 'MatchesValidation',
-    pattern: 'pattern',
-    target: 'target'
-} as const;
-
-export function isMatchesValidation(item: unknown): item is MatchesValidation {
-    return reflection.isInstance(item, MatchesValidation.$type);
 }
 
 export interface Metric extends langium.AstNode {
@@ -756,7 +698,7 @@ export function isNote(item: unknown): item is Note {
 }
 
 export interface NumberLiteral extends langium.AstNode {
-    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | OneOfValidation;
+    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | TypeOneOfConstraint;
     readonly $type: 'NumberLiteral';
     value: number;
 }
@@ -768,23 +710,6 @@ export const NumberLiteral = {
 
 export function isNumberLiteral(item: unknown): item is NumberLiteral {
     return reflection.isInstance(item, NumberLiteral.$type);
-}
-
-export interface OneOfValidation extends langium.AstNode {
-    readonly $container: Specification;
-    readonly $type: 'OneOfValidation';
-    target: FieldSource;
-    values: Array<Literal>;
-}
-
-export const OneOfValidation = {
-    $type: 'OneOfValidation',
-    target: 'target',
-    values: 'values'
-} as const;
-
-export function isOneOfValidation(item: unknown): item is OneOfValidation {
-    return reflection.isInstance(item, OneOfValidation.$type);
 }
 
 export interface Policy extends langium.AstNode {
@@ -814,25 +739,6 @@ export const PrimaryExpr = {
 
 export function isPrimaryExpr(item: unknown): item is PrimaryExpr {
     return reflection.isInstance(item, PrimaryExpr.$type);
-}
-
-export interface RangeValidation extends langium.AstNode {
-    readonly $container: Specification;
-    readonly $type: 'RangeValidation';
-    max: number;
-    min: number;
-    target: FieldSource;
-}
-
-export const RangeValidation = {
-    $type: 'RangeValidation',
-    max: 'max',
-    min: 'min',
-    target: 'target'
-} as const;
-
-export function isRangeValidation(item: unknown): item is RangeValidation {
-    return reflection.isInstance(item, RangeValidation.$type);
 }
 
 export interface ReactsTo extends langium.AstNode {
@@ -894,21 +800,6 @@ export function isRefExpr(item: unknown): item is RefExpr {
     return reflection.isInstance(item, RefExpr.$type);
 }
 
-export interface RequiredValidation extends langium.AstNode {
-    readonly $container: Specification;
-    readonly $type: 'RequiredValidation';
-    target: FieldSource;
-}
-
-export const RequiredValidation = {
-    $type: 'RequiredValidation',
-    target: 'target'
-} as const;
-
-export function isRequiredValidation(item: unknown): item is RequiredValidation {
-    return reflection.isInstance(item, RequiredValidation.$type);
-}
-
 export interface Risk extends langium.AstNode {
     readonly $container: Context;
     readonly $type: 'Risk';
@@ -964,7 +855,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | CreatesAggregateMarker | Event | Hotspot | Policy | ReactsTo | ReadModel | SliceTags | Specification | State | UiRef;
+export type SliceElement = ActorRef | Automation | Command | Event | Hotspot | Policy | ReactsTo | ReadModel | SliceTags | Specification | StartsLifecycleMarker | State | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -1050,8 +941,23 @@ export function isSpecification(item: unknown): item is Specification {
     return reflection.isInstance(item, Specification.$type);
 }
 
+export interface StartsLifecycleMarker extends langium.AstNode {
+    readonly $container: Slice;
+    readonly $type: 'StartsLifecycleMarker';
+    startsLifecycle: boolean;
+}
+
+export const StartsLifecycleMarker = {
+    $type: 'StartsLifecycleMarker',
+    startsLifecycle: 'startsLifecycle'
+} as const;
+
+export function isStartsLifecycleMarker(item: unknown): item is StartsLifecycleMarker {
+    return reflection.isInstance(item, StartsLifecycleMarker.$type);
+}
+
 export interface State extends langium.AstNode {
-    readonly $container: Aggregate | Slice;
+    readonly $container: Aggregate | Concept | Slice;
     readonly $type: 'State';
     name: string;
 }
@@ -1091,7 +997,7 @@ export function isStepValue(item: unknown): item is StepValue {
 }
 
 export interface StringLiteral extends langium.AstNode {
-    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | OneOfValidation;
+    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | TypeOneOfConstraint;
     readonly $type: 'StringLiteral';
     value: string;
 }
@@ -1194,6 +1100,85 @@ export function isThen(item: unknown): item is Then {
     return reflection.isInstance(item, Then.$type);
 }
 
+export interface TypeFormatConstraint extends langium.AstNode {
+    readonly $container: ValueType;
+    readonly $type: 'TypeFormatConstraint';
+    format: string;
+}
+
+export const TypeFormatConstraint = {
+    $type: 'TypeFormatConstraint',
+    format: 'format'
+} as const;
+
+export function isTypeFormatConstraint(item: unknown): item is TypeFormatConstraint {
+    return reflection.isInstance(item, TypeFormatConstraint.$type);
+}
+
+export interface TypeLengthConstraint extends langium.AstNode {
+    readonly $container: ValueType;
+    readonly $type: 'TypeLengthConstraint';
+    max: number;
+    min: number;
+}
+
+export const TypeLengthConstraint = {
+    $type: 'TypeLengthConstraint',
+    max: 'max',
+    min: 'min'
+} as const;
+
+export function isTypeLengthConstraint(item: unknown): item is TypeLengthConstraint {
+    return reflection.isInstance(item, TypeLengthConstraint.$type);
+}
+
+export interface TypeMatchesConstraint extends langium.AstNode {
+    readonly $container: ValueType;
+    readonly $type: 'TypeMatchesConstraint';
+    pattern: string;
+}
+
+export const TypeMatchesConstraint = {
+    $type: 'TypeMatchesConstraint',
+    pattern: 'pattern'
+} as const;
+
+export function isTypeMatchesConstraint(item: unknown): item is TypeMatchesConstraint {
+    return reflection.isInstance(item, TypeMatchesConstraint.$type);
+}
+
+export interface TypeOneOfConstraint extends langium.AstNode {
+    readonly $container: ValueType;
+    readonly $type: 'TypeOneOfConstraint';
+    values: Array<Literal>;
+}
+
+export const TypeOneOfConstraint = {
+    $type: 'TypeOneOfConstraint',
+    values: 'values'
+} as const;
+
+export function isTypeOneOfConstraint(item: unknown): item is TypeOneOfConstraint {
+    return reflection.isInstance(item, TypeOneOfConstraint.$type);
+}
+
+export interface TypeRangeConstraint extends langium.AstNode {
+    readonly $container: ValueType;
+    readonly $type: 'TypeRangeConstraint';
+    max: number;
+    min: number;
+}
+
+export const TypeRangeConstraint = {
+    $type: 'TypeRangeConstraint',
+    max: 'max',
+    min: 'min'
+} as const;
+
+export function isTypeRangeConstraint(item: unknown): item is TypeRangeConstraint {
+    return reflection.isInstance(item, TypeRangeConstraint.$type);
+}
+
 export interface UiRef extends langium.AstNode {
     readonly $container: Scenario | Slice | Specification;
     readonly $type: 'UiRef';
@@ -1251,7 +1236,7 @@ export function isUserJourney(item: unknown): item is UserJourney {
     return reflection.isInstance(item, UserJourney.$type);
 }
 
-export type ValidationExpression = AssertValidation | FormatValidation | LengthValidation | MatchesValidation | OneOfValidation | RangeValidation | RequiredValidation | UniqueValidation;
+export type ValidationExpression = AssertValidation | UniqueValidation;
 
 export const ValidationExpression = {
     $type: 'ValidationExpression'
@@ -1269,6 +1254,35 @@ export const ValidationOperand = {
 
 export function isValidationOperand(item: unknown): item is ValidationOperand {
     return reflection.isInstance(item, ValidationOperand.$type);
+}
+
+export interface ValueType extends langium.AstNode {
+    readonly $container: Context;
+    readonly $type: 'ValueType';
+    baseType: string;
+    constraints: Array<ValueTypeConstraint>;
+    name: string;
+}
+
+export const ValueType = {
+    $type: 'ValueType',
+    baseType: 'baseType',
+    constraints: 'constraints',
+    name: 'name'
+} as const;
+
+export function isValueType(item: unknown): item is ValueType {
+    return reflection.isInstance(item, ValueType.$type);
+}
+
+export type ValueTypeConstraint = TypeFormatConstraint | TypeLengthConstraint | TypeMatchesConstraint | TypeOneOfConstraint | TypeRangeConstraint;
+
+export const ValueTypeConstraint = {
+    $type: 'ValueTypeConstraint'
+} as const;
+
+export function isValueTypeConstraint(item: unknown): item is ValueTypeConstraint {
+    return reflection.isInstance(item, ValueTypeConstraint.$type);
 }
 
 export interface ViewStep extends langium.AstNode {
@@ -1315,11 +1329,11 @@ export type MedolAstType = {
     Command: Command
     CommandStep: CommandStep
     Concept: Concept
+    ConceptFeature: ConceptFeature
     ConceptSliceRef: ConceptSliceRef
     Condition: Condition
     Context: Context
     ContextElement: ContextElement
-    CreatesAggregateMarker: CreatesAggregateMarker
     Decision: Decision
     Domain: Domain
     Emits: Emits
@@ -1334,27 +1348,21 @@ export type MedolAstType = {
     FieldMapping: FieldMapping
     FieldSource: FieldSource
     FieldSourceMapping: FieldSourceMapping
-    FormatValidation: FormatValidation
     Given: Given
     Hotspot: Hotspot
     Integration: Integration
     IntegrationElement: IntegrationElement
-    LengthValidation: LengthValidation
     Literal: Literal
-    MatchesValidation: MatchesValidation
     Metric: Metric
     Model: Model
     Note: Note
     NumberLiteral: NumberLiteral
-    OneOfValidation: OneOfValidation
     Policy: Policy
     PrimaryExpr: PrimaryExpr
-    RangeValidation: RangeValidation
     ReactsTo: ReactsTo
     ReadModel: ReadModel
     ReadModelElement: ReadModelElement
     RefExpr: RefExpr
-    RequiredValidation: RequiredValidation
     Risk: Risk
     Scenario: Scenario
     Slice: Slice
@@ -1363,6 +1371,7 @@ export type MedolAstType = {
     SliceTags: SliceTags
     Source: Source
     Specification: Specification
+    StartsLifecycleMarker: StartsLifecycleMarker
     State: State
     StepValue: StepValue
     Steps: Steps
@@ -1373,11 +1382,18 @@ export type MedolAstType = {
     TagReference: TagReference
     Target: Target
     Then: Then
+    TypeFormatConstraint: TypeFormatConstraint
+    TypeLengthConstraint: TypeLengthConstraint
+    TypeMatchesConstraint: TypeMatchesConstraint
+    TypeOneOfConstraint: TypeOneOfConstraint
+    TypeRangeConstraint: TypeRangeConstraint
     UiRef: UiRef
     UniqueValidation: UniqueValidation
     UserJourney: UserJourney
     ValidationExpression: ValidationExpression
     ValidationOperand: ValidationOperand
+    ValueType: ValueType
+    ValueTypeConstraint: ValueTypeConstraint
     ViewStep: ViewStep
     When: When
 }
@@ -1503,15 +1519,21 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Concept: {
             name: Concept.$type,
             properties: {
+                features: {
+                    name: Concept.features,
+                    defaultValue: []
+                },
                 name: {
                     name: Concept.name
-                },
-                slices: {
-                    name: Concept.slices,
-                    defaultValue: []
                 }
             },
             superTypes: [ContextElement.$type]
+        },
+        ConceptFeature: {
+            name: ConceptFeature.$type,
+            properties: {
+            },
+            superTypes: []
         },
         ConceptSliceRef: {
             name: ConceptSliceRef.$type,
@@ -1521,7 +1543,7 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     referenceType: Slice.$type
                 }
             },
-            superTypes: []
+            superTypes: [ConceptFeature.$type]
         },
         Condition: {
             name: Condition.$type,
@@ -1550,16 +1572,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             properties: {
             },
             superTypes: []
-        },
-        CreatesAggregateMarker: {
-            name: CreatesAggregateMarker.$type,
-            properties: {
-                createsAggregate: {
-                    name: CreatesAggregateMarker.createsAggregate,
-                    defaultValue: false
-                }
-            },
-            superTypes: [SliceElement.$type]
         },
         Decision: {
             name: Decision.$type,
@@ -1718,18 +1730,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [FieldMapping.$type]
         },
-        FormatValidation: {
-            name: FormatValidation.$type,
-            properties: {
-                format: {
-                    name: FormatValidation.format
-                },
-                target: {
-                    name: FormatValidation.target
-                }
-            },
-            superTypes: [ValidationExpression.$type]
-        },
         Given: {
             name: Given.$type,
             properties: {
@@ -1771,38 +1771,11 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: []
         },
-        LengthValidation: {
-            name: LengthValidation.$type,
-            properties: {
-                max: {
-                    name: LengthValidation.max
-                },
-                min: {
-                    name: LengthValidation.min
-                },
-                target: {
-                    name: LengthValidation.target
-                }
-            },
-            superTypes: [ValidationExpression.$type]
-        },
         Literal: {
             name: Literal.$type,
             properties: {
             },
             superTypes: [PrimaryExpr.$type, ValidationOperand.$type]
-        },
-        MatchesValidation: {
-            name: MatchesValidation.$type,
-            properties: {
-                pattern: {
-                    name: MatchesValidation.pattern
-                },
-                target: {
-                    name: MatchesValidation.target
-                }
-            },
-            superTypes: [ValidationExpression.$type]
         },
         Metric: {
             name: Metric.$type,
@@ -1845,19 +1818,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [Literal.$type]
         },
-        OneOfValidation: {
-            name: OneOfValidation.$type,
-            properties: {
-                target: {
-                    name: OneOfValidation.target
-                },
-                values: {
-                    name: OneOfValidation.values,
-                    defaultValue: []
-                }
-            },
-            superTypes: [ValidationExpression.$type]
-        },
         Policy: {
             name: Policy.$type,
             properties: {
@@ -1880,21 +1840,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             properties: {
             },
             superTypes: [Expression.$type]
-        },
-        RangeValidation: {
-            name: RangeValidation.$type,
-            properties: {
-                max: {
-                    name: RangeValidation.max
-                },
-                min: {
-                    name: RangeValidation.min
-                },
-                target: {
-                    name: RangeValidation.target
-                }
-            },
-            superTypes: [ValidationExpression.$type]
         },
         ReactsTo: {
             name: ReactsTo.$type,
@@ -1938,15 +1883,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [PrimaryExpr.$type]
-        },
-        RequiredValidation: {
-            name: RequiredValidation.$type,
-            properties: {
-                target: {
-                    name: RequiredValidation.target
-                }
-            },
-            superTypes: [ValidationExpression.$type]
         },
         Risk: {
             name: Risk.$type,
@@ -2062,6 +1998,16 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [SliceElement.$type]
         },
+        StartsLifecycleMarker: {
+            name: StartsLifecycleMarker.$type,
+            properties: {
+                startsLifecycle: {
+                    name: StartsLifecycleMarker.startsLifecycle,
+                    defaultValue: false
+                }
+            },
+            superTypes: [SliceElement.$type]
+        },
         State: {
             name: State.$type,
             properties: {
@@ -2069,7 +2015,7 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: State.name
                 }
             },
-            superTypes: [AggregateFeature.$type, SliceElement.$type]
+            superTypes: [AggregateFeature.$type, ConceptFeature.$type, SliceElement.$type]
         },
         StepValue: {
             name: StepValue.$type,
@@ -2157,6 +2103,58 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: []
         },
+        TypeFormatConstraint: {
+            name: TypeFormatConstraint.$type,
+            properties: {
+                format: {
+                    name: TypeFormatConstraint.format
+                }
+            },
+            superTypes: [ValueTypeConstraint.$type]
+        },
+        TypeLengthConstraint: {
+            name: TypeLengthConstraint.$type,
+            properties: {
+                max: {
+                    name: TypeLengthConstraint.max
+                },
+                min: {
+                    name: TypeLengthConstraint.min
+                }
+            },
+            superTypes: [ValueTypeConstraint.$type]
+        },
+        TypeMatchesConstraint: {
+            name: TypeMatchesConstraint.$type,
+            properties: {
+                pattern: {
+                    name: TypeMatchesConstraint.pattern
+                }
+            },
+            superTypes: [ValueTypeConstraint.$type]
+        },
+        TypeOneOfConstraint: {
+            name: TypeOneOfConstraint.$type,
+            properties: {
+                values: {
+                    name: TypeOneOfConstraint.values,
+                    defaultValue: []
+                }
+            },
+            superTypes: [ValueTypeConstraint.$type]
+        },
+        TypeRangeConstraint: {
+            name: TypeRangeConstraint.$type,
+            properties: {
+                max: {
+                    name: TypeRangeConstraint.max
+                },
+                min: {
+                    name: TypeRangeConstraint.min
+                }
+            },
+            superTypes: [ValueTypeConstraint.$type]
+        },
         UiRef: {
             name: UiRef.$type,
             properties: {
@@ -2201,6 +2199,28 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         },
         ValidationOperand: {
             name: ValidationOperand.$type,
+            properties: {
+            },
+            superTypes: []
+        },
+        ValueType: {
+            name: ValueType.$type,
+            properties: {
+                baseType: {
+                    name: ValueType.baseType
+                },
+                constraints: {
+                    name: ValueType.constraints,
+                    defaultValue: []
+                },
+                name: {
+                    name: ValueType.name
+                }
+            },
+            superTypes: [ContextElement.$type]
+        },
+        ValueTypeConstraint: {
+            name: ValueTypeConstraint.$type,
             properties: {
             },
             superTypes: []

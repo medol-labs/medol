@@ -32,10 +32,13 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
       ...context.concepts.map((concept) => {
         const slices = context.slices.filter((slice) => concept.sliceIds.includes(slice.id));
         return {
-          id: `overview/concept/${concept.id}`,
+          id: overviewConceptNodeId(concept.id),
           kind: 'concept' as const,
           title: concept.name,
-          metrics: sliceMetrics(slices)
+          metrics: {
+            ...sliceMetrics(slices),
+            states: concept.states.length
+          }
         };
       })
     ];
@@ -156,14 +159,20 @@ const sliceMetrics = (slices: EmAggregate['slices']): Record<string, number> => 
 };
 
 export const overviewAggregateNodeId = (aggregateId: string): string => `overview/aggregate/${aggregateId}`;
+export const overviewConceptNodeId = (conceptId: string): string => `overview/concept/${conceptId}`;
 
 export const aggregateIdFromOverviewNodeId = (nodeId: string): string | undefined => {
   return nodeId.startsWith('overview/aggregate/') ? nodeId.slice('overview/aggregate/'.length) : undefined;
 };
 
+export const conceptIdFromOverviewNodeId = (nodeId: string): string | undefined => {
+  return nodeId.startsWith('overview/concept/') ? nodeId.slice('overview/concept/'.length) : undefined;
+};
+
 const aggregateMetrics = (aggregate: EmAggregate): Record<string, number> => {
   const elements = aggregate.slices.flatMap((slice) => slice.elements);
   return {
+    states: aggregate.states.length,
     slices: aggregate.slices.length,
     commands: elements.filter((element) => element.kind === 'command').length,
     events: elements.filter((element) => element.kind === 'event').length,

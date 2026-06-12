@@ -1,4 +1,4 @@
-import type { EmAggregate, EmContext, EmElement, EmModel, EmSlice } from '../../lib/model';
+import type { EmAggregate, EmConcept, EmContext, EmElement, EmModel, EmSlice } from '../../lib/model';
 import type { SelectedModelItem } from '../../app/modelSelection';
 import type { AgentDslKnowledge, AgentDslKnowledgeManifest } from './dslKnowledge';
 
@@ -28,6 +28,7 @@ export interface AgentModelSummary {
     name: string;
     context?: string;
     aggregate?: string;
+    concept?: string;
     slice?: string;
     elementKind?: string;
   };
@@ -165,6 +166,14 @@ const selectRelevantDslKnowledge = (input: {
     });
   }
 
+  if (matches(intentText, ['type', 'value object', 'format', 'length', 'range', 'matches', 'oneof', '类型', '值对象', '格式', '长度', '范围', '枚举'])) {
+    snippets.push({
+      topic: 'value-type-syntax',
+      reason: 'The request references reusable value types or field-level validity.',
+      content: input.knowledge.syntax.valueType
+    });
+  }
+
   if (matches(intentText, ['ui', 'screen', 'page', 'layout', 'form', 'dialog', 'drawer', 'confirm', '页面', '布局', '表单'])) {
     snippets.push({
       topic: 'ui-rules',
@@ -192,7 +201,7 @@ const selectRelevantDslKnowledge = (input: {
         input.knowledge.syntax.slice,
         input.knowledge.syntax.command,
         input.knowledge.syntax.event,
-        input.knowledge.syntax.createsAggregate,
+        input.knowledge.syntax.startsLifecycle,
         input.knowledge.syntax.state,
         ...input.knowledge.modelingConventions
       ].join('\n')
@@ -203,7 +212,10 @@ const selectRelevantDslKnowledge = (input: {
     snippets.push({
       topic: 'specification-syntax',
       reason: 'The request references behavior examples or acceptance specifications.',
-      content: input.knowledge.syntax.specification
+      content: [
+        input.knowledge.syntax.specification,
+        input.knowledge.syntax.expression
+      ].join('\n')
     });
   }
 
@@ -247,6 +259,7 @@ const summarizeModel = (model: EmModel, selectedItem?: SelectedModelItem): Agent
             name: selectedItem.name,
             ...(selectedItem.context ? { context: selectedItem.context.name } : {}),
             ...(selectedItem.aggregate ? { aggregate: selectedItem.aggregate.name } : {}),
+            ...(selectedItem.concept ? { concept: selectedItem.concept.name } : {}),
             ...(selectedItem.slice ? { slice: selectedItem.slice.name } : {}),
             ...(selectedItem.element ? { elementKind: selectedItem.element.kind } : {})
           }
@@ -261,6 +274,7 @@ const summarizeSelectedContext = (selectedItem?: SelectedModelItem): string => {
   const parts = [`Selected ${selectedItem.type}: ${selectedItem.name}.`];
   if (selectedItem.context) parts.push(`Context: ${selectedItem.context.name}.`);
   if (selectedItem.aggregate) parts.push(summarizeAggregate(selectedItem.aggregate));
+  if (selectedItem.concept) parts.push(summarizeConcept(selectedItem.concept));
   if (selectedItem.slice) parts.push(summarizeSlice(selectedItem.slice));
   if (selectedItem.element) parts.push(summarizeElement(selectedItem.element));
   return parts.join(' ');
@@ -271,10 +285,15 @@ const summarizeAggregate = (aggregate: EmAggregate): string => {
   return `Aggregate ${aggregate.name} has ${aggregate.slices.length} slice(s) and ${stateSummary}.`;
 };
 
+const summarizeConcept = (concept: EmConcept): string => {
+  const stateSummary = concept.states.length ? `states ${concept.states.join(', ')}` : 'no explicit states';
+  return `Concept ${concept.name} groups ${concept.sliceIds.length} slice(s) and ${stateSummary}.`;
+};
+
 const summarizeSlice = (slice: EmSlice): string => {
   const counts = countElements(slice.elements);
   const state = slice.resultingState ? ` Resulting state: ${slice.resultingState}.` : '';
-  const creates = slice.createsAggregate ? ' It creates the aggregate.' : '';
+  const creates = slice.startsLifecycle ? ' It starts the business lifecycle.' : '';
   const hotspots = slice.hotspots.length ? ` Hotspots: ${slice.hotspots.join('; ')}.` : '';
   const tags = slice.tags.length
     ? ` Selection tags: ${slice.tags.map((tag) => tag.expression ? `${tag.name}=${tag.expression}` : tag.name).join(', ')}.`
@@ -329,6 +348,7 @@ const getBlockCandidates = (selectedItem: SelectedModelItem) => {
   if (selectedItem.type === 'domain') return [{ keyword: 'domain', name: selectedItem.name }];
   if (selectedItem.type === 'context') return [{ keyword: 'context', name: selectedItem.name }];
   if (selectedItem.type === 'aggregate') return [{ keyword: 'aggregate', name: selectedItem.name }];
+  if (selectedItem.type === 'concept') return [{ keyword: 'concept', name: selectedItem.name }];
   if (selectedItem.type === 'slice') return [{ keyword: 'slice', name: selectedItem.name }];
   if (!selectedItem.element) return [];
 

@@ -130,6 +130,7 @@ interface ConfigSlice {
 export interface ConfigRoot {
   slices: ConfigSlice[];
   flows: [];
+  valueTypes: CodegenModel['valueTypes'];
   aggregates: Array<{ id: string; name: string; title: string; fields: []; states: string[] }>;
   actors: Array<{ id: string; name: string; title: string }>;
   concepts: Array<{
@@ -137,6 +138,7 @@ export interface ConfigRoot {
     name: string;
     title: string;
     context: string;
+    states: string[];
     slices: Array<{ id: string; name: string; title: string }>;
   }>;
   domain?: string;
@@ -156,6 +158,7 @@ interface ConfigCodeGen {
 export const codegenModelToConfig = (model: CodegenModel): ConfigRoot => ({
   slices: model.slices.map(toConfigSlice),
   flows: [],
+  valueTypes: model.valueTypes,
   aggregates: model.aggregates.map((aggregate) => ({
     id: aggregate.id,
     name: aggregate.name,
@@ -218,7 +221,7 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   ...(element.type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(element.aggregate ? { aggregateDependencies: [element.aggregate.title] } : {}),
   dependencies: element.dependencies.map(toConfigDependency),
-  createsAggregate: element.createsAggregate ?? false,
+  createsAggregate: element.startsLifecycle ?? false,
   ...(element.ui ? { ui: element.ui } : {}),
   triggers: [],
   sketched: false,

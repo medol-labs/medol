@@ -116,7 +116,7 @@ const toPrdSlice = (slice: EmSlice, aggregate: string, context: string): PrdSlic
     ...(event ? { event: toElementSummary(event) } : {}),
     readModelNames: readmodels.map((readmodel) => readmodel.name),
     ...(slice.resultingState ? { resultingState: slice.resultingState } : {}),
-    createsAggregate: Boolean(slice.createsAggregate),
+    startsLifecycle: Boolean(slice.startsLifecycle),
     businessRules: specifications.map((specification) => humanize(specification.name)),
     specifications: specifications.map(toPrdSpecification),
     dependencies: slice.elements.flatMap((element) =>
@@ -136,7 +136,7 @@ const inferOperation = (
 ): PrdSlice['operation'] => {
   if (!command && hasReadModel) return 'read';
   if (!command) return 'automation';
-  if (slice.createsAggregate || /^(create|register|define|declare|append|record|start)/i.test(command.name)) {
+  if (slice.startsLifecycle || /^(create|register|define|declare|append|record|start)/i.test(command.name)) {
     return 'create';
   }
   if (/^(delete|remove)/i.test(command.name)) return 'delete';

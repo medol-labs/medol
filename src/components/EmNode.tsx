@@ -10,6 +10,7 @@ interface EmNodeData extends Record<string, unknown> {
   showFields?: boolean;
   outcome?: string;
   details?: string[];
+  kindLabel?: string;
 }
 
 const labels: Record<EmElementKind, string> = {
@@ -35,7 +36,7 @@ export function EmNode({ data, selected }: NodeProps) {
     <section className={selected ? 'em-node is-selected' : 'em-node'} style={{ borderColor: node.accent, background: node.fill }}>
       <Handle type="target" position={Position.Left} />
       <header className="em-node__header">
-        <span className="em-node__kind" style={{ color: node.accent }}>{labels[node.kind]}</span>
+        <span className="em-node__kind" style={{ color: node.accent }}>{node.kindLabel ?? labels[node.kind]}</span>
         <strong>{node.name}</strong>
       </header>
       {node.outcome && <p className="em-node__outcome">{node.outcome}</p>}

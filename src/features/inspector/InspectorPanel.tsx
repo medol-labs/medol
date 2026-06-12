@@ -42,6 +42,14 @@ function InspectorContent({ item }: { item: SelectedModelItem }) {
             <dd>{item.aggregate.name}</dd>
           </>
         )}
+        {item.concept && (
+          <>
+            <dt>Concept</dt>
+            <dd>{item.concept.name}</dd>
+            <dt>States</dt>
+            <dd>{item.concept.states.join(', ') || 'None'}</dd>
+          </>
+        )}
         {item.slice && (
           <>
             <dt>Slice</dt>

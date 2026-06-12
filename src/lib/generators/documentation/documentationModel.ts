@@ -50,7 +50,7 @@ export interface DocumentationWorkflow {
   readmodels: string[];
   processors: string[];
   specifications: DocumentationSpecification[];
-  createsAggregate: boolean;
+  startsLifecycle: boolean;
   resultingState?: string;
   hotspots: string[];
 }

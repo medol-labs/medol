@@ -1,23 +1,40 @@
 domain ValidationExamples {
   context AccountManagement {
+    type Email = String {
+      format email
+    }
+
+    type DisplayName = String {
+      length 2..100
+      matches "^[A-Za-z ]+$"
+    }
+
+    type AccountAge = Int {
+      range 0..150
+    }
+
+    type AccountRole = String {
+      oneOf "Admin", "Member"
+    }
+
     aggregate Account {
       slice RegisterAccount {
-        createsAggregate
+        startsLifecycle
 
         command RegisterAccount {
           accountId: UUID id generated technical
-          email: String
-          displayName: String
-          age: Int
-          role: String
+          email: Email
+          displayName: DisplayName
+          age: AccountAge
+          role: AccountRole
         }
 
         event AccountRegistered {
           accountId: UUID id technical
-          email: String
-          displayName: String
-          age: Int
-          role: String
+          email: Email
+          displayName: DisplayName
+          age: AccountAge
+          role: AccountRole
         }
 
         specification "Account Registration Valid" {
@@ -28,12 +45,6 @@ domain ValidationExamples {
 
           expression {
             unique Account.email
-            required RegisterAccount.email
-            format RegisterAccount.email email
-            length RegisterAccount.displayName 2..100
-            range RegisterAccount.age 18..120
-            matches RegisterAccount.displayName "^[A-Za-z ]+$"
-            oneOf RegisterAccount.role "Admin", "Member"
             assert RegisterAccount.age >= 18
           }
 

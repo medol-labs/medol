@@ -12,6 +12,7 @@ import {
   useNodesState
 } from '@xyflow/react';
 import { EmNode } from '../../components/EmNode';
+import { ConceptHeader } from '../../components/ConceptHeader';
 import { LaneLabel } from '../../components/LaneLabel';
 import { SliceSummaryNode } from '../../components/SliceSummaryNode';
 import { SliceHeader } from '../../components/SliceHeader';
@@ -20,7 +21,8 @@ const nodeTypes = {
   emElement: EmNode,
   laneLabel: LaneLabel,
   sliceSummary: SliceSummaryNode,
-  sliceHeader: SliceHeader
+  sliceHeader: SliceHeader,
+  conceptHeader: ConceptHeader
 };
 
 interface SemanticCanvasProps {

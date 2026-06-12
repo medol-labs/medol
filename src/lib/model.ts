@@ -57,7 +57,7 @@ export interface EmSlice {
   id: string;
   name: string;
   aggregateId?: string;
-  createsAggregate?: boolean;
+  startsLifecycle?: boolean;
   resultingState?: string;
   tags: EmSliceTag[];
   hotspots: string[];
@@ -72,8 +72,23 @@ export interface EmSliceTag {
 export interface EmConcept {
   id: string;
   name: string;
+  states: string[];
   sliceNames: string[];
   sliceIds: string[];
+}
+
+export type EmValueTypeConstraint =
+  | { kind: 'format'; format: string }
+  | { kind: 'length'; min: number; max: number }
+  | { kind: 'range'; min: number; max: number }
+  | { kind: 'matches'; pattern: string }
+  | { kind: 'oneOf'; values: Array<string | number> };
+
+export interface EmValueType {
+  id: string;
+  name: string;
+  baseType: string;
+  constraints: EmValueTypeConstraint[];
 }
 
 export interface EmAggregate {
@@ -86,6 +101,7 @@ export interface EmAggregate {
 export interface EmContext {
   id: string;
   name: string;
+  valueTypes: EmValueType[];
   aggregates: EmAggregate[];
   slices: EmSlice[];
   concepts: EmConcept[];

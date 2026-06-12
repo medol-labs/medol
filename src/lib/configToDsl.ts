@@ -82,12 +82,31 @@ interface ConfigAggregate {
   states?: string[];
 }
 
+type ConfigValueTypeConstraint =
+  | { kind: 'format'; format: string }
+  | { kind: 'length'; min: number; max: number }
+  | { kind: 'range'; min: number; max: number }
+  | { kind: 'matches'; pattern: string }
+  | { kind: 'oneOf'; values: Array<string | number> };
+
+interface ConfigValueType {
+  name?: string;
+  context?: string;
+  baseType?: string;
+  constraints?: ConfigValueTypeConstraint[];
+}
+
 interface ConfigRoot {
   domain?: string;
   context?: string;
+  valueTypes?: ConfigValueType[];
   aggregates?: ConfigAggregate[];
   slices?: ConfigSlice[];
-  concepts?: Array<{ name?: string; slices?: Array<{ name?: string; title?: string }> }>;
+  concepts?: Array<{
+    name?: string;
+    states?: string[];
+    slices?: Array<{ name?: string; title?: string }>;
+  }>;
 }
 
 export const configToDsl = (config: ConfigRoot): string => {
@@ -126,6 +145,9 @@ export const configToDsl = (config: ConfigRoot): string => {
     lines.push(`domain ${domainName} {`);
   }
   lines.push(`${pad(contextIndent)}context ${contextName} {`);
+  for (const valueType of config.valueTypes ?? []) {
+    appendValueType(lines, valueType, aggregateIndent);
+  }
   for (const [aggregateName, slices] of grouped) {
     lines.push(`${pad(aggregateIndent)}aggregate ${aggregateName} {`);
     for (const state of aggregateStates.get(aggregateName) ?? []) {
@@ -137,6 +159,9 @@ export const configToDsl = (config: ConfigRoot): string => {
   for (const slice of directSlices) appendSlice(lines, slice, aggregateIndent);
   for (const concept of concepts) {
     lines.push(`${pad(aggregateIndent)}concept ${toDslId(concept.name, 'Concept')} {`);
+    for (const state of concept.states ?? []) {
+      lines.push(`${pad(aggregateIndent + 2)}state ${toDslId(state, 'State')}`);
+    }
     for (const slice of concept.slices ?? []) {
       lines.push(`${pad(aggregateIndent + 2)}slice ${toDslId(slice.name || slice.title, 'Slice')}`);
     }
@@ -149,6 +174,37 @@ export const configToDsl = (config: ConfigRoot): string => {
   return lines.join('\n');
 };
 
+const appendValueType = (lines: string[], valueType: ConfigValueType, indent: number): void => {
+  const name = toDslId(valueType.name, 'ValueType');
+  const baseType = toDslId(valueType.baseType, 'String');
+  const constraints = valueType.constraints ?? [];
+  if (constraints.length === 0) {
+    lines.push(`${pad(indent)}type ${name} = ${baseType}`);
+    return;
+  }
+
+  lines.push(`${pad(indent)}type ${name} = ${baseType} {`);
+  for (const constraint of constraints) {
+    lines.push(`${pad(indent + 2)}${formatValueTypeConstraint(constraint)}`);
+  }
+  lines.push(`${pad(indent)}}`);
+};
+
+const formatValueTypeConstraint = (constraint: ConfigValueTypeConstraint): string => {
+  switch (constraint.kind) {
+    case 'format':
+      return `format ${constraint.format}`;
+    case 'length':
+      return `length ${constraint.min}..${constraint.max}`;
+    case 'range':
+      return `range ${constraint.min}..${constraint.max}`;
+    case 'matches':
+      return `matches ${quote(constraint.pattern)}`;
+    case 'oneOf':
+      return `oneOf ${constraint.values.map((value) => typeof value === 'string' ? quote(value) : value).join(', ')}`;
+  }
+};
+
 const deriveConcepts = (
   slices: ConfigSlice[]
 ): NonNullable<ConfigRoot['concepts']> => {
@@ -159,7 +215,7 @@ const deriveConcepts = (
       concepts.set(concept, [...(concepts.get(concept) ?? []), { title: slice.title }]);
     }
   }
-  return [...concepts].map(([name, conceptSlices]) => ({ name, slices: conceptSlices }));
+  return [...concepts].map(([name, conceptSlices]) => ({ name, states: [], slices: conceptSlices }));
 };
 
 const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void => {
@@ -174,7 +230,7 @@ const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void 
     lines.push(`${pad(elementIndent)}}`);
   }
   if (slice.commands?.some((command) => command.createsAggregate)) {
-    lines.push(`${pad(elementIndent)}createsAggregate`);
+    lines.push(`${pad(elementIndent)}startsLifecycle`);
   }
   const screen = slice.screens?.[0];
   if (screen?.title) lines.push(...formatUi(screen, elementIndent));

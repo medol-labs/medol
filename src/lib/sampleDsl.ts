@@ -10,7 +10,7 @@ context FederationManagement {
     state Deactivated
 
     slice RegisterOrganization {
-      createsAggregate
+      startsLifecycle
       actor OrganizationAdmin
       ui OrganizationRegistrationScreen
 
@@ -116,7 +116,7 @@ context FederationManagement {
     state Suspended
 
     slice CreateFederation {
-      createsAggregate
+      startsLifecycle
       actor PlatformAdmin
       ui FederationSetupScreen form
 
@@ -306,7 +306,7 @@ context FederationManagement {
     state Suspended
 
     slice RegisterComputeNode {
-      createsAggregate
+      startsLifecycle
       actor NodeOperator
       ui NodeRegistrationScreen
       reactsTo OrganizationActivated
@@ -444,7 +444,7 @@ context DatasetGovernance {
     state Published
 
     slice DefineFeatureSchema {
-      createsAggregate
+      startsLifecycle
       actor DataSteward
       ui FeatureSchemaEditor
 
@@ -486,7 +486,7 @@ context DatasetGovernance {
     state ApprovalRevoked
 
     slice RegisterDataset {
-      createsAggregate
+      startsLifecycle
       actor DataOwner
       ui DatasetRegistrationScreen
       reactsTo FeatureSchemaPublished
@@ -663,7 +663,7 @@ context DatasetGovernance {
     state Validated
 
     slice ConfigureDatasetAccessProfile {
-      createsAggregate
+      startsLifecycle
       actor NodeOperator
       ui DatasetAccessProfileScreen
       reactsTo DatasetApprovedForTraining
@@ -770,7 +770,7 @@ context DatasetGovernance {
     state Declared
 
     slice DeclareTrainingEvaluationDatasets {
-      createsAggregate
+      startsLifecycle
       actor DataOwner
       ui DatasetBundleScreen
       reactsTo RuntimeDatasetAccessValidated
@@ -849,7 +849,7 @@ context TrainingOrchestration {
     state Locked
 
     slice DefineTrainingRunConfiguration {
-      createsAggregate
+      startsLifecycle
       actor MLOpsEngineer
       ui TrainingRunConfigurationScreen
       reactsTo TrainingEvaluationDatasetsDeclared
@@ -987,7 +987,7 @@ context TrainingOrchestration {
     state Completed
 
     slice CreateTrainingJob {
-      createsAggregate
+      startsLifecycle
       actor ResearchLead
       ui TrainingJobCreationScreen
       reactsTo TrainingRunConfigurationValidated
@@ -1337,7 +1337,7 @@ context TrainingOrchestration {
     state Completed
 
     slice StartTrainingRound {
-      createsAggregate
+      startsLifecycle
       reactsTo NodeReadyForTraining
 
       automation StartRoundWhenEnoughNodesReady {
@@ -1583,7 +1583,7 @@ context ModelLifecycle {
     state Retired
 
     slice RegisterCandidateModel {
-      createsAggregate
+      startsLifecycle
       reactsTo TrainingJobCompleted
 
       policy RegisterFinalModelWhenTrainingJobCompleted {
@@ -1727,7 +1727,7 @@ context RuntimeOperations {
     state Healthy
 
     slice RecordRuntimeHeartbeat {
-      createsAggregate
+      startsLifecycle
       actor EdgeRuntime
       ui RuntimeMonitorScreen
 
@@ -1769,7 +1769,7 @@ context RuntimeOperations {
     state Raised
 
     slice RaiseTrainingAlert {
-      createsAggregate
+      startsLifecycle
       reactsTo RuntimeHeartbeatRecorded
 
       automation RaiseAlertOnNodeResourcePressure {
@@ -1813,7 +1813,7 @@ context RuntimeOperations {
     state Appended
 
     slice AppendAuditTrail {
-      createsAggregate
+      startsLifecycle
       reactsTo TrainingAlertRaised
 
       policy AuditCriticalTrainingEvents {

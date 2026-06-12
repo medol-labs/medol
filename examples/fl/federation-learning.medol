@@ -3,129 +3,153 @@ context FederationManagement {
   
   note "Federation management owns organizations, federations, and trusted compute nodes."
 
-  aggregate Organization {
+  slice RegisterOrganization {
+    startsLifecycle
+
+    tags {
+      organizationId
+      organizationName = normalize(organizationName)
+    }
+
+    actor OrganizationAdmin
+    ui OrganizationRegistrationScreen
+
+    command RegisterOrganization {
+      organizationId: UUID id generated technical
+      organizationName: String
+      organizationType: String
+      contactEmail: String
+    }
+
+    event OrganizationRegistered {
+      organizationId: UUID id technical
+      organizationName: String
+      organizationType: String
+      contactEmail: String
+    }
+
+    state Registered
+
+    specification "Organization Name Unique" {
+      rule """
+        Active organization names must be unique.
+      """
+
+      expression {
+        unique Organization.organizationName
+      }
+
+      scenario "Reject Duplicate Organization" {
+        given OrganizationRegistered {
+          organizationName = "Acme"
+        }
+        when RegisterOrganization {
+          organizationName = "Acme"
+        }
+        then reject "Organization Already Exists"
+      }
+    }
+  }
+
+  slice VerifyOrganizationIdentity {
+    tags {
+      organizationId
+    }
+
+    actor ComplianceOfficer
+    ui OrganizationVerificationScreen
+    reactsTo OrganizationRegistered
+
+    command VerifyOrganizationIdentity {
+      organizationId: UUID id technical
+      verificationProvider: String
+      identityEvidenceId: UUID
+    }
+
+    event OrganizationIdentityVerified {
+      organizationId: UUID id technical
+      verificationProvider: String
+      identityEvidenceId: UUID
+    }
+
+    state IdentityVerified
+  }
+
+  slice ActivateOrganization {
+    tags {
+      organizationId
+    }
+
+    actor PlatformAdmin
+    ui OrganizationAdminScreen
+    reactsTo OrganizationIdentityVerified
+
+    command ActivateOrganization {
+      organizationId: UUID id technical
+      activationNote: String?
+    }
+
+    event OrganizationActivated {
+      organizationId: UUID id technical
+      activationNote: String?
+    }
+
+    state Active
+  }
+
+  slice DeactivateOrganization {
+    tags {
+      organizationId
+    }
+
+    actor PlatformAdmin
+    ui OrganizationAdminScreen
+    reactsTo OrganizationActivated
+
+    command DeactivateOrganization {
+      organizationId: UUID id technical
+      deactivationReason: String
+    }
+
+    event OrganizationDeactivated {
+      organizationId: UUID id technical
+      deactivationReason: String
+    }
+
+    state Deactivated
+  }
+
+  slice OrganizationDirectory {
+    ui OrganizationDirectory
+
+    projection OrganizationDirectory[] {
+      organizationId: UUID id
+      organizationName: String
+      organizationType: String
+      state: String
+      verified: Boolean
+      trustedNodeCount: Int
+      approvedDatasetCount: Int
+      subscribe OrganizationRegistered
+      subscribe OrganizationIdentityVerified
+      subscribe OrganizationActivated
+      subscribe OrganizationDeactivated
+      subscribe ComputeNodeTrusted
+      subscribe DatasetApprovedForTraining
+    }
+  }
+
+  concept Organization {
     state Registered
     state IdentityVerified
     state Active
     state Deactivated
 
-    slice RegisterOrganization {
-      createsAggregate
-      actor OrganizationAdmin
-      ui OrganizationRegistrationScreen
-
-      command RegisterOrganization {
-        organizationId: UUID id generated technical
-        organizationName: String
-        organizationType: String
-        contactEmail: String
-      }
-
-      event OrganizationRegistered {
-        organizationId: UUID id technical
-        organizationName: String
-        organizationType: String
-        contactEmail: String
-      }
-
-      state Registered
-
-      specification "Organization Name Unique" {
-        rule """
-          Active organization names must be unique.
-        """
-
-        expression {
-          unique Organization.organizationName
-        }
-
-        scenario "Reject Duplicate Organization" {
-          given OrganizationRegistered {
-            organizationName = "Acme"
-          }
-          when RegisterOrganization {
-            organizationName = "Acme"
-          }
-          then reject "Organization Already Exists"
-        }
-      }
-    }
-
-    slice VerifyOrganizationIdentity {
-      actor ComplianceOfficer
-      ui OrganizationVerificationScreen
-      reactsTo OrganizationRegistered
-
-      command VerifyOrganizationIdentity {
-        organizationId: UUID id technical
-        verificationProvider: String
-        identityEvidenceId: UUID
-      }
-
-      event OrganizationIdentityVerified {
-        organizationId: UUID id technical
-        verificationProvider: String
-        identityEvidenceId: UUID
-      }
-
-      state IdentityVerified
-    }
-
-    slice ActivateOrganization {
-      actor PlatformAdmin
-      ui OrganizationAdminScreen
-      reactsTo OrganizationIdentityVerified
-
-      command ActivateOrganization {
-        organizationId: UUID id technical
-        activationNote: String?
-      }
-
-      event OrganizationActivated {
-        organizationId: UUID id technical
-        activationNote: String?
-      }
-
-      state Active
-    }
-
-    slice DeactivateOrganization {
-      actor PlatformAdmin
-      ui OrganizationAdminScreen
-      reactsTo OrganizationActivated
-
-      command DeactivateOrganization {
-        organizationId: UUID id technical
-        deactivationReason: String
-      }
-
-      event OrganizationDeactivated {
-        organizationId: UUID id technical
-        deactivationReason: String
-      }
-
-      state Deactivated
-    }
-
-    slice OrganizationDirectory {
-      ui OrganizationDirectory
-
-      projection OrganizationDirectory[] {
-        organizationId: UUID id
-        organizationName: String
-        organizationType: String
-        state: String
-        verified: Boolean
-        trustedNodeCount: Int
-        approvedDatasetCount: Int
-        subscribe OrganizationRegistered
-        subscribe OrganizationIdentityVerified
-        subscribe OrganizationActivated
-        subscribe OrganizationDeactivated
-        subscribe ComputeNodeTrusted
-        subscribe DatasetApprovedForTraining
-      }
-    }
+    slice RegisterOrganization
+    slice VerifyOrganizationIdentity
+    slice ActivateOrganization
+    slice DeactivateOrganization
+    slice OrganizationDirectory
   }
 
   aggregate Federation {
@@ -134,7 +158,7 @@ context FederationManagement {
     state Suspended
 
     slice CreateFederation {
-      createsAggregate
+      startsLifecycle
       actor PlatformAdmin
       ui FederationSetupScreen form
 
@@ -324,7 +348,7 @@ context FederationManagement {
     state Suspended
 
     slice RegisterComputeNode {
-      createsAggregate
+      startsLifecycle
       actor NodeOperator
       ui NodeRegistrationScreen
       reactsTo OrganizationActivated
@@ -462,7 +486,7 @@ context DatasetGovernance {
     state Published
 
     slice DefineFeatureSchema {
-      createsAggregate
+      startsLifecycle
       actor DataSteward
       ui FeatureSchemaEditor
 
@@ -504,7 +528,7 @@ context DatasetGovernance {
     state ApprovalRevoked
 
     slice RegisterDataset {
-      createsAggregate
+      startsLifecycle
       actor DataOwner
       ui DatasetRegistrationScreen
       reactsTo FeatureSchemaPublished
@@ -681,7 +705,7 @@ context DatasetGovernance {
     state Validated
 
     slice ConfigureDatasetAccessProfile {
-      createsAggregate
+      startsLifecycle
       actor NodeOperator
       ui DatasetAccessProfileScreen
       reactsTo DatasetApprovedForTraining
@@ -788,7 +812,7 @@ context DatasetGovernance {
     state Declared
 
     slice DeclareTrainingEvaluationDatasets {
-      createsAggregate
+      startsLifecycle
       actor DataOwner
       ui DatasetBundleScreen
       reactsTo RuntimeDatasetAccessValidated
@@ -867,7 +891,7 @@ context TrainingOrchestration {
     state Locked
 
     slice DefineTrainingRunConfiguration {
-      createsAggregate
+      startsLifecycle
       actor MLOpsEngineer
       ui TrainingRunConfigurationScreen
       reactsTo TrainingEvaluationDatasetsDeclared
@@ -1005,7 +1029,7 @@ context TrainingOrchestration {
     state Completed
 
     slice CreateTrainingJob {
-      createsAggregate
+      startsLifecycle
       actor ResearchLead
       ui TrainingJobCreationScreen
       reactsTo TrainingRunConfigurationValidated
@@ -1355,7 +1379,7 @@ context TrainingOrchestration {
     state Completed
 
     slice StartTrainingRound {
-      createsAggregate
+      startsLifecycle
       reactsTo NodeReadyForTraining
 
       automation StartRoundWhenEnoughNodesReady {
@@ -1601,7 +1625,7 @@ context ModelLifecycle {
     state Retired
 
     slice RegisterCandidateModel {
-      createsAggregate
+      startsLifecycle
       reactsTo TrainingJobCompleted
 
       policy RegisterFinalModelWhenTrainingJobCompleted {
@@ -1745,7 +1769,7 @@ context RuntimeOperations {
     state Healthy
 
     slice RecordRuntimeHeartbeat {
-      createsAggregate
+      startsLifecycle
       actor EdgeRuntime
       ui RuntimeMonitorScreen
 
@@ -1787,7 +1811,7 @@ context RuntimeOperations {
     state Raised
 
     slice RaiseTrainingAlert {
-      createsAggregate
+      startsLifecycle
       reactsTo RuntimeHeartbeatRecorded
 
       automation RaiseAlertOnNodeResourcePressure {
@@ -1831,7 +1855,7 @@ context RuntimeOperations {
     state Appended
 
     slice AppendAuditTrail {
-      createsAggregate
+      startsLifecycle
       reactsTo TrainingAlertRaised
 
       policy AuditCriticalTrainingEvents {
@@ -1916,7 +1940,7 @@ context RuntimeOperations {
     state Expired
 
     slice GenerateNodeKey {
-      createsAggregate
+      startsLifecycle
       actor SecurityReviewer
       ui NodeKeyManagementScreen
       reactsTo ComputeNodeTrusted
@@ -2057,7 +2081,7 @@ context RuntimeOperations {
       state Revoked
   
       slice SubmitNodeAttestationReport {
-        createsAggregate
+        startsLifecycle
         actor NodeOperator
         ui NodeAttestationSubmissionScreen
         reactsTo ComputeNodeRegistered
@@ -2178,7 +2202,7 @@ context RuntimeOperations {
       state Revoked
   
       slice GenerateSecureAggregationKey {
-        createsAggregate
+        startsLifecycle
         actor MLOpsEngineer
         ui SecureAggregationKeyScreen
         reactsTo TrainingJobSubmitted
@@ -2309,7 +2333,7 @@ context RuntimeOperations {
     state Revoked
 
     slice InitializeSecureAggregationRound {
-      createsAggregate
+      startsLifecycle
       reactsTo SecureAggregationRequested
 
       policy InitializeAggregationRoundWhenRequested {
@@ -2456,7 +2480,7 @@ context RuntimeOperations {
       state Revoked
   
       slice IssueDatasetAccessCredential {
-        createsAggregate
+        startsLifecycle
         actor NodeOperator
         ui DatasetAccessCredentialScreen
         reactsTo DatasetAccessProfileConfigured

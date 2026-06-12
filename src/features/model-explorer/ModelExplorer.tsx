@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import type { EmAggregate, EmContext, EmDomain, EmModel, EmSlice } from '../../lib/model';
+import type { EmAggregate, EmConcept, EmContext, EmDomain, EmModel, EmSlice } from '../../lib/model';
 
 interface ModelExplorerProps {
   model: EmModel;
   activeDomainId?: string;
   activeContextId?: string;
   activeAggregateId?: string;
+  activeConceptId?: string;
   activeSliceId?: string;
   onSelectDomain: (domain: EmDomain) => void;
   onSelectContext: (context: EmContext) => void;
   onSelectAggregate: (context: EmContext, aggregate: EmAggregate) => void;
+  onSelectConcept: (context: EmContext, concept: EmConcept) => void;
   onSelectSlice: (context: EmContext, aggregate: EmAggregate | undefined, slice: EmSlice) => void;
 }
 
@@ -18,10 +20,12 @@ export function ModelExplorer({
   activeDomainId,
   activeContextId,
   activeAggregateId,
+  activeConceptId,
   activeSliceId,
   onSelectDomain,
   onSelectContext,
   onSelectAggregate,
+  onSelectConcept,
   onSelectSlice
 }: ModelExplorerProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -41,6 +45,16 @@ export function ModelExplorer({
       }
       return next;
     });
+  };
+
+  const selectConcept = (context: EmContext, concept: EmConcept) => {
+    setCollapsed((previous) => {
+      if (!previous.has(concept.id)) return previous;
+      const next = new Set(previous);
+      next.delete(concept.id);
+      return next;
+    });
+    onSelectConcept(context, concept);
   };
 
   return (
@@ -98,6 +112,9 @@ export function ModelExplorer({
                         </div>
                         {!contextCollapsed && (
                           <div className="explorer-aggregates">
+                            {context.aggregates.length > 0 && (
+                              <div className="explorer-section-label">Aggregates</div>
+                            )}
                             {context.aggregates.map((aggregate) => {
                               const aggregateCollapsed = collapsed.has(aggregate.id);
                               return (
@@ -138,6 +155,26 @@ export function ModelExplorer({
                 </div>
                               );
                             })}
+                            {context.slices.length > 0 && (
+                              <div className="explorer-section-label">Slices</div>
+                            )}
+                            {context.slices.map((slice) => (
+                              <button
+                                key={`primary:${slice.id}`}
+                                type="button"
+                                className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                                onClick={() => onSelectSlice(context, undefined, slice)}
+                              >
+                                <span>
+                                  {slice.startsLifecycle ? 'Lifecycle start' : slice.resultingState ?? 'Slice'}
+                                  {slice.tags.length > 0 ? ` · ${slice.tags.length} tags` : ''}
+                                </span>
+                                <strong>{slice.name}</strong>
+                              </button>
+                            ))}
+                            {context.concepts.length > 0 && (
+                              <div className="explorer-section-label">Concepts</div>
+                            )}
                             {context.concepts.map((concept) => {
                               const conceptCollapsed = collapsed.has(concept.id);
                               const slices = context.slices.filter((slice) => concept.sliceIds.includes(slice.id));
@@ -152,12 +189,18 @@ export function ModelExplorer({
                                     >
                                       {conceptCollapsed ? '+' : '-'}
                                     </button>
-                                    <button type="button" className="explorer-item explorer-item--nested" onClick={() => toggle(concept.id)}>
-                                      <span>Concept · {slices.length} slices</span>
+                                    <button
+                                      type="button"
+                                      className={concept.id === activeConceptId && !activeSliceId
+                                        ? 'explorer-item explorer-item--nested is-active'
+                                        : 'explorer-item explorer-item--nested'}
+                                      onClick={() => selectConcept(context, concept)}
+                                    >
+                                      <span>Organizes {slices.length} slices · {concept.states.length} states</span>
                                       <strong>{concept.name}</strong>
                                     </button>
                                   </div>
-                                  {!conceptCollapsed && (
+                                  {!conceptCollapsed && concept.id === activeConceptId && (
                                     <div className="explorer-slices">
                                       {slices.map((slice) => (
                                         <button
@@ -166,7 +209,7 @@ export function ModelExplorer({
                                           className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
                                           onClick={() => onSelectSlice(context, undefined, slice)}
                                         >
-                                          <span>{slice.tags.length} tags</span>
+                                          <span>{slice.tags.length > 0 ? `${slice.tags.length} tags` : slice.resultingState ?? 'Slice'}</span>
                                           <strong>{slice.name}</strong>
                                         </button>
                                       ))}
@@ -175,19 +218,6 @@ export function ModelExplorer({
                                 </div>
                               );
                             })}
-                            {context.slices
-                              .filter((slice) => !context.concepts.some((concept) => concept.sliceIds.includes(slice.id)))
-                              .map((slice) => (
-                                <button
-                                  key={slice.id}
-                                  type="button"
-                                  className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
-                                  onClick={() => onSelectSlice(context, undefined, slice)}
-                                >
-                                  <span>Context Slice · {slice.tags.length} tags</span>
-                                  <strong>{slice.name}</strong>
-                                </button>
-                              ))}
                           </div>
                         )}
                       </section>
