@@ -77,6 +77,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Use then reject "description" for expected business rejection outcomes. Keep technical failures outside the domain timeline.',
     'A specification is the rule definition; scenarios are concrete test examples. Do not treat a scenario as the rule itself.',
     'Use reusable type definitions for field-level validity. Use specification expressions only for business invariants such as uniqueness and business assertions.',
+    'Treat semantic diagnostics as blocking issues: types, references, lifecycle states, tags, expressions, and scenario examples must resolve and type-check before applying a patch.',
     'For concept modeling, place slices directly under context, declare their selection tags, and reference them from concept blocks. Do not invent an aggregate merely as a container.',
     'Prefer explicit rule/hotspot notes for domain logic that code generation or a human must later implement.'
   ],

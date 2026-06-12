@@ -32,7 +32,7 @@ export type CodegenValueTypeConstraint =
   | { kind: 'length'; min: number; max: number }
   | { kind: 'range'; min: number; max: number }
   | { kind: 'matches'; pattern: string }
-  | { kind: 'oneOf'; values: Array<string | number> };
+  | { kind: 'oneOf'; values: Array<string | number | boolean | null> };
 
 export interface CodegenValueType {
   id: string;

@@ -442,6 +442,8 @@ RefExpr:
 Literal:
       StringLiteral
     | NumberLiteral
+    | BooleanLiteral
+    | NullLiteral
 ;
 
 StringLiteral:
@@ -450,6 +452,14 @@ StringLiteral:
 
 NumberLiteral:
     value=NUMBER
+;
+
+BooleanLiteral:
+    value=('true' | 'false')
+;
+
+NullLiteral:
+    {infer NullLiteral} 'null'
 ;
 
 terminal ID returns string:

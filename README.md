@@ -437,6 +437,22 @@ computedName: Type derived { from Aggregate.state, Command.input rule "Explain t
 
 Fields without `?` are required. Reusable value types carry intrinsic field validity; specifications carry business invariants that depend on domain meaning, state, or other instances.
 
+## Semantic Validation
+
+MEDOL validates the parsed model before preview, documentation, or code generation. Diagnostics cover:
+
+- duplicate domains, contexts, types, aggregates, concepts, slices, states, tags, elements, fields, scenarios, and assignments
+- unknown field types, unknown value-type base types, cyclic type definitions, and incompatible `oneOf` literals
+- invalid constraint bounds, invalid regular expressions, and constraints applied to incompatible base types
+- invalid Concept/Aggregate lifecycle starts and resulting states that were not declared
+- missing or ambiguous Concept Slice references and Slices assigned to multiple Concepts
+- unknown Tag fields and Tag expressions that reference missing fields
+- unresolved command/event relationships such as `reactsTo`, `subscribe`, policy, automation, and GWT references
+- invalid `unique` targets, incompatible `assert` operands, unknown example fields, and incompatible example literals
+
+String, numeric, Boolean, and `null` literals are type checked. `null` is accepted only for fields declared with `?`.
+The `medol:to-codegen-model` and `medol:to-config` commands stop with a validation error instead of exporting an invalid generation model.
+
 Supported field attributes:
 
 - `id`

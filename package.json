@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev --host 0.0.0.0",
     "build": "vite build",
+    "test:semantic": "node --import tsx --test src/lib/semanticValidator.test.ts",
     "preview": "node dist/server/server.js",
     "langium:generate": "langium generate",
     "config:to-medol": "tsx src/lib/configToDsl.ts",

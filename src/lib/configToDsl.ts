@@ -87,7 +87,7 @@ type ConfigValueTypeConstraint =
   | { kind: 'length'; min: number; max: number }
   | { kind: 'range'; min: number; max: number }
   | { kind: 'matches'; pattern: string }
-  | { kind: 'oneOf'; values: Array<string | number> };
+  | { kind: 'oneOf'; values: Array<string | number | boolean | null> };
 
 interface ConfigValueType {
   name?: string;
@@ -201,7 +201,7 @@ const formatValueTypeConstraint = (constraint: ConfigValueTypeConstraint): strin
     case 'matches':
       return `matches ${quote(constraint.pattern)}`;
     case 'oneOf':
-      return `oneOf ${constraint.values.map((value) => typeof value === 'string' ? quote(value) : value).join(', ')}`;
+      return `oneOf ${constraint.values.map((value) => typeof value === 'string' ? quote(value) : String(value)).join(', ')}`;
   }
 };
 

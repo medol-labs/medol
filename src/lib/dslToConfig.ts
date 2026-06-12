@@ -19,7 +19,18 @@ export type {
 export { modelToCodegenModel } from './codegenModel';
 export { codegenModelToConfig } from './codegenToConfig';
 
-export const medolToCodegenModel = (medol: string) => modelToCodegenModel(parseMedol(medol));
+export class MedolValidationError extends Error {
+  constructor(readonly diagnostics: string[]) {
+    super(`MEDOL validation failed:\n${diagnostics.map((diagnostic) => `- ${diagnostic}`).join('\n')}`);
+    this.name = 'MedolValidationError';
+  }
+}
+
+export const medolToCodegenModel = (medol: string) => {
+  const model = parseMedol(medol);
+  if (model.diagnostics.length > 0) throw new MedolValidationError(model.diagnostics);
+  return modelToCodegenModel(model);
+};
 
 export const modelToConfig = (model: EmModel): ConfigRoot =>
   codegenModelToConfig(modelToCodegenModel(model));

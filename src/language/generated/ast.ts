@@ -54,6 +54,7 @@ export type MedolKeywordNames =
     | "event"
     | "example"
     | "expression"
+    | "false"
     | "form"
     | "format"
     | "from"
@@ -69,6 +70,7 @@ export type MedolKeywordNames =
     | "matches"
     | "metric"
     | "note"
+    | "null"
     | "on"
     | "oneOf"
     | "policy"
@@ -92,6 +94,7 @@ export type MedolKeywordNames =
     | "target"
     | "technical"
     | "then"
+    | "true"
     | "type"
     | "ui"
     | "unique"
@@ -226,6 +229,21 @@ export const BinaryExpr = {
 
 export function isBinaryExpr(item: unknown): item is BinaryExpr {
     return reflection.isInstance(item, BinaryExpr.$type);
+}
+
+export interface BooleanLiteral extends langium.AstNode {
+    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | TypeOneOfConstraint;
+    readonly $type: 'BooleanLiteral';
+    value: 'false' | 'true';
+}
+
+export const BooleanLiteral = {
+    $type: 'BooleanLiteral',
+    value: 'value'
+} as const;
+
+export function isBooleanLiteral(item: unknown): item is BooleanLiteral {
+    return reflection.isInstance(item, BooleanLiteral.$type);
 }
 
 export type Cardinality = '?' | '[]';
@@ -641,7 +659,7 @@ export function isIntegrationElement(item: unknown): item is IntegrationElement 
     return reflection.isInstance(item, IntegrationElement.$type);
 }
 
-export type Literal = NumberLiteral | StringLiteral;
+export type Literal = BooleanLiteral | NullLiteral | NumberLiteral | StringLiteral;
 
 export const Literal = {
     $type: 'Literal'
@@ -695,6 +713,19 @@ export const Note = {
 
 export function isNote(item: unknown): item is Note {
     return reflection.isInstance(item, Note.$type);
+}
+
+export interface NullLiteral extends langium.AstNode {
+    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | TypeOneOfConstraint;
+    readonly $type: 'NullLiteral';
+}
+
+export const NullLiteral = {
+    $type: 'NullLiteral'
+} as const;
+
+export function isNullLiteral(item: unknown): item is NullLiteral {
+    return reflection.isInstance(item, NullLiteral.$type);
 }
 
 export interface NumberLiteral extends langium.AstNode {
@@ -1326,6 +1357,7 @@ export type MedolAstType = {
     Automation: Automation
     AutomationElement: AutomationElement
     BinaryExpr: BinaryExpr
+    BooleanLiteral: BooleanLiteral
     Command: Command
     CommandStep: CommandStep
     Concept: Concept
@@ -1356,6 +1388,7 @@ export type MedolAstType = {
     Metric: Metric
     Model: Model
     Note: Note
+    NullLiteral: NullLiteral
     NumberLiteral: NumberLiteral
     Policy: Policy
     PrimaryExpr: PrimaryExpr
@@ -1488,6 +1521,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [Expression.$type]
+        },
+        BooleanLiteral: {
+            name: BooleanLiteral.$type,
+            properties: {
+                value: {
+                    name: BooleanLiteral.value
+                }
+            },
+            superTypes: [Literal.$type]
         },
         Command: {
             name: Command.$type,
@@ -1808,6 +1850,12 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [ContextElement.$type]
+        },
+        NullLiteral: {
+            name: NullLiteral.$type,
+            properties: {
+            },
+            superTypes: [Literal.$type]
         },
         NumberLiteral: {
             name: NumberLiteral.$type,

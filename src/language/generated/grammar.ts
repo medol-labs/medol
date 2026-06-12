@@ -66,7 +66,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -115,7 +115,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -260,7 +260,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -276,7 +276,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -378,7 +378,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -406,7 +406,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@85"
+                "$ref": "#/rules@87"
               },
               "arguments": []
             }
@@ -422,7 +422,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@85"
+                "$ref": "#/rules@87"
               },
               "arguments": []
             }
@@ -450,7 +450,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@85"
+                "$ref": "#/rules@87"
               },
               "arguments": []
             }
@@ -466,7 +466,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@85"
+                "$ref": "#/rules@87"
               },
               "arguments": []
             }
@@ -494,7 +494,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@84"
+                "$ref": "#/rules@86"
               },
               "arguments": []
             }
@@ -572,7 +572,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -647,7 +647,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -675,7 +675,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -860,7 +860,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -932,7 +932,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1004,7 +1004,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1023,7 +1023,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@82"
+                    "$ref": "#/rules@84"
                   },
                   "arguments": []
                 }
@@ -1054,7 +1054,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1134,7 +1134,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@82"
+                  "$ref": "#/rules@84"
                 },
                 "arguments": []
               },
@@ -1165,7 +1165,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1209,7 +1209,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1304,7 +1304,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@82"
+                  "$ref": "#/rules@84"
                 },
                 "arguments": []
               },
@@ -1335,7 +1335,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1397,7 +1397,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1455,7 +1455,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1545,7 +1545,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@82"
+                  "$ref": "#/rules@84"
                 },
                 "arguments": []
               },
@@ -1576,7 +1576,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1684,7 +1684,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@82"
+                  "$ref": "#/rules@84"
                 },
                 "arguments": []
               },
@@ -1715,7 +1715,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -1740,7 +1740,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@82"
+                  "$ref": "#/rules@84"
                 },
                 "arguments": []
               },
@@ -1764,7 +1764,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@82"
+                  "$ref": "#/rules@84"
                 },
                 "arguments": []
               },
@@ -1799,7 +1799,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@84"
+                "$ref": "#/rules@86"
               },
               "arguments": []
             }
@@ -1828,7 +1828,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
                         "terminal": {
                           "$type": "RuleCall",
                           "rule": {
-                            "$ref": "#/rules@83"
+                            "$ref": "#/rules@85"
                           },
                           "arguments": []
                         }
@@ -1966,7 +1966,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@84"
+                "$ref": "#/rules@86"
               },
               "arguments": []
             }
@@ -2211,7 +2211,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@82"
+                  "$ref": "#/rules@84"
                 },
                 "arguments": []
               },
@@ -2260,7 +2260,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "terminal": {
                 "$type": "RuleCall",
                 "rule": {
-                  "$ref": "#/rules@82"
+                  "$ref": "#/rules@84"
                 },
                 "arguments": []
               },
@@ -2312,7 +2312,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
                   "terminal": {
                     "$type": "RuleCall",
                     "rule": {
-                      "$ref": "#/rules@82"
+                      "$ref": "#/rules@84"
                     },
                     "arguments": []
                   },
@@ -2334,7 +2334,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
                     "terminal": {
                       "$type": "RuleCall",
                       "rule": {
-                        "$ref": "#/rules@84"
+                        "$ref": "#/rules@86"
                       },
                       "arguments": []
                     }
@@ -2479,7 +2479,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -2552,7 +2552,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@82"
+              "$ref": "#/rules@84"
             },
             "arguments": []
           },
@@ -2828,7 +2828,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@84"
+                    "$ref": "#/rules@86"
                   },
                   "arguments": []
                 }
@@ -2850,7 +2850,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@84"
+                    "$ref": "#/rules@86"
                   },
                   "arguments": []
                 }
@@ -2931,7 +2931,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -3034,7 +3034,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -3062,7 +3062,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -3090,7 +3090,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -3220,7 +3220,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -3246,7 +3246,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
           "terminal": {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@82"
+              "$ref": "#/rules@84"
             },
             "arguments": []
           },
@@ -3273,7 +3273,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
           "terminal": {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@82"
+              "$ref": "#/rules@84"
             },
             "arguments": []
           },
@@ -3302,7 +3302,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@84"
+                "$ref": "#/rules@86"
               },
               "arguments": []
             }
@@ -3330,7 +3330,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@84"
+                "$ref": "#/rules@86"
               },
               "arguments": []
             }
@@ -3358,7 +3358,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@84"
+                "$ref": "#/rules@86"
               },
               "arguments": []
             }
@@ -3386,7 +3386,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@82"
+                "$ref": "#/rules@84"
               },
               "arguments": []
             }
@@ -3414,7 +3414,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@84"
+                "$ref": "#/rules@86"
               },
               "arguments": []
             }
@@ -3568,7 +3568,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
           "terminal": {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@82"
+              "$ref": "#/rules@84"
             },
             "arguments": []
           },
@@ -3599,6 +3599,20 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
               "$ref": "#/rules@81"
             },
             "arguments": []
+          },
+          {
+            "$type": "RuleCall",
+            "rule": {
+              "$ref": "#/rules@82"
+            },
+            "arguments": []
+          },
+          {
+            "$type": "RuleCall",
+            "rule": {
+              "$ref": "#/rules@83"
+            },
+            "arguments": []
           }
         ]
       },
@@ -3616,7 +3630,7 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@84"
+            "$ref": "#/rules@86"
           },
           "arguments": []
         }
@@ -3635,10 +3649,58 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@85"
+            "$ref": "#/rules@87"
           },
           "arguments": []
         }
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": []
+    },
+    {
+      "$type": "ParserRule",
+      "name": "BooleanLiteral",
+      "definition": {
+        "$type": "Assignment",
+        "feature": "value",
+        "operator": "=",
+        "terminal": {
+          "$type": "Alternatives",
+          "elements": [
+            {
+              "$type": "Keyword",
+              "value": "true"
+            },
+            {
+              "$type": "Keyword",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": []
+    },
+    {
+      "$type": "ParserRule",
+      "name": "NullLiteral",
+      "definition": {
+        "$type": "Group",
+        "elements": [
+          {
+            "$type": "Action",
+            "inferredType": {
+              "$type": "InferredType",
+              "name": "NullLiteral"
+            }
+          },
+          {
+            "$type": "Keyword",
+            "value": "null"
+          }
+        ]
       },
       "entry": false,
       "fragment": false,

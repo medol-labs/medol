@@ -5,6 +5,7 @@ import {
   isAggregate,
   isAutomation,
   isBinaryExpr,
+  isBooleanLiteral,
   isCommand,
   isStartsLifecycleMarker,
   isConcept,
@@ -17,6 +18,7 @@ import {
   isDecision,
   isMetric,
   isNote,
+  isNullLiteral,
   isNumberLiteral,
   isPolicy,
   isReadModel,
@@ -65,6 +67,7 @@ import type {
   UiRef as AstUiRef
 } from '../language/generated/ast';
 import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel } from './model';
+import { validateSemanticModel } from './semanticValidator';
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
@@ -99,6 +102,7 @@ export const parseMedol = (text: string): EmModel => {
     }
 
     validateReferences(model);
+    model.diagnostics.push(...validateSemanticModel(parseResult.value, model));
     refreshEdgeIds(model);
     dedupeEdges(model);
     return model;
@@ -233,7 +237,7 @@ const parseValueTypeConstraint = (constraint: ValueTypeConstraint): EmValueTypeC
   if (isTypeOneOfConstraint(constraint)) {
     return {
       kind: 'oneOf',
-      values: constraint.values.map((value) => value.value)
+      values: constraint.values.map(literalValue)
     };
   }
   throw new Error('Unsupported value type constraint');
@@ -607,31 +611,56 @@ const collectElementEdges = (
 const formatLiteral = (value: Expression): string => {
   if (isStringLiteral(value)) return value.value;
   if (isNumberLiteral(value)) return String(value.value);
+  if (isBooleanLiteral(value)) return value.value;
+  if (isNullLiteral(value)) return 'null';
   if (isRefExpr(value)) return value.ref.$refText;
   if (isBinaryExpr(value)) return `${formatLiteral(value.left)} ${value.operator} ${formatLiteral(value.right)}`;
   return '';
 };
 
+const literalValue = (value: Expression): string | number | boolean | null => {
+  if (isStringLiteral(value) || isNumberLiteral(value)) return value.value;
+  if (isBooleanLiteral(value)) return value.value === 'true';
+  return null;
+};
+
 const validateReferences = (model: EmModel): void => {
   const elements = flattenElements(model);
-  const byKindAndName = new Map<string, string>();
+  const byContextKindAndName = new Map<string, string[]>();
+  const byKindAndName = new Map<string, string[]>();
 
   for (const element of elements) {
-    byKindAndName.set(`${element.kind}/${element.name}`, element.id);
+    const contextId = contextIdFromElementId(element.id);
+    const key = `${contextId}/${element.kind}/${element.name}`;
+    byContextKindAndName.set(key, [...(byContextKindAndName.get(key) ?? []), element.id]);
+    const globalKey = `${element.kind}/${element.name}`;
+    byKindAndName.set(globalKey, [...(byKindAndName.get(globalKey) ?? []), element.id]);
   }
 
   for (const edgeItem of model.edges) {
     if (edgeItem.source.startsWith('ref/')) {
       const [, kind, name] = edgeItem.source.split('/');
-      const resolved = byKindAndName.get(`${kind}/${name}`);
-      if (resolved) edgeItem.source = resolved;
+      const contextId = contextIdFromElementId(edgeItem.target);
+      const local = byContextKindAndName.get(`${contextId}/${kind}/${name}`);
+      const resolved = local?.length ? local : byKindAndName.get(`${kind}/${name}`);
+      if (resolved?.length === 1) edgeItem.source = resolved[0];
     }
     if (edgeItem.target.startsWith('ref/')) {
       const [, kind, name] = edgeItem.target.split('/');
-      const resolved = byKindAndName.get(`${kind}/${name}`);
-      if (resolved) edgeItem.target = resolved;
+      const contextId = contextIdFromElementId(edgeItem.source);
+      const local = byContextKindAndName.get(`${contextId}/${kind}/${name}`);
+      const resolved = local?.length ? local : byKindAndName.get(`${kind}/${name}`);
+      if (resolved?.length === 1) edgeItem.target = resolved[0];
     }
   }
+};
+
+const contextIdFromElementId = (id: string): string => {
+  const marker = '/context/';
+  const markerIndex = id.indexOf(marker);
+  if (markerIndex < 0) return id.split('/').slice(0, 2).join('/');
+  const contextNameEnd = id.indexOf('/', markerIndex + marker.length);
+  return contextNameEnd < 0 ? id : id.slice(0, contextNameEnd);
 };
 
 export const flattenElements = (model: EmModel): EmElement[] =>
