@@ -51,6 +51,7 @@ export const renderPrdMarkdown = (
   lines.push('<!-- em:section id="prd.section.modules" -->');
   heading(lines, 2, zh ? '模块需求与验收' : 'Module Requirements and Acceptance');
   for (const aggregate of document.aggregates) {
+    lines.push(`<!-- em:section id="prd.section.aggregate.${aggregate.name}" source="${aggregate.id}" -->`);
     heading(lines, 3, humanize(aggregate.name));
     lines.push(`**${zh ? '生命周期' : 'Lifecycle'}:** ${aggregate.states.length ? aggregate.states.map(humanize).join(' -> ') : zh ? '尚未明确' : 'Not explicitly modeled'}`);
     lines.push('');

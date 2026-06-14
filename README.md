@@ -65,6 +65,7 @@ slice 1 { command, event, GWT business rules }
 - Lane-based rendering for UI, command, event, GWT, read model, automation, policy, and hotspot elements.
 - Agentic conversation with persisted history, project knowledge, MEDOL patch proposals, editor diff preview, and explicit apply.
 - Spec-driven generation of PRD, software design, database design, process, and acceptance material.
+- Editable Markdown document workspace with live preview and workspace-scoped SQLite persistence.
 - MEDOL to `EmModel` JSON export for code generation.
 - MEDOL to normalized `CodegenModel` export for frontend and backend generators.
 - `config.json` to MEDOL conversion.
@@ -144,6 +145,21 @@ MEDOL_DB_PATH=./data/medol.sqlite
 ```
 
 `EVENT_MODELING_DB_PATH` and `AGENT_CHAT_DB_PATH` remain supported for existing installations.
+
+Generated and edited Markdown documents use a separate SQLite database at
+`data/medol-documents.sqlite`. Override it independently with:
+
+```bash
+MEDOL_DOCUMENT_DB_PATH=./data/medol-documents.sqlite
+```
+
+Choose a document generation action from the toolbar to save and open the result in the
+Documents preview. The document workspace supports Markdown editing, live rendered preview,
+explicit save, download, deletion, and reopening documents associated with the active modeling
+workspace. Generated sections retain stable MEDOL source references. The Explorer shows a
+document-location action for referenced domains, contexts, aggregates, concepts, and slices;
+document sections can navigate back to the corresponding MEDOL element. A source hash also marks
+whether a document still represents the current MEDOL content or needs regeneration.
 
 The editor depends on the `ModelingWorkspaceClient` interface rather than TanStack Start directly. To move workspace management to another backend later, implement the same API contract and set:
 
@@ -302,7 +318,7 @@ Generate all document types:
 npm run docs:generate -- examples/fl/federation-learning.medol --kind=all
 ```
 
-Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose a document action and confirm it to download the result. For Simplified Chinese output, English domain vocabulary and business narratives are translated as a controlled terminology map before the deterministic document templates run. Identifiers remain traceable to their MEDOL source, and missing information is presented as notes or open questions rather than invented facts.
+Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose a document action and confirm it to save and open the result in Documents preview. For Simplified Chinese output, English domain vocabulary and business narratives are translated as a controlled terminology map before the deterministic document templates run. Identifiers remain traceable to their MEDOL source, and missing information is presented as notes or open questions rather than invented facts.
 
 The server endpoint is:
 

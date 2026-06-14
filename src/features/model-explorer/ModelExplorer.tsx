@@ -1,3 +1,4 @@
+import { FileSearch } from 'lucide-react';
 import { useState } from 'react';
 import type { EmAggregate, EmConcept, EmContext, EmDomain, EmModel, EmSlice } from '../../lib/model';
 
@@ -8,11 +9,13 @@ interface ModelExplorerProps {
   activeAggregateId?: string;
   activeConceptId?: string;
   activeSliceId?: string;
+  documentSourceRefs: ReadonlySet<string>;
   onSelectDomain: (domain: EmDomain) => void;
   onSelectContext: (context: EmContext) => void;
   onSelectAggregate: (context: EmContext, aggregate: EmAggregate) => void;
   onSelectConcept: (context: EmContext, concept: EmConcept) => void;
   onSelectSlice: (context: EmContext, aggregate: EmAggregate | undefined, slice: EmSlice) => void;
+  onLocateDocumentation: (sourceIds: string[]) => void;
 }
 
 export function ModelExplorer({
@@ -22,11 +25,13 @@ export function ModelExplorer({
   activeAggregateId,
   activeConceptId,
   activeSliceId,
+  documentSourceRefs,
   onSelectDomain,
   onSelectContext,
   onSelectAggregate,
   onSelectConcept,
-  onSelectSlice
+  onSelectSlice,
+  onLocateDocumentation
 }: ModelExplorerProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const domains = model.domains.length > 0 ? model.domains : [{
@@ -66,6 +71,10 @@ export function ModelExplorer({
       <div className="explorer-tree">
         {domains.map((domain) => {
           const domainCollapsed = collapsed.has(domain.id);
+          const domainSourceIds = [
+            domain.id,
+            ...domain.contexts.flatMap(contextSourceIds)
+          ];
           return (
             <section key={domain.id} className="explorer-domain">
               <div className="explorer-row">
@@ -85,11 +94,17 @@ export function ModelExplorer({
                   <span>{domain.contexts.length} contexts</span>
                   <strong>{domain.name}</strong>
                 </button>
+                <DocumentationLocator
+                  sourceIds={domainSourceIds}
+                  availableRefs={documentSourceRefs}
+                  onLocate={onLocateDocumentation}
+                />
               </div>
               {!domainCollapsed && (
                 <div className="explorer-contexts">
                   {domain.contexts.map((context) => {
                     const contextCollapsed = collapsed.has(context.id);
+                    const sourceIds = contextSourceIds(context);
                     return (
                       <section key={context.id} className="explorer-context">
                         <div className="explorer-row">
@@ -109,6 +124,11 @@ export function ModelExplorer({
                             <span>Context</span>
                             <strong>{context.name}</strong>
                           </button>
+                          <DocumentationLocator
+                            sourceIds={sourceIds}
+                            availableRefs={documentSourceRefs}
+                            onLocate={onLocateDocumentation}
+                          />
                         </div>
                         {!contextCollapsed && (
                           <div className="explorer-aggregates">
@@ -117,6 +137,10 @@ export function ModelExplorer({
                             )}
                             {context.aggregates.map((aggregate) => {
                               const aggregateCollapsed = collapsed.has(aggregate.id);
+                              const aggregateSourceIds = [
+                                aggregate.id,
+                                ...aggregate.slices.map((slice) => slice.id)
+                              ];
                               return (
                                 <div key={aggregate.id} className="explorer-aggregate">
                                   <div className="explorer-row">
@@ -136,19 +160,30 @@ export function ModelExplorer({
                     <span>{aggregate.slices.length} slices</span>
                     <strong>{aggregate.name}</strong>
                   </button>
+                                    <DocumentationLocator
+                                      sourceIds={aggregateSourceIds}
+                                      availableRefs={documentSourceRefs}
+                                      onLocate={onLocateDocumentation}
+                                    />
                                   </div>
                   {!aggregateCollapsed && aggregate.id === activeAggregateId && (
                     <div className="explorer-slices">
                       {aggregate.slices.map((slice) => (
-                        <button
-                          key={slice.id}
-                          type="button"
-                          className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
-                          onClick={() => onSelectSlice(context, aggregate, slice)}
-                        >
-                          <span>{slice.resultingState ?? 'Slice'}</span>
-                          <strong>{slice.name}</strong>
-                        </button>
+                        <div key={slice.id} className="explorer-row explorer-row--leaf">
+                          <button
+                            type="button"
+                            className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                            onClick={() => onSelectSlice(context, aggregate, slice)}
+                          >
+                            <span>{slice.resultingState ?? 'Slice'}</span>
+                            <strong>{slice.name}</strong>
+                          </button>
+                          <DocumentationLocator
+                            sourceIds={[slice.id, aggregate.id, context.id]}
+                            availableRefs={documentSourceRefs}
+                            onLocate={onLocateDocumentation}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -159,18 +194,30 @@ export function ModelExplorer({
                               <div className="explorer-section-label">Slices</div>
                             )}
                             {context.slices.map((slice) => (
-                              <button
-                                key={`primary:${slice.id}`}
-                                type="button"
-                                className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
-                                onClick={() => onSelectSlice(context, undefined, slice)}
-                              >
-                                <span>
-                                  {slice.startsLifecycle ? 'Lifecycle start' : slice.resultingState ?? 'Slice'}
-                                  {slice.tags.length > 0 ? ` · ${slice.tags.length} tags` : ''}
-                                </span>
-                                <strong>{slice.name}</strong>
-                              </button>
+                              <div key={`primary:${slice.id}`} className="explorer-row explorer-row--leaf">
+                                <button
+                                  type="button"
+                                  className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                                  onClick={() => onSelectSlice(context, undefined, slice)}
+                                >
+                                  <span>
+                                    {slice.startsLifecycle ? 'Lifecycle start' : slice.resultingState ?? 'Slice'}
+                                    {slice.tags.length > 0 ? ` · ${slice.tags.length} tags` : ''}
+                                  </span>
+                                  <strong>{slice.name}</strong>
+                                </button>
+                                <DocumentationLocator
+                                  sourceIds={[
+                                    slice.id,
+                                    ...context.concepts
+                                      .filter((concept) => concept.sliceIds.includes(slice.id))
+                                      .map((concept) => concept.id),
+                                    context.id
+                                  ]}
+                                  availableRefs={documentSourceRefs}
+                                  onLocate={onLocateDocumentation}
+                                />
+                              </div>
                             ))}
                             {context.concepts.length > 0 && (
                               <div className="explorer-section-label">Concepts</div>
@@ -197,21 +244,32 @@ export function ModelExplorer({
                                       onClick={() => selectConcept(context, concept)}
                                     >
                                       <span>Organizes {slices.length} slices · {concept.states.length} states</span>
-                                      <strong>{concept.name}</strong>
-                                    </button>
-                                  </div>
+                                        <strong>{concept.name}</strong>
+                                      </button>
+                                      <DocumentationLocator
+                                        sourceIds={[concept.id, ...concept.sliceIds]}
+                                        availableRefs={documentSourceRefs}
+                                        onLocate={onLocateDocumentation}
+                                      />
+                                    </div>
                                   {!conceptCollapsed && concept.id === activeConceptId && (
                                     <div className="explorer-slices">
                                       {slices.map((slice) => (
-                                        <button
-                                          key={slice.id}
-                                          type="button"
-                                          className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
-                                          onClick={() => onSelectSlice(context, undefined, slice)}
-                                        >
-                                          <span>{slice.tags.length > 0 ? `${slice.tags.length} tags` : slice.resultingState ?? 'Slice'}</span>
-                                          <strong>{slice.name}</strong>
-                                        </button>
+                                        <div key={slice.id} className="explorer-row explorer-row--leaf">
+                                          <button
+                                            type="button"
+                                            className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                                            onClick={() => onSelectSlice(context, undefined, slice)}
+                                          >
+                                            <span>{slice.tags.length > 0 ? `${slice.tags.length} tags` : slice.resultingState ?? 'Slice'}</span>
+                                            <strong>{slice.name}</strong>
+                                          </button>
+                                          <DocumentationLocator
+                                            sourceIds={[slice.id, concept.id, context.id]}
+                                            availableRefs={documentSourceRefs}
+                                            onLocate={onLocateDocumentation}
+                                          />
+                                        </div>
                                       ))}
                                     </div>
                                   )}
@@ -230,5 +288,42 @@ export function ModelExplorer({
         })}
       </div>
     </aside>
+  );
+}
+
+const contextSourceIds = (context: EmContext): string[] => [
+  context.id,
+  ...context.aggregates.flatMap((aggregate) => [
+    aggregate.id,
+    ...aggregate.slices.map((slice) => slice.id)
+  ]),
+  ...context.slices.map((slice) => slice.id),
+  ...context.concepts.map((concept) => concept.id)
+];
+
+function DocumentationLocator({
+  sourceIds,
+  availableRefs,
+  onLocate
+}: {
+  sourceIds: string[];
+  availableRefs: ReadonlySet<string>;
+  onLocate: (sourceIds: string[]) => void;
+}) {
+  const matchingSourceIds = sourceIds.filter((sourceId) => availableRefs.has(sourceId));
+  return (
+    <button
+      type="button"
+      className={`explorer-document-link ${matchingSourceIds.length ? 'has-reference' : 'has-no-reference'}`}
+      title={matchingSourceIds.length
+        ? 'Locate this model item in generated documents'
+        : 'No linked document section yet; open Documents for guidance'}
+      aria-label={matchingSourceIds.length
+        ? 'Locate in generated documents'
+        : 'Open document location guidance'}
+      onClick={() => onLocate(matchingSourceIds.length ? matchingSourceIds : sourceIds)}
+    >
+      <FileSearch aria-hidden="true" />
+    </button>
   );
 }

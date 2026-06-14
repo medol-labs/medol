@@ -24,6 +24,7 @@ export const renderSoftwareDesignMarkdown = (bundle: DocumentationBundle): strin
   section(lines, 'Aggregate Design');
   for (const context of bundle.contexts) {
     for (const aggregate of context.aggregates) {
+      lines.push(`<!-- em:section id="software.aggregate.${aggregate.name}" source="${aggregate.id}" -->`);
       lines.push(`### ${humanize(aggregate.name)}`);
       lines.push('');
       lines.push(`Bounded context: ${humanize(context.name)}`);
@@ -73,6 +74,7 @@ export const renderSoftwareDesignMarkdown = (bundle: DocumentationBundle): strin
 
   section(lines, 'Quality Attributes And Decisions');
   for (const context of bundle.contexts) {
+    lines.push(`<!-- em:section id="software.context.${context.name}" source="${context.id}" -->`);
     lines.push(`### ${humanize(context.name)}`);
     lines.push('');
     appendLabeledList(lines, 'Decisions', context.decisions);
@@ -102,7 +104,7 @@ export const renderDatabaseDesignMarkdown = (bundle: DocumentationBundle): strin
   lines.push('');
 
   for (const readmodel of bundle.readmodels) {
-    lines.push(`<!-- em:section id="database.readmodel.${readmodel.name}" source="${readmodel.id}" -->`);
+    lines.push(`<!-- em:section id="database.readmodel.${readmodel.name}" sources="${readmodel.id} ${readmodel.sliceId}" -->`);
     lines.push(`## ${humanize(readmodel.name)}`);
     lines.push('');
     lines.push(`Owner: ${humanize(readmodel.context)} / ${humanize(readmodel.aggregate)} / ${humanize(readmodel.slice)}`);
@@ -166,6 +168,7 @@ export const renderProcessMarkdown = (bundle: DocumentationBundle): string => {
   lines.push('');
 
   for (const context of bundle.contexts) {
+    lines.push(`<!-- em:section id="process.context.${context.name}" source="${context.id}" -->`);
     section(lines, `${humanize(context.name)} Process`);
     const workflows = bundle.workflows.filter((workflow) => workflow.context === context.name);
     lines.push('| Step | Actor / Trigger | Interaction | Command | Event / State | Read Model | Rules |');
@@ -196,6 +199,7 @@ export const renderProcessMarkdown = (bundle: DocumentationBundle): string => {
 };
 
 const appendWorkflow = (lines: string[], workflow: DocumentationWorkflow): void => {
+  lines.push(`<!-- em:section id="process.slice.${workflow.slice}" source="${workflow.id}" -->`);
   lines.push(`### ${humanize(workflow.slice)}`);
   lines.push('');
   lines.push(`Aggregate: ${humanize(workflow.aggregate)}`);

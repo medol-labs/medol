@@ -155,6 +155,7 @@ export const buildDocumentationBundle = (
       .filter(isKind('readmodel'))
       .map<DocumentationReadModel>((readmodel) => ({
             id: readmodel.id,
+            sliceId: slice.id,
             name: readmodel.name,
             context: contextName,
             aggregate: owner,
@@ -268,7 +269,7 @@ const documentTitle = (
   language: DocumentationLanguage
 ): string => {
   if (language === 'zh-CN') {
-    if (kind === 'prd') return `${title} 产品需求与验收文档`;
+    if (kind === 'prd') return `${title} 产品需求文档`;
     if (kind === 'software-design') return `${title} 软件设计`;
     if (kind === 'database-design') return `${title} 数据库设计`;
     return `${title} 业务流程`;

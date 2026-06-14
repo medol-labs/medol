@@ -10,6 +10,7 @@
     "test:types": "node --import tsx --test src/lib/typeSystem.test.ts",
     "test:specification": "node --import tsx --test src/lib/specificationCoverage.test.ts",
     "test:documentation": "node --import tsx --test src/features/documentation/documentationTranslation.test.ts",
+    "test:documents": "node --import tsx --test src/server/modelingDocumentRepository.test.ts",
     "preview": "node dist/server/server.js",
     "langium:generate": "langium generate",
     "config:to-medol": "tsx src/lib/configToDsl.ts",

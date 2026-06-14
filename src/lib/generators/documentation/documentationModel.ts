@@ -90,6 +90,7 @@ export interface DocumentationSpecification {
 
 export interface DocumentationReadModel {
   id: string;
+  sliceId: string;
   name: string;
   context: string;
   aggregate: string;

@@ -11,6 +11,9 @@ import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
 import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
 import { useModelingWorkspace } from '../features/workspace/useModelingWorkspace';
 import { generateModelingDocument } from '../features/documentation/documentationClient';
+import { DocumentWorkspace } from '../features/documentation/DocumentWorkspace';
+import { hashMedolSource } from '../features/documentation/documentReferences';
+import { useModelingDocuments } from '../features/documentation/useModelingDocuments';
 import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
 import { parseMedol } from '../lib/dslParser';
 import { emModelToJson } from '../lib/emModelExport';
@@ -40,7 +43,7 @@ type ToolbarAction =
   | 'database-design-ai'
   | 'process-ai'
   | 'reset';
-type PreviewMode = 'canvas' | 'global' | 'layout';
+type PreviewMode = 'canvas' | 'global' | 'layout' | 'documents';
 
 const getInitialLeftPanelWidth = () => {
   if (typeof window === 'undefined') return 820;
@@ -109,7 +112,20 @@ export function MedolStudio() {
   const [dslFocusVersion, setDslFocusVersion] = useState(0);
   const [dslEditorVersion, setDslEditorVersion] = useState(0);
   const [previewPatch, setPreviewPatch] = useState<AgentDslPatch | undefined>();
+  const [documentFocusSourceId, setDocumentFocusSourceId] = useState<string>();
+  const [documentFocusVersion, setDocumentFocusVersion] = useState(0);
+  const [documentNavigationMessage, setDocumentNavigationMessage] = useState<string>();
   const debouncedDsl = useDebouncedValue(dsl, 800);
+  const {
+    documents,
+    activeDocument,
+    status: documentStatus,
+    error: documentError,
+    loadDocument,
+    createDocument,
+    saveDocument,
+    deleteDocument
+  } = useModelingDocuments(activeWorkspaceId);
 
   const model = useMemo(() => parseMedol(debouncedDsl), [debouncedDsl]);
   const activeDomain = model.domains.find((domain) => domain.id === selectedDomainId) ?? model.domains[0];
@@ -143,6 +159,11 @@ export function MedolStudio() {
   const emModelJson = useMemo(() => emModelToJson(model), [model]);
   const codegenModelJson = useMemo(() => JSON.stringify(codegenModel, null, 2), [codegenModel]);
   const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
+  const medolSourceHash = useMemo(() => hashMedolSource(dsl), [dsl]);
+  const documentSourceRefs = useMemo(
+    () => new Set(documents.flatMap((document) => document.sourceRefs)),
+    [documents]
+  );
   const dslFocusLine = useMemo(() => findDslLine(dsl, dslFocusTarget), [dsl, dslFocusTarget]);
   const isParsingPending = dsl !== debouncedDsl;
   const modelStatus = previewPatch
@@ -160,6 +181,8 @@ export function MedolStudio() {
     setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
+    setDocumentFocusSourceId(undefined);
+    setDocumentNavigationMessage(undefined);
   }, [activeWorkspaceId]);
 
   const selectDomain = (domain: EmDomain) => {
@@ -244,18 +267,91 @@ export function MedolStudio() {
     }
   };
 
-  const downloadJson = (filename: string, content: string) => {
-    const blob = new Blob([content], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
+  const locateDocumentation = async (sourceIds: string[]) => {
+    const sourceId = sourceIds.find((candidate) =>
+      documents.some((document) => document.sourceRefs.includes(candidate))
+    );
+    if (!sourceId) {
+      setPreviewMode('documents');
+      setDocumentFocusSourceId(undefined);
+      setDocumentNavigationMessage(
+        documents.length
+          ? 'No linked section was found in the saved documents. Regenerate the document so it includes MEDOL references.'
+          : 'Generate a PRD, software design, database design, or process document first. It will then be linked to this MEDOL item.'
+      );
+      return;
+    }
+    const document = documents.find((candidate) => candidate.sourceRefs.includes(sourceId));
+    if (!document) return;
+
+    setPreviewMode('documents');
+    setDocumentNavigationMessage(undefined);
+    setDocumentFocusSourceId(sourceId);
+    setDocumentFocusVersion((version) => version + 1);
+    if (activeDocument?.id !== document.id) {
+      await loadDocument(document.id);
+    }
   };
 
-  const downloadMarkdown = (filename: string, content: string) => {
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  const locateMedolSource = (sourceId: string) => {
+    for (const domain of model.domains) {
+      if (domain.id === sourceId) {
+        selectDomain(domain);
+        return;
+      }
+      for (const context of domain.contexts) {
+        if (context.id === sourceId) {
+          selectContext(context);
+          setPreviewMode('canvas');
+          return;
+        }
+        for (const concept of context.concepts) {
+          if (concept.id === sourceId) {
+            selectConcept(context, concept);
+            return;
+          }
+        }
+        for (const aggregate of context.aggregates) {
+          if (aggregate.id === sourceId) {
+            selectAggregate(context, aggregate);
+            setPreviewMode('canvas');
+            return;
+          }
+          for (const slice of aggregate.slices) {
+            if (slice.id === sourceId) {
+              selectSlice(context, aggregate, slice);
+              setPreviewMode('canvas');
+              return;
+            }
+            const element = slice.elements.find((candidate) => candidate.id === sourceId);
+            if (element) {
+              selectSlice(context, aggregate, slice);
+              setSelectedNodeId(element.id);
+              setPreviewMode('canvas');
+              return;
+            }
+          }
+        }
+        for (const slice of context.slices) {
+          if (slice.id === sourceId) {
+            selectSlice(context, undefined, slice);
+            setPreviewMode('canvas');
+            return;
+          }
+          const element = slice.elements.find((candidate) => candidate.id === sourceId);
+          if (element) {
+            selectSlice(context, undefined, slice);
+            setSelectedNodeId(element.id);
+            setPreviewMode('canvas');
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  const downloadJson = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -312,7 +408,16 @@ export function MedolStudio() {
           enhanceWithAi: true
         });
         if (document.warning) console.warn(document.warning);
-        downloadMarkdown(`${kind}${documentationLanguage === 'zh-CN' ? '.zh-CN' : ''}.md`, document.markdown);
+        await createDocument({
+          title: document.title,
+          kind,
+          language: documentationLanguage,
+          markdown: document.markdown,
+          sourceHash: medolSourceHash
+        });
+        setDocumentNavigationMessage(undefined);
+        setDocumentFocusSourceId(undefined);
+        setPreviewMode('documents');
       } else if (toolbarAction === 'reset') {
         setPreviewPatch(undefined);
         updateDsl(sampleDsl);
@@ -486,11 +591,13 @@ export function MedolStudio() {
                 activeAggregateId={selectedAggregateId}
                 activeConceptId={selectedConceptId}
                 activeSliceId={selectedSliceId}
+                documentSourceRefs={documentSourceRefs}
                 onSelectDomain={selectDomain}
                 onSelectContext={selectContext}
                 onSelectAggregate={selectAggregate}
                 onSelectConcept={selectConcept}
                 onSelectSlice={selectSlice}
+                onLocateDocumentation={(sourceIds) => void locateDocumentation(sourceIds)}
               />
               <div
                 className="explorer-resize-handle explorer-resize-handle--vertical"
@@ -616,6 +723,14 @@ export function MedolStudio() {
                 >
                   UI Preview
                 </button>
+                <button
+                  type="button"
+                  className={previewMode === 'documents' ? 'is-active' : undefined}
+                  aria-selected={previewMode === 'documents'}
+                  onClick={() => setPreviewMode('documents')}
+                >
+                  Documents
+                </button>
               </div>
               <select
                 className="preview-mode-select"
@@ -626,6 +741,7 @@ export function MedolStudio() {
                 <option value="canvas">Model Canvas</option>
                 <option value="global">Domain Map</option>
                 <option value="layout">UI Preview</option>
+                <option value="documents">Documents</option>
               </select>
               <button
                 type="button"
@@ -690,8 +806,27 @@ export function MedolStudio() {
             />
           ) : previewMode === 'global' ? (
             <GlobalMap nodes={overviewFlow.nodes} edges={overviewFlow.edges} onSelectGroup={selectOverviewGroup} />
-          ) : (
+          ) : previewMode === 'layout' ? (
             <LayoutPreview model={layoutPreview} />
+          ) : (
+            <DocumentWorkspace
+              documents={documents}
+              activeDocument={activeDocument}
+              status={documentStatus}
+              error={documentError}
+              navigationMessage={documentNavigationMessage}
+              focusSourceId={documentFocusSourceId}
+              focusVersion={documentFocusVersion}
+              currentSourceHash={medolSourceHash}
+              onSelect={(documentId) => {
+                setDocumentFocusSourceId(undefined);
+                setDocumentNavigationMessage(undefined);
+                void loadDocument(documentId);
+              }}
+              onSave={saveDocument}
+              onDelete={deleteDocument}
+              onLocateSource={locateMedolSource}
+            />
           )}
         </div>
         <footer className="studio-status">
@@ -699,6 +834,7 @@ export function MedolStudio() {
           {previewMode === 'canvas' && <span>model canvas</span>}
           {previewMode === 'global' && <span>domain map</span>}
           {previewMode === 'layout' && <span>ui preview</span>}
+          {previewMode === 'documents' && <span>{activeDocument ? `${activeDocument.title} · ${documentStatus}` : 'documents'}</span>}
           {contextOverviewMode && <span>context overview</span>}
           {selectedSliceId && <span>slice focused</span>}
           {selectedNodeId && <span>element focused</span>}
