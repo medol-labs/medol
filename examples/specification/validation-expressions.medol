@@ -58,6 +58,19 @@ domain ValidationExamples {
             then AccountRegistered
           }
 
+          scenario "Reject a duplicate email address" {
+            given AccountRegistered {
+              email = "owner@example.com"
+            }
+            when RegisterAccount {
+              email = "owner@example.com"
+              displayName = "Another Owner"
+              age = 28
+              role = "Member"
+            }
+            then reject "Account Email Already Exists"
+          }
+
           scenario "Reject an underage account owner" {
             when RegisterAccount {
               email = "young@example.com"

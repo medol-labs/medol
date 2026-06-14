@@ -89,6 +89,7 @@ interface ConfigSpecification {
   specification?: string;
   rule?: string;
   expressions: string[];
+  validates: string[];
   given: ConfigSpecificationElement[];
   when: ConfigSpecificationElement[];
   then: ConfigSpecificationElement[] | ConfigSpecificationError;
@@ -253,6 +254,7 @@ const toConfigSpecification = (specification: CodegenSpecification): ConfigSpeci
   ...(specification.specification ? { specification: specification.specification } : {}),
   ...(specification.rule ? { rule: specification.rule } : {}),
   expressions: specification.expressions,
+  validates: specification.validates,
   given: specification.given.map((element) => toConfigSpecificationElement(element)),
   when: specification.when.map((element) => toConfigSpecificationElement(element)),
   then: Array.isArray(specification.then)

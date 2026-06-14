@@ -92,8 +92,11 @@ type ConfigValueTypeConstraint =
 interface ConfigValueType {
   name?: string;
   context?: string;
+  kind?: 'scalar' | 'enum' | 'object';
   baseType?: string;
   constraints?: ConfigValueTypeConstraint[];
+  values?: string[];
+  fields?: ConfigField[];
 }
 
 interface ConfigRoot {
@@ -176,6 +179,18 @@ export const configToDsl = (config: ConfigRoot): string => {
 
 const appendValueType = (lines: string[], valueType: ConfigValueType, indent: number): void => {
   const name = toDslId(valueType.name, 'ValueType');
+  if (valueType.kind === 'enum') {
+    lines.push(`${pad(indent)}enum ${name} {`);
+    for (const value of valueType.values ?? []) lines.push(`${pad(indent + 2)}${toDslId(value, 'Value')}`);
+    lines.push(`${pad(indent)}}`);
+    return;
+  }
+  if (valueType.kind === 'object') {
+    lines.push(`${pad(indent)}value ${name} {`);
+    for (const field of valueType.fields ?? []) lines.push(`${pad(indent + 2)}${formatField(field)}`);
+    lines.push(`${pad(indent)}}`);
+    return;
+  }
   const baseType = toDslId(valueType.baseType, 'String');
   const constraints = valueType.constraints ?? [];
   if (constraints.length === 0) {

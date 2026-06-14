@@ -8,7 +8,6 @@ export const localizeDocumentationMarkdown = (
     ['Software Design', '软件设计'],
     ['Read Model Database Design', 'Read Model 数据库设计'],
     ['Business Process', '业务流程'],
-    ['Generated from MEDOL at', '生成来源：MEDOL；生成时间：'],
     ['Architecture Overview', '架构概述'],
     ['Bounded Contexts', '限界上下文'],
     ['Aggregate Design', '聚合设计'],
@@ -36,11 +35,11 @@ export const localizeDocumentationMarkdown = (
     ['Acceptance scenarios:', '验收场景：'],
     ['Collection', '集合/列表'],
     ['Single record', '单条记录'],
-    ['Not explicitly modeled', 'MEDOL 中未明确'],
-    ['No UI views are explicitly modeled.', 'MEDOL 中未明确页面视图。'],
+    ['Not explicitly modeled', '尚未明确'],
+    ['No UI views are explicitly modeled.', '尚未明确页面视图。'],
     ['No structural gaps were detected.', '未检测到结构性缺口。'],
-    ['No process risks or open questions are explicitly modeled.', 'MEDOL 中未明确流程风险或待确认事项。'],
-    ['MEDOL contains diagnostics. Treat affected sections as incomplete until these are resolved.', 'MEDOL 存在诊断错误；相关章节在问题修复前应视为不完整。']
+    ['No process risks or open questions are explicitly modeled.', '尚未明确流程风险或待确认事项。'],
+    ['MEDOL contains diagnostics. Treat affected sections as incomplete until these are resolved.', '当前领域模型存在诊断错误；相关章节在问题修复前应视为不完整。']
   ];
 
   let localized = markdown;
@@ -69,7 +68,7 @@ export const localizeDocumentationMarkdown = (
   if (kind === 'database-design') {
     localized = localized.replace(
       'This document describes the read-side data model inferred from Event Modeling read models. Storage engines, physical table names, retention, and consistency SLAs remain implementation decisions unless explicitly stated.',
-      '本文档描述由 Event Modeling Read Model 推导出的读侧数据模型。除非 MEDOL 明确说明，否则存储引擎、物理表名、数据保留策略和一致性 SLA 均属于后续实现决策。'
+      '本文档描述由 Event Modeling Read Model 推导出的读侧数据模型。除非领域模型明确说明，否则存储引擎、物理表名、数据保留策略和一致性 SLA 均属于后续实现决策。'
     );
   }
 

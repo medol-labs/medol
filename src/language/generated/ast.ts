@@ -51,6 +51,7 @@ export type MedolKeywordNames =
     | "domain"
     | "drawer"
     | "emits"
+    | "enum"
     | "event"
     | "example"
     | "expression"
@@ -62,6 +63,7 @@ export type MedolKeywordNames =
     | "given"
     | "hotspot"
     | "id"
+    | "import"
     | "inline"
     | "integration"
     | "issue"
@@ -99,6 +101,7 @@ export type MedolKeywordNames =
     | "ui"
     | "unique"
     | "userJourney"
+    | "value"
     | "view"
     | "when"
     | "wizard"
@@ -360,7 +363,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Aggregate | Concept | Decision | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | UserJourney | ValueType;
+export type ContextElement = Aggregate | Concept | Decision | EnumType | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -415,6 +418,23 @@ export const Emits = {
 
 export function isEmits(item: unknown): item is Emits {
     return reflection.isInstance(item, Emits.$type);
+}
+
+export interface EnumType extends langium.AstNode {
+    readonly $container: Context;
+    readonly $type: 'EnumType';
+    name: string;
+    values: Array<string>;
+}
+
+export const EnumType = {
+    $type: 'EnumType',
+    name: 'name',
+    values: 'values'
+} as const;
+
+export function isEnumType(item: unknown): item is EnumType {
+    return reflection.isInstance(item, EnumType.$type);
 }
 
 export interface Event extends langium.AstNode {
@@ -490,7 +510,7 @@ export function isExpression(item: unknown): item is Expression {
 }
 
 export interface Field extends langium.AstNode {
-    readonly $container: Command | Event | ReadModel;
+    readonly $container: Command | Event | ReadModel | StructuredValueType;
     readonly $type: 'Field';
     attributes: Array<FieldAttribute>;
     cardinality?: Cardinality;
@@ -564,10 +584,10 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export type FieldName = 'domain' | 'event' | 'state' | string;
+export type FieldName = 'domain' | 'event' | 'state' | 'value' | string;
 
 export function isFieldName(item: unknown): item is FieldName {
-    return item === 'domain' || item === 'event' || item === 'state' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'domain' || item === 'event' || item === 'state' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface FieldSource extends langium.AstNode {
@@ -632,6 +652,21 @@ export function isHotspot(item: unknown): item is Hotspot {
     return reflection.isInstance(item, Hotspot.$type);
 }
 
+export interface Import extends langium.AstNode {
+    readonly $container: Model;
+    readonly $type: 'Import';
+    path: string;
+}
+
+export const Import = {
+    $type: 'Import',
+    path: 'path'
+} as const;
+
+export function isImport(item: unknown): item is Import {
+    return reflection.isInstance(item, Import.$type);
+}
+
 export interface Integration extends langium.AstNode {
     readonly $container: Context;
     readonly $type: 'Integration';
@@ -688,12 +723,14 @@ export interface Model extends langium.AstNode {
     readonly $type: 'Model';
     contexts: Array<Context>;
     domains: Array<Domain>;
+    imports: Array<Import>;
 }
 
 export const Model = {
     $type: 'Model',
     contexts: 'contexts',
-    domains: 'domains'
+    domains: 'domains',
+    imports: 'imports'
 } as const;
 
 export function isModel(item: unknown): item is Model {
@@ -1042,6 +1079,23 @@ export function isStringLiteral(item: unknown): item is StringLiteral {
     return reflection.isInstance(item, StringLiteral.$type);
 }
 
+export interface StructuredValueType extends langium.AstNode {
+    readonly $container: Context;
+    readonly $type: 'StructuredValueType';
+    fields: Array<Field>;
+    name: string;
+}
+
+export const StructuredValueType = {
+    $type: 'StructuredValueType',
+    fields: 'fields',
+    name: 'name'
+} as const;
+
+export function isStructuredValueType(item: unknown): item is StructuredValueType {
+    return reflection.isInstance(item, StructuredValueType.$type);
+}
+
 export interface Subscription extends langium.AstNode {
     readonly $container: ReadModel;
     readonly $type: 'Subscription';
@@ -1369,6 +1423,7 @@ export type MedolAstType = {
     Decision: Decision
     Domain: Domain
     Emits: Emits
+    EnumType: EnumType
     Event: Event
     EventStep: EventStep
     Example: Example
@@ -1382,6 +1437,7 @@ export type MedolAstType = {
     FieldSourceMapping: FieldSourceMapping
     Given: Given
     Hotspot: Hotspot
+    Import: Import
     Integration: Integration
     IntegrationElement: IntegrationElement
     Literal: Literal
@@ -1409,6 +1465,7 @@ export type MedolAstType = {
     StepValue: StepValue
     Steps: Steps
     StringLiteral: StringLiteral
+    StructuredValueType: StructuredValueType
     Subscription: Subscription
     TagExpression: TagExpression
     TagFunctionCall: TagFunctionCall
@@ -1647,6 +1704,19 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [AutomationElement.$type, IntegrationElement.$type]
         },
+        EnumType: {
+            name: EnumType.$type,
+            properties: {
+                name: {
+                    name: EnumType.name
+                },
+                values: {
+                    name: EnumType.values,
+                    defaultValue: []
+                }
+            },
+            superTypes: [ContextElement.$type]
+        },
         Event: {
             name: Event.$type,
             properties: {
@@ -1794,6 +1864,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [SliceElement.$type]
         },
+        Import: {
+            name: Import.$type,
+            properties: {
+                path: {
+                    name: Import.path
+                }
+            },
+            superTypes: []
+        },
         Integration: {
             name: Integration.$type,
             properties: {
@@ -1837,6 +1916,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 domains: {
                     name: Model.domains,
+                    defaultValue: []
+                },
+                imports: {
+                    name: Model.imports,
                     defaultValue: []
                 }
             },
@@ -2089,6 +2172,19 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [Literal.$type]
+        },
+        StructuredValueType: {
+            name: StructuredValueType.$type,
+            properties: {
+                fields: {
+                    name: StructuredValueType.fields,
+                    defaultValue: []
+                },
+                name: {
+                    name: StructuredValueType.name
+                }
+            },
+            superTypes: [ContextElement.$type]
         },
         Subscription: {
             name: Subscription.$type,

@@ -87,8 +87,11 @@ export type EmValueTypeConstraint =
 export interface EmValueType {
   id: string;
   name: string;
+  kind: 'scalar' | 'enum' | 'object';
   baseType: string;
   constraints: EmValueTypeConstraint[];
+  values: string[];
+  fields: EmField[];
 }
 
 export interface EmAggregate {

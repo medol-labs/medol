@@ -35,7 +35,7 @@ export interface AgentContextItem {
 
 export const eventModelingDslKnowledge: AgentDslKnowledge = {
   id: 'medol-knowledge',
-  version: '2026-06-12',
+  version: '2026-06-14',
   language: 'medol',
   title: 'MEDOL knowledge',
   summary: 'Core syntax, domain modeling conventions, and patch concepts for MEDOL, the Domain Design Language.',
@@ -50,7 +50,8 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
   syntax: {
     domain: 'domain Name { context ... } groups bounded contexts under a business domain.',
     context: 'context Name { type | aggregate | slice | concept | policy | integration | readmodel | userJourney | risk | note | decision | metric } describes a bounded context.',
-    valueType: 'type Name = BaseType { format Name | length min..max | range min..max | matches "pattern" | oneOf value1, value2 } defines reusable field-level validity. A field without ? is required.',
+    valueType: 'type Name = BaseType { format Name | length min..max | range min..max | matches "pattern" | oneOf value1, value2 } defines constrained scalar types. enum Name { Value... } defines a closed set. value Name { field: Type... } defines a structured value object.',
+    import: 'import "./shared-types.medol" loads another MEDOL file. Imported fragments with the same domain and context are merged before semantic validation.',
     aggregate: 'aggregate Name { state StateName | slice SliceName { ... } } owns lifecycle states and timeline slices.',
     slice: 'slice Name { tags { tagName | tagName = expression } actor | startsLifecycle | ui | reactsTo | command | event | state | specification | readmodel | automation | policy | hotspot } describes one timeline capability and may live directly under context.',
     tags: 'tags { methodId methodCode = normalize(code) } declares event-selection values used to identify a business concept across slices; a bare tag uses its same-named value.',
@@ -76,7 +77,9 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Do not force commands and events to have identical fields. Events should contain the important recorded facts.',
     'Use then reject "description" for expected business rejection outcomes. Keep technical failures outside the domain timeline.',
     'A specification is the rule definition; scenarios are concrete test examples. Do not treat a scenario as the rule itself.',
+    'Every unique or assert expression must be covered by a then reject scenario whose given and when examples demonstrate that exact violation. A reject scenario must violate at least one declared expression.',
     'Use reusable type definitions for field-level validity. Use specification expressions only for business invariants such as uniqueness and business assertions.',
+    'Use enum for closed business vocabularies and value for immutable structured values without identity. Use import to split a model by bounded context or shared type catalog.',
     'Treat semantic diagnostics as blocking issues: types, references, lifecycle states, tags, expressions, and scenario examples must resolve and type-check before applying a patch.',
     'For concept modeling, place slices directly under context, declare their selection tags, and reference them from concept blocks. Do not invent an aggregate merely as a container.',
     'Prefer explicit rule/hotspot notes for domain logic that code generation or a human must later implement.'
@@ -203,6 +206,7 @@ export const eventModelingDslKnowledgeManifest: AgentDslKnowledgeManifest = {
     'Use readmodel Name[] with subscribe EventName when modeling information fed by events.',
     'Use then reject "description" for expected business rejection outcomes; rejection is part of the specification and is not declared as a separate element.',
     'Define reusable business meaning with specification rule and expression; place concrete examples in scenario blocks.',
+    'Close every unique/assert rule with a rejecting scenario whose examples prove the violation.',
     'Use context-level slices with tags and concept references when multiple slices operate on the same business concept; existing aggregate syntax remains valid.'
   ]
 };

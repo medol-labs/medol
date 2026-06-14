@@ -40,7 +40,6 @@ test('accepts reusable types, business expressions, booleans, and null optionals
               expression {
                 unique Account.email
                 assert RegisterAccount.age >= 18
-                assert RegisterAccount.memo != null
               }
               scenario "Register" {
                 when RegisterAccount {
@@ -52,6 +51,29 @@ test('accepts reusable types, business expressions, booleans, and null optionals
                   age = 32
                 }
                 then AccountRegistered
+              }
+              scenario "Reject duplicate email" {
+                given AccountRegistered {
+                  email = "owner@example.com"
+                }
+                when RegisterAccount {
+                  email = "owner@example.com"
+                  role = "Admin"
+                  enabled = true
+                  memo = null
+                  age = 32
+                }
+                then reject "Account Email Already Exists"
+              }
+              scenario "Reject underage owner" {
+                when RegisterAccount {
+                  email = "young@example.com"
+                  role = "Member"
+                  enabled = true
+                  memo = null
+                  age = 16
+                }
+                then reject "Account Owner Must Be An Adult"
               }
             }
           }
@@ -165,6 +187,42 @@ test('reports invalid specification operands and examples', () => {
   assert(diagnostics.some((message) => message.includes('has no field missing')));
   assert(diagnostics.some((message) => message.includes('value for Register.count is incompatible')));
   assert(diagnostics.some((message) => message.includes('Unresolved then reference event MissingEvent')));
+});
+
+test('requires rejecting scenarios to demonstrate unique and assert violations', () => {
+  const diagnostics = diagnosticsFor(`
+    context Rules {
+      aggregate Account {
+        slice Register {
+          command Register {
+            email: String
+            age: Int
+          }
+          event Registered {
+            email: String
+            age: Int
+          }
+          specification "Registration rules" {
+            expression {
+              unique Account.email
+              assert Register.age >= 18
+            }
+            scenario "Unrelated rejection" {
+              when Register {
+                email = "new@example.com"
+                age = 21
+              }
+              then reject "Rejected"
+            }
+          }
+        }
+      }
+    }
+  `);
+
+  assert(diagnostics.some((message) => message.includes('unique Account.email is not covered')));
+  assert(diagnostics.some((message) => message.includes('assert Register.age >= 18 is not covered')));
+  assert(diagnostics.some((message) => message.includes('reject does not demonstrate a violation')));
 });
 
 test('blocks code generation when semantic diagnostics exist', () => {

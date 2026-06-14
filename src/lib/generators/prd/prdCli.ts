@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { parseMedol } from '../../dslParser';
+import { parseMedolFile } from '../../medolProject';
 import { generatePrd } from './prdGenerator';
 import { renderPrdMarkdown } from './prdMarkdownRenderer';
 
@@ -13,7 +13,7 @@ if (!input) {
   process.exitCode = 1;
 } else {
   const sourceText = readFileSync(input, 'utf8');
-  const model = parseMedol(sourceText);
+  const model = parseMedolFile(input);
   const result = generatePrd(model, { sourceText });
 
   if (outputTrace) {

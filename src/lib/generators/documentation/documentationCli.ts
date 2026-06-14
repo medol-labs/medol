@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { parseMedol } from '../../dslParser';
+import { parseMedolFile } from '../../medolProject';
 import {
   generateDocumentation,
   generateDocumentationBundle
@@ -33,7 +33,7 @@ if (!input) {
   process.exitCode = 1;
 } else {
   const sourceText = readFileSync(input, 'utf8');
-  const model = parseMedol(sourceText);
+  const model = parseMedolFile(input);
   const kind = parseKind(kindArgument);
 
   if (kind === 'all') {

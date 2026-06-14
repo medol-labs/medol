@@ -34,7 +34,7 @@ domain MethodCatalog {
 
         scenario "Reject a duplicate method code" {
           given MethodRegistered {
-            code = "PAYMENT"
+            code = "payment"
           }
           when RegisterMethod {
             code = "payment"

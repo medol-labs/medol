@@ -1,0 +1,19 @@
+domain Commerce {
+  context Orders {
+    enum OrderStatus {
+      Draft
+      Submitted
+      Cancelled
+    }
+
+    type PostalCode = String {
+      matches "^[0-9]{5}$"
+    }
+
+    value Address {
+      street: String
+      city: String
+      postalCode: PostalCode
+    }
+  }
+}

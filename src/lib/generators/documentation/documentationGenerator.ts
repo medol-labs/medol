@@ -18,6 +18,7 @@ import {
   renderSoftwareDesignMarkdown
 } from './documentationMarkdownRenderer';
 import { localizeDocumentationMarkdown } from './documentationLocalization';
+import { coveredSpecificationExpressions } from '../../specificationCoverage';
 
 export interface GenerateDocumentationOptions {
   generatedAt?: string;
@@ -233,14 +234,16 @@ const toDocumentationField = (field: EmField): DocumentationField => ({
 
 const toDocumentationSpecification = (element: EmElement): DocumentationSpecification => {
   const metadata = element.metadata ?? {};
+  const expressions = Object.entries(metadata)
+    .filter(([key]) => /^expression\d+$/.test(key))
+    .sort(([left], [right]) => Number(left.slice(10)) - Number(right.slice(10)))
+    .map(([, expression]) => expression);
   return {
     name: element.name,
     ...(metadata.specification ? { specification: metadata.specification } : {}),
     ...(metadata.rule ? { rule: metadata.rule } : {}),
-    expressions: Object.entries(metadata)
-      .filter(([key]) => /^expression\d+$/.test(key))
-      .sort(([left], [right]) => Number(left.slice(10)) - Number(right.slice(10)))
-      .map(([, expression]) => expression),
+    expressions,
+    validates: coveredSpecificationExpressions({ expressions, metadata }),
     given: Object.entries(metadata)
       .filter(([key]) => /^given\d+$/.test(key))
       .sort(([left], [right]) => Number(left.slice(5)) - Number(right.slice(5)))

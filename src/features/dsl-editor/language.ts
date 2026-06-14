@@ -16,7 +16,11 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
     tokenPostfix: '.medol',
     keywords: [
       'domain',
+      'import',
       'context',
+      'type',
+      'enum',
+      'value',
       'aggregate',
       'concept',
       'scenario',

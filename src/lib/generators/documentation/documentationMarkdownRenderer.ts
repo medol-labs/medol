@@ -223,6 +223,7 @@ const appendWorkflow = (lines: string[], workflow: DocumentationWorkflow): void 
       lines.push(`- ${title}: given ${specification.given.map(humanize).join(', ') || 'unspecified precondition'}, when ${specification.when ? humanize(specification.when) : 'unspecified action'}, then ${result}.`);
       if (specification.rule) lines.push(`  Rule: ${specification.rule.replace(/\n/g, ' ')}`);
       if (specification.expressions.length) lines.push(`  Expressions: ${specification.expressions.join('; ')}`);
+      if (specification.validates.length) lines.push(`  Validates: ${specification.validates.join('; ')}`);
     }
     lines.push('');
   }
@@ -282,8 +283,6 @@ const summarizeMissingSpecifications = (bundle: DocumentationBundle): string[] =
 
 const header = (bundle: DocumentationBundle, suffix: string): string[] => [
   `# ${bundle.title} ${suffix}`,
-  '',
-  `Generated from MEDOL at ${bundle.generatedAt}.`,
   ''
 ];
 

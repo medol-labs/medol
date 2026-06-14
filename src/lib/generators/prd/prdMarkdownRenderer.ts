@@ -19,7 +19,7 @@ export const renderPrdMarkdown = (
   lines.push('<!-- em:section id="prd.section.overview" -->');
   heading(lines, 2, zh ? '文档目的' : 'Document Purpose');
   lines.push(zh
-    ? '本文档根据 MEDOL 自动整理产品功能、CRUD 操作、页面入口、业务结果和验收依据，用于产品评审、研发对齐、测试用例设计和交付验收。'
+    ? '本文档整理产品功能、CRUD 操作、页面入口、业务结果和验收依据，用于产品评审、研发对齐、测试用例设计和交付验收。'
     : 'This document derives product functions, CRUD operations, UI entry points, business outcomes, and acceptance evidence from MEDOL for product review, implementation alignment, test design, and delivery acceptance.');
   lines.push('');
   lines.push(`**${zh ? '建模范围' : 'Modeled scope'}:** ${document.context.split(', ').map(humanize).join(', ')}`);
@@ -34,7 +34,7 @@ export const renderPrdMarkdown = (
   heading(lines, 2, zh ? '产品范围与角色' : 'Product Scope and Roles');
   lines.push(`**${zh ? '核心业务对象' : 'Core business objects'}:** ${document.aggregates.map((aggregate) => humanize(aggregate.name)).join(', ') || '-'}`);
   lines.push('');
-  lines.push(`**${zh ? '参与角色' : 'Actors'}:** ${document.actors.map((actor) => humanize(actor.name)).join(', ') || (zh ? 'MEDOL 中未明确' : 'Not explicitly modeled')}`);
+  lines.push(`**${zh ? '参与角色' : 'Actors'}:** ${document.actors.map((actor) => humanize(actor.name)).join(', ') || (zh ? '尚未明确' : 'Not explicitly modeled')}`);
   lines.push('');
 
   lines.push('<!-- em:section id="prd.section.featureInventory" -->');
@@ -52,7 +52,7 @@ export const renderPrdMarkdown = (
   heading(lines, 2, zh ? '模块需求与验收' : 'Module Requirements and Acceptance');
   for (const aggregate of document.aggregates) {
     heading(lines, 3, humanize(aggregate.name));
-    lines.push(`**${zh ? '生命周期' : 'Lifecycle'}:** ${aggregate.states.length ? aggregate.states.map(humanize).join(' -> ') : zh ? 'MEDOL 中未明确' : 'Not explicitly modeled'}`);
+    lines.push(`**${zh ? '生命周期' : 'Lifecycle'}:** ${aggregate.states.length ? aggregate.states.map(humanize).join(' -> ') : zh ? '尚未明确' : 'Not explicitly modeled'}`);
     lines.push('');
     const slices = document.slices.filter((slice) => slice.aggregate === aggregate.name);
     for (const slice of slices) appendSlice(lines, slice, language);
@@ -90,7 +90,7 @@ export const renderPrdMarkdown = (
       lines.push(`| ${cell(humanize(field.owner))} | ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(field.mapping ?? '-')} |`);
     }
   } else {
-    lines.push(zh ? 'MEDOL 中未定义需要单独说明的标识、查询、示例或映射字段。' : 'No identifier, query, example, or mapping fields require separate documentation.');
+    lines.push(zh ? '当前未定义需要单独说明的标识、查询、示例或映射字段。' : 'No identifier, query, example, or mapping fields require separate documentation.');
   }
   lines.push('');
 
@@ -106,7 +106,7 @@ export const renderPrdMarkdown = (
       lines.push(`| ${cell(humanize(automation.name))} | ${cell(humanize(automation.kind))} | ${cell(metadata || '-')} |`);
     }
   } else {
-    lines.push(zh ? 'MEDOL 中未明确自动化、策略或集成。' : 'No automation, policies, or integrations are explicitly modeled.');
+    lines.push(zh ? '当前未明确自动化、策略或集成。' : 'No automation, policies, or integrations are explicitly modeled.');
   }
   lines.push('');
 
@@ -115,8 +115,8 @@ export const renderPrdMarkdown = (
   appendList(lines, zh
     ? [
         '功能清单中的页面、查询和操作均可访问，实际权限范围需由业务方确认。',
-        '命令输入字段的必填、可选、标识和示例约束与 MEDOL 一致。',
-        '操作成功后产生约定事件，并进入 MEDOL 指定的业务状态。',
+        '命令输入字段的必填、可选、标识和示例约束与领域模型一致。',
+        '操作成功后产生约定事件，并进入领域模型指定的业务状态。',
         'Read Model 能根据订阅事件更新，并满足列表或详情查询需要。',
         'derived 字段按 rule 计算，from 字段能追踪到来源字段。',
         '错误提示、重复提交、并发冲突、权限拒绝和操作幂等策略需在开发前确认。',
@@ -138,7 +138,7 @@ export const renderPrdMarkdown = (
   appendList(
     lines,
     document.openQuestions.map((question) => zh ? localizeOpenQuestion(question) : question),
-    zh ? '当前未生成待确认事项。' : 'No open questions were generated.'
+    zh ? '暂无待确认事项。' : 'No open questions were generated.'
   );
   lines.push('');
 
@@ -166,11 +166,12 @@ const appendSlice = (
 
   appendFields(lines, zh ? '输入字段' : 'Input Fields', slice.command?.fields ?? [], language);
   if (slice.specifications.length) {
+    appendRuleCoverage(lines, slice.specifications, language);
     lines.push(`**${zh ? '明确验收场景' : 'Explicit Acceptance Scenarios'}**`);
     lines.push('');
     appendSpecifications(lines, slice.specifications, language);
   } else if (slice.command) {
-    lines.push(`> ${zh ? 'MEDOL 尚未为该操作定义 specification，以下验收矩阵仅依据 command、event 和 state 自动推导。' : 'The MEDOL does not define a specification for this operation; the acceptance matrix is inferred only from command, event, and state semantics.'}`);
+    lines.push(`> ${zh ? '该操作尚未定义明确的验收 specification，以下验收矩阵仅依据 command、event 和 state 推导，需在评审时确认。' : 'The MEDOL does not define a specification for this operation; the acceptance matrix is inferred only from command, event, and state semantics.'}`);
     lines.push('');
   }
   if (slice.hotspots.length) {
@@ -194,12 +195,37 @@ const appendSpecifications = (
     lines.push(`- **${title}**`);
     if (specification.rule) lines.push(`  - ${zh ? '规则' : 'Rule'}: ${specification.rule.replace(/\n/g, ' ')}`);
     if (specification.expressions.length) lines.push(`  - ${zh ? '表达式' : 'Expressions'}: ${specification.expressions.join('; ')}`);
+    if (specification.validates.length) lines.push(`  - ${zh ? '验证规则' : 'Validates'}: ${specification.validates.join('; ')}`);
     lines.push(`  - ${zh ? '假设' : 'Given'}: ${specification.given.map(humanize).join(', ') || (zh ? '未明确' : 'Unspecified')}`);
     lines.push(`  - ${zh ? '当' : 'When'}: ${specification.when ? humanize(specification.when) : zh ? '未明确' : 'Unspecified'}`);
     lines.push(`  - ${zh ? '则' : 'Then'}: ${specification.reject ? `${zh ? '拒绝' : 'Reject'}: ${specification.reject}` : specification.then ? humanize(specification.then) : zh ? '未明确' : 'Unspecified'}`);
     if (Object.keys(specification.examples).length) {
       lines.push(`  - ${zh ? '示例' : 'Examples'}: ${Object.entries(specification.examples).map(([key, value]) => `${key}=${value}`).join(', ')}`);
     }
+  }
+  lines.push('');
+};
+
+const appendRuleCoverage = (
+  lines: string[],
+  specifications: PrdSpecification[],
+  language: DocumentationLanguage
+): void => {
+  const zh = language === 'zh-CN';
+  const expressions = [...new Set(specifications.flatMap((specification) => specification.expressions))];
+  if (!expressions.length) return;
+
+  lines.push(`**${zh ? '业务规则闭环' : 'Business Rule Coverage'}**`);
+  lines.push('');
+  lines.push(zh
+    ? '| 规则表达式 | 拒绝场景 | 拒绝结果 |'
+    : '| Rule Expression | Reject Scenario | Rejection |');
+  lines.push('| --- | --- | --- |');
+  for (const expression of expressions) {
+    const scenarios = specifications.filter((specification) =>
+      specification.reject && specification.validates.includes(expression)
+    );
+    lines.push(`| ${cell(expression)} | ${cell(scenarios.map((scenario) => humanize(scenario.name)).join(', ') || (zh ? '未覆盖' : 'Not covered'))} | ${cell(scenarios.map((scenario) => scenario.reject ?? '').filter(Boolean).join('; ') || '-')} |`);
   }
   lines.push('');
 };
@@ -225,7 +251,12 @@ const buildAcceptanceScenarios = (
         : specification.then
           ? humanize(specification.then)
           : formatResult(slice, language),
-      source: `specification ${humanize(specification.name)}`
+      source: [
+        `specification ${humanize(specification.name)}`,
+        specification.validates.length
+          ? `${zh ? '验证' : 'validates'} ${specification.validates.join('; ')}`
+          : undefined
+      ].filter(Boolean).join('; ')
     }));
   }
 

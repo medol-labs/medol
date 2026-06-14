@@ -1,7 +1,12 @@
 grammar Medol
 
 entry Model:
+    imports+=Import*
     (domains+=Domain | contexts+=Context)*
+;
+
+Import:
+    'import' path=STRING
 ;
 
 Domain:
@@ -18,6 +23,8 @@ Context:
 
 ContextElement:
       ValueType
+    | EnumType
+    | StructuredValueType
     | Aggregate
     | Slice
     | Concept
@@ -35,6 +42,18 @@ ValueType:
     'type' name=ID '=' baseType=ID ('{'
         constraints+=ValueTypeConstraint*
     '}')?
+;
+
+EnumType:
+    'enum' name=ID '{'
+        values+=ID*
+    '}'
+;
+
+StructuredValueType:
+    'value' name=ID '{'
+        fields+=Field*
+    '}'
 ;
 
 ValueTypeConstraint:
@@ -305,6 +324,7 @@ FieldName returns string:
     | 'domain'
     | 'event'
     | 'state'
+    | 'value'
 ;
 
 Cardinality returns string:

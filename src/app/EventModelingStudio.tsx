@@ -649,10 +649,10 @@ export function MedolStudio() {
                 <option value="config">Export config</option>
                 <option value="png">Export PNG</option>
                 <option value="svg">Export SVG</option>
-                <option value="prd-ai">Generate PRD with AI</option>
-                <option value="software-design-ai">Generate software design with AI</option>
-                <option value="database-design-ai">Generate database design with AI</option>
-                <option value="process-ai">Generate process document with AI</option>
+                <option value="prd-ai">Generate PRD</option>
+                <option value="software-design-ai">Generate software design</option>
+                <option value="database-design-ai">Generate database design</option>
+                <option value="process-ai">Generate process document</option>
                 <option value="reset">Reset MEDOL</option>
               </select>
               <select

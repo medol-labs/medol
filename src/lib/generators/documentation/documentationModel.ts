@@ -80,6 +80,7 @@ export interface DocumentationSpecification {
   specification?: string;
   rule?: string;
   expressions: string[];
+  validates: string[];
   given: string[];
   when?: string;
   then?: string;

@@ -2,12 +2,14 @@ import {
   isAssertValidation,
   isBooleanLiteral,
   isCommand,
+  isEnumType,
   isNumberLiteral,
   isNullLiteral,
   isSlice,
   isSliceTags,
   isStartsLifecycleMarker,
   isState,
+  isStructuredValueType,
   isStringLiteral,
   isTagFunctionCall,
   isTagReference,
@@ -127,7 +129,12 @@ const validateContext = (
   const scope = `Context ${symbols.context.name}`;
   const definitions = astContext.elements ?? [];
 
-  validateDuplicateNames(definitions.filter(isValueType).map((item) => item.name), 'type', scope, diagnostics);
+  validateDuplicateNames(
+    definitions.filter((item) => isValueType(item) || isEnumType(item) || isStructuredValueType(item)).map((item) => item.name),
+    'type',
+    scope,
+    diagnostics
+  );
   validateDuplicateNames(symbols.context.aggregates.map((item) => item.name), 'aggregate', scope, diagnostics);
   validateDuplicateNames(symbols.context.concepts.map((item) => item.name), 'concept', scope, diagnostics);
   validateDuplicateNames(
@@ -193,11 +200,30 @@ const buildContextSymbols = (context: EmContext): ContextSymbols => {
 const validateValueTypes = (symbols: ContextSymbols, diagnostics: string[]): void => {
   const scope = `Context ${symbols.context.name}`;
   for (const valueType of symbols.context.valueTypes) {
-    if (!builtinTypes.has(valueType.baseType) && !symbols.valueTypes.has(valueType.baseType)) {
+    if (valueType.kind === 'scalar' && !builtinTypes.has(valueType.baseType) && !symbols.valueTypes.has(valueType.baseType)) {
       diagnostics.push(`${scope}: type ${valueType.name} has unknown base type ${valueType.baseType}.`);
     }
 
     const resolvedBase = resolveBaseType(valueType.name, symbols.valueTypes, diagnostics, scope);
+    if (valueType.kind === 'enum') {
+      if (valueType.values.length === 0) {
+        diagnostics.push(`${scope}: enum ${valueType.name} must declare at least one value.`);
+      }
+      validateDuplicateNames(valueType.values, 'enum value', `Enum ${valueType.name}`, diagnostics);
+      continue;
+    }
+    if (valueType.kind === 'object') {
+      validateDuplicateNames(valueType.fields.map((field) => field.name), 'field', `Value ${valueType.name}`, diagnostics);
+      for (const field of valueType.fields) {
+        if (!builtinTypes.has(field.type) && !symbols.valueTypes.has(field.type)) {
+          diagnostics.push(`${scope}: value ${valueType.name} field ${field.name} has unknown type ${field.type}.`);
+        }
+        if (field.attributes.includes('id') || field.attributes.includes('generated')) {
+          diagnostics.push(`${scope}: value ${valueType.name} field ${field.name} cannot declare identity or generated attributes.`);
+        }
+      }
+      continue;
+    }
     validateDuplicateNames(
       valueType.constraints.map((constraint) => constraint.kind),
       'constraint',
@@ -239,6 +265,35 @@ const validateValueTypes = (symbols: ContextSymbols, diagnostics: string[]): voi
       }
     }
   }
+  validateStructuredValueCycles(symbols, diagnostics);
+};
+
+const validateStructuredValueCycles = (symbols: ContextSymbols, diagnostics: string[]): void => {
+  const objects = new Map(
+    symbols.context.valueTypes
+      .filter((valueType) => valueType.kind === 'object')
+      .map((valueType) => [valueType.name, valueType])
+  );
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  const visit = (name: string, path: string[]): void => {
+    if (visiting.has(name)) {
+      diagnostics.push(`Context ${symbols.context.name}: cyclic structured value ${[...path, name].join(' -> ')}.`);
+      return;
+    }
+    if (visited.has(name)) return;
+    const valueType = objects.get(name);
+    if (!valueType) return;
+    visiting.add(name);
+    for (const field of valueType.fields) {
+      if (objects.has(field.type)) visit(field.type, [...path, name]);
+    }
+    visiting.delete(name);
+    visited.add(name);
+  };
+
+  for (const name of objects.keys()) visit(name, []);
 };
 
 const resolveBaseType = (
@@ -251,6 +306,8 @@ const resolveBaseType = (
   if (builtinTypes.has(typeName)) return typeName;
   const valueType = valueTypes.get(typeName);
   if (!valueType) return undefined;
+  if (valueType.kind === 'enum') return 'String';
+  if (valueType.kind === 'object') return valueType.name;
   if (path.includes(typeName)) {
     diagnostics.push(`${scope}: cyclic type definition ${[...path, typeName].join(' -> ')}.`);
     return undefined;
@@ -472,10 +529,126 @@ const validateSpecification = (
   for (const scenario of specification.scenarios) {
     validateScenario(scenario, symbols, `${scope}, scenario ${JSON.stringify(scenario.name)}`, diagnostics);
   }
+  validateSpecificationCoverage(specification, scope, diagnostics);
   if (specification.when) {
     validateScenario(specification as unknown as Scenario, symbols, scope, diagnostics);
   }
 };
+
+const validateSpecificationCoverage = (
+  specification: Specification,
+  scope: string,
+  diagnostics: string[]
+): void => {
+  if (specification.expressions.length === 0) return;
+
+  const rejectingScenarios = specification.scenarios.filter((scenario) => Boolean(scenario.then.rejection));
+  for (const expression of specification.expressions) {
+    if (!rejectingScenarios.some((scenario) => scenarioViolatesExpression(scenario, expression))) {
+      diagnostics.push(
+        `${scope}: expression ${expressionText(expression)} is not covered by a rejecting scenario whose examples demonstrate the violation.`
+      );
+    }
+  }
+
+  for (const scenario of rejectingScenarios) {
+    if (!specification.expressions.some((expression) => scenarioViolatesExpression(scenario, expression))) {
+      diagnostics.push(
+        `${scope}, scenario ${JSON.stringify(scenario.name)}: reject does not demonstrate a violation of any declared expression.`
+      );
+    }
+  }
+};
+
+const scenarioViolatesExpression = (
+  scenario: Scenario,
+  expression: Specification['expressions'][number]
+): boolean => {
+  if (isUniqueValidation(expression)) {
+    const field = expression.target.parts.at(-1);
+    if (!field) return false;
+    const submitted = assignmentLiteral(scenario.when.condition?.assignments ?? [], field);
+    if (!submitted.resolved) return false;
+    return scenario.givens.some((given) => {
+      const existing = assignmentLiteral(given.condition?.assignments ?? [], field);
+      return existing.resolved && Object.is(existing.value, submitted.value);
+    });
+  }
+
+  if (!isAssertValidation(expression)) return false;
+  const left = scenarioOperandValue(scenario, expression.left);
+  const right = scenarioOperandValue(scenario, expression.right);
+  return left.resolved && right.resolved
+    ? !compareLiteralValues(left.value, right.value, expression.operator)
+    : false;
+};
+
+interface ResolvedLiteral {
+  resolved: boolean;
+  value?: string | number | boolean | null;
+}
+
+const scenarioOperandValue = (
+  scenario: Scenario,
+  operand: ValidationOperand
+): ResolvedLiteral => {
+  if (operand.$type !== 'FieldSource') {
+    return { resolved: true, value: literalValue(operand) };
+  }
+
+  const [owner, field] = operand.parts;
+  if (!owner || !field) return { resolved: false };
+  if (scenario.when.command?.$refText === owner) {
+    return assignmentLiteral(scenario.when.condition?.assignments ?? [], field);
+  }
+
+  const matchingGiven = scenario.givens.find((given) => given.event?.$refText === owner);
+  if (matchingGiven) return assignmentLiteral(matchingGiven.condition?.assignments ?? [], field);
+
+  const submitted = assignmentLiteral(scenario.when.condition?.assignments ?? [], field);
+  if (submitted.resolved) return submitted;
+  for (const given of scenario.givens) {
+    const existing = assignmentLiteral(given.condition?.assignments ?? [], field);
+    if (existing.resolved) return existing;
+  }
+  return { resolved: false };
+};
+
+const assignmentLiteral = (assignments: Assignment[], field: string): ResolvedLiteral => {
+  const assignment = assignments.find((candidate) => candidate.field === field);
+  return assignment
+    ? { resolved: true, value: literalValue(assignment.value) }
+    : { resolved: false };
+};
+
+const literalValue = (literal: ValidationOperand): string | number | boolean | null => {
+  if (isNullLiteral(literal)) return null;
+  if (isNumberLiteral(literal) || isBooleanLiteral(literal) || isStringLiteral(literal)) {
+    return literal.value;
+  }
+  return operandText(literal);
+};
+
+const compareLiteralValues = (
+  left: unknown,
+  right: unknown,
+  operator: string
+): boolean => {
+  switch (operator) {
+    case '>': return (left as number) > (right as number);
+    case '<': return (left as number) < (right as number);
+    case '>=': return (left as number) >= (right as number);
+    case '<=': return (left as number) <= (right as number);
+    case '==': return Object.is(left, right);
+    case '!=': return !Object.is(left, right);
+    default: return false;
+  }
+};
+
+const expressionText = (expression: Specification['expressions'][number]): string =>
+  isUniqueValidation(expression)
+    ? `unique ${fieldSourceText(expression.target)}`
+    : `assert ${operandText(expression.left)} ${expression.operator} ${operandText(expression.right)}`;
 
 const validateScenario = (
   scenario: Scenario,
@@ -536,6 +709,11 @@ const validateExampleAssignments = (
       : typesAreCompatible(field.type, literalType, symbols);
     if (!compatible) {
       diagnostics.push(`${scope}: value for ${elementName}.${field.name} is incompatible with type ${field.type}.`);
+    } else {
+      const valueType = symbols.valueTypes.get(field.type);
+      if (valueType?.kind === 'enum' && isStringLiteral(assignment.value) && !valueType.values.includes(assignment.value.value)) {
+        diagnostics.push(`${scope}: value ${JSON.stringify(assignment.value.value)} is not a member of enum ${valueType.name}.`);
+      }
     }
   }
 };
@@ -598,6 +776,7 @@ const typeOfLiteral = (literal: Expression): string => {
 const typesAreCompatible = (declared: string, actual: string, symbols: ContextSymbols): boolean => {
   const declaredBase = resolveBaseType(declared, symbols.valueTypes, [], '');
   if (!declaredBase) return false;
+  if (symbols.valueTypes.get(declared)?.kind === 'object') return false;
   if (declaredBase === 'Any') return true;
   if (actual === 'Decimal') return numericTypes.has(declaredBase);
   if (actual === 'String') return textualTypes.has(declaredBase);

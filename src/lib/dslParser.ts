@@ -16,6 +16,7 @@ import {
   isHotspot,
   isIntegration,
   isDecision,
+  isEnumType,
   isMetric,
   isNote,
   isNullLiteral,
@@ -30,6 +31,7 @@ import {
   isSource,
   isSpecification,
   isState,
+  isStructuredValueType,
   isStringLiteral,
   isSubscription,
   isTarget,
@@ -60,6 +62,8 @@ import type {
   Scenario as AstScenario,
   TagExpression,
   ValueType as AstValueType,
+  EnumType as AstEnumType,
+  StructuredValueType as AstStructuredValueType,
   ValueTypeConstraint,
   Specification as AstSpecification,
   ValidationExpression,
@@ -79,30 +83,45 @@ const medolServices = inject(
   MedolGeneratedModule
 );
 
-export const parseMedol = (text: string): EmModel => {
+export interface MedolSource {
+  sourceName: string;
+  text: string;
+}
+
+export const parseMedol = (text: string): EmModel =>
+  parseMedolSources([{ sourceName: '<memory>', text }]);
+
+export const parseMedolSources = (sources: MedolSource[]): EmModel => {
   try {
-    const parseResult = medolServices.parser.LangiumParser.parse<AstModel>(text);
-    const model = astToEmModel(parseResult.value);
+    const results = sources.map((source) => ({
+      source,
+      result: medolServices.parser.LangiumParser.parse<AstModel>(source.text)
+    }));
+    const ast = mergeAstModels(results.map(({ result }) => result.value));
+    const model = astToEmModel(ast);
 
-    for (const lexerError of parseResult.lexerErrors) {
-      const location = lexerError.line != null
-        ? `Line ${lexerError.line}${lexerError.column != null ? `:${lexerError.column}` : ''}: `
-        : '';
-      model.diagnostics.push(`${location}${lexerError.message}`);
-    }
-    for (const parserError of parseResult.parserErrors) {
-      const line = parserError.token.startLine;
-      const column = parserError.token.startColumn;
-      const location = line != null ? `Line ${line}${column != null ? `:${column}` : ''}: ` : '';
-      model.diagnostics.push(`${location}${parserError.message}`);
+    for (const { source, result } of results) {
+      const sourcePrefix = source.sourceName === '<memory>' ? '' : `${source.sourceName}: `;
+      for (const lexerError of result.lexerErrors) {
+        const location = lexerError.line != null
+          ? `Line ${lexerError.line}${lexerError.column != null ? `:${lexerError.column}` : ''}: `
+          : '';
+        model.diagnostics.push(`${sourcePrefix}${location}${lexerError.message}`);
+      }
+      for (const parserError of result.parserErrors) {
+        const line = parserError.token.startLine;
+        const column = parserError.token.startColumn;
+        const location = line != null ? `Line ${line}${column != null ? `:${column}` : ''}: ` : '';
+        model.diagnostics.push(`${sourcePrefix}${location}${parserError.message}`);
+      }
     }
 
-    if (model.contexts.length === 0 && text.trim().length > 0) {
+    if (model.contexts.length === 0 && sources.some((source) => source.text.trim().length > 0)) {
       model.diagnostics.push('No context block found. Start with: domain MyDomain { context MyContext { ... } }');
     }
 
     validateReferences(model);
-    model.diagnostics.push(...validateSemanticModel(parseResult.value, model));
+    model.diagnostics.push(...validateSemanticModel(ast, model));
     refreshEdgeIds(model);
     dedupeEdges(model);
     return model;
@@ -114,6 +133,54 @@ export const parseMedol = (text: string): EmModel => {
 };
 
 export const parseEventModelingDsl = parseMedol;
+
+export const readMedolImports = (text: string): string[] => {
+  const parseResult = medolServices.parser.LangiumParser.parse<AstModel>(text);
+  return (parseResult.value.imports ?? []).map((item) => item.path);
+};
+
+const mergeAstModels = (models: AstModel[]): AstModel => {
+  const merged = models[0] ?? medolServices.parser.LangiumParser.parse<AstModel>('').value;
+  const domainGroups = models.map((model) => [...(model.domains ?? [])]);
+  const contextGroups = models.map((model) => [...(model.contexts ?? [])]);
+  merged.imports = models.flatMap((model) => model.imports ?? []);
+  merged.domains = [];
+  merged.contexts = [];
+
+  const domains = new Map<string, AstDomain>();
+  const looseContexts = new Map<string, AstContext>();
+  for (let index = 0; index < models.length; index += 1) {
+    for (const domain of domainGroups[index]) {
+      const existing = domains.get(domain.name);
+      if (!existing) {
+        domain.contexts = [...(domain.contexts ?? [])];
+        domains.set(domain.name, domain);
+        merged.domains.push(domain);
+      } else {
+        mergeContexts(existing.contexts, domain.contexts ?? []);
+      }
+    }
+    mergeContexts(merged.contexts, contextGroups[index], looseContexts);
+  }
+  return merged;
+};
+
+const mergeContexts = (
+  target: AstContext[],
+  additions: AstContext[],
+  existing = new Map(target.map((context) => [context.name, context]))
+): void => {
+  for (const context of additions) {
+    const current = existing.get(context.name);
+    if (current) {
+      current.elements.push(...(context.elements ?? []));
+    } else {
+      context.elements = [...(context.elements ?? [])];
+      target.push(context);
+      existing.set(context.name, context);
+    }
+  }
+};
 
 export const astToEmModel = (ast: AstModel): EmModel => {
   const model = emptyModel();
@@ -166,6 +233,14 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
       context.valueTypes.push(parseValueType(element, context.id));
       continue;
     }
+    if (isEnumType(element)) {
+      context.valueTypes.push(parseEnumType(element, context.id));
+      continue;
+    }
+    if (isStructuredValueType(element)) {
+      context.valueTypes.push(parseStructuredValueType(element, context.id));
+      continue;
+    }
     if (isAggregate(element)) {
       context.aggregates.push(parseAggregate(element, context.id, edges));
       continue;
@@ -216,8 +291,37 @@ const parseValueType = (node: AstValueType, contextId: string): EmValueType => {
   return {
     id: `${contextId}/type/${name}`,
     name,
+    kind: 'scalar',
     baseType: safeName(node.baseType, 'String'),
-    constraints: (node.constraints ?? []).map(parseValueTypeConstraint)
+    constraints: (node.constraints ?? []).map(parseValueTypeConstraint),
+    values: [],
+    fields: []
+  };
+};
+
+const parseEnumType = (node: AstEnumType, contextId: string): EmValueType => {
+  const name = safeName(node.name, 'UnnamedEnum');
+  return {
+    id: `${contextId}/type/${name}`,
+    name,
+    kind: 'enum',
+    baseType: 'String',
+    constraints: [],
+    values: [...(node.values ?? [])],
+    fields: []
+  };
+};
+
+const parseStructuredValueType = (node: AstStructuredValueType, contextId: string): EmValueType => {
+  const name = safeName(node.name, 'UnnamedValue');
+  return {
+    id: `${contextId}/type/${name}`,
+    name,
+    kind: 'object',
+    baseType: name,
+    constraints: [],
+    values: [],
+    fields: (node.fields ?? []).map(parseField)
   };
 };
 

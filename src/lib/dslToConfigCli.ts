@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { MedolValidationError, medolToConfig } from './dslToConfig';
+import { MedolValidationError } from './dslToConfig';
+import { medolFileToConfig } from './dslToConfigFile';
 
 const input = process.argv[2];
 
@@ -8,7 +8,7 @@ if (!input) {
   process.exitCode = 1;
 } else {
   try {
-    console.log(JSON.stringify(medolToConfig(readFileSync(input, 'utf8')), null, 2));
+    console.log(JSON.stringify(medolFileToConfig(input), null, 2));
   } catch (error) {
     console.error(error instanceof MedolValidationError ? error.message : error);
     process.exitCode = 1;

@@ -302,7 +302,7 @@ Generate all document types:
 npm run docs:generate -- examples/fl/federation-learning.medol --kind=all
 ```
 
-Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose one of the `Generate ... with AI` actions and confirm it to download an AI-refined document. The deterministic document remains the source of truth; the configured Agent provider may improve organization and explanation but is instructed to mark missing information as assumptions, recommendations, or open questions.
+Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose a document action and confirm it to download the result. For Simplified Chinese output, English domain vocabulary and business narratives are translated as a controlled terminology map before the deterministic document templates run. Identifiers remain traceable to their MEDOL source, and missing information is presented as notes or open questions rather than invented facts.
 
 The server endpoint is:
 
@@ -411,6 +411,8 @@ context FederationLearning {
 ## Field Syntax
 
 ```text
+import "./shared-types.medol"
+
 type Email = String {
   format email
 }
@@ -424,6 +426,17 @@ type OrganizationType = String {
   oneOf "Company", "University"
 }
 
+enum OrganizationStatus {
+  Active
+  Suspended
+}
+
+value Address {
+  street: String
+  city: String
+  postalCode: String
+}
+
 fieldName: Type
 fieldName: Type?
 fieldName: Type[]
@@ -435,14 +448,16 @@ computedName: Type derived from Aggregate.policy
 computedName: Type derived { from Aggregate.state, Command.input rule "Explain the domain rule." example "42" }
 ```
 
-Fields without `?` are required. Reusable value types carry intrinsic field validity; specifications carry business invariants that depend on domain meaning, state, or other instances.
+Fields without `?` are required. `type` defines constrained scalar values, `enum` defines a closed business vocabulary, and `value` defines a structured value object without identity. Reusable value types carry intrinsic field validity; specifications carry business invariants that depend on domain meaning, state, or other instances.
+
+Imports are resolved relative to the importing file by the MEDOL CLI. Files may contribute fragments to the same domain and context; the compiler merges them before semantic validation. Generated IDs use fully qualified semantic paths, so moving a declaration between imported files or changing file order does not change its ID.
 
 ## Semantic Validation
 
 MEDOL validates the parsed model before preview, documentation, or code generation. Diagnostics cover:
 
 - duplicate domains, contexts, types, aggregates, concepts, slices, states, tags, elements, fields, scenarios, and assignments
-- unknown field types, unknown value-type base types, cyclic type definitions, and incompatible `oneOf` literals
+- unknown field types, unknown value-type base types, cyclic scalar or structured value definitions, invalid enum examples, and incompatible `oneOf` literals
 - invalid constraint bounds, invalid regular expressions, and constraints applied to incompatible base types
 - invalid Concept/Aggregate lifecycle starts and resulting states that were not declared
 - missing or ambiguous Concept Slice references and Slices assigned to multiple Concepts

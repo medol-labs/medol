@@ -1,6 +1,7 @@
 import type { EmElement, EmField, EmModel, EmSlice } from './model';
 import { allContextSlices } from './dslParser';
 import { humanize } from './name';
+import { coveredSpecificationExpressions } from './specificationCoverage';
 
 export interface CodegenModel {
   rootPackage: 'tech.medo';
@@ -21,7 +22,7 @@ export interface CodegenContext {
   risks: string[];
   decisions: string[];
   metrics: string[];
-  valueTypes: Array<{ id: string; name: string; title: string }>;
+  valueTypes: Array<{ id: string; name: string; title: string; kind: 'scalar' | 'enum' | 'object' }>;
   aggregates: Array<{ id: string; name: string; title: string }>;
   concepts: Array<{ id: string; name: string; title: string; states: string[] }>;
   slices: Array<{ id: string; name: string; title: string }>;
@@ -39,8 +40,11 @@ export interface CodegenValueType {
   name: string;
   title: string;
   context: string;
+  kind: 'scalar' | 'enum' | 'object';
   baseType: string;
   constraints: CodegenValueTypeConstraint[];
+  values: string[];
+  fields: CodegenField[];
 }
 
 export interface CodegenConcept {
@@ -171,6 +175,7 @@ export interface CodegenSpecification {
   specification?: string;
   rule?: string;
   expressions: string[];
+  validates: string[];
   given: CodegenSpecificationElement[];
   when: CodegenSpecificationElement[];
   then: CodegenSpecificationElement[] | CodegenSpecificationReject;
@@ -196,8 +201,8 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
 
   for (const contextItem of model.contexts) {
     for (const aggregate of contextItem.aggregates) {
-      aggregateRecords.set(aggregate.name, {
-        id: stableId('aggregate', aggregate.name),
+      aggregateRecords.set(aggregate.id, {
+        id: stableId('aggregate', aggregate.id),
         name: aggregate.name,
         title: humanize(aggregate.name),
         context: contextItem.name,
@@ -211,8 +216,8 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
       for (const element of slice.elements) {
         elementsById.set(element.id, element);
         if (element.kind === 'actor') {
-          actorRecords.set(element.name, {
-            id: stableId('actor', element.name),
+          actorRecords.set(`${contextItem.id}:${element.name}`, {
+            id: stableId('actor', `context/${contextItem.name}/actor/${element.name}`),
             name: element.name,
             title: humanize(element.name)
           });
@@ -233,7 +238,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
 
   for (const contextItem of model.contexts) {
     for (const aggregate of contextItem.aggregates) {
-      const aggregateRef = toCodegenAggregateRef(aggregate.name);
+      const aggregateRef = toCodegenAggregateRef(aggregate);
       for (const slice of aggregate.slices) {
         slices.push(toCodegenSlice(
           slice,
@@ -273,9 +278,10 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
       valueTypes: contextItem.valueTypes.map((valueType) => ({
         id: stableId('type', valueType.id),
         name: valueType.name,
-        title: humanize(valueType.name)
+        title: humanize(valueType.name),
+        kind: valueType.kind
       })),
-      aggregates: contextItem.aggregates.map((aggregate) => toCodegenAggregateRef(aggregate.name)),
+      aggregates: contextItem.aggregates.map(toCodegenAggregateRef),
       concepts: contextItem.concepts.map((concept) => ({
         id: stableId('concept', concept.id),
         name: concept.name,
@@ -290,7 +296,10 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
       title: humanize(valueType.name),
       context: contextItem.name,
       baseType: valueType.baseType,
-      constraints: valueType.constraints
+      kind: valueType.kind,
+      constraints: valueType.constraints,
+      values: valueType.values,
+      fields: valueType.fields.map(toCodegenField)
     }))),
     aggregates: [...aggregateRecords.values()],
     concepts: model.contexts.flatMap((contextItem) => contextItem.concepts.map((concept) => ({
@@ -331,7 +340,7 @@ const toCodegenSlice = (
   const actors = slice.elements
     .filter((element) => element.kind === 'actor')
     .map((element) => ({
-      id: stableId('actor', element.name),
+      id: stableId('actor', `context/${context}/actor/${element.name}`),
       name: element.name,
       title: humanize(element.name)
     }));
@@ -427,6 +436,10 @@ const toCodegenSpecification = (
   const then = metadata.then ? elementsByReference.get(`event:${metadata.then}`) : undefined;
   const thenReject = metadata.thenReject;
   const examples = specExamples(metadata);
+  const expressions = Object.entries(metadata)
+    .filter(([key]) => /^expression\d+$/.test(key))
+    .sort(([left], [right]) => Number(left.slice(10)) - Number(right.slice(10)))
+    .map(([, expression]) => expression);
 
   return {
     id: stableId(element.kind, element.id),
@@ -435,10 +448,8 @@ const toCodegenSpecification = (
     title: humanize(element.name),
     ...(metadata.specification ? { specification: metadata.specification } : {}),
     ...(metadata.rule ? { rule: metadata.rule } : {}),
-    expressions: Object.entries(metadata)
-      .filter(([key]) => /^expression\d+$/.test(key))
-      .sort(([left], [right]) => Number(left.slice(10)) - Number(right.slice(10)))
-      .map(([, expression]) => expression),
+    expressions,
+    validates: coveredSpecificationExpressions({ expressions, metadata }),
     given,
     when: when ? [toCodegenSpecificationElement(when, 'COMMAND', examples)] : [],
     then: then
@@ -547,10 +558,10 @@ const pushDependency = (
   dependenciesByElementId.set(elementId, dependencies);
 };
 
-const toCodegenAggregateRef = (aggregateName: string): CodegenAggregateRef => ({
-  id: stableId('aggregate', aggregateName),
-  name: aggregateName,
-  title: humanize(aggregateName)
+const toCodegenAggregateRef = (aggregate: { id: string; name: string }): CodegenAggregateRef => ({
+  id: stableId('aggregate', aggregate.id),
+  name: aggregate.name,
+  title: humanize(aggregate.name)
 });
 
 const toElementType = (kind: EmElement['kind']): string => {
