@@ -159,7 +159,11 @@ explicit save, download, deletion, and reopening documents associated with the a
 workspace. Generated sections retain stable MEDOL source references. The Explorer shows a
 document-location action for referenced domains, contexts, aggregates, concepts, and slices;
 document sections can navigate back to the corresponding MEDOL element. A source hash also marks
-whether a document still represents the current MEDOL content or needs regeneration.
+whether a document still represents the current MEDOL content or needs regeneration. The Markdown
+editor and rendered preview scroll together in both directions. Regenerating the same document kind
+and language updates the existing document section by section: unchanged generated sections are
+refreshed, new and removed MEDOL sections are reconciled, and manually edited sections are preserved
+for review.
 
 The editor depends on the `ModelingWorkspaceClient` interface rather than TanStack Start directly. To move workspace management to another backend later, implement the same API contract and set:
 

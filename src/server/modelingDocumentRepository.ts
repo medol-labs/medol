@@ -12,7 +12,9 @@ import type {
 import {
   addDocumentSectionReferences,
   extractDocumentSourceRefs,
-  hashMedolSource
+  hashMedolSource,
+  mergeGeneratedDocument,
+  parseDocumentMarkdownSections
 } from '../features/documentation/documentReferences';
 import { parseMedol } from '../lib/dslParser';
 import { humanize } from '../lib/name';
@@ -26,6 +28,7 @@ interface DocumentRow {
   kind: DocumentationKind;
   language: DocumentationLanguage;
   markdown: string;
+  generated_markdown: string | null;
   source_hash: string | null;
   created_at: string;
   updated_at: string;
@@ -39,6 +42,7 @@ documentDatabase.exec(`
     kind TEXT NOT NULL,
     language TEXT NOT NULL,
     markdown TEXT NOT NULL,
+    generated_markdown TEXT,
     source_hash TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -54,30 +58,47 @@ const documentColumns = documentDatabase
 if (!documentColumns.some((column) => column.name === 'source_hash')) {
   documentDatabase.exec('ALTER TABLE modeling_documents ADD COLUMN source_hash TEXT');
 }
+if (!documentColumns.some((column) => column.name === 'generated_markdown')) {
+  documentDatabase.exec('ALTER TABLE modeling_documents ADD COLUMN generated_markdown TEXT');
+}
 
 const listDocuments = documentDatabase.prepare(`
-  SELECT id, workspace_id, title, kind, language, markdown, source_hash, created_at, updated_at
+  SELECT id, workspace_id, title, kind, language, markdown, generated_markdown, source_hash, created_at, updated_at
   FROM modeling_documents
   WHERE workspace_id = ?
   ORDER BY updated_at DESC, title ASC
 `);
 
 const selectDocument = documentDatabase.prepare(`
-  SELECT id, workspace_id, title, kind, language, markdown, source_hash, created_at, updated_at
+  SELECT id, workspace_id, title, kind, language, markdown, generated_markdown, source_hash, created_at, updated_at
   FROM modeling_documents
   WHERE id = ?
 `);
 
+const selectMatchingDocument = documentDatabase.prepare(`
+  SELECT id, workspace_id, title, kind, language, markdown, generated_markdown, source_hash, created_at, updated_at
+  FROM modeling_documents
+  WHERE workspace_id = ? AND kind = ? AND language = ?
+  ORDER BY updated_at DESC
+  LIMIT 1
+`);
+
 const insertDocument = documentDatabase.prepare(`
   INSERT INTO modeling_documents (
-    id, workspace_id, title, kind, language, markdown, source_hash, created_at, updated_at
+    id, workspace_id, title, kind, language, markdown, generated_markdown, source_hash, created_at, updated_at
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 `);
 
 const updateDocument = documentDatabase.prepare(`
   UPDATE modeling_documents
   SET title = ?, markdown = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE id = ?
+`);
+
+const updateGeneratedDocument = documentDatabase.prepare(`
+  UPDATE modeling_documents
+  SET title = ?, markdown = ?, generated_markdown = ?, source_hash = ?, updated_at = CURRENT_TIMESTAMP
   WHERE id = ?
 `);
 
@@ -88,8 +109,14 @@ const deleteDocument = documentDatabase.prepare(`
 
 const backfillDocument = documentDatabase.prepare(`
   UPDATE modeling_documents
-  SET markdown = ?, source_hash = ?
+  SET markdown = ?, generated_markdown = COALESCE(generated_markdown, ?), source_hash = ?
   WHERE id = ?
+`);
+
+const backfillGeneratedBaseline = documentDatabase.prepare(`
+  UPDATE modeling_documents
+  SET generated_markdown = ?
+  WHERE id = ? AND generated_markdown IS NULL
 `);
 
 export const listModelingDocuments = (workspaceId: string): ModelingDocumentSummary[] =>
@@ -103,6 +130,37 @@ export const readModelingDocument = (documentId: string): ModelingDocument | und
 export const createModelingDocument = (
   input: CreateModelingDocumentInput
 ): ModelingDocument => {
+  const existing = selectMatchingDocument.get(
+    input.workspaceId,
+    input.kind,
+    input.language
+  ) as DocumentRow | undefined;
+  if (existing) {
+    const prepared = ensureDocumentReferences(existing);
+    const merge = mergeGeneratedDocument(
+      prepared.markdown,
+      prepared.generated_markdown ?? undefined,
+      input.markdown
+    );
+    updateGeneratedDocument.run(
+      input.title,
+      merge.markdown,
+      input.markdown,
+      input.sourceHash ?? null,
+      prepared.id
+    );
+    return {
+      ...requireDocument(prepared.id),
+      mergeSummary: {
+        created: false,
+        added: merge.added,
+        updated: merge.updated,
+        preserved: merge.preserved,
+        removed: merge.removed
+      }
+    };
+  }
+
   const documentId = randomUUID();
   insertDocument.run(
     documentId,
@@ -111,9 +169,19 @@ export const createModelingDocument = (
     input.kind,
     input.language,
     input.markdown,
+    input.markdown,
     input.sourceHash ?? null
   );
-  return requireDocument(documentId);
+  return {
+    ...requireDocument(documentId),
+    mergeSummary: {
+      created: true,
+      added: parseSectionCount(input.markdown),
+      updated: 0,
+      preserved: 0,
+      removed: 0
+    }
+  };
 };
 
 export const updateModelingDocument = (
@@ -157,7 +225,14 @@ const toDocument = (row: DocumentRow): ModelingDocument => ({
 });
 
 const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
-  if (extractDocumentSourceRefs(row.markdown).length > 0) return row;
+  if (extractDocumentSourceRefs(row.markdown).length > 0) {
+    if (row.generated_markdown) return row;
+    backfillGeneratedBaseline.run(row.markdown, row.id);
+    return {
+      ...row,
+      generated_markdown: row.markdown
+    };
+  }
   const workspace = readModelingWorkspace(row.workspace_id);
   if (!workspace?.dsl) return row;
 
@@ -218,10 +293,14 @@ const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
   if (markdown === row.markdown) return row;
 
   const sourceHash = hashMedolSource(workspace.dsl);
-  backfillDocument.run(markdown, sourceHash, row.id);
+  backfillDocument.run(markdown, markdown, sourceHash, row.id);
   return {
     ...row,
     markdown,
+    generated_markdown: row.generated_markdown ?? markdown,
     source_hash: sourceHash
   };
 };
+
+const parseSectionCount = (markdown: string): number =>
+  Math.max(1, parseDocumentMarkdownSections(markdown).length);

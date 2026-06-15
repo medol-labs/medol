@@ -17,6 +17,15 @@ export interface ModelingDocumentSummary {
 
 export interface ModelingDocument extends ModelingDocumentSummary {
   markdown: string;
+  mergeSummary?: ModelingDocumentMergeSummary;
+}
+
+export interface ModelingDocumentMergeSummary {
+  created: boolean;
+  added: number;
+  updated: number;
+  preserved: number;
+  removed: number;
 }
 
 export interface CreateModelingDocumentInput {

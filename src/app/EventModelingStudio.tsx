@@ -116,6 +116,7 @@ export function MedolStudio() {
   const [documentFocusSourceId, setDocumentFocusSourceId] = useState<string>();
   const [documentFocusVersion, setDocumentFocusVersion] = useState(0);
   const [documentNavigationMessage, setDocumentNavigationMessage] = useState<string>();
+  const [documentNavigationTone, setDocumentNavigationTone] = useState<'info' | 'warning'>('warning');
   const debouncedDsl = useDebouncedValue(dsl, 800);
   const {
     documents,
@@ -184,6 +185,7 @@ export function MedolStudio() {
     setSelectedNodeId(undefined);
     setDocumentFocusSourceId(undefined);
     setDocumentNavigationMessage(undefined);
+    setDocumentNavigationTone('warning');
   }, [activeWorkspaceId]);
 
   const selectDomain = (domain: EmDomain) => {
@@ -280,6 +282,7 @@ export function MedolStudio() {
           ? 'No linked section was found in the saved documents. Regenerate the document so it includes MEDOL references.'
           : 'Generate a PRD, software design, database design, or process document first. It will then be linked to this MEDOL item.'
       );
+      setDocumentNavigationTone('warning');
       return;
     }
     const document = documents.find((candidate) => candidate.sourceRefs.includes(sourceId));
@@ -287,6 +290,7 @@ export function MedolStudio() {
 
     setPreviewMode('documents');
     setDocumentNavigationMessage(undefined);
+    setDocumentNavigationTone('warning');
     setDocumentFocusSourceId(sourceId);
     setDocumentFocusVersion((version) => version + 1);
     if (activeDocument?.id !== document.id) {
@@ -409,14 +413,20 @@ export function MedolStudio() {
           enhanceWithAi: true
         });
         if (document.warning) console.warn(document.warning);
-        await createDocument({
+        const savedDocument = await createDocument({
           title: document.title,
           kind,
           language: documentationLanguage,
           markdown: document.markdown,
           sourceHash: medolSourceHash
         });
-        setDocumentNavigationMessage(undefined);
+        const merge = savedDocument.mergeSummary;
+        setDocumentNavigationMessage(merge
+          ? merge.created
+            ? `Created document with ${merge.added} generated sections.`
+            : `Incremental update: ${merge.updated} updated, ${merge.added} added, ${merge.removed} removed, ${merge.preserved} manually edited sections preserved.`
+          : undefined);
+        setDocumentNavigationTone(merge?.preserved ? 'warning' : 'info');
         setDocumentFocusSourceId(undefined);
         setPreviewMode('documents');
       } else if (toolbarAction === 'reset') {
@@ -837,12 +847,14 @@ export function MedolStudio() {
               status={documentStatus}
               error={documentError}
               navigationMessage={documentNavigationMessage}
+              navigationMessageTone={documentNavigationTone}
               focusSourceId={documentFocusSourceId}
               focusVersion={documentFocusVersion}
               currentSourceHash={medolSourceHash}
               onSelect={(documentId) => {
                 setDocumentFocusSourceId(undefined);
                 setDocumentNavigationMessage(undefined);
+                setDocumentNavigationTone('warning');
                 void loadDocument(documentId);
               }}
               onSave={saveDocument}

@@ -19,6 +19,7 @@ interface DocumentWorkspaceProps {
   status: DocumentPersistenceStatus;
   error?: string;
   navigationMessage?: string;
+  navigationMessageTone?: 'info' | 'warning';
   focusSourceId?: string;
   focusVersion: number;
   currentSourceHash: string;
@@ -34,6 +35,7 @@ export function DocumentWorkspace({
   status,
   error,
   navigationMessage,
+  navigationMessageTone = 'warning',
   focusSourceId,
   focusVersion,
   currentSourceHash,
@@ -47,6 +49,11 @@ export function DocumentWorkspace({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMode, setMobileMode] = useState<'edit' | 'preview'>('edit');
   const editorRef = useRef<Parameters<OnMount>[0] | undefined>(undefined);
+  const editorScrollSubscription = useRef<{ dispose: () => void } | undefined>(undefined);
+  const editorInteractionCleanup = useRef<(() => void) | undefined>(undefined);
+  const previewScrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollDriver = useRef<'editor' | 'preview' | undefined>(undefined);
+  const scrollDriverTimer = useRef<number | undefined>(undefined);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
 
   useEffect(() => {
@@ -94,6 +101,57 @@ export function DocumentWorkspace({
     }
   }, [activeDocument?.id, activeDocument?.markdown, focusSourceId, focusVersion, markdown]);
 
+  useEffect(() => () => {
+    editorScrollSubscription.current?.dispose();
+    editorInteractionCleanup.current?.();
+    if (scrollDriverTimer.current !== undefined) window.clearTimeout(scrollDriverTimer.current);
+  }, []);
+
+  const markScrollDriver = (source: 'editor' | 'preview') => {
+    scrollDriver.current = source;
+    if (scrollDriverTimer.current !== undefined) window.clearTimeout(scrollDriverTimer.current);
+    scrollDriverTimer.current = window.setTimeout(() => {
+      scrollDriver.current = undefined;
+      scrollDriverTimer.current = undefined;
+    }, 180);
+  };
+
+  const syncPreviewFromEditor = (scrollTop: number) => {
+    if (scrollDriver.current === 'preview') return;
+    markScrollDriver('editor');
+    const editor = editorRef.current;
+    const preview = previewScrollRef.current;
+    if (!editor || !preview) return;
+    const anchors = collectPreviewAnchors(preview);
+    if (anchors.length === 0) return;
+    const visibleLine = editor.getVisibleRanges()[0]?.startLineNumber ?? 1;
+    const [anchor, nextAnchor] = findLineAnchors(anchors, visibleLine);
+    const sourceEnd = nextAnchor?.line ?? anchor.endLine;
+    const progress = clamp((visibleLine - anchor.line) / Math.max(1, sourceEnd - anchor.line));
+    const previewMax = Math.max(0, preview.scrollHeight - preview.clientHeight);
+    const previewEnd = nextAnchor?.top ?? Math.min(previewMax, anchor.top + anchor.height);
+    const target = anchor.top + progress * Math.max(0, previewEnd - anchor.top);
+    preview.scrollTop = Math.min(previewMax, Math.max(0, target));
+  };
+
+  const syncEditorFromPreview = () => {
+    if (scrollDriver.current === 'editor') return;
+    markScrollDriver('preview');
+    const editor = editorRef.current;
+    const preview = previewScrollRef.current;
+    if (!editor || !preview) return;
+    const anchors = collectPreviewAnchors(preview);
+    if (anchors.length === 0) return;
+    const [anchor, nextAnchor] = findPreviewAnchors(anchors, preview.scrollTop);
+    const previewEnd = nextAnchor?.top ?? anchor.top + anchor.height;
+    const progress = clamp(
+      (preview.scrollTop - anchor.top) / Math.max(1, previewEnd - anchor.top)
+    );
+    const sourceEnd = nextAnchor?.line ?? anchor.endLine;
+    const sourceLine = anchor.line + progress * Math.max(0, sourceEnd - anchor.line);
+    editor.setScrollTop(editor.getTopForLineNumber(Math.max(1, Math.round(sourceLine))));
+  };
+
   const download = () => {
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -115,7 +173,11 @@ export function DocumentWorkspace({
           </p>
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
           {navigationMessage && (
-            <p className="mt-3 border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <p className={`mt-3 border px-3 py-2 text-sm ${
+              navigationMessageTone === 'info'
+                ? 'border-blue-200 bg-blue-50 text-blue-800'
+                : 'border-amber-200 bg-amber-50 text-amber-800'
+            }`}>
               {navigationMessage}
             </p>
           )}
@@ -229,7 +291,11 @@ export function DocumentWorkspace({
             </Button>
           </header>
           {navigationMessage && (
-            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+            <div className={`border-b px-4 py-2 text-xs ${
+              navigationMessageTone === 'info'
+                ? 'border-blue-200 bg-blue-50 text-blue-800'
+                : 'border-amber-200 bg-amber-50 text-amber-800'
+            }`}>
               {navigationMessage}
             </div>
           )}
@@ -245,6 +311,21 @@ export function DocumentWorkspace({
               onChange={(value) => setMarkdown(value ?? '')}
               onMount={(editor) => {
                 editorRef.current = editor;
+                editorScrollSubscription.current?.dispose();
+                editorInteractionCleanup.current?.();
+                const editorElement = editor.getDomNode();
+                const takeEditorControl = () => markScrollDriver('editor');
+                editorElement?.addEventListener('wheel', takeEditorControl, { passive: true });
+                editorElement?.addEventListener('pointerdown', takeEditorControl);
+                editorElement?.addEventListener('keydown', takeEditorControl);
+                editorInteractionCleanup.current = () => {
+                  editorElement?.removeEventListener('wheel', takeEditorControl);
+                  editorElement?.removeEventListener('pointerdown', takeEditorControl);
+                  editorElement?.removeEventListener('keydown', takeEditorControl);
+                };
+                editorScrollSubscription.current = editor.onDidScrollChange((event) => {
+                  if (event.scrollTopChanged) syncPreviewFromEditor(event.scrollTop);
+                });
               }}
               options={{
                 minimap: { enabled: false },
@@ -257,7 +338,14 @@ export function DocumentWorkspace({
               }}
             />
           </div>
-          <div className={`min-h-0 overflow-y-auto bg-white ${mobileMode === 'edit' ? 'hidden lg:block' : 'block'}`}>
+          <div
+            ref={previewScrollRef}
+            data-document-preview
+            className={`min-h-0 overflow-y-auto bg-white ${mobileMode === 'edit' ? 'hidden lg:block' : 'block'}`}
+            onScroll={syncEditorFromPreview}
+            onWheel={() => markScrollDriver('preview')}
+            onPointerDown={() => markScrollDriver('preview')}
+          >
             <article className="document-markdown mx-auto max-w-4xl px-8 py-7">
               {markdownSections.map((section) => (
                 <section
@@ -284,7 +372,14 @@ export function DocumentWorkspace({
                       <LocateFixed />
                     </Button>
                   )}
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.markdown}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[
+                      createSourceLinePlugin((section.contentStartLine ?? section.startLine ?? 1) - 1)
+                    ]}
+                  >
+                    {section.markdown}
+                  </ReactMarkdown>
                 </section>
               ))}
             </article>
@@ -306,3 +401,80 @@ const labelKind = (kind: ModelingDocumentSummary['kind']): string => ({
   'database-design': 'Database',
   process: 'Process'
 })[kind];
+
+const clamp = (value: number): number => Math.min(1, Math.max(0, value));
+
+interface PreviewAnchor {
+  line: number;
+  endLine: number;
+  top: number;
+  height: number;
+}
+
+interface PositionedNode {
+  type?: string;
+  tagName?: string;
+  position?: {
+    start?: { line?: number };
+    end?: { line?: number };
+  };
+  properties?: Record<string, unknown>;
+  children?: PositionedNode[];
+}
+
+const sourceMappedTags = new Set([
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'p', 'li', 'blockquote', 'pre', 'table', 'hr'
+]);
+
+const createSourceLinePlugin = (lineOffset: number) => () => (tree: PositionedNode) => {
+  const visit = (node: PositionedNode) => {
+    if (
+      node.type === 'element'
+      && node.tagName
+      && sourceMappedTags.has(node.tagName)
+      && node.position?.start?.line
+    ) {
+      node.properties ??= {};
+      node.properties['data-source-line'] = node.position.start.line + lineOffset;
+      node.properties['data-source-end-line'] =
+        (node.position.end?.line ?? node.position.start.line) + lineOffset;
+    }
+    node.children?.forEach(visit);
+  };
+  visit(tree);
+};
+
+const getPreviewOffset = (preview: HTMLElement, element: HTMLElement): number =>
+  element.getBoundingClientRect().top
+  - preview.getBoundingClientRect().top
+  + preview.scrollTop;
+
+const collectPreviewAnchors = (preview: HTMLElement): PreviewAnchor[] =>
+  [...preview.querySelectorAll<HTMLElement>('[data-source-line]')]
+    .map((element) => ({
+      line: Number(element.dataset.sourceLine),
+      endLine: Number(element.dataset.sourceEndLine ?? element.dataset.sourceLine),
+      top: getPreviewOffset(preview, element),
+      height: element.offsetHeight
+    }))
+    .filter((anchor) => Number.isFinite(anchor.line))
+    .sort((left, right) => left.line - right.line || left.top - right.top);
+
+const findLineAnchors = (
+  anchors: PreviewAnchor[],
+  line: number
+): [PreviewAnchor, PreviewAnchor | undefined] => {
+  let index = 0;
+  while (index + 1 < anchors.length && anchors[index + 1].line <= line) index += 1;
+  return [anchors[index], anchors[index + 1]];
+};
+
+const findPreviewAnchors = (
+  anchors: PreviewAnchor[],
+  scrollTop: number
+): [PreviewAnchor, PreviewAnchor | undefined] => {
+  let index = 0;
+  while (index + 1 < anchors.length && anchors[index + 1].top <= scrollTop + 1) index += 1;
+  return [anchors[index], anchors[index + 1]];
+};

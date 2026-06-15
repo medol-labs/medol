@@ -2,7 +2,19 @@ export interface DocumentMarkdownSection {
   id: string;
   sourceRefs: string[];
   markdown: string;
+  marker?: string;
   markerLine?: number;
+  contentStartLine?: number;
+  startLine?: number;
+  endLine?: number;
+}
+
+export interface IncrementalDocumentMerge {
+  markdown: string;
+  added: number;
+  updated: number;
+  preserved: number;
+  removed: number;
 }
 
 const sectionMarkerPattern = /^\s*<!--\s*em:section\b([^>]*)-->\s*$/;
@@ -21,9 +33,15 @@ export const parseDocumentMarkdownSections = (
   let content: string[] = [];
 
   const flush = () => {
+    const firstContentIndex = content.findIndex((line) => line.trim().length > 0);
     const sectionMarkdown = content.join('\n').replace(/^\n+|\n+$/g, '');
     if (sectionMarkdown || current.sourceRefs.length || sections.length === 0) {
-      sections.push({ ...current, markdown: sectionMarkdown });
+      sections.push({
+        ...current,
+        markdown: sectionMarkdown,
+        contentStartLine: (current.markerLine ? current.markerLine + 1 : 1)
+          + Math.max(0, firstContentIndex)
+      });
     }
   };
 
@@ -40,13 +58,21 @@ export const parseDocumentMarkdownSections = (
       id: attributes.id || `document.section.${sections.length + 1}`,
       sourceRefs: parseSourceRefs(attributes),
       markdown: '',
+      marker: line,
       markerLine: index + 1
     };
     content = [];
   });
   flush();
 
-  return sections;
+  return sections.map((section, index) => ({
+    ...section,
+    startLine: section.markerLine ?? 1,
+    endLine: Math.max(
+      section.markerLine ?? 1,
+      (sections[index + 1]?.markerLine ?? lines.length + 1) - 1
+    )
+  }));
 };
 
 export const extractDocumentSourceRefs = (markdown: string): string[] => [
@@ -115,6 +141,72 @@ export const addDocumentSectionReferences = (
   return migrated.join('\n');
 };
 
+export const mergeGeneratedDocument = (
+  currentMarkdown: string,
+  baselineMarkdown: string | undefined,
+  nextGeneratedMarkdown: string
+): IncrementalDocumentMerge => {
+  const current = parseDocumentMarkdownSections(currentMarkdown);
+  const baseline = baselineMarkdown
+    ? parseDocumentMarkdownSections(baselineMarkdown)
+    : [];
+  const next = parseDocumentMarkdownSections(nextGeneratedMarkdown);
+  const currentById = new Map(current.map((section) => [sectionKey(section), section]));
+  const baselineById = new Map(baseline.map((section) => [sectionKey(section), section]));
+  const nextIds = new Set(next.map(sectionKey));
+  const merged: DocumentMarkdownSection[] = [];
+  let added = 0;
+  let updated = 0;
+  let preserved = 0;
+  let removed = 0;
+
+  for (const nextSection of next) {
+    const key = sectionKey(nextSection);
+    const currentSection = currentById.get(key);
+    const baselineSection = baselineById.get(key);
+    if (!currentSection) {
+      merged.push(nextSection);
+      added += 1;
+      continue;
+    }
+
+    const userEdited = !baselineSection
+      || normalizeMarkdown(currentSection.markdown) !== normalizeMarkdown(baselineSection.markdown);
+    if (userEdited) {
+      merged.push(currentSection);
+      preserved += 1;
+      continue;
+    }
+
+    merged.push(nextSection);
+    if (normalizeMarkdown(currentSection.markdown) !== normalizeMarkdown(nextSection.markdown)) {
+      updated += 1;
+    }
+  }
+
+  for (const currentSection of current) {
+    const key = sectionKey(currentSection);
+    if (nextIds.has(key)) continue;
+    const baselineSection = baselineById.get(key);
+    const userEdited = !baselineSection
+      || normalizeMarkdown(currentSection.markdown) !== normalizeMarkdown(baselineSection.markdown);
+    if (userEdited) {
+      merged.push(currentSection);
+      preserved += 1;
+    } else {
+      removed += 1;
+    }
+  }
+
+  return {
+    markdown: serializeDocumentSections(merged),
+    added,
+    updated,
+    preserved,
+    removed
+  };
+};
+
 const parseAttributes = (text: string): Record<string, string> => {
   const attributes: Record<string, string> = {};
   for (const match of text.matchAll(attributePattern)) {
@@ -130,3 +222,21 @@ const parseSourceRefs = (attributes: Record<string, string>): string[] => [
 
 const normalizeHeading = (value: string): string =>
   value.trim().replace(/\s+/g, ' ').toLowerCase();
+
+const normalizeMarkdown = (value: string): string =>
+  value.replace(/\r\n/g, '\n').trim();
+
+const serializeDocumentSections = (
+  sections: DocumentMarkdownSection[]
+): string => sections
+  .map((section) => [
+    section.marker,
+    section.markdown
+  ].filter(Boolean).join('\n'))
+  .filter(Boolean)
+  .join('\n\n');
+
+const sectionKey = (section: DocumentMarkdownSection): string =>
+  section.sourceRefs.length
+    ? `source:${[...section.sourceRefs].sort().join('|')}`
+    : `id:${section.id}`;

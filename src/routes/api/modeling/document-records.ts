@@ -21,9 +21,10 @@ export const Route = createFileRoute('/api/modeling/document-records')({
         if (!validation.value) {
           return Response.json({ error: validation.error }, { status: 400 });
         }
+        const document = createModelingDocument(validation.value);
         return Response.json({
-          document: createModelingDocument(validation.value)
-        }, { status: 201 });
+          document
+        }, { status: document.mergeSummary?.created ? 201 : 200 });
       }
     }
   }

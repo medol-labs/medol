@@ -4,7 +4,9 @@ import test from 'node:test';
 import {
   extractDocumentSourceRefs,
   findDocumentSourceLine,
-  hashMedolSource
+  hashMedolSource,
+  mergeGeneratedDocument,
+  parseDocumentMarkdownSections
 } from '../features/documentation/documentReferences';
 
 const databasePath = `/private/tmp/medol-documents-${process.pid}.sqlite`;
@@ -72,8 +74,77 @@ test('parses multi-source section markers and stable MEDOL hashes', () => {
     'slice/orders'
   ]);
   assert.equal(findDocumentSourceLine(markdown, 'slice/orders'), 3);
+  assert.deepEqual(
+    parseDocumentMarkdownSections(markdown).map(({ id, startLine, endLine }) => ({
+      id,
+      startLine,
+      endLine
+    })),
+    [
+      { id: 'document.preamble', startLine: 1, endLine: 2 },
+      { id: 'database.readmodel.Orders', startLine: 3, endLine: 4 }
+    ]
+  );
   assert.equal(hashMedolSource('domain Orders {}'), hashMedolSource('domain Orders {}'));
   assert.notEqual(hashMedolSource('domain Orders {}'), hashMedolSource('domain Sales {}'));
+});
+
+test('incrementally updates generated sections while preserving manual edits', () => {
+  const baseline = [
+    '# Orders',
+    '',
+    '<!-- em:section id="orders.create" source="slice/create" -->',
+    '## Create Order',
+    '',
+    'Generated v1.',
+    '',
+    '<!-- em:section id="orders.list" source="slice/list" -->',
+    '## Orders',
+    '',
+    'List v1.'
+  ].join('\n');
+  const current = baseline.replace('Generated v1.', 'Manually edited acceptance notes.');
+  const next = baseline
+    .replace('Generated v1.', 'Generated v2.')
+    .replace('List v1.', 'List v2.')
+    .concat('\n\n<!-- em:section id="orders.cancel" source="slice/cancel" -->\n## Cancel Order');
+
+  const merged = mergeGeneratedDocument(current, baseline, next);
+
+  assert.match(merged.markdown, /Manually edited acceptance notes/);
+  assert.match(merged.markdown, /List v2/);
+  assert.match(merged.markdown, /Cancel Order/);
+  assert.equal(merged.preserved, 1);
+  assert.equal(merged.updated, 1);
+  assert.equal(merged.added, 1);
+});
+
+test('regeneration updates the existing document instead of creating a duplicate', () => {
+  const first = repository.createModelingDocument({
+    workspaceId: 'incremental-workspace',
+    title: 'Orders PRD',
+    kind: 'prd',
+    language: 'en',
+    sourceHash: 'v1',
+    markdown: '# Orders\n\n<!-- em:section id="orders" source="slice/orders" -->\n## Orders\n\nVersion one.'
+  });
+  repository.updateModelingDocument(first.id, {
+    markdown: first.markdown.replace('Version one.', 'Manual notes.')
+  });
+  const regenerated = repository.createModelingDocument({
+    workspaceId: 'incremental-workspace',
+    title: 'Orders PRD',
+    kind: 'prd',
+    language: 'en',
+    sourceHash: 'v2',
+    markdown: '# Orders\n\n<!-- em:section id="orders" source="slice/orders" -->\n## Orders\n\nVersion two.'
+  });
+
+  assert.equal(regenerated.id, first.id);
+  assert.equal(repository.listModelingDocuments('incremental-workspace').length, 1);
+  assert.match(regenerated.markdown, /Manual notes/);
+  assert.equal(regenerated.sourceHash, 'v2');
+  assert.equal(regenerated.mergeSummary?.preserved, 1);
 });
 
 test('backfills source references for previously generated documents', () => {
