@@ -6,6 +6,7 @@ import { AgentChatDock } from '../features/agent-chat/AgentChatDock';
 import { GlobalMap } from '../features/global-map/GlobalMap';
 import { InspectorPanel } from '../features/inspector/InspectorPanel';
 import { LayoutPreview } from '../components/LayoutPreview';
+import { OverflowText } from '../components/ui/overflow-text';
 import { ModelExplorer } from '../features/model-explorer/ModelExplorer';
 import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
 import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
@@ -693,8 +694,15 @@ export function MedolStudio() {
       >
         <header className="studio-toolbar">
           <div>
-            <p className="eyebrow">{displayContext?.name ?? activeDomain?.name ?? 'Event Modeling'}</p>
-            <h1>{activeAggregate?.name ?? activeConcept?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}</h1>
+            <OverflowText
+              as="p"
+              className="eyebrow"
+              text={displayContext?.name ?? activeDomain?.name ?? 'Event Modeling'}
+            />
+            <OverflowText
+              as="h1"
+              text={activeAggregate?.name ?? activeConcept?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}
+            />
           </div>
           <div className="toolbar-actions">
             <div className="toolbar-view-controls">
@@ -758,6 +766,20 @@ export function MedolStudio() {
                 value={toolbarAction}
                 onChange={(event) => setToolbarAction(event.target.value as ToolbarAction | '')}
                 aria-label="Toolkit action"
+                title={toolbarAction
+                  ? {
+                      'em-model': 'Export EmModel',
+                      'codegen-model': 'Export CodegenModel',
+                      config: 'Export config',
+                      png: 'Export PNG',
+                      svg: 'Export SVG',
+                      'prd-ai': 'Generate PRD',
+                      'software-design-ai': 'Generate software design',
+                      'database-design-ai': 'Generate database design',
+                      'process-ai': 'Generate process document',
+                      reset: 'Reset MEDOL'
+                    }[toolbarAction]
+                  : 'Choose toolkit action'}
               >
                 <option value="" disabled>Choose action</option>
                 <option value="em-model">Export EmModel</option>

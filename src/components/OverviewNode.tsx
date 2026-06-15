@@ -1,4 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { OverflowText } from './ui/overflow-text';
 
 export interface OverviewNodeData extends Record<string, unknown> {
   kind: 'aggregate' | 'concept' | 'integration';
@@ -32,8 +33,8 @@ export function OverviewNode({ data }: NodeProps) {
       <Handle type="target" position={Position.Left} />
       <header>
         <span>{node.kind === 'aggregate' ? 'Aggregate' : node.kind === 'concept' ? 'Concept' : 'Integration'}</span>
-        <strong>{node.title}</strong>
-        {node.contextName && <small>{node.contextName}</small>}
+        <OverflowText as="strong" text={node.title} />
+        {node.contextName && <OverflowText as="small" text={node.contextName} />}
       </header>
       {metrics.length > 0 && (
         <dl>

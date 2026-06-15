@@ -1,4 +1,5 @@
 import type { SelectedModelItem } from '../../app/modelSelection';
+import { OverflowText } from '../../components/ui/overflow-text';
 
 interface InspectorPanelProps {
   item?: SelectedModelItem;
@@ -27,39 +28,39 @@ function InspectorContent({ item }: { item: SelectedModelItem }) {
     <div className="inspector-content">
       <section>
         <span className="inspector-kind">{item.type}</span>
-        <h3>{item.name}</h3>
+        <OverflowText as="h3" text={item.name} />
       </section>
       <dl className="inspector-facts">
         {item.context && (
           <>
             <dt>Context</dt>
-            <dd>{item.context.name}</dd>
+            <OverflowText as="dd" text={item.context.name} />
           </>
         )}
         {item.aggregate && (
           <>
             <dt>Aggregate</dt>
-            <dd>{item.aggregate.name}</dd>
+            <OverflowText as="dd" text={item.aggregate.name} />
           </>
         )}
         {item.concept && (
           <>
             <dt>Concept</dt>
-            <dd>{item.concept.name}</dd>
+            <OverflowText as="dd" text={item.concept.name} />
             <dt>States</dt>
-            <dd>{item.concept.states.join(', ') || 'None'}</dd>
+            <OverflowText as="dd" text={item.concept.states.join(', ') || 'None'} />
           </>
         )}
         {item.slice && (
           <>
             <dt>Slice</dt>
-            <dd>{item.slice.name}</dd>
+            <OverflowText as="dd" text={item.slice.name} />
           </>
         )}
         {item.element?.ui?.type && (
           <>
             <dt>UI</dt>
-            <dd>{item.element.ui.type}</dd>
+            <OverflowText as="dd" text={item.element.ui.type} />
           </>
         )}
       </dl>
@@ -69,10 +70,17 @@ function InspectorContent({ item }: { item: SelectedModelItem }) {
           <ul className="inspector-list">
             {fields.map((field) => (
               <li key={`${field.name}:${field.type}`}>
-                <strong>{field.name}</strong>
-                <span>{field.type}{field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}</span>
-                {field.mapping && <small>{field.mapping.kind}: {field.mapping.sources.join(', ')}</small>}
-                {field.example && <small>example: {field.example}</small>}
+                <OverflowText as="strong" text={field.name} />
+                <OverflowText
+                  text={`${field.type}${field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}`}
+                />
+                {field.mapping && (
+                  <OverflowText
+                    as="small"
+                    text={`${field.mapping.kind}: ${field.mapping.sources.join(', ')}`}
+                  />
+                )}
+                {field.example && <OverflowText as="small" text={`example: ${field.example}`} />}
               </li>
             ))}
           </ul>
@@ -85,7 +93,7 @@ function InspectorContent({ item }: { item: SelectedModelItem }) {
             {Object.entries(metadata).map(([key, value]) => (
               <div key={key}>
                 <dt>{key}</dt>
-                <dd>{value}</dd>
+                <OverflowText as="dd" text={value} />
               </div>
             ))}
           </dl>

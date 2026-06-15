@@ -1,5 +1,6 @@
 import { FileSearch } from 'lucide-react';
 import { useState } from 'react';
+import { OverflowText } from '../../components/ui/overflow-text';
 import type { EmAggregate, EmConcept, EmContext, EmDomain, EmModel, EmSlice } from '../../lib/model';
 
 interface ModelExplorerProps {
@@ -92,7 +93,7 @@ export function ModelExplorer({
                   onClick={() => onSelectDomain(domain as EmDomain)}
                 >
                   <span>{domain.contexts.length} contexts</span>
-                  <strong>{domain.name}</strong>
+                  <OverflowText as="strong" text={domain.name} />
                 </button>
                 <DocumentationLocator
                   sourceIds={domainSourceIds}
@@ -122,7 +123,7 @@ export function ModelExplorer({
                             onClick={() => onSelectContext(context)}
                           >
                             <span>Context</span>
-                            <strong>{context.name}</strong>
+                            <OverflowText as="strong" text={context.name} />
                           </button>
                           <DocumentationLocator
                             sourceIds={sourceIds}
@@ -158,7 +159,7 @@ export function ModelExplorer({
                     onClick={() => onSelectAggregate(context, aggregate)}
                   >
                     <span>{aggregate.slices.length} slices</span>
-                    <strong>{aggregate.name}</strong>
+                    <OverflowText as="strong" text={aggregate.name} />
                   </button>
                                     <DocumentationLocator
                                       sourceIds={aggregateSourceIds}
@@ -176,7 +177,7 @@ export function ModelExplorer({
                             onClick={() => onSelectSlice(context, aggregate, slice)}
                           >
                             <span>{slice.resultingState ?? 'Slice'}</span>
-                            <strong>{slice.name}</strong>
+                            <OverflowText as="strong" text={slice.name} />
                           </button>
                           <DocumentationLocator
                             sourceIds={[slice.id, aggregate.id, context.id]}
@@ -204,7 +205,7 @@ export function ModelExplorer({
                                     {slice.startsLifecycle ? 'Lifecycle start' : slice.resultingState ?? 'Slice'}
                                     {slice.tags.length > 0 ? ` · ${slice.tags.length} tags` : ''}
                                   </span>
-                                  <strong>{slice.name}</strong>
+                                  <OverflowText as="strong" text={slice.name} />
                                 </button>
                                 <DocumentationLocator
                                   sourceIds={[
@@ -244,7 +245,7 @@ export function ModelExplorer({
                                       onClick={() => selectConcept(context, concept)}
                                     >
                                       <span>Organizes {slices.length} slices · {concept.states.length} states</span>
-                                        <strong>{concept.name}</strong>
+                                        <OverflowText as="strong" text={concept.name} />
                                       </button>
                                       <DocumentationLocator
                                         sourceIds={[concept.id, ...concept.sliceIds]}
@@ -262,7 +263,7 @@ export function ModelExplorer({
                                             onClick={() => onSelectSlice(context, undefined, slice)}
                                           >
                                             <span>{slice.tags.length > 0 ? `${slice.tags.length} tags` : slice.resultingState ?? 'Slice'}</span>
-                                            <strong>{slice.name}</strong>
+                                            <OverflowText as="strong" text={slice.name} />
                                           </button>
                                           <DocumentationLocator
                                             sourceIds={[slice.id, concept.id, context.id]}

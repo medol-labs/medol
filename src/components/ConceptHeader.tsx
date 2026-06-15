@@ -1,4 +1,5 @@
 import type { NodeProps } from '@xyflow/react';
+import { OverflowText } from './ui/overflow-text';
 
 interface ConceptHeaderData extends Record<string, unknown> {
   name: string;
@@ -13,11 +14,11 @@ export function ConceptHeader({ data }: NodeProps) {
     <section className="concept-header">
       <div>
         <span>Concept · organizes {concept.sliceCount} slices</span>
-        <strong>{concept.name}</strong>
+        <OverflowText as="strong" text={concept.name} />
       </div>
       {concept.states.length > 0 && (
         <ul>
-          {concept.states.map((state) => <li key={state}>{state}</li>)}
+          {concept.states.map((state) => <OverflowText as="li" key={state} text={state} />)}
         </ul>
       )}
     </section>

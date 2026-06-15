@@ -1,4 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { OverflowText } from './ui/overflow-text';
 
 export interface SliceSummaryNodeData extends Record<string, unknown> {
   name: string;
@@ -25,11 +26,11 @@ export function SliceSummaryNode({ data }: NodeProps) {
         <span>
           {node.startsLifecycle ? 'Lifecycle Start' : node.resultingState ?? 'Slice'}
         </span>
-        <strong>{node.name}</strong>
+        <OverflowText as="strong" text={node.name} />
       </header>
       {node.tags.length > 0 && (
         <ul className="slice-summary-node__tags">
-          {node.tags.map((tag) => <li key={tag}>{tag}</li>)}
+          {node.tags.map((tag) => <OverflowText as="li" key={tag} text={tag} />)}
         </ul>
       )}
       <dl>

@@ -1,4 +1,5 @@
 import type { NodeProps } from '@xyflow/react';
+import { OverflowText } from './ui/overflow-text';
 
 interface ContextOverviewNodeData extends Record<string, unknown> {
   title: string;
@@ -17,8 +18,8 @@ export function ContextOverviewNode({ data }: NodeProps) {
     <section className="context-overview-node">
       <div>
         <span>Bounded Context</span>
-        <strong>{context.title}</strong>
-        {context.note && <p>{context.note}</p>}
+        <OverflowText as="strong" text={context.title} />
+        {context.note && <OverflowText as="p" text={context.note} />}
       </div>
       <dl>
         <div><dt>Aggregates</dt><dd>{context.aggregates}</dd></div>

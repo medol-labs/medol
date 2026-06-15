@@ -46,6 +46,7 @@ export function WorkspaceSwitcher({
           value={activeWorkspaceId ?? ''}
           disabled={status === 'loading' || workspaces.length === 0}
           aria-label="Modeling workspace"
+          title={activeWorkspace?.name}
           onChange={(event) => onSelect(event.target.value)}
         >
           {workspaces.map((workspace) => (

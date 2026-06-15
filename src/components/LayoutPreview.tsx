@@ -7,6 +7,7 @@ import {
   Search
 } from 'lucide-react';
 import type { LayoutAction, LayoutModule, LayoutPage, LayoutPreviewModel } from '../lib/layoutPreview';
+import { OverflowText } from './ui/overflow-text';
 
 interface LayoutPreviewProps {
   model: LayoutPreviewModel;
@@ -23,7 +24,7 @@ export function LayoutPreview({ model }: LayoutPreviewProps) {
       <header className="layout-preview__topbar">
         <div className="layout-preview__brand">
           <span>{model.title.slice(0, 1).toUpperCase()}</span>
-          <strong>{model.title}</strong>
+          <OverflowText as="strong" text={model.title} />
         </div>
         <label className="layout-preview__search">
           <Search size={14} />
@@ -43,7 +44,7 @@ export function LayoutPreview({ model }: LayoutPreviewProps) {
           </a>
           {model.contexts.map((context) => (
             <section key={context.id}>
-              <strong>{context.title}</strong>
+              <OverflowText as="strong" text={context.title} />
               {context.modules.map((module) => (
                 <ModuleNav key={module.id} module={module} />
               ))}
@@ -84,10 +85,10 @@ function ModuleNav({ module }: { module: LayoutModule }) {
 
   return (
     <div className="layout-preview__nav-module">
-      <span className="layout-preview__nav-module-title">{module.title}</span>
+      <OverflowText className="layout-preview__nav-module-title" text={module.title} />
       {navigablePages.map((page) => (
         <a key={page.id} href={`#${page.id}`}>
-          <span>{page.title}</span>
+          <OverflowText text={page.title} />
           <ChevronRight size={12} />
         </a>
       ))}
@@ -103,11 +104,16 @@ function ModulePreview({ module, contextTitle }: { module: LayoutModule; context
       <header className="layout-module__header">
         <div>
           <p>{contextTitle} / {module.aggregate}</p>
-          <h3>{module.title}</h3>
+          <OverflowText as="h3" text={module.title} />
         </div>
         <div className="layout-module__operations">
           {commands.slice(0, 4).map((command) => (
-            <button className={command.emphasis ? 'is-primary' : undefined} key={command.id} type="button">
+            <button
+              className={command.emphasis ? 'is-primary' : undefined}
+              key={command.id}
+              type="button"
+              title={command.title}
+            >
               {command.title}
             </button>
           ))}
@@ -140,12 +146,17 @@ function PagePreview({ page }: { page: LayoutPage }) {
     <section className={`layout-page layout-page--${page.kind}`} id={page.id}>
       <header className="layout-page__header">
         <div>
-          <small>{page.source}</small>
-          <strong>{page.title}</strong>
+          <OverflowText as="small" text={page.source} />
+          <OverflowText as="strong" text={page.title} />
         </div>
         <div className="layout-page__actions">
           {page.actions.slice(0, 3).map((action) => (
-            <button className={action.emphasis ? 'is-primary' : undefined} key={action.id} type="button">
+            <button
+              className={action.emphasis ? 'is-primary' : undefined}
+              key={action.id}
+              type="button"
+              title={action.title}
+            >
               {action.title}
             </button>
           ))}

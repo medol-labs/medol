@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ModelingDocument, ModelingDocumentSummary } from '../../contracts/modelingDocument';
 import { Button } from '../../components/ui/button';
+import { OverflowText } from '../../components/ui/overflow-text';
 import {
   findDocumentSourceLine,
   parseDocumentMarkdownSections
@@ -154,7 +155,10 @@ export function DocumentWorkspace({
                   if (!dirty || window.confirm('Discard unsaved document changes?')) onSelect(document.id);
                 }}
               >
-                <span className="block truncate text-xs font-semibold">{document.title}</span>
+                <OverflowText
+                  text={document.title}
+                  className="block truncate text-xs font-semibold"
+                />
                 <span className="mt-1 block text-[11px] text-slate-500">
                   {labelKind(document.kind)} · {document.language === 'zh-CN' ? '中文' : 'EN'}
                 </span>

@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { EmField, EmElementKind } from '../lib/model';
+import { OverflowText } from './ui/overflow-text';
 
 interface EmNodeData extends Record<string, unknown> {
   kind: EmElementKind;
@@ -37,7 +38,7 @@ export function EmNode({ data, selected }: NodeProps) {
       <Handle type="target" position={Position.Left} />
       <header className="em-node__header">
         <span className="em-node__kind" style={{ color: node.accent }}>{node.kindLabel ?? labels[node.kind]}</span>
-        <strong>{node.name}</strong>
+        <OverflowText as="strong" text={node.name} />
       </header>
       {node.outcome && <p className="em-node__outcome">{node.outcome}</p>}
       {node.details && node.details.length > 0 && (
@@ -49,8 +50,8 @@ export function EmNode({ data, selected }: NodeProps) {
         <ul className="em-node__fields">
           {fields.map((field) => (
             <li key={`${field.name}:${field.type}`}>
-              <span>{field.name}</span>
-              <code>{field.type}{field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}</code>
+              <OverflowText text={field.name} />
+              <code title={field.type}>{field.type}{field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}</code>
             </li>
           ))}
         </ul>
