@@ -64,6 +64,27 @@ export const modelingDocumentClient = createHttpModelingDocumentClient(
   configuredBaseUrl || '/api/modeling'
 );
 
+export const exportModelingDocumentWord = async (
+  input: { title: string; markdown: string },
+  signal?: AbortSignal
+): Promise<{ blob: Blob; filename: string }> => {
+  const response = await fetch('/api/modeling/document-export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined) as { error?: string } | undefined;
+    throw new Error(body?.error ?? `Word export failed with HTTP ${response.status}`);
+  }
+  return {
+    blob: await response.blob(),
+    filename: filenameFromDisposition(response.headers.get('Content-Disposition'))
+      ?? `${safeFilename(input.title)}.docx`
+  };
+};
+
 const request = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(url, init);
   if (!response.ok) {
@@ -76,3 +97,18 @@ const request = async <T>(url: string, init?: RequestInit): Promise<T> => {
 
 const documentUrl = (baseUrl: string, documentId: string): string =>
   `${baseUrl}/document-records/${encodeURIComponent(documentId)}`;
+
+const filenameFromDisposition = (value: string | null): string | undefined => {
+  if (!value) return undefined;
+  const encoded = value.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) return decodeURIComponent(encoded);
+  return value.match(/filename="([^"]+)"/i)?.[1];
+};
+
+const safeFilename = (value: string): string =>
+  value
+    .trim()
+    .replace(/[^\w\u4e00-\u9fff-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+  || 'document';

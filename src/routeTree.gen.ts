@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiModelingWorkspacesRouteImport } from './routes/api/modeling/workspaces'
 import { Route as ApiModelingDocumentsRouteImport } from './routes/api/modeling/documents'
 import { Route as ApiModelingDocumentRecordsRouteImport } from './routes/api/modeling/document-records'
+import { Route as ApiModelingDocumentExportRouteImport } from './routes/api/modeling/document-export'
 import { Route as ApiAgentHistoryRouteImport } from './routes/api/agent/history'
 import { Route as ApiAgentChatRouteImport } from './routes/api/agent/chat'
 import { Route as ApiModelingWorkspacesWorkspaceIdRouteImport } from './routes/api/modeling/workspaces.$workspaceId'
@@ -37,6 +38,12 @@ const ApiModelingDocumentRecordsRoute =
   ApiModelingDocumentRecordsRouteImport.update({
     id: '/api/modeling/document-records',
     path: '/api/modeling/document-records',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiModelingDocumentExportRoute =
+  ApiModelingDocumentExportRouteImport.update({
+    id: '/api/modeling/document-export',
+    path: '/api/modeling/document-export',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiAgentHistoryRoute = ApiAgentHistoryRouteImport.update({
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
@@ -76,6 +84,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
@@ -87,6 +96,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/agent/chat'
     | '/api/agent/history'
+    | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
     | '/api/modeling/workspaces'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/agent/chat'
     | '/api/agent/history'
+    | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
     | '/api/modeling/workspaces'
@@ -119,6 +131,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/agent/chat'
     | '/api/agent/history'
+    | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
     | '/api/modeling/workspaces'
@@ -130,6 +143,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiAgentChatRoute: typeof ApiAgentChatRoute
   ApiAgentHistoryRoute: typeof ApiAgentHistoryRoute
+  ApiModelingDocumentExportRoute: typeof ApiModelingDocumentExportRoute
   ApiModelingDocumentRecordsRoute: typeof ApiModelingDocumentRecordsRouteWithChildren
   ApiModelingDocumentsRoute: typeof ApiModelingDocumentsRoute
   ApiModelingWorkspacesRoute: typeof ApiModelingWorkspacesRouteWithChildren
@@ -163,6 +177,13 @@ declare module '@tanstack/react-router' {
       path: '/api/modeling/document-records'
       fullPath: '/api/modeling/document-records'
       preLoaderRoute: typeof ApiModelingDocumentRecordsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/modeling/document-export': {
+      id: '/api/modeling/document-export'
+      path: '/api/modeling/document-export'
+      fullPath: '/api/modeling/document-export'
+      preLoaderRoute: typeof ApiModelingDocumentExportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/agent/history': {
@@ -228,6 +249,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAgentChatRoute: ApiAgentChatRoute,
   ApiAgentHistoryRoute: ApiAgentHistoryRoute,
+  ApiModelingDocumentExportRoute: ApiModelingDocumentExportRoute,
   ApiModelingDocumentRecordsRoute: ApiModelingDocumentRecordsRouteWithChildren,
   ApiModelingDocumentsRoute: ApiModelingDocumentsRoute,
   ApiModelingWorkspacesRoute: ApiModelingWorkspacesRouteWithChildren,

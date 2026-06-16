@@ -155,7 +155,7 @@ MEDOL_DOCUMENT_DB_PATH=./data/medol-documents.sqlite
 
 Choose a document generation action from the toolbar to save and open the result in the
 Documents preview. The document workspace supports Markdown editing, live rendered preview,
-explicit save, download, deletion, and reopening documents associated with the active modeling
+explicit save, Markdown/Word download, deletion, and reopening documents associated with the active modeling
 workspace. Generated sections retain stable MEDOL source references. The Explorer shows a
 document-location action for referenced domains, contexts, aggregates, concepts, and slices;
 document sections can navigate back to the corresponding MEDOL element. A source hash also marks
@@ -164,6 +164,11 @@ editor and rendered preview scroll together in both directions. Regenerating the
 and language updates the existing document section by section: unchanged generated sections are
 refreshed, new and removed MEDOL sections are reconciled, and manually edited sections are preserved
 for review.
+
+Word export uses Pandoc on the server/runtime that runs the TanStack Start API. Local development
+therefore needs `pandoc` on the PATH; a deployed server or Docker image should install it in the
+runtime image. If Pandoc is unavailable, the export API returns a clear error while Markdown export
+continues to work.
 
 The editor depends on the `ModelingWorkspaceClient` interface rather than TanStack Start directly. To move workspace management to another backend later, implement the same API contract and set:
 

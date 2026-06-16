@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { EmModel } from '../../lib/model';
+import { generateDocumentation } from '../../lib/generators/documentation';
 import {
   buildDocumentationTranslationCatalog,
   translateDocumentationModel
@@ -72,6 +73,68 @@ test('builds a translation catalog from display vocabulary and narratives', () =
   assert(!catalog.narratives.includes('existing@example.com'));
   assert(catalog.narratives.includes('Normalize the email address.'));
   assert(catalog.narratives.includes('Accounts are managed centrally.'));
+});
+
+test('generates Chinese database design without English template prose', () => {
+  const readModelModel: EmModel = {
+    domains: [{
+      id: 'domain/orders',
+      name: 'OrderPlatform',
+      contexts: []
+    }],
+    contexts: [{
+      id: 'context/sales',
+      name: 'Sales',
+      valueTypes: [],
+      concepts: [],
+      aggregates: [{
+        id: 'aggregate/order',
+        name: 'Order',
+        states: [],
+        slices: [{
+          id: 'slice/order-list',
+          name: 'OrderList',
+          tags: [],
+          hotspots: [],
+          elements: [{
+            id: 'readmodel/orders',
+            kind: 'readmodel',
+            name: 'OrderList',
+            listElement: true,
+            fields: [{
+              name: 'orderId',
+              type: 'UUID',
+              attributes: ['id']
+            }, {
+              name: 'buyerName',
+              type: 'String',
+              attributes: ['query']
+            }]
+          }]
+        }]
+      }],
+      slices: [],
+      looseElements: [],
+      notes: [],
+      risks: [],
+      decisions: [],
+      metrics: []
+    }],
+    edges: [],
+    diagnostics: []
+  };
+  readModelModel.domains[0].contexts = readModelModel.contexts;
+
+  const markdown = generateDocumentation(
+    readModelModel,
+    'database-design',
+    { language: 'zh-CN' }
+  ).markdown;
+
+  assert.match(markdown, /逻辑标识：orderId。/);
+  assert.match(markdown, /候选查询索引：buyerName。/);
+  assert.match(markdown, /订阅事件处理需要具备幂等性。/);
+  assert.doesNotMatch(markdown, /Logical identifier|Candidate query indexes|Apply subscribed events|Track event position|Confirm deletion|Provide deterministic ordering|Source \/ Derivation/);
 });
 
 test('translates presentation content while preserving source identifiers', () => {

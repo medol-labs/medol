@@ -39,7 +39,7 @@ export const generateDocumentation = (
     : kind === 'software-design'
       ? renderSoftwareDesignMarkdown(bundle)
       : kind === 'database-design'
-        ? renderDatabaseDesignMarkdown(bundle)
+        ? renderDatabaseDesignMarkdown(bundle, language)
         : renderProcessMarkdown(bundle);
   const markdown = language === 'zh-CN' && kind !== 'prd'
     ? localizeDocumentationMarkdown(baseMarkdown, kind)

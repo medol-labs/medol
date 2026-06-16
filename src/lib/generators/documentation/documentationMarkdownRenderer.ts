@@ -2,6 +2,7 @@ import { humanize } from '../../name';
 import type {
   DocumentationBundle,
   DocumentationField,
+  DocumentationLanguage,
   DocumentationWorkflow
 } from './documentationModel';
 
@@ -88,18 +89,23 @@ export const renderSoftwareDesignMarkdown = (bundle: DocumentationBundle): strin
   return lines.join('\n');
 };
 
-export const renderDatabaseDesignMarkdown = (bundle: DocumentationBundle): string => {
-  const lines = header(bundle, 'Read Model Database Design');
-  section(lines, 'Design Scope');
-  lines.push('This document describes the read-side data model inferred from Event Modeling read models. Storage engines, physical table names, retention, and consistency SLAs remain implementation decisions unless explicitly stated.');
+export const renderDatabaseDesignMarkdown = (
+  bundle: DocumentationBundle,
+  language: DocumentationLanguage = 'en'
+): string => {
+  const zh = language === 'zh-CN';
+  const text = databaseText[language];
+  const lines = header(bundle, text.title);
+  section(lines, text.designScope);
+  lines.push(text.designScopeBody);
   lines.push('');
   appendDiagnostics(lines, bundle);
 
-  section(lines, 'Read Model Inventory');
-  lines.push('| Read Model | Context | Aggregate | Shape | Source Events |');
+  section(lines, text.inventory);
+  lines.push(`| ${text.readModel} | ${text.context} | ${text.aggregate} | ${text.shape} | ${text.sourceEvents} |`);
   lines.push('| --- | --- | --- | --- | --- |');
   for (const readmodel of bundle.readmodels) {
-    lines.push(`| ${cell(humanize(readmodel.name))} | ${cell(humanize(readmodel.context))} | ${cell(humanize(readmodel.aggregate))} | ${readmodel.collection ? 'Collection' : 'Single record'} | ${cell(readmodel.sourceEvents.map(humanize).join(', ') || 'Not modeled')} |`);
+    lines.push(`| ${cell(humanize(readmodel.name))} | ${cell(humanize(readmodel.context))} | ${cell(humanize(readmodel.aggregate))} | ${readmodel.collection ? text.collection : text.singleRecord} | ${cell(readmodel.sourceEvents.map(humanize).join(', ') || text.notModeled)} |`);
   }
   lines.push('');
 
@@ -107,46 +113,46 @@ export const renderDatabaseDesignMarkdown = (bundle: DocumentationBundle): strin
     lines.push(`<!-- em:section id="database.readmodel.${readmodel.name}" sources="${readmodel.id} ${readmodel.sliceId}" -->`);
     lines.push(`## ${humanize(readmodel.name)}`);
     lines.push('');
-    lines.push(`Owner: ${humanize(readmodel.context)} / ${humanize(readmodel.aggregate)} / ${humanize(readmodel.slice)}`);
+    lines.push(`${text.owner}${text.labelSeparator} ${humanize(readmodel.context)} / ${humanize(readmodel.aggregate)} / ${humanize(readmodel.slice)}`);
     lines.push('');
-    lines.push(`Logical shape: ${readmodel.collection ? 'collection/list read model' : 'single-record read model'}`);
+    lines.push(`${text.logicalShape}${text.labelSeparator} ${readmodel.collection ? text.collectionReadModel : text.singleRecordReadModel}`);
     lines.push('');
-    lines.push(`Updated by: ${readmodel.sourceEvents.map(humanize).join(', ') || 'No subscribed event is explicitly modeled'}`);
+    lines.push(`${text.updatedBy}${text.labelSeparator} ${readmodel.sourceEvents.map(humanize).join(', ') || text.noSubscribedEvent}`);
     lines.push('');
-    appendFieldTable(lines, readmodel.fields);
-    lines.push('### Keys And Access Paths');
+    appendFieldTable(lines, readmodel.fields, language);
+    lines.push(`### ${text.keysAndAccessPaths}`);
     lines.push('');
     appendList(lines, [
       readmodel.identifierFields.length
-        ? `Logical identifier: ${readmodel.identifierFields.join(', ')}.`
-        : 'Logical identifier is not explicitly marked; confirm the read model key.',
+        ? text.logicalIdentifier(readmodel.identifierFields.join(', '))
+        : text.noLogicalIdentifier,
       readmodel.queryFields.length
-        ? `Candidate query indexes: ${readmodel.queryFields.join(', ')}.`
-        : 'No query fields are explicitly marked; derive indexes from API and UI access patterns.',
+        ? text.candidateQueryIndexes(readmodel.queryFields.join(', '))
+        : text.noQueryFields,
       readmodel.collection
-        ? 'Provide deterministic ordering and pagination for collection access.'
-        : 'Define uniqueness and upsert behavior for the single-record view.'
+        ? text.collectionAccess
+        : text.singleRecordAccess
     ]);
     lines.push('');
-    lines.push('### Update Semantics');
+    lines.push(`### ${text.updateSemantics}`);
     lines.push('');
     appendList(lines, [
-      'Apply subscribed events idempotently.',
-      'Track event position or version when replay and recovery are required.',
-      'Confirm deletion, retention, backfill, and rebuild behavior.',
+      text.applyIdempotently,
+      text.trackEventPosition,
+      text.confirmRebuild,
       ...readmodel.fields
         .filter((field) => field.mapping)
-        .map((field) => `${field.name}: ${formatMapping(field)}.`)
+        .map((field) => `${field.name}: ${formatMapping(field, zh)}.`)
     ]);
     lines.push('');
   }
 
-  section(lines, 'Cross-Cutting Database Decisions');
+  section(lines, text.crossCuttingDecisions);
   appendList(lines, [
-    'Choose storage technology per read model access pattern rather than treating read models as aggregate persistence.',
-    'Separate write-model transaction boundaries from eventually consistent read-model updates.',
-    'Define read model rebuild, schema migration, observability, and failure recovery procedures.',
-    'Validate personally identifiable or sensitive fields and define masking and retention controls.'
+    text.storageDecision,
+    text.boundaryDecision,
+    text.rebuildDecision,
+    text.sensitiveDataDecision
   ]);
   lines.push('');
   return lines.join('\n');
@@ -233,28 +239,198 @@ const appendWorkflow = (lines: string[], workflow: DocumentationWorkflow): void 
   }
 };
 
-const appendFieldTable = (lines: string[], fields: DocumentationField[]): void => {
-  lines.push('### Logical Schema');
+const appendFieldTable = (
+  lines: string[],
+  fields: DocumentationField[],
+  language: DocumentationLanguage = 'en'
+): void => {
+  const zh = language === 'zh-CN';
+  const text = databaseText[language];
+  lines.push(`### ${text.logicalSchema}`);
   lines.push('');
   if (!fields.length) {
-    lines.push('No read model fields are explicitly modeled.');
+    lines.push(text.noFields);
     lines.push('');
     return;
   }
-  lines.push('| Field | Type | Cardinality | Attributes | Example | Source / Derivation |');
+  lines.push(`| ${text.field} | ${text.type} | ${text.cardinality} | ${text.attributes} | ${text.example} | ${text.sourceDerivation} |`);
   lines.push('| --- | --- | --- | --- | --- | --- |');
   for (const field of fields) {
-    lines.push(`| ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(field.mapping ? formatMapping(field) : '-')} |`);
+    lines.push(`| ${cell(field.name)} | ${cell(field.type)} | ${cell(localizeCardinality(field.cardinality, zh))} | ${cell(localizeAttributes(field.attributes, zh))} | ${cell(field.example ?? '-')} | ${cell(field.mapping ? formatMapping(field, zh) : '-')} |`);
   }
   lines.push('');
 };
 
-const formatMapping = (field: DocumentationField): string => {
+const formatMapping = (field: DocumentationField, zh = false): string => {
   if (!field.mapping) return '-';
-  const source = field.mapping.sources.length ? ` from ${field.mapping.sources.join(', ')}` : '';
-  const rule = field.mapping.rule ? `; rule: ${field.mapping.rule}` : '';
-  return `${field.mapping.kind}${source}${rule}`;
+  if (!zh) {
+    const source = field.mapping.sources.length ? ` from ${field.mapping.sources.join(', ')}` : '';
+    const rule = field.mapping.rule ? `; rule: ${field.mapping.rule}` : '';
+    return `${field.mapping.kind}${source}${rule}`;
+  }
+  const kind = field.mapping.kind === 'derived' ? '派生' : '来源';
+  const source = field.mapping.sources.length ? `：${field.mapping.sources.join(', ')}` : '';
+  const rule = field.mapping.rule ? `；规则：${field.mapping.rule}` : '';
+  return `${kind}${source}${rule}`;
 };
+
+const localizeCardinality = (value: string, zh: boolean): string => {
+  if (!zh) return value;
+  return ({
+    Single: '单值',
+    Optional: '可选',
+    List: '列表'
+  } as Record<string, string>)[value] ?? value;
+};
+
+const localizeAttributes = (attributes: string[], zh: boolean): string => {
+  if (!attributes.length) return '-';
+  if (!zh) return attributes.join(', ');
+  return attributes.map((attribute) => ({
+    id: '标识',
+    query: '查询',
+    optional: '可选',
+    generated: '生成',
+    technical: '技术字段'
+  } as Record<string, string>)[attribute] ?? attribute).join(', ');
+};
+
+const databaseText = {
+  en: {
+    title: 'Read Model Database Design',
+    designScope: 'Design Scope',
+    designScopeBody: 'This document describes the read-side data model inferred from Event Modeling read models. Storage engines, physical table names, retention, and consistency SLAs remain implementation decisions unless explicitly stated.',
+    inventory: 'Read Model Inventory',
+    readModel: 'Read Model',
+    context: 'Context',
+    aggregate: 'Aggregate',
+    shape: 'Shape',
+    sourceEvents: 'Source Events',
+    collection: 'Collection',
+    singleRecord: 'Single record',
+    notModeled: 'Not modeled',
+    owner: 'Owner',
+    labelSeparator: ':',
+    logicalShape: 'Logical shape',
+    collectionReadModel: 'collection/list read model',
+    singleRecordReadModel: 'single-record read model',
+    updatedBy: 'Updated by',
+    noSubscribedEvent: 'No subscribed event is explicitly modeled',
+    logicalSchema: 'Logical Schema',
+    field: 'Field',
+    type: 'Type',
+    cardinality: 'Cardinality',
+    attributes: 'Attributes',
+    example: 'Example',
+    sourceDerivation: 'Source / Derivation',
+    noFields: 'No read model fields are explicitly modeled.',
+    keysAndAccessPaths: 'Keys And Access Paths',
+    logicalIdentifier: (fields: string) => `Logical identifier: ${fields}.`,
+    noLogicalIdentifier: 'Logical identifier is not explicitly marked; confirm the read model key.',
+    candidateQueryIndexes: (fields: string) => `Candidate query indexes: ${fields}.`,
+    noQueryFields: 'No query fields are explicitly marked; derive indexes from API and UI access patterns.',
+    collectionAccess: 'Provide deterministic ordering and pagination for collection access.',
+    singleRecordAccess: 'Define uniqueness and upsert behavior for the single-record view.',
+    updateSemantics: 'Update Semantics',
+    applyIdempotently: 'Apply subscribed events idempotently.',
+    trackEventPosition: 'Track event position or version when replay and recovery are required.',
+    confirmRebuild: 'Confirm deletion, retention, backfill, and rebuild behavior.',
+    crossCuttingDecisions: 'Cross-Cutting Database Decisions',
+    storageDecision: 'Choose storage technology per read model access pattern rather than treating read models as aggregate persistence.',
+    boundaryDecision: 'Separate write-model transaction boundaries from eventually consistent read-model updates.',
+    rebuildDecision: 'Define read model rebuild, schema migration, observability, and failure recovery procedures.',
+    sensitiveDataDecision: 'Validate personally identifiable or sensitive fields and define masking and retention controls.'
+  },
+  'zh-CN': {
+    title: 'Read Model 数据库设计',
+    designScope: '设计范围',
+    designScopeBody: '本文档描述由 Event Modeling Read Model 推导出的读侧数据模型。除非领域模型明确说明，否则存储引擎、物理表名、数据保留策略和一致性 SLA 均属于后续实现决策。',
+    inventory: 'Read Model 清单',
+    readModel: 'Read Model',
+    context: '限界上下文',
+    aggregate: '聚合',
+    shape: '形态',
+    sourceEvents: '来源事件',
+    collection: '集合/列表',
+    singleRecord: '单条记录',
+    notModeled: '尚未明确',
+    owner: '归属',
+    labelSeparator: '：',
+    logicalShape: '逻辑形态',
+    collectionReadModel: '集合/列表 Read Model',
+    singleRecordReadModel: '单条记录 Read Model',
+    updatedBy: '订阅事件',
+    noSubscribedEvent: '尚未明确订阅事件',
+    logicalSchema: '逻辑结构',
+    field: '字段',
+    type: '类型',
+    cardinality: '数量',
+    attributes: '属性',
+    example: '示例',
+    sourceDerivation: '来源/计算规则',
+    noFields: '尚未明确建模 Read Model 字段。',
+    keysAndAccessPaths: '主键与访问路径',
+    logicalIdentifier: (fields: string) => `逻辑标识：${fields}。`,
+    noLogicalIdentifier: '尚未明确标记逻辑标识字段，请确认 Read Model 主键。',
+    candidateQueryIndexes: (fields: string) => `候选查询索引：${fields}。`,
+    noQueryFields: '尚未明确标记查询字段，请根据 API 与页面访问模式推导索引。',
+    collectionAccess: '集合访问需要提供稳定排序与分页能力。',
+    singleRecordAccess: '单条记录视图需要定义唯一性与 upsert 行为。',
+    updateSemantics: '更新语义',
+    applyIdempotently: '订阅事件处理需要具备幂等性。',
+    trackEventPosition: '需要支持重放与恢复时，应记录事件位置或版本。',
+    confirmRebuild: '需要确认删除、保留、回填与重建行为。',
+    crossCuttingDecisions: '数据库通用决策',
+    storageDecision: '根据 Read Model 访问模式选择存储技术，不应把读模型直接等同于聚合持久化。',
+    boundaryDecision: '写模型事务边界与最终一致的读模型更新需要分离设计。',
+    rebuildDecision: '需要定义 Read Model 重建、Schema 迁移、可观测性与失败恢复流程。',
+    sensitiveDataDecision: '涉及个人身份信息或敏感字段时，需要定义脱敏与保留控制。'
+  }
+} satisfies Record<DocumentationLanguage, {
+  title: string;
+  designScope: string;
+  designScopeBody: string;
+  inventory: string;
+  readModel: string;
+  context: string;
+  aggregate: string;
+  shape: string;
+  sourceEvents: string;
+  collection: string;
+  singleRecord: string;
+  notModeled: string;
+  owner: string;
+  labelSeparator: string;
+  logicalShape: string;
+  collectionReadModel: string;
+  singleRecordReadModel: string;
+  updatedBy: string;
+  noSubscribedEvent: string;
+  logicalSchema: string;
+  field: string;
+  type: string;
+  cardinality: string;
+  attributes: string;
+  example: string;
+  sourceDerivation: string;
+  noFields: string;
+  keysAndAccessPaths: string;
+  logicalIdentifier: (fields: string) => string;
+  noLogicalIdentifier: string;
+  candidateQueryIndexes: (fields: string) => string;
+  noQueryFields: string;
+  collectionAccess: string;
+  singleRecordAccess: string;
+  updateSemantics: string;
+  applyIdempotently: string;
+  trackEventPosition: string;
+  confirmRebuild: string;
+  crossCuttingDecisions: string;
+  storageDecision: string;
+  boundaryDecision: string;
+  rebuildDecision: string;
+  sensitiveDataDecision: string;
+}>;
 
 const collectGaps = (bundle: DocumentationBundle): string[] => [
   ...bundle.workflows

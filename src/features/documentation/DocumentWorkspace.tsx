@@ -1,6 +1,6 @@
 import Editor from '@monaco-editor/react';
 import type { OnMount } from '@monaco-editor/react';
-import { Download, FileText, LocateFixed, PanelLeftClose, PanelLeftOpen, Save, Trash2 } from 'lucide-react';
+import { Download, FileDown, FileText, LocateFixed, PanelLeftClose, PanelLeftOpen, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -11,6 +11,7 @@ import {
   findDocumentSourceLine,
   parseDocumentMarkdownSections
 } from './documentReferences';
+import { exportModelingDocumentWord } from './modelingDocumentClient';
 import type { DocumentPersistenceStatus } from './useModelingDocuments';
 
 interface DocumentWorkspaceProps {
@@ -48,6 +49,8 @@ export function DocumentWorkspace({
   const [markdown, setMarkdown] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMode, setMobileMode] = useState<'edit' | 'preview'>('edit');
+  const [wordExportStatus, setWordExportStatus] = useState<'idle' | 'exporting' | 'error'>('idle');
+  const [wordExportError, setWordExportError] = useState<string | undefined>(undefined);
   const editorRef = useRef<Parameters<OnMount>[0] | undefined>(undefined);
   const editorScrollSubscription = useRef<{ dispose: () => void } | undefined>(undefined);
   const editorInteractionCleanup = useRef<(() => void) | undefined>(undefined);
@@ -162,6 +165,23 @@ export function DocumentWorkspace({
     URL.revokeObjectURL(url);
   };
 
+  const downloadWord = async () => {
+    if (!title.trim()) return;
+    setWordExportStatus('exporting');
+    setWordExportError(undefined);
+    try {
+      const exported = await exportModelingDocumentWord({
+        title: title.trim(),
+        markdown
+      });
+      downloadBlob(exported.blob, exported.filename);
+      setWordExportStatus('idle');
+    } catch (error) {
+      setWordExportStatus('error');
+      setWordExportError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   if (!activeDocument) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center bg-white text-center">
@@ -268,6 +288,16 @@ export function DocumentWorkspace({
             </div>
             <Button type="button" variant="outline" size="icon" title="Download Markdown" onClick={download}>
               <Download />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              title="Download Word"
+              disabled={wordExportStatus === 'exporting' || !title.trim()}
+              onClick={() => void downloadWord()}
+            >
+              <FileDown />
             </Button>
             <Button
               type="button"
@@ -390,10 +420,24 @@ export function DocumentWorkspace({
             {error}
           </div>
         )}
+        {wordExportStatus === 'error' && wordExportError && (
+          <div className="absolute bottom-8 right-8 max-w-sm border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 shadow-sm">
+            {wordExportError}
+          </div>
+        )}
       </section>
     </div>
   );
 }
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
 
 const labelKind = (kind: ModelingDocumentSummary['kind']): string => ({
   prd: 'PRD',
