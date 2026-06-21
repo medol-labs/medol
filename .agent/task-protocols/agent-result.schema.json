@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://medol.dev/agent/task-protocols/agent-result.schema.json",
+  "title": "AgentResult",
+  "type": "object",
+  "required": ["status", "summary", "changedFiles", "verification"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "failed", "needs_input"]
+    },
+    "summary": { "type": "string" },
+    "changedFiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command", "success", "outputSummary"],
+        "properties": {
+          "command": { "type": "string" },
+          "success": { "type": "boolean" },
+          "outputSummary": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}
+
