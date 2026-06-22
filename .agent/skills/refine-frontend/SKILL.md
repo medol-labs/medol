@@ -1,4 +1,4 @@
-# Refine Frontend Skill
+# Refine Frontend
 
 Use this skill when generating or modifying Refine/React frontend code from MEDOL.
 
@@ -9,7 +9,7 @@ Use this skill when generating or modifying Refine/React frontend code from MEDO
 - Value types become TypeScript types and form validation schemas.
 - Layout should reflect the business workflow rather than expose raw implementation structure.
 
-## UX Guidance
+## Guidance
 
 - Menus should focus on read model or workflow entry points, not every command.
 - Commands related to a read model should appear near that read model as resource actions.
@@ -18,5 +18,4 @@ Use this skill when generating or modifying Refine/React frontend code from MEDO
 
 ## Verification
 
-Run available TypeScript, lint, or build checks. If generated dependencies are intentionally skipped, state that clearly.
-
+Run TypeScript, lint, or build checks when available. If generated dependencies are intentionally skipped, state that clearly.

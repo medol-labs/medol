@@ -1,4 +1,4 @@
-# Axon Backend Skill
+# Axon Backend
 
 Use this skill when generating or modifying Kotlin/Spring Boot/Axon backend code from MEDOL.
 
@@ -6,12 +6,12 @@ Use this skill when generating or modifying Kotlin/Spring Boot/Axon backend code
 
 - Commands represent user or system intent.
 - Events represent accepted business facts.
-- Aggregates/concepts enforce lifecycle and consistency decisions.
+- Concepts/aggregates enforce lifecycle and consistency decisions.
 - Read models project events into queryable state.
 - Processors react to events or read model changes and issue follow-up commands.
-- Specifications and scenarios should guide command handler behavior.
+- Specifications and scenarios guide command handler behavior.
 
-## Generation Guidance
+## Guidance
 
 - Prefer value types generated from MEDOL value type definitions.
 - Keep package names derived from context and root package.
@@ -21,9 +21,4 @@ Use this skill when generating or modifying Kotlin/Spring Boot/Axon backend code
 
 ## Verification
 
-Run the narrowest available verification first:
-
-- Kotlin compile.
-- Unit tests for command handlers and projections.
-- Scenario/specification tests when present.
-
+Run Kotlin compile, unit tests, and scenario/specification tests when available.

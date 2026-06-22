@@ -1,4 +1,4 @@
-# Documentation Skill
+# Documentation
 
 Use this skill when generating or updating documents from MEDOL.
 
@@ -17,7 +17,6 @@ Use this skill when generating or updating documents from MEDOL.
 - Each section should retain a stable MEDOL source reference when possible.
 - Manual edits should be preserved during incremental regeneration unless the user asks for full regeneration.
 
-## Expected Output
+## Output
 
 Produce clear Markdown with stable headings, acceptance-oriented language, and explicit links back to MEDOL concepts, contexts, slices, read models, and specifications.
-
