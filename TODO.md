@@ -39,7 +39,7 @@
 - [ ] 转 config.json 时删除不需要的 context
 - [ ] 汉化？设计时只能使用英文？，生成代码等等时 AI 翻译添加国际化
 - [ ] 前端布局预览，不关系具体字段，能展示布局与命令
-- [ ] 
+- [X] Canvas 现在对 context 展示应放在 Domain Map 中，调整 canvas 交互，设计时应聚焦整个 context 
 
 ##
 
