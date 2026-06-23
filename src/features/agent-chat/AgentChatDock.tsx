@@ -123,7 +123,7 @@ export function AgentChatDock({
 
   const contextLabel = selectedItem
     ? `${selectedItem.type}: ${selectedItem.name}`
-    : 'domain model';
+    : 'Whole model';
   const statusLabel = isParsingPending ? 'Parsing MEDOL' : contextLabel;
   const canSend = draft.trim().length > 0 && !isThinking;
   const sessionUsage = useMemo(
@@ -321,20 +321,20 @@ export function AgentChatDock({
               )}
             </article>
           ))}
-          {isThinking && <div className="agent-chat-thinking">Preparing modeling suggestion...</div>}
+          {isThinking && <div className="agent-chat-thinking">Thinking...</div>}
         </div>
         <div className="agent-chat-composer" onKeyDown={stopKeyboardPropagation} onKeyUp={stopKeyboardPropagation}>
           <Textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleInputKeyDown}
-            placeholder="Ask for follow-up changes"
+            placeholder="Ask anything about the model, design, MEDOL, or implementation"
             className="agent-chat-composer__input"
             rows={1}
           />
           <div className="agent-chat-composer__toolbar">
             <div className="agent-chat-composer__tools">
-              <button type="button" className="agent-chat-composer__context" aria-label="Current modeling context">
+              <button type="button" className="agent-chat-composer__context" aria-label="Assistant context">
                 <Plus size={16} />
                 <span>{statusLabel}</span>
               </button>

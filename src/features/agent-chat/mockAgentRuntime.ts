@@ -4,6 +4,10 @@ import type { BuiltAgentPrompt } from './agentPromptBuilder';
 import { normalizeAgentStructuredResponse, type AgentStructuredDslPatch, type AgentStructuredResponse } from './agentStructuredResponse';
 
 const readModelIntent = /\b(read\s*model|projection|view|list|query)\b/i;
+const identityIntent = /(你是谁|你是誰|who\s+are\s+you|what\s+are\s+you|介绍一下你|介紹一下你|自我介绍|自我介紹)/i;
+const capabilityIntent = /(你能做什么|你能做什麼|能做什么|能做什麼|what\s+can\s+you\s+do|help\s+me|怎么用|如何使用)/i;
+const modelSummaryIntent = /(总结|總結|概览|概覽|overview|summary|分析.*模型|检查.*模型|檢查.*模型|当前.*模型|目前.*模型)/i;
+const patchIntent = /(新增|添加|补充|修改|调整|删除|移除|生成|创建|建立|设计|实现|add|create|update|change|modify|delete|remove|generate|implement|patch|proposal)/i;
 
 export const runMockAgent = async (request: AgentRequest): Promise<AgentResponse> => {
   const structuredResponse = await runMockStructuredAgent(request, {
@@ -20,10 +24,23 @@ export const runMockStructuredAgent = async (
 ): Promise<AgentStructuredResponse> => {
   await new Promise((resolve) => globalThis.setTimeout(resolve, 350));
 
+  const directAnswer = buildDirectMockAnswer(request);
+  if (directAnswer) {
+    return {
+      type: 'answer',
+      content: directAnswer
+    };
+  }
+
   const selected = request.selectedItem;
   const slice = selected?.slice;
-  const contextName = selected ? `${selected.type} "${selected.name}"` : 'the current model';
+  const contextName = selected ? `${selected.type} "${selected.name}"` : 'the whole model';
   const diagnostics = request.model.diagnostics.length;
+  const contextCount = request.model.contexts.length;
+  const sliceCount = request.model.contexts.reduce((total, context) => (
+    total + context.slices.length + context.aggregates.reduce((sum, aggregate) => sum + aggregate.slices.length, 0)
+  ), 0);
+  const conceptCount = request.model.contexts.reduce((total, context) => total + context.concepts.length, 0);
   const dslKnowledgeVersion = request.dslKnowledgeManifest?.version ?? request.dslKnowledge?.version;
   const selectedSnippet = request.agentContext?.selectedDslSnippet;
   const dslKnowledgeTopics = request.agentContext?.dslKnowledgeSnippets.map((snippet) => snippet.topic).join(', ');
@@ -31,7 +48,7 @@ export const runMockStructuredAgent = async (
     `Context: ${contextName}.`,
     dslKnowledgeVersion ? `MEDOL knowledge package: ${dslKnowledgeVersion}.` : 'MEDOL knowledge package was not provided.',
     request.agentContext
-      ? `Agent context built with ${request.agentContext.modelSummary.sliceCount} slice(s); selected MEDOL snippet ${selectedSnippet ? `${selectedSnippet.label} (${selectedSnippet.startLine}-${selectedSnippet.endLine})` : 'not available'}.`
+      ? `Agent context built with ${request.agentContext.modelSummary.sliceCount} slice(s); relevant MEDOL snippet ${selectedSnippet ? `${selectedSnippet.label} (${selectedSnippet.startLine}-${selectedSnippet.endLine})` : 'not available'}.`
       : 'Agent context builder was not used.',
     dslKnowledgeTopics ? `Relevant MEDOL knowledge: ${dslKnowledgeTopics}.` : 'No relevant MEDOL knowledge snippets were selected.',
     diagnostics > 0
@@ -39,21 +56,24 @@ export const runMockStructuredAgent = async (
       : 'The current MEDOL parses without warnings.',
     slice
       ? `Selected slice has ${slice.elements.filter((element) => element.kind === 'command').length} command(s), ${slice.elements.filter((element) => element.kind === 'event').length} event(s), and ${slice.elements.filter((element) => element.kind === 'readmodel').length} read model(s).`
-      : 'Select a slice when you want the agent to propose a precise MEDOL patch.'
+      : `Using the whole model: ${contextCount} context(s), ${conceptCount} concept(s), and ${sliceCount} slice(s).`
   ];
 
-  const patch = slice && readModelIntent.test(request.prompt)
+  const shouldProposePatch = patchIntent.test(request.prompt) || readModelIntent.test(request.prompt);
+  const patch = shouldProposePatch && slice && readModelIntent.test(request.prompt)
     ? proposeReadModelPatch(request.dsl, slice)
-    : slice
+    : shouldProposePatch && slice
       ? proposeHotspotPatch(request.dsl, slice, request.prompt)
       : undefined;
 
   const content = [
-    'I reviewed the current modeling context.',
+    selected || modelSummaryIntent.test(request.prompt)
+      ? selected ? 'I reviewed the selected modeling focus.' : 'I reviewed the whole model.'
+      : 'I can answer directly, and I can use the whole model as context when your question needs it.',
     ...findings.map((finding) => `- ${finding}`),
     patch
       ? `Proposed MEDOL patch: ${patch.summary}`
-      : 'No MEDOL patch was prepared because there is no selected slice yet.'
+      : 'No MEDOL patch was prepared. Ask for a specific model change when you want an editable proposal.'
   ].join('\n');
 
   if (!patch) {
@@ -66,12 +86,35 @@ export const runMockStructuredAgent = async (
   return {
     type: 'medol_patch_proposal',
     content: [
-      'I reviewed the current modeling context.',
+      selected ? 'I reviewed the selected modeling focus.' : 'I reviewed the whole model.',
       ...findings.map((finding) => `- ${finding}`),
       `Proposed MEDOL patch: ${patch.summary}`
     ].join('\n'),
     patch
   };
+};
+
+const buildDirectMockAnswer = (request: AgentRequest): string | undefined => {
+  const prompt = request.prompt.trim();
+  if (identityIntent.test(prompt)) {
+    return [
+      '我是 MEDOL 建模助手，可以直接和你对话。',
+      '',
+      '我能基于当前整个 MEDOL 模型回答问题，也可以在你选中某个 context、concept 或 slice 时把它当成可选焦点。只有当你明确要求修改模型时，我才会准备可应用的 MEDOL patch。',
+      '',
+      '当前本地使用的是 mock provider，所以回答能力是有限模拟版；切到真实模型 provider 后，回答会更自然也更准确。'
+    ].join('\n');
+  }
+
+  if (capabilityIntent.test(prompt)) {
+    return [
+      '我可以直接帮你看 MEDOL 模型、解释语法、检查建模完整性、讨论联邦学习领域设计，也可以按你的要求生成可预览和应用的 MEDOL 修改建议。',
+      '',
+      '你不需要先选模块。没选中对象时，我默认使用整个模型；选中对象时，我会把它当成焦点。'
+    ].join('\n');
+  }
+
+  return undefined;
 };
 
 const proposeReadModelPatch = (dsl: string, slice: EmSlice): AgentStructuredDslPatch | undefined => {

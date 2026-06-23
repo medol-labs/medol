@@ -86,6 +86,8 @@ export const buildAgentContext = (input: {
     systemRules: [
       'You are a MEDOL domain design assistant.',
       'Use the MEDOL knowledge reference and compact rules before proposing changes.',
+      'Answer direct questions naturally; a selected model item is optional context, not a requirement.',
+      'If nothing is selected, use the whole MEDOL model and the model summary as context.',
       'Prefer a focused MEDOL patch over a broad rewrite.',
       'If a domain rule is unclear, add a hotspot or ask for clarification instead of inventing behavior.',
       'Never treat command/event field mismatches as automatically wrong; event fields may be derived.'
@@ -269,7 +271,7 @@ const summarizeModel = (model: EmModel, selectedItem?: SelectedModelItem): Agent
 };
 
 const summarizeSelectedContext = (selectedItem?: SelectedModelItem): string => {
-  if (!selectedItem) return 'No model item is selected; use the overall domain model.';
+  if (!selectedItem) return 'No model item is selected. Use the overall domain model; do not ask the user to select a module unless they want a focused patch.';
 
   const parts = [`Selected ${selectedItem.type}: ${selectedItem.name}.`];
   if (selectedItem.context) parts.push(`Context: ${selectedItem.context.name}.`);

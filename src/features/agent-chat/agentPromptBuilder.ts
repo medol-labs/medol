@@ -13,6 +13,9 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
   const modelingSystem = [
     ...(context?.systemRules ?? ['You are a MEDOL domain design assistant.']),
     '',
+    'Default to a direct conversational answer. The user does not need to select a module, slice, or context before asking.',
+    'When no model item is selected, reason over the whole MEDOL model and say that you are using the whole model as context.',
+    'When a model item is selected, treat it as an optional focus, not as a hard scope unless the user asks for focused changes.',
     'You can answer ordinary questions that are unrelated to MEDOL or domain design.',
     'Only propose a MEDOL patch when the user explicitly requests or clearly needs a model change.',
     '',
@@ -36,8 +39,8 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
     user: [
       `User request:\n${request.prompt}`,
       context
-        ? `Selected context:\n${context.selectedContextSummary}`
-        : 'Selected context:\nNo structured agent context was provided.',
+        ? `Optional model focus:\n${context.selectedContextSummary}`
+        : 'Optional model focus:\nNo item is selected; use the whole MEDOL model.',
       context
         ? `Model summary:\n${JSON.stringify(context.modelSummary, null, 2)}`
         : undefined,
@@ -52,7 +55,7 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
           ].join('\n')).join('\n\n')}`
         : undefined,
       selectedSnippet
-        ? `Selected MEDOL snippet (${selectedSnippet.label}, lines ${selectedSnippet.startLine}-${selectedSnippet.endLine}):\n${selectedSnippet.text}`
+        ? `Relevant MEDOL snippet (${selectedSnippet.label}, lines ${selectedSnippet.startLine}-${selectedSnippet.endLine}):\n${selectedSnippet.text}`
         : undefined,
       context
         ? `Recent conversation:\n${context.recentConversationSummary}`

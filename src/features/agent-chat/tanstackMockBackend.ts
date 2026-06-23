@@ -32,8 +32,15 @@ export const eventModelingAgentMockFetcher = async function* (
     model
   } as StreamChunk;
 
-  if (!prompt || !data.dsl || !data.model) {
-    yield* streamText(messageId, 'Select modeling context and enter a request before running the agent.', model);
+  if (!prompt) {
+    yield* streamText(messageId, 'Ask me anything about the current domain model, MEDOL syntax, or the product design.', model);
+    yield { type: 'TEXT_MESSAGE_END', messageId, model } as StreamChunk;
+    yield finish(input, model);
+    return;
+  }
+
+  if (!data.dsl || !data.model) {
+    yield* streamText(messageId, 'Open or create a MEDOL workspace before asking for model-aware help.', model);
     yield { type: 'TEXT_MESSAGE_END', messageId, model } as StreamChunk;
     yield finish(input, model);
     return;

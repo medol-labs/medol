@@ -73,8 +73,15 @@ async function* createEventModelingAgentStream(input: {
     model
   } as StreamChunk;
 
-  if (!input.prompt || !input.dsl || !input.model) {
-    yield* streamText(messageId, 'Select modeling context and enter a request before running the agent.', model);
+  if (!input.prompt) {
+    yield* streamText(messageId, 'Ask me anything about the current domain model, MEDOL syntax, or the product design.', model);
+    yield { type: 'TEXT_MESSAGE_END', messageId, model } as StreamChunk;
+    yield finish(input.threadId, input.runId, model);
+    return;
+  }
+
+  if (!input.dsl || !input.model) {
+    yield* streamText(messageId, 'Open or create a MEDOL workspace before asking for model-aware help.', model);
     yield { type: 'TEXT_MESSAGE_END', messageId, model } as StreamChunk;
     yield finish(input.threadId, input.runId, model);
     return;
