@@ -67,7 +67,7 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
     });
 
     nodes.push({
-      id: `${context.id}/overview`,
+      id: overviewContextNodeId(context.id),
       type: 'contextOverview',
       parentId: context.id,
       extent: 'parent',
@@ -160,6 +160,11 @@ const sliceMetrics = (slices: EmAggregate['slices']): Record<string, number> => 
 
 export const overviewAggregateNodeId = (aggregateId: string): string => `overview/aggregate/${aggregateId}`;
 export const overviewConceptNodeId = (conceptId: string): string => `overview/concept/${conceptId}`;
+export const overviewContextNodeId = (contextId: string): string => `${contextId}/overview`;
+
+export const contextIdFromOverviewNodeId = (nodeId: string): string | undefined => {
+  return nodeId.endsWith('/overview') ? nodeId.slice(0, -'/overview'.length) : undefined;
+};
 
 export const aggregateIdFromOverviewNodeId = (nodeId: string): string | undefined => {
   return nodeId.startsWith('overview/aggregate/') ? nodeId.slice('overview/aggregate/'.length) : undefined;

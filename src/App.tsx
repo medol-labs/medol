@@ -10,3 +10,19 @@ export default function App() {
     </ReactFlowProvider>
   );
 }
+
+export function PreviewApp() {
+  return (
+    <ReactFlowProvider>
+      <MedolStudio previewOnly />
+    </ReactFlowProvider>
+  );
+}
+
+export function EditorApp() {
+  return (
+    <ReactFlowProvider>
+      <MedolStudio editorOnly />
+    </ReactFlowProvider>
+  );
+}

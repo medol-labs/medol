@@ -21,7 +21,7 @@ import { emModelToJson } from '../lib/emModelExport';
 import { exportFlowViewportToPng, exportFlowViewportToSvg } from '../lib/exportFlowImage';
 import { toReactFlow } from '../lib/flow';
 import { toLayoutPreviewModel } from '../lib/layoutPreview';
-import { aggregateIdFromOverviewNodeId, conceptIdFromOverviewNodeId, toOverviewFlow } from '../lib/overviewFlow';
+import { aggregateIdFromOverviewNodeId, conceptIdFromOverviewNodeId, contextIdFromOverviewNodeId, toOverviewFlow } from '../lib/overviewFlow';
 import { sampleDsl } from '../lib/sampleDsl';
 import { getFlowBounds } from './flowBounds';
 import { findModelItem, resolveActiveAggregate, resolveActiveConcept, resolveActiveContext } from './modelSelection';
@@ -45,6 +45,11 @@ type ToolbarAction =
   | 'process-ai'
   | 'reset';
 type PreviewMode = 'canvas' | 'global' | 'layout' | 'documents';
+
+interface MedolStudioProps {
+  previewOnly?: boolean;
+  editorOnly?: boolean;
+}
 
 const getInitialLeftPanelWidth = () => {
   if (typeof window === 'undefined') return 820;
@@ -78,7 +83,23 @@ const documentationKindFromAction = (
   return action.slice(0, -3) as DocumentationKind;
 };
 
-export function MedolStudio() {
+const previewSyncChannelName = 'medol-preview-sync:v1';
+const syncedPreviewModes = new Set<PreviewMode>(['canvas', 'global', 'layout', 'documents']);
+
+interface PreviewSyncMessage {
+  type: 'studio-state';
+  workspaceId?: string;
+  dsl?: string;
+  previewMode?: PreviewMode;
+  selectedDomainId?: string;
+  selectedContextId?: string;
+  selectedAggregateId?: string;
+  selectedConceptId?: string;
+  selectedSliceId?: string;
+  selectedNodeId?: string;
+}
+
+export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolStudioProps = {}) {
   const {
     dsl,
     updateDsl,
@@ -101,7 +122,7 @@ export function MedolStudio() {
   const [selectedConceptId, setSelectedConceptId] = useState<string | undefined>();
   const [selectedSliceId, setSelectedSliceId] = useState<string | undefined>();
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
-  const [canvasShowFields, setCanvasShowFields] = useState(false);
+  const [canvasShowFields, setCanvasShowFields] = useState(true);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [agentPanelOpen, setAgentPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
@@ -135,7 +156,8 @@ export function MedolStudio() {
   const activeAggregate = resolveActiveAggregate(activeContext, selectedAggregateId);
   const activeConcept = resolveActiveConcept(activeContext, selectedConceptId);
   const displayContext = selectedContextId ? activeContext : undefined;
-  const contextOverviewMode = previewMode === 'canvas'
+  const contextDesignMode = previewMode === 'canvas'
+    && Boolean(selectedContextId)
     && !selectedAggregateId
     && !selectedConceptId
     && !selectedSliceId;
@@ -144,9 +166,16 @@ export function MedolStudio() {
     aggregateId: selectedAggregateId ? activeAggregate?.id : undefined,
     conceptId: selectedConceptId ? activeConcept?.id : undefined,
     sliceId: selectedSliceId,
-    compactSlices: contextOverviewMode,
     showFields: canvasShowFields
-  }), [model, activeContext?.id, activeAggregate?.id, activeConcept?.id, selectedAggregateId, selectedConceptId, selectedSliceId, contextOverviewMode, canvasShowFields]);
+  }), [model, activeContext?.id, activeAggregate?.id, activeConcept?.id, selectedAggregateId, selectedConceptId, selectedSliceId, canvasShowFields]);
+  const canvasFitKey = [
+    activeWorkspaceId ?? 'loading',
+    previewMode,
+    activeContext?.id ?? 'all-contexts',
+    activeAggregate?.id ?? '',
+    activeConcept?.id ?? '',
+    selectedSliceId ?? ''
+  ].join(':');
   const codegenModel = useMemo(() => modelToCodegenModel(model), [model]);
   const layoutPreview = useMemo(() => toLayoutPreviewModel(codegenModel), [codegenModel]);
   const overviewFlow = useMemo(() => toOverviewFlow(model), [model]);
@@ -175,6 +204,63 @@ export function MedolStudio() {
       : model.diagnostics.length === 0
         ? 'Valid'
         : `${model.diagnostics.length} warnings`;
+  const previewSyncMessage = useMemo<PreviewSyncMessage>(() => ({
+    type: 'studio-state',
+    ...(activeWorkspaceId ? { workspaceId: activeWorkspaceId } : {}),
+    dsl,
+    previewMode,
+    ...(selectedDomainId ? { selectedDomainId } : {}),
+    ...(selectedContextId ? { selectedContextId } : {}),
+    ...(selectedAggregateId ? { selectedAggregateId } : {}),
+    ...(selectedConceptId ? { selectedConceptId } : {}),
+    ...(selectedSliceId ? { selectedSliceId } : {}),
+    ...(selectedNodeId ? { selectedNodeId } : {})
+  }), [
+    activeWorkspaceId,
+    dsl,
+    previewMode,
+    selectedDomainId,
+    selectedContextId,
+    selectedAggregateId,
+    selectedConceptId,
+    selectedSliceId,
+    selectedNodeId
+  ]);
+
+  useEffect(() => {
+    if (previewOnly || typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel(previewSyncChannelName);
+    channel.postMessage(previewSyncMessage);
+    channel.close();
+  }, [previewOnly, previewSyncMessage]);
+
+  useEffect(() => {
+    if (!previewOnly || typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel(previewSyncChannelName);
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data as Partial<PreviewSyncMessage>;
+      if (message.type !== 'studio-state') return;
+      if (typeof message.workspaceId === 'string' && message.workspaceId !== activeWorkspaceId) {
+        void switchWorkspace(message.workspaceId);
+      }
+      if (typeof message.dsl === 'string' && message.dsl !== dsl) updateDsl(message.dsl);
+      if (message.previewMode && syncedPreviewModes.has(message.previewMode)) {
+        setPreviewMode(message.previewMode);
+      }
+      setSelectedDomainId(message.selectedDomainId);
+      setSelectedContextId(message.selectedContextId);
+      setSelectedAggregateId(message.selectedAggregateId);
+      setSelectedConceptId(message.selectedConceptId);
+      setSelectedSliceId(message.selectedSliceId);
+      setSelectedNodeId(message.selectedNodeId);
+    };
+
+    channel.addEventListener('message', handleMessage);
+    return () => {
+      channel.removeEventListener('message', handleMessage);
+      channel.close();
+    };
+  }, [activeWorkspaceId, dsl, previewOnly, switchWorkspace, updateDsl]);
 
   useEffect(() => {
     setSelectedDomainId(undefined);
@@ -207,6 +293,7 @@ export function MedolStudio() {
     setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
+    setPreviewMode('canvas');
     setDslFocusTarget({ kind: 'context', name: context.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -218,6 +305,7 @@ export function MedolStudio() {
     setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
+    setPreviewMode('canvas');
     setDslFocusTarget({ kind: 'aggregate', name: aggregate.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -243,11 +331,19 @@ export function MedolStudio() {
       : context.concepts.find((concept) => concept.sliceIds.includes(slice.id))?.id);
     setSelectedSliceId(slice.id);
     setSelectedNodeId(undefined);
+    setPreviewMode('canvas');
     setDslFocusTarget({ kind: 'slice', name: slice.name });
     setDslFocusVersion((version) => version + 1);
   };
 
   const selectOverviewGroup = (nodeId: string) => {
+    const contextId = contextIdFromOverviewNodeId(nodeId);
+    if (contextId) {
+      const context = model.contexts.find((candidate) => candidate.id === contextId);
+      if (context) selectContext(context);
+      return;
+    }
+
     const aggregateId = aggregateIdFromOverviewNodeId(nodeId);
     if (aggregateId) {
       for (const context of model.contexts) {
@@ -307,7 +403,6 @@ export function MedolStudio() {
       for (const context of domain.contexts) {
         if (context.id === sourceId) {
           selectContext(context);
-          setPreviewMode('canvas');
           return;
         }
         for (const concept of context.concepts) {
@@ -385,6 +480,22 @@ export function MedolStudio() {
       transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
       backgroundColor: '#f4f7fb'
     };
+  };
+
+  const openPreviewPage = () => {
+    if (typeof window === 'undefined') return;
+    window.open('/preview', '_blank', 'noopener,noreferrer');
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel(previewSyncChannelName);
+    window.setTimeout(() => {
+      channel.postMessage(previewSyncMessage);
+      channel.close();
+    }, 500);
+  };
+
+  const openEditorPage = () => {
+    if (typeof window === 'undefined') return;
+    window.open('/editor', '_blank', 'noopener,noreferrer');
   };
 
   const runToolbarAction = async () => {
@@ -535,21 +646,135 @@ export function MedolStudio() {
     window.addEventListener('pointerup', onPointerUp);
   };
 
-  const editorColumn = leftPanelOpen ? `${leftPanelWidth}px` : '42px';
-  const resizeColumn = leftPanelOpen ? '6px' : '0px';
-  const inspectorColumn = rightPanelOpen ? '320px' : '42px';
-  const gridTemplateColumns = layoutDirection === 'ltr'
+  const showLeftPanel = !previewOnly && leftPanelOpen;
+  const showRightPanel = !previewOnly && rightPanelOpen;
+  const editorColumn = previewOnly ? '0px' : showLeftPanel ? `${leftPanelWidth}px` : '42px';
+  const resizeColumn = showLeftPanel ? '6px' : '0px';
+  const inspectorColumn = previewOnly ? '0px' : showRightPanel ? '320px' : '42px';
+  const gridTemplateColumns = previewOnly
+    ? 'minmax(0, 1fr)'
+    : layoutDirection === 'ltr'
     ? `${editorColumn} ${resizeColumn} minmax(0, 1fr) ${inspectorColumn}`
     : `${inspectorColumn} minmax(0, 1fr) ${resizeColumn} ${editorColumn}`;
   const editorGridColumn = layoutDirection === 'ltr' ? 1 : 4;
   const resizeGridColumn = layoutDirection === 'ltr' ? 2 : 3;
-  const resolvedPreviewGridColumn = layoutDirection === 'ltr' ? 3 : 2;
+  const resolvedPreviewGridColumn = previewOnly ? 1 : layoutDirection === 'ltr' ? 3 : 2;
   const inspectorGridColumn = layoutDirection === 'ltr' ? 4 : 1;
   const isRtlLayout = layoutDirection === 'rtl';
 
+  if (editorOnly) {
+    return (
+      <main
+        className="grid h-screen min-h-0 overflow-hidden bg-[#f4f7fb]"
+        style={{
+          gridTemplateRows: 'auto minmax(0, 1fr)',
+          '--explorer-panel-width': `${explorerPanelWidth}px`
+        } as CSSProperties}
+      >
+        <header className="studio-toolbar">
+          <div className="workspace-header">
+            <p className="eyebrow">Workspace</p>
+            <WorkspaceSwitcher
+              workspaces={workspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              status={dslPersistenceStatus}
+              onSelect={(workspaceId) => {
+                setPreviewPatch(undefined);
+                setSelectedDomainId(undefined);
+                setSelectedContextId(undefined);
+                setSelectedAggregateId(undefined);
+                setSelectedConceptId(undefined);
+                setSelectedSliceId(undefined);
+                setSelectedNodeId(undefined);
+                void switchWorkspace(workspaceId);
+              }}
+              onCreate={(name) => void createWorkspace(name)}
+              onRename={(name) => void renameWorkspace(name)}
+              onDelete={() => void deleteWorkspace()}
+            />
+          </div>
+          <div className="toolbar-actions">
+            <div className="toolbar-view-controls">
+              <button
+                type="button"
+                className="direction-toggle"
+                onClick={openPreviewPage}
+                title="Open preview in a separate page"
+              >
+                Preview
+              </button>
+            </div>
+          </div>
+        </header>
+        <div className="grid min-h-0 min-w-0 grid-cols-[var(--explorer-panel-width,240px)_6px_minmax(360px,1fr)_minmax(320px,34vw)] overflow-hidden">
+          <ModelExplorer
+            model={model}
+            activeDomainId={selectedDomainId}
+            activeContextId={selectedContextId}
+            activeAggregateId={selectedAggregateId}
+            activeConceptId={selectedConceptId}
+            activeSliceId={selectedSliceId}
+            documentSourceRefs={documentSourceRefs}
+            onSelectDomain={selectDomain}
+            onSelectContext={selectContext}
+            onSelectAggregate={selectAggregate}
+            onSelectConcept={selectConcept}
+            onSelectSlice={selectSlice}
+            onLocateDocumentation={(sourceIds) => void locateDocumentation(sourceIds)}
+          />
+          <div
+            className="explorer-resize-handle explorer-resize-handle--vertical"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize explorer panel"
+            onPointerDown={resizeExplorerPanel}
+          />
+          <section className="left-section left-section--editor">
+            <div className="left-section__title">
+              <span>MEDOL</span>
+              <strong title={`MEDOL persistence: ${dslPersistenceStatus}`}>
+                {modelStatus} · {formatPersistenceStatus(dslPersistenceStatus)}
+              </strong>
+            </div>
+            <DslEditor
+              key={`${activeWorkspaceId ?? 'loading'}:${workspaceRevision}:${dslEditorVersion}`}
+              value={dsl}
+              diagnostics={model.diagnostics}
+              patchPreview={previewPatch ? { baseDsl: previewPatch.baseDsl ?? dsl, nextDsl: previewPatch.nextDsl } : undefined}
+              focusLine={dslFocusLine}
+              focusVersion={dslFocusVersion}
+              onChange={updateDsl}
+            />
+          </section>
+          <section className="agent-panel">
+            <header className="pane-header pane-header--inline agent-panel__header">
+              <div>
+                <p className="eyebrow">Assistant</p>
+                <h2>AI Chat</h2>
+              </div>
+            </header>
+            {activeWorkspaceId && (
+              <AgentChatDock
+                key={activeWorkspaceId}
+                workspaceId={activeWorkspaceId}
+                dsl={dsl}
+                model={model}
+                selectedItem={selectedItem}
+                isParsingPending={isParsingPending}
+                onApplyDsl={applyAgentDsl}
+                onPreviewPatch={previewAgentPatch}
+                onClearPatchPreview={clearAgentPatchPreview}
+              />
+            )}
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main
-      className="grid h-[calc(100vh-24px)] min-h-0 overflow-hidden bg-[#f4f7fb] mb-6"
+      className={`grid min-h-0 overflow-hidden bg-[#f4f7fb] ${previewOnly ? 'h-screen' : 'h-[calc(100vh-24px)] mb-6'}`}
       style={{
         gridTemplateColumns,
         gridTemplateRows: 'minmax(0, 1fr)',
@@ -558,7 +783,7 @@ export function MedolStudio() {
         '--explorer-panel-width': `${explorerPanelWidth}px`
       } as CSSProperties}
     >
-      {leftPanelOpen && (
+      {showLeftPanel && (
         <aside
           className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-l border-slate-300' : 'border-r border-slate-300'}`}
           style={{ gridColumn: editorGridColumn, gridRow: 1 }}
@@ -678,7 +903,7 @@ export function MedolStudio() {
           </div>
         </aside>
       )}
-      {leftPanelOpen && (
+      {showLeftPanel && (
         <div
           className="min-w-0 cursor-col-resize bg-[linear-gradient(to_right,transparent_0_2px,#d8dee8_2px_4px,transparent_4px_6px)] hover:bg-[linear-gradient(to_right,transparent_0_1px,#2563eb_1px_5px,transparent_5px_6px)] active:bg-[linear-gradient(to_right,transparent_0_1px,#2563eb_1px_5px,transparent_5px_6px)]"
           style={{ gridColumn: resizeGridColumn, gridRow: 1 }}
@@ -688,7 +913,7 @@ export function MedolStudio() {
           onPointerDown={resizeLeftPanel}
         />
       )}
-      {!leftPanelOpen && (
+      {!previewOnly && !showLeftPanel && (
         <button
           type="button"
           className={`min-w-0 cursor-pointer border-0 bg-white p-0 text-xs font-extrabold uppercase tracking-normal text-slate-600 [writing-mode:vertical-rl] hover:bg-[#eef4fb] hover:text-[#172033] ${isRtlLayout ? 'border-l border-slate-300' : 'border-r border-slate-300'}`}
@@ -761,15 +986,36 @@ export function MedolStudio() {
                 <option value="layout">UI Preview</option>
                 <option value="documents">Documents</option>
               </select>
+              {!previewOnly && (
+                <button
+                  type="button"
+                  className="direction-toggle"
+                  onClick={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}
+                  title="Toggle layout direction"
+                >
+                  {layoutDirection.toUpperCase()}
+                </button>
+              )}
+              {!previewOnly && (
+                <button
+                  type="button"
+                  className="direction-toggle"
+                  onClick={openPreviewPage}
+                  title="Open preview in a separate page"
+                >
+                  Preview
+                </button>
+              )}
               <button
                 type="button"
                 className="direction-toggle"
-                onClick={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}
-                title="Toggle layout direction"
+                onClick={openEditorPage}
+                title="Open editor in a separate page"
               >
-                {layoutDirection.toUpperCase()}
+                Editor
               </button>
             </div>
+            {!previewOnly && (
             <div className="toolbar-command-controls">
               <select
                 className="toolbar-action-select"
@@ -823,6 +1069,7 @@ export function MedolStudio() {
                 {toolbarActionPending ? 'Working' : 'OK'}
               </button>
             </div>
+            )}
           </div>
         </header>
         <div className="preview-stage">
@@ -831,6 +1078,7 @@ export function MedolStudio() {
               nodes={flow.nodes}
               edges={flow.edges}
               showFields={canvasShowFields}
+              fitKey={canvasFitKey}
               selectedNodeId={selectedNodeId}
               onSelectNode={setSelectedNodeId}
               onClearSelection={() => setSelectedNodeId(undefined)}
@@ -869,7 +1117,7 @@ export function MedolStudio() {
           {previewMode === 'global' && <span>domain map</span>}
           {previewMode === 'layout' && <span>ui preview</span>}
           {previewMode === 'documents' && <span>{activeDocument ? `${activeDocument.title} · ${documentStatus}` : 'documents'}</span>}
-          {contextOverviewMode && <span>context overview</span>}
+          {contextDesignMode && <span>context focused</span>}
           {selectedSliceId && <span>slice focused</span>}
           {selectedNodeId && <span>element focused</span>}
           {model.diagnostics.map((diagnostic) => (
@@ -877,7 +1125,7 @@ export function MedolStudio() {
           ))}
         </footer>
       </section>
-      {rightPanelOpen && (
+      {showRightPanel && (
         <aside
           className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-r border-slate-300' : 'border-l border-slate-300'}`}
           style={{ gridColumn: inspectorGridColumn, gridRow: 1 }}
@@ -892,7 +1140,7 @@ export function MedolStudio() {
           <InspectorPanel item={selectedItem} compact />
         </aside>
       )}
-      {!rightPanelOpen && (
+      {!previewOnly && !showRightPanel && (
         <button
           type="button"
           className={`min-w-0 cursor-pointer border-0 bg-white p-0 text-xs font-extrabold uppercase tracking-normal text-slate-600 [writing-mode:vertical-rl] hover:bg-[#eef4fb] hover:text-[#172033] ${isRtlLayout ? 'border-r border-slate-300' : 'border-l border-slate-300'}`}

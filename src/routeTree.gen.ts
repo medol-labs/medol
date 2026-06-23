@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PreviewRouteImport } from './routes/preview'
+import { Route as EditorRouteImport } from './routes/editor'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiModelingWorkspacesRouteImport } from './routes/api/modeling/workspaces'
 import { Route as ApiModelingDocumentsRouteImport } from './routes/api/modeling/documents'
@@ -19,6 +21,16 @@ import { Route as ApiAgentChatRouteImport } from './routes/api/agent/chat'
 import { Route as ApiModelingWorkspacesWorkspaceIdRouteImport } from './routes/api/modeling/workspaces.$workspaceId'
 import { Route as ApiModelingDocumentRecordsDocumentIdRouteImport } from './routes/api/modeling/document-records.$documentId'
 
+const PreviewRoute = PreviewRouteImport.update({
+  id: '/preview',
+  path: '/preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditorRoute = EditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -71,6 +83,8 @@ const ApiModelingDocumentRecordsDocumentIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/editor': typeof EditorRoute
+  '/preview': typeof PreviewRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
@@ -82,6 +96,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/editor': typeof EditorRoute
+  '/preview': typeof PreviewRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
@@ -94,6 +110,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/editor': typeof EditorRoute
+  '/preview': typeof PreviewRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
@@ -107,6 +125,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/editor'
+    | '/preview'
     | '/api/agent/chat'
     | '/api/agent/history'
     | '/api/modeling/document-export'
@@ -118,6 +138,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/editor'
+    | '/preview'
     | '/api/agent/chat'
     | '/api/agent/history'
     | '/api/modeling/document-export'
@@ -129,6 +151,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/editor'
+    | '/preview'
     | '/api/agent/chat'
     | '/api/agent/history'
     | '/api/modeling/document-export'
@@ -141,6 +165,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  EditorRoute: typeof EditorRoute
+  PreviewRoute: typeof PreviewRoute
   ApiAgentChatRoute: typeof ApiAgentChatRoute
   ApiAgentHistoryRoute: typeof ApiAgentHistoryRoute
   ApiModelingDocumentExportRoute: typeof ApiModelingDocumentExportRoute
@@ -151,6 +177,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/preview': {
+      id: '/preview'
+      path: '/preview'
+      fullPath: '/preview'
+      preLoaderRoute: typeof PreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor': {
+      id: '/editor'
+      path: '/editor'
+      fullPath: '/editor'
+      preLoaderRoute: typeof EditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -247,6 +287,8 @@ const ApiModelingWorkspacesRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  EditorRoute: EditorRoute,
+  PreviewRoute: PreviewRoute,
   ApiAgentChatRoute: ApiAgentChatRoute,
   ApiAgentHistoryRoute: ApiAgentHistoryRoute,
   ApiModelingDocumentExportRoute: ApiModelingDocumentExportRoute,

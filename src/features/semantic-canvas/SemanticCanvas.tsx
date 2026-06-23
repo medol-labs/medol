@@ -29,6 +29,7 @@ interface SemanticCanvasProps {
   nodes: Node[];
   edges: Edge[];
   showFields: boolean;
+  fitKey: string;
   selectedNodeId?: string;
   onSelectNode: (nodeId: string) => void;
   onClearSelection: () => void;
@@ -41,6 +42,7 @@ export function SemanticCanvas({
   nodes,
   edges,
   showFields,
+  fitKey,
   selectedNodeId,
   onSelectNode,
   onClearSelection,
@@ -65,7 +67,7 @@ export function SemanticCanvas({
       void fitView({ padding: 0.12, duration: 180, maxZoom: 1 });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [fitView, nodes]);
+  }, [fitKey, fitView]);
 
   const visibleEdges = useMemo(
     () => showAllRelations
