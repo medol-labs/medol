@@ -34,6 +34,7 @@ export type MedolKeywordNames =
     | ">="
     | "?"
     | "[]"
+    | "[]?"
     | "actor"
     | "aggregate"
     | "assert"
@@ -249,10 +250,10 @@ export function isBooleanLiteral(item: unknown): item is BooleanLiteral {
     return reflection.isInstance(item, BooleanLiteral.$type);
 }
 
-export type Cardinality = '?' | '[]';
+export type Cardinality = '?' | '[]' | '[]?';
 
 export function isCardinality(item: unknown): item is Cardinality {
-    return item === '[]' || item === '?';
+    return item === '[]?' || item === '[]' || item === '?';
 }
 
 export interface Command extends langium.AstNode {

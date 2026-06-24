@@ -331,7 +331,8 @@ FieldName returns string:
 ;
 
 Cardinality returns string:
-      '[]'
+      '[]?'
+    | '[]'
     | '?'
 ;
 

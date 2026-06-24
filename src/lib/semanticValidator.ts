@@ -513,7 +513,7 @@ const validateSpecification = (
         const resolved = resolveFieldSource(target, symbols);
         if (!resolved) {
           diagnostics.push(`${scope}: unique references unknown field ${fieldSourceText(target)}.`);
-        } else if (resolved.cardinality === 'List') {
+        } else if (resolved.cardinality === 'List' || resolved.cardinality === 'OptionalList') {
           diagnostics.push(`${scope}: unique cannot target collection field ${resolved.label}.`);
         }
       }
@@ -714,7 +714,7 @@ const validateExampleAssignments = (
     }
     const literalType = typeOfLiteral(assignment.value);
     const compatible = literalType === 'Null'
-      ? field.cardinality === 'Optional'
+      ? field.cardinality === 'Optional' || field.cardinality === 'OptionalList'
       : typesAreCompatible(field.type, literalType, symbols);
     if (!compatible) {
       diagnostics.push(`${scope}: value for ${elementName}.${field.name} is incompatible with type ${field.type}.`);
@@ -762,7 +762,8 @@ const comparisonIsValid = (
 ): boolean => {
   if (left.type === 'Null' || right.type === 'Null') {
     const other = left.type === 'Null' ? right : left;
-    return ['==', '!='].includes(operator) && other.cardinality === 'Optional';
+    return ['==', '!='].includes(operator)
+      && (other.cardinality === 'Optional' || other.cardinality === 'OptionalList');
   }
   const leftBase = resolveBaseType(left.type, symbols.valueTypes, [], '');
   const rightBase = resolveBaseType(right.type, symbols.valueTypes, [], '');

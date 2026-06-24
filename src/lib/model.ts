@@ -14,7 +14,7 @@ export type EmElementKind =
 export interface EmField {
   name: string;
   type: string;
-  cardinality?: 'Single' | 'List' | 'Optional';
+  cardinality?: 'Single' | 'List' | 'Optional' | 'OptionalList';
   attributes: string[];
   example?: string;
   mapping?: EmFieldMapping;

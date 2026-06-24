@@ -429,7 +429,9 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
 
 const formatField = (field: ConfigField): string => {
   const type = toDslId(field.type, 'String');
-  const cardinality = field.cardinality === 'Multiple' ? '[]' : field.optional ? '?' : '';
+  const cardinality = field.cardinality === 'Multiple'
+    ? field.optional ? '[]?' : '[]'
+    : field.optional ? '?' : '';
   const attributes = [
     field.idAttribute ? 'id' : '',
     field.generated ? 'generated' : '',

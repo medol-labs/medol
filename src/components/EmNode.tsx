@@ -51,7 +51,10 @@ export function EmNode({ data, selected }: NodeProps) {
           {fields.map((field) => (
             <li key={`${field.name}:${field.type}`}>
               <OverflowText text={field.name} />
-              <code title={field.type}>{field.type}{field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}</code>
+              <code title={field.type}>
+                {field.type}
+                {field.cardinality === 'OptionalList' ? '[]?' : field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}
+              </code>
             </li>
           ))}
         </ul>

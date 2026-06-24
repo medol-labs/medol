@@ -612,7 +612,13 @@ const parseField = (field: AstField): EmField => {
   return {
     name: safeName(field.name, 'unnamedField'),
     type: safeName(field.type, 'Unknown'),
-    cardinality: field.cardinality === '[]' ? 'List' : field.cardinality === '?' ? 'Optional' : 'Single',
+    cardinality: field.cardinality === '[]?'
+      ? 'OptionalList'
+      : field.cardinality === '[]'
+        ? 'List'
+        : field.cardinality === '?'
+          ? 'Optional'
+          : 'Single',
     attributes: [...(field.attributes ?? [])],
     ...(field.details?.example ? { example: field.details.example } : {}),
     ...(mapping ? { mapping } : {})

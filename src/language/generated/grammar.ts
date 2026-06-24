@@ -2797,6 +2797,10 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
         "elements": [
           {
             "$type": "Keyword",
+            "value": "[]?"
+          },
+          {
+            "$type": "Keyword",
             "value": "[]"
           },
           {

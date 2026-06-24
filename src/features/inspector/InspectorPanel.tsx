@@ -72,7 +72,7 @@ function InspectorContent({ item }: { item: SelectedModelItem }) {
               <li key={`${field.name}:${field.type}`}>
                 <OverflowText as="strong" text={field.name} />
                 <OverflowText
-                  text={`${field.type}${field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}`}
+                  text={`${field.type}${field.cardinality === 'OptionalList' ? '[]?' : field.cardinality === 'List' ? '[]' : field.cardinality === 'Optional' ? '?' : ''}`}
                 />
                 {field.mapping && (
                   <OverflowText

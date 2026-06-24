@@ -465,6 +465,7 @@ value Address {
 fieldName: Type
 fieldName: Type?
 fieldName: Type[]
+fieldName: Type[]?
 fieldName: Type id generated technical query
 fieldName: Type { example "A readable sample value." }
 copiedName: Type from UpstreamElement.sourceName
@@ -512,3 +513,4 @@ Cardinality:
 - no suffix: single value
 - `?`: optional value
 - `[]`: list value
+- `[]?`: optional list value

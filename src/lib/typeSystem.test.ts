@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { modelToCodegenModel } from './codegenModel';
+import { configToDsl } from './configToDsl';
 import { parseMedol } from './dslParser';
 import { parseMedolFile, type MedolProjectFileSystem } from './medolProject';
 
@@ -37,6 +38,45 @@ test('parses enums and structured value objects', () => {
       { name: 'Address', kind: 'object', values: [], fields: ['street', 'city'] }
     ]
   );
+});
+
+test('parses optional list fields and preserves codegen cardinality', () => {
+  const model = parseMedol(`
+    context Features {
+      value FeatureDefinition {
+        shape: Int[]?
+      }
+      slice DefineFeature {
+        command DefineFeature {
+          shape: Int[]?
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  assert.equal(model.contexts[0].valueTypes[0].fields[0].cardinality, 'OptionalList');
+
+  const codegen = modelToCodegenModel(model);
+  assert.equal(codegen.slices[0].commands[0].fields[0].cardinality, 'Multiple');
+  assert.equal(codegen.slices[0].commands[0].fields[0].optional, true);
+
+  const roundTripDsl = configToDsl({
+    context: 'Features',
+    slices: [{
+      title: 'DefineFeature',
+      commands: [{
+        title: 'DefineFeature',
+        fields: [{
+          name: 'shape',
+          type: 'Int',
+          cardinality: 'Multiple',
+          optional: true
+        }]
+      }]
+    }]
+  });
+  assert.match(roundTripDsl, /shape: Int\[\]\?/);
 });
 
 test('validates enum examples and structured value fields', () => {
