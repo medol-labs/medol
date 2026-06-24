@@ -390,6 +390,27 @@ textarea {
   color: #b45309;
 }
 
+.studio-status__diagnostic {
+  max-width: min(520px, 70vw);
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #b45309;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.studio-status__diagnostic:hover,
+.studio-status__diagnostic:focus-visible {
+  color: #92400e;
+  text-decoration: underline;
+  outline: none;
+}
+
 .left-section {
   min-width: 0;
   min-height: 0;

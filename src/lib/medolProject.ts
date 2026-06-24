@@ -52,6 +52,6 @@ export const parseMedolFile = (
   visit(entry, []);
   const model = parseMedolSources(sources);
   model.diagnostics.unshift(...diagnostics);
+  model.diagnosticDetails.unshift(...diagnostics.map((message) => ({ message })));
   return model;
 };
-

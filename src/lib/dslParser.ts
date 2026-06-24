@@ -1,4 +1,4 @@
-import { createDefaultCoreModule, createDefaultSharedCoreModule, EmptyFileSystem, inject } from 'langium';
+import { createDefaultCoreModule, createDefaultSharedCoreModule, EmptyFileSystem, inject, type AstNode, type RootCstNode } from 'langium';
 import { MedolGeneratedModule, MedolGeneratedSharedModule } from '../language/generated/module';
 import {
   isActorRef,
@@ -70,8 +70,9 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel } from './model';
+import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type MedolDiagnostic } from './model';
 import { validateSemanticModel } from './semanticValidator';
+import { locateSemanticDiagnostics } from './diagnosticLocation';
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
@@ -97,6 +98,11 @@ export const parseMedolSources = (sources: MedolSource[]): EmModel => {
       source,
       result: medolServices.parser.LangiumParser.parse<AstModel>(source.text)
     }));
+    const sourceNamesByRoot = new Map<RootCstNode, string>();
+    for (const { source, result } of results) {
+      const root = result.value.$cstNode?.root;
+      if (root) sourceNamesByRoot.set(root, source.sourceName);
+    }
     const ast = mergeAstModels(results.map(({ result }) => result.value));
     const model = astToEmModel(ast);
 
@@ -106,31 +112,73 @@ export const parseMedolSources = (sources: MedolSource[]): EmModel => {
         const location = lexerError.line != null
           ? `Line ${lexerError.line}${lexerError.column != null ? `:${lexerError.column}` : ''}: `
           : '';
-        model.diagnostics.push(`${sourcePrefix}${location}${lexerError.message}`);
+        addDiagnostic(model, {
+          message: `${sourcePrefix}${location}${lexerError.message}`,
+          sourceName: source.sourceName,
+          ...(lexerError.line != null && lexerError.column != null
+            ? { range: pointRange(lexerError.line, lexerError.column, lexerError.length ?? 1) }
+            : {})
+        });
       }
       for (const parserError of result.parserErrors) {
         const line = parserError.token.startLine;
         const column = parserError.token.startColumn;
         const location = line != null ? `Line ${line}${column != null ? `:${column}` : ''}: ` : '';
-        model.diagnostics.push(`${sourcePrefix}${location}${parserError.message}`);
+        addDiagnostic(model, {
+          message: `${sourcePrefix}${location}${parserError.message}`,
+          sourceName: source.sourceName,
+          ...(line != null && column != null
+            ? {
+                range: {
+                  start: { line, column },
+                  end: {
+                    line: parserError.token.endLine ?? line,
+                    column: (parserError.token.endColumn ?? column) + 1
+                  }
+                }
+              }
+            : {})
+        });
       }
     }
 
     if (model.contexts.length === 0 && sources.some((source) => source.text.trim().length > 0)) {
-      model.diagnostics.push('No context block found. Start with: domain MyDomain { context MyContext { ... } }');
+      addDiagnostic(model, {
+        message: 'No context block found. Start with: domain MyDomain { context MyContext { ... } }',
+        sourceName: sources[0]?.sourceName,
+        range: pointRange(1, 1)
+      });
     }
 
     validateReferences(model);
-    model.diagnostics.push(...validateSemanticModel(ast, model));
+    const semanticMessages = validateSemanticModel(ast, model);
+    const semanticDetails = locateSemanticDiagnostics(
+      ast,
+      semanticMessages,
+      (node: AstNode) => node.$cstNode ? sourceNamesByRoot.get(node.$cstNode.root) : undefined
+    );
+    for (const diagnostic of semanticDetails) addDiagnostic(model, diagnostic);
     refreshEdgeIds(model);
     dedupeEdges(model);
     return model;
   } catch (error) {
     const model = emptyModel();
-    model.diagnostics.push(error instanceof Error ? error.message : 'Unable to parse current MEDOL');
+    addDiagnostic(model, {
+      message: error instanceof Error ? error.message : 'Unable to parse current MEDOL'
+    });
     return model;
   }
 };
+
+const addDiagnostic = (model: EmModel, diagnostic: MedolDiagnostic): void => {
+  model.diagnostics.push(diagnostic.message);
+  model.diagnosticDetails.push(diagnostic);
+};
+
+const pointRange = (line: number, column: number, length = 1) => ({
+  start: { line, column },
+  end: { line, column: column + Math.max(length, 1) }
+});
 
 export const parseEventModelingDsl = parseMedol;
 

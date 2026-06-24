@@ -131,6 +131,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const [editorPanelHeight, setEditorPanelHeight] = useState(getInitialEditorPanelHeight);
   const [explorerPanelWidth, setExplorerPanelWidth] = useState(getInitialExplorerPanelWidth);
   const [dslFocusTarget, setDslFocusTarget] = useState<DslLocationTarget | undefined>();
+  const [dslFocusPosition, setDslFocusPosition] = useState<{ line: number; column: number }>();
   const [dslFocusVersion, setDslFocusVersion] = useState(0);
   const [dslEditorVersion, setDslEditorVersion] = useState(0);
   const [previewPatch, setPreviewPatch] = useState<AgentDslPatch | undefined>();
@@ -195,7 +196,9 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     () => new Set(documents.flatMap((document) => document.sourceRefs)),
     [documents]
   );
-  const dslFocusLine = useMemo(() => findDslLine(dsl, dslFocusTarget), [dsl, dslFocusTarget]);
+  const dslFocusLine = dslFocusPosition?.line
+    ?? findDslLine(dsl, dslFocusTarget);
+  const dslFocusColumn = dslFocusPosition?.column;
   const isParsingPending = dsl !== debouncedDsl;
   const modelStatus = previewPatch
     ? 'Patch preview'
@@ -282,6 +285,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
     setPreviewMode('global');
+    setDslFocusPosition(undefined);
     setDslFocusTarget({ kind: 'domain', name: domain.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -294,6 +298,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
     setPreviewMode('canvas');
+    setDslFocusPosition(undefined);
     setDslFocusTarget({ kind: 'context', name: context.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -306,6 +311,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
     setPreviewMode('canvas');
+    setDslFocusPosition(undefined);
     setDslFocusTarget({ kind: 'aggregate', name: aggregate.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -318,6 +324,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
     setPreviewMode('canvas');
+    setDslFocusPosition(undefined);
     setDslFocusTarget({ kind: 'concept', name: concept.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -332,6 +339,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setSelectedSliceId(slice.id);
     setSelectedNodeId(undefined);
     setPreviewMode('canvas');
+    setDslFocusPosition(undefined);
     setDslFocusTarget({ kind: 'slice', name: slice.name });
     setDslFocusVersion((version) => version + 1);
   };
@@ -557,6 +565,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setPreviewPatch(undefined);
     updateDsl(nextDsl);
     if (focusTarget) {
+      setDslFocusPosition(undefined);
       setDslFocusTarget(focusTarget);
       setDslFocusVersion((version) => version + 1);
     }
@@ -565,6 +574,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
 
   const previewAgentPatch = (patch: AgentDslPatch) => {
     setPreviewPatch(patch);
+    setDslFocusPosition(undefined);
     setDslFocusTarget(patch.focusTarget);
     setDslFocusVersion((version) => version + 1);
   };
@@ -739,9 +749,10 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
             <DslEditor
               key={`${activeWorkspaceId ?? 'loading'}:${workspaceRevision}:${dslEditorVersion}`}
               value={dsl}
-              diagnostics={model.diagnostics}
+              diagnostics={model.diagnosticDetails}
               patchPreview={previewPatch ? { baseDsl: previewPatch.baseDsl ?? dsl, nextDsl: previewPatch.nextDsl } : undefined}
               focusLine={dslFocusLine}
+              focusColumn={dslFocusColumn}
               focusVersion={dslFocusVersion}
               onChange={updateDsl}
             />
@@ -852,9 +863,10 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 <DslEditor
                   key={`${activeWorkspaceId ?? 'loading'}:${workspaceRevision}:${dslEditorVersion}`}
                   value={dsl}
-                  diagnostics={model.diagnostics}
+                  diagnostics={model.diagnosticDetails}
                   patchPreview={previewPatch ? { baseDsl: previewPatch.baseDsl ?? dsl, nextDsl: previewPatch.nextDsl } : undefined}
                   focusLine={dslFocusLine}
+                  focusColumn={dslFocusColumn}
                   focusVersion={dslFocusVersion}
                   onChange={updateDsl}
                 />
@@ -1120,8 +1132,25 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           {contextDesignMode && <span>context focused</span>}
           {selectedSliceId && <span>slice focused</span>}
           {selectedNodeId && <span>element focused</span>}
-          {model.diagnostics.map((diagnostic) => (
-            <span key={diagnostic}>{diagnostic}</span>
+          {model.diagnosticDetails.map((diagnostic, index) => (
+            diagnostic.range ? (
+              <button
+                key={`${diagnostic.message}:${index}`}
+                type="button"
+                className="studio-status__diagnostic"
+                title={`Go to line ${diagnostic.range.start.line}, column ${diagnostic.range.start.column}`}
+                onClick={() => {
+                  setLeftPanelOpen(true);
+                  setDslFocusTarget(undefined);
+                  setDslFocusPosition(diagnostic.range?.start);
+                  setDslFocusVersion((version) => version + 1);
+                }}
+              >
+                {diagnostic.message}
+              </button>
+            ) : (
+              <span key={`${diagnostic.message}:${index}`}>{diagnostic.message}</span>
+            )
           ))}
         </footer>
       </section>

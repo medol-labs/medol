@@ -128,16 +128,34 @@ export interface EmEdge {
   label?: string;
 }
 
+export interface MedolSourcePosition {
+  line: number;
+  column: number;
+}
+
+export interface MedolSourceRange {
+  start: MedolSourcePosition;
+  end: MedolSourcePosition;
+}
+
+export interface MedolDiagnostic {
+  message: string;
+  sourceName?: string;
+  range?: MedolSourceRange;
+}
+
 export interface EmModel {
   domains: EmDomain[];
   contexts: EmContext[];
   edges: EmEdge[];
   diagnostics: string[];
+  diagnosticDetails: MedolDiagnostic[];
 }
 
 export const emptyModel = (): EmModel => ({
   domains: [],
   contexts: [],
   edges: [],
-  diagnostics: []
+  diagnostics: [],
+  diagnosticDetails: []
 });

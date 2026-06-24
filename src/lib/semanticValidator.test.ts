@@ -5,6 +5,31 @@ import { MedolValidationError, medolToCodegenModel } from './dslToConfig';
 
 const diagnosticsFor = (medol: string): string[] => parseMedol(medol).diagnostics;
 
+test('reports parser and semantic diagnostics at their real source ranges', () => {
+  const parserModel = parseMedol(`context Demo {
+  value Feature {
+    shape: Int[]？
+  }
+}`);
+  const parserDiagnostic = parserModel.diagnosticDetails.find((diagnostic) =>
+    diagnostic.message.includes('unexpected character')
+  );
+  assert.equal(parserDiagnostic?.range?.start.line, 3);
+  assert.equal(parserDiagnostic?.range?.start.column, 17);
+
+  const semanticModel = parseMedol(`context Demo {
+  value Feature {
+    shape: MissingType
+  }
+}`);
+  const semanticDiagnostic = semanticModel.diagnosticDetails.find((diagnostic) =>
+    diagnostic.message.includes('unknown type MissingType')
+  );
+  assert.equal(semanticDiagnostic?.range?.start.line, 3);
+  assert.equal(semanticDiagnostic?.range?.start.column, 5);
+  assert(semanticDiagnostic?.range?.end.column > semanticDiagnostic!.range!.start.column);
+});
+
 test('accepts reusable types, business expressions, booleans, and null optionals', () => {
   const diagnostics = diagnosticsFor(`
     domain Demo {

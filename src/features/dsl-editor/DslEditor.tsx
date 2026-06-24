@@ -1,6 +1,7 @@
 import { DiffEditor, Editor, type BeforeMount, type OnMount } from '@monaco-editor/react';
 import { useCallback, useEffect, useRef, type KeyboardEvent } from 'react';
 import type { editor } from 'monaco-editor';
+import type { MedolDiagnostic } from '../../lib/model';
 import { medolLanguageId, registerMedolLanguage } from './language';
 
 export interface DslEditorPatchPreview {
@@ -10,14 +11,15 @@ export interface DslEditorPatchPreview {
 
 interface DslEditorProps {
   value: string;
-  diagnostics: string[];
+  diagnostics: MedolDiagnostic[];
   patchPreview?: DslEditorPatchPreview;
   focusLine?: number;
+  focusColumn?: number;
   focusVersion?: number;
   onChange: (value: string) => void;
 }
 
-export function DslEditor({ value, diagnostics, patchPreview, focusLine, focusVersion, onChange }: DslEditorProps) {
+export function DslEditor({ value, diagnostics, patchPreview, focusLine, focusColumn, focusVersion, onChange }: DslEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
 
@@ -36,13 +38,13 @@ export function DslEditor({ value, diagnostics, patchPreview, focusLine, focusVe
     const model = editorRef.current?.getModel();
     if (!monaco || !model) return;
 
-    monaco.editor.setModelMarkers(model, 'medol', diagnostics.map((message, index) => ({
+    monaco.editor.setModelMarkers(model, 'medol', diagnostics.map((diagnostic) => ({
       severity: monaco.MarkerSeverity.Warning,
-      message,
-      startLineNumber: Math.max(index + 1, 1),
-      startColumn: 1,
-      endLineNumber: Math.max(index + 1, 1),
-      endColumn: 1
+      message: diagnostic.message,
+      startLineNumber: diagnostic.range?.start.line ?? 1,
+      startColumn: diagnostic.range?.start.column ?? 1,
+      endLineNumber: diagnostic.range?.end.line ?? diagnostic.range?.start.line ?? 1,
+      endColumn: diagnostic.range?.end.column ?? diagnostic.range?.start.column ?? 2
     })));
   }, [diagnostics]);
 
@@ -51,7 +53,7 @@ export function DslEditor({ value, diagnostics, patchPreview, focusLine, focusVe
     if (!editor || !focusLine) return;
 
     editor.revealLineInCenter(focusLine);
-    editor.setPosition({ lineNumber: focusLine, column: 1 });
+    editor.setPosition({ lineNumber: focusLine, column: focusColumn ?? 1 });
     editor.focus();
   }, [focusVersion]);
 

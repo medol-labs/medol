@@ -60,7 +60,8 @@ const model: EmModel = {
     metrics: []
   }],
   edges: [],
-  diagnostics: []
+  diagnostics: [],
+  diagnosticDetails: []
 };
 model.domains[0].contexts = model.contexts;
 
@@ -121,7 +122,8 @@ test('generates Chinese database design without English template prose', () => {
       metrics: []
     }],
     edges: [],
-    diagnostics: []
+    diagnostics: [],
+    diagnosticDetails: []
   };
   readModelModel.domains[0].contexts = readModelModel.contexts;
 
