@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { parseMedol } from '../../lib/dslParser';
 import type { DslLocationTarget } from '../dsl-editor/dslLocation';
 import type { AgentDslPatch, AgentDslPatchOperation, AgentRequest, AgentResponse } from './agentTypes';
-import { applyDslOperations } from './dslOperationTools';
+import { applyDslOperations, normalizeMedolPatchContent } from './dslOperationTools';
 
 export type AgentStructuredResponse =
   | AgentStructuredAnswer
@@ -181,9 +181,13 @@ const parseStructuredOperation = (value: unknown): AgentStructuredDslPatchOperat
 };
 
 const normalizeStructuredPatch = (structuredPatch: AgentStructuredDslPatch, baseDsl: string): AgentDslPatch => {
+  const operations = structuredPatch.operations.map((operation) => ({
+    ...operation,
+    ...(operation.content ? { content: normalizeMedolPatchContent(operation.content) } : {})
+  }));
   const applied = structuredPatch.nextDsl
-    ? { nextDsl: structuredPatch.nextDsl, errors: [] }
-    : applyDslOperations(baseDsl, structuredPatch.operations);
+    ? { nextDsl: normalizeMedolPatchContent(structuredPatch.nextDsl), errors: [] }
+    : applyDslOperations(baseDsl, operations);
 
   return {
     id: createId('patch'),
@@ -191,14 +195,16 @@ const normalizeStructuredPatch = (structuredPatch: AgentStructuredDslPatch, base
     reason: structuredPatch.reason,
     target: structuredPatch.target,
     changeType: structuredPatch.changeType,
-    operations: structuredPatch.operations.map((operation) => ({
+    operations: operations.map((operation) => ({
       id: operation.id ?? createId('operation'),
       operation: operation.operation,
       target: operation.target,
       ...(operation.content ? { content: operation.content } : {}),
       ...(operation.rule ? { rule: operation.rule } : {})
     })),
-    preview: structuredPatch.preview ?? structuredPatch.operations.map((operation) => operation.content).filter(Boolean).join('\n'),
+    preview: normalizeMedolPatchContent(
+      structuredPatch.preview ?? operations.map((operation) => operation.content).filter(Boolean).join('\n')
+    ),
     baseDsl,
     nextDsl: applied.nextDsl,
     ...(applied.errors.length > 0 ? { toolErrors: applied.errors } : {}),

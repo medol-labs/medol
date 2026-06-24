@@ -9,6 +9,7 @@
     "test:semantic": "node --import tsx --test src/lib/semanticValidator.test.ts",
     "test:types": "node --import tsx --test src/lib/typeSystem.test.ts",
     "test:specification": "node --import tsx --test src/lib/specificationCoverage.test.ts",
+    "test:agent": "node --import tsx --test src/features/agent-chat/dslOperationTools.test.ts",
     "test:documentation": "node --import tsx --test src/features/documentation/documentationTranslation.test.ts",
     "test:documents": "node --import tsx --test src/server/modelingDocumentRepository.test.ts",
     "preview": "node dist/server/server.js",

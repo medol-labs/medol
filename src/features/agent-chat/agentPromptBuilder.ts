@@ -25,7 +25,9 @@ export const buildAgentPrompt = (request: AgentRequest): BuiltAgentPrompt => {
     '- Do not silently invent domain rules; use clarification or add a hotspot when behavior is unclear.',
     '- Preserve unrelated MEDOL exactly as much as possible.',
     '- For patch operations, use targets like "slice CreateOrder", "readmodel OrderList", "command CreateOrder", or "specification Reject duplicate order".',
-    '- Insert operations must include the MEDOL fragment in content.'
+    '- Insert operations must include the MEDOL fragment in content.',
+    '- MEDOL syntax must use ASCII punctuation. Never emit full-width punctuation such as ？ ： ， （ ） ［ ］ ｛ ｝ in MEDOL content.',
+    '- To add a new slice, target its owning context or aggregate. Never target an existing slice with another complete slice unless the intent is to insert it as a sibling.'
   ].join('\n');
 
   return {

@@ -34,14 +34,16 @@ const applyDslOperation = (
   dsl: string,
   operation: AgentStructuredDslPatchOperation
 ): { nextDsl?: string; error?: string } => {
+  const content = operation.content ? normalizeMedolPatchContent(operation.content) : undefined;
+
   if (operation.operation === 'insert') {
-    if (!operation.content) return { error: `Insert operation for ${operation.target} has no content.` };
-    return insertIntoTargetBlock(dsl, operation.target, operation.content);
+    if (!content) return { error: `Insert operation for ${operation.target} has no content.` };
+    return insertIntoTargetBlock(dsl, operation.target, content);
   }
 
   if (operation.operation === 'replace') {
-    if (!operation.content) return { error: `Replace operation for ${operation.target} has no content.` };
-    return replaceTargetBlock(dsl, operation.target, operation.content);
+    if (!content) return { error: `Replace operation for ${operation.target} has no content.` };
+    return replaceTargetBlock(dsl, operation.target, content);
   }
 
   return deleteTargetBlock(dsl, operation.target);
@@ -50,11 +52,31 @@ const applyDslOperation = (
 const insertIntoTargetBlock = (dsl: string, target: string, content: string): { nextDsl?: string; error?: string } => {
   const targetBlock = findTargetBlock(dsl, target);
   if (!targetBlock) return { error: `Target block not found: ${target}.` };
+  const parsedTarget = parseTarget(target);
+  const insertedKind = declarationKind(content);
+  if (parsedTarget && insertedKind === parsedTarget.kind) {
+    return insertAfterTargetBlock(dsl, targetBlock, content);
+  }
+
   const indentation = inferChildIndentation(dsl, targetBlock.openIndex);
   const insertAt = dsl.lastIndexOf('\n', targetBlock.closeIndex) + 1;
   const snippet = `${indentContent(content, indentation)}\n`;
   return {
     nextDsl: `${dsl.slice(0, insertAt)}${snippet}${dsl.slice(insertAt)}`
+  };
+};
+
+const insertAfterTargetBlock = (
+  dsl: string,
+  targetBlock: TargetBlock,
+  content: string
+): { nextDsl: string } => {
+  const indentation = inferLineIndentation(dsl, targetBlock.startIndex);
+  const insertAt = targetBlock.closeIndex + 1;
+  const lineBreak = dsl[insertAt] === '\n' ? '\n' : '';
+  const snippet = `\n${indentContent(content, indentation)}`;
+  return {
+    nextDsl: `${dsl.slice(0, insertAt)}${snippet}${lineBreak}${dsl.slice(insertAt + lineBreak.length)}`
   };
 };
 
@@ -78,7 +100,13 @@ const deleteTargetBlock = (dsl: string, target: string): { nextDsl?: string; err
   };
 };
 
-const findTargetBlock = (dsl: string, target: string) => {
+interface TargetBlock {
+  startIndex: number;
+  openIndex: number;
+  closeIndex: number;
+}
+
+const findTargetBlock = (dsl: string, target: string): TargetBlock | undefined => {
   const parsedTarget = parseTarget(target);
   if (!parsedTarget) return undefined;
   const keywordPattern = parsedTarget.kind === 'readmodel' ? '(?:readmodel|projection)' : parsedTarget.kind;
@@ -96,6 +124,12 @@ const findTargetBlock = (dsl: string, target: string) => {
     openIndex,
     closeIndex
   };
+};
+
+const declarationKind = (content: string): string | undefined => {
+  const match = /^(domain|context|aggregate|concept|slice|command|event|readmodel|projection|automation|policy|integration|specification|scenario)\b/i.exec(content.trimStart());
+  if (!match) return undefined;
+  return match[1].toLowerCase() === 'projection' ? 'readmodel' : match[1].toLowerCase();
 };
 
 const parseTarget = (target: string): { kind: string; name: string } | undefined => {
@@ -174,6 +208,42 @@ const indentContent = (content: string, indentation: string): string => {
   return lines
     .map((line) => `${indentation}${line.slice(commonIndent).trimEnd()}`)
     .join('\n');
+};
+
+export const normalizeMedolPatchContent = (content: string): string => {
+  const punctuation: Record<string, string> = {
+    '？': '?',
+    '：': ':',
+    '，': ',',
+    '（': '(',
+    '）': ')',
+    '［': '[',
+    '］': ']',
+    '｛': '{',
+    '｝': '}'
+  };
+  let normalized = '';
+  let inString = false;
+  let inMultilineString = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    if (content.startsWith('"""', index)) {
+      inMultilineString = !inMultilineString;
+      normalized += '"""';
+      index += 2;
+      continue;
+    }
+
+    const char = content[index];
+    if (!inMultilineString && char === '"' && content[index - 1] !== '\\') {
+      inString = !inString;
+      normalized += char;
+      continue;
+    }
+    normalized += inString || inMultilineString ? char : punctuation[char] ?? char;
+  }
+
+  return normalized;
 };
 
 const escapeRegExp = (value: string): string => {
