@@ -273,7 +273,10 @@ ValidationExpression:
 ;
 
 UniqueValidation:
-    'unique' target=FieldSource
+    'unique' (
+        target=FieldSource
+        | '(' targets+=FieldSource (',' targets+=FieldSource)+ ')'
+    )
 ;
 
 AssertValidation:

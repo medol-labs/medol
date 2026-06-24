@@ -1290,12 +1290,14 @@ export function isUiType(item: unknown): item is UiType {
 export interface UniqueValidation extends langium.AstNode {
     readonly $container: Specification;
     readonly $type: 'UniqueValidation';
-    target: FieldSource;
+    target?: FieldSource;
+    targets: Array<FieldSource>;
 }
 
 export const UniqueValidation = {
     $type: 'UniqueValidation',
-    target: 'target'
+    target: 'target',
+    targets: 'targets'
 } as const;
 
 export function isUniqueValidation(item: unknown): item is UniqueValidation {
@@ -2316,6 +2318,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             properties: {
                 target: {
                     name: UniqueValidation.target
+                },
+                targets: {
+                    name: UniqueValidation.targets,
+                    defaultValue: []
                 }
             },
             superTypes: [ValidationExpression.$type]

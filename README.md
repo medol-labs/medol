@@ -424,7 +424,7 @@ context FederationLearning {
 - `event`: A domain fact produced by a command.
 - `specification`: GWT-style business rule node.
 - `rule """..."""`: Optional multi-line domain meaning for a specification.
-- `expression`: Optional machine-readable business invariants for a specification: `unique` and `assert`.
+- `expression`: Optional machine-readable business invariants for a specification: single-field `unique Path`, composite `unique (Path, Path, ...)`, and `assert`.
 - `scenario`: A concrete Given-When-Then example that verifies its containing specification.
 - `then reject "description"`: An expected business rejection for a specification. Rejections are inline outcomes, not separately declared domain elements.
 - `readmodel`: A read model updated by events. Use `readmodel Name[]` to export it as a collection read model with `listElement: true`. The legacy `projection` keyword is accepted only for migration.

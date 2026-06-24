@@ -533,7 +533,9 @@ const normalizeMultilineString = (value: string): string => {
 const formatValidationExpression = (expression: ValidationExpression): string => {
   switch (expression.$type) {
     case 'UniqueValidation':
-      return `unique ${formatFieldSource(expression.target)}`;
+      return expression.target
+        ? `unique ${formatFieldSource(expression.target)}`
+        : `unique (${expression.targets.map(formatFieldSource).join(', ')})`;
     case 'AssertValidation':
       return `assert ${formatValidationOperand(expression.left)} ${expression.operator} ${formatValidationOperand(expression.right)}`;
   }

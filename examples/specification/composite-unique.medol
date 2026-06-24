@@ -1,0 +1,48 @@
+domain Federation {
+  context MembershipManagement {
+    aggregate Membership {
+      slice JoinFederation {
+        command JoinFederation {
+          federationId: UUID
+          participantId: UUID
+        }
+
+        event ParticipantJoined {
+          federationId: UUID
+          participantId: UUID
+        }
+
+        specification "Participant Unique Within Federation" {
+          rule """
+            A participant may join different federations, but may only
+            join the same federation once.
+          """
+
+          expression {
+            unique (Membership.federationId, Membership.participantId)
+          }
+
+          scenario "Join federation" {
+            when JoinFederation {
+              federationId = "f-1"
+              participantId = "p-1"
+            }
+            then ParticipantJoined
+          }
+
+          scenario "Reject duplicate membership" {
+            given ParticipantJoined {
+              federationId = "f-1"
+              participantId = "p-1"
+            }
+            when JoinFederation {
+              federationId = "f-1"
+              participantId = "p-1"
+            }
+            then reject "Participant Already Joined"
+          }
+        }
+      }
+    }
+  }
+}

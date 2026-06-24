@@ -225,6 +225,82 @@ test('requires rejecting scenarios to demonstrate unique and assert violations',
   assert(diagnostics.some((message) => message.includes('reject does not demonstrate a violation')));
 });
 
+test('accepts and validates composite unique expressions', () => {
+  const diagnostics = diagnosticsFor(`
+    context Federation {
+      aggregate Membership {
+        slice JoinFederation {
+          command JoinFederation {
+            federationId: UUID
+            participantId: UUID
+          }
+          event ParticipantJoined {
+            federationId: UUID
+            participantId: UUID
+          }
+          specification "Participant unique within federation" {
+            expression {
+              unique (Membership.federationId, Membership.participantId)
+            }
+            scenario "Reject duplicate membership" {
+              given ParticipantJoined {
+                federationId = "f-1"
+                participantId = "p-1"
+              }
+              when JoinFederation {
+                federationId = "f-1"
+                participantId = "p-1"
+              }
+              then reject "Participant Already Joined"
+            }
+          }
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(diagnostics, []);
+});
+
+test('composite unique coverage requires all fields to match', () => {
+  const diagnostics = diagnosticsFor(`
+    context Federation {
+      aggregate Membership {
+        slice JoinFederation {
+          command JoinFederation {
+            federationId: UUID
+            participantId: UUID
+          }
+          event ParticipantJoined {
+            federationId: UUID
+            participantId: UUID
+          }
+          specification "Participant unique within federation" {
+            expression {
+              unique (Membership.federationId, Membership.participantId)
+            }
+            scenario "Different participant" {
+              given ParticipantJoined {
+                federationId = "f-1"
+                participantId = "p-1"
+              }
+              when JoinFederation {
+                federationId = "f-1"
+                participantId = "p-2"
+              }
+              then reject "Rejected"
+            }
+          }
+        }
+      }
+    }
+  `);
+
+  assert(diagnostics.some((message) =>
+    message.includes('unique (Membership.federationId, Membership.participantId) is not covered')
+  ));
+});
+
 test('blocks code generation when semantic diagnostics exist', () => {
   assert.throws(
     () => medolToCodegenModel(`

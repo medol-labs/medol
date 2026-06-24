@@ -63,7 +63,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     state: 'state StateName inside an aggregate declares a lifecycle state. state StateName inside a slice marks the resulting state.',
     startsLifecycle: 'startsLifecycle marks the entry slice that begins a business concept lifecycle without prescribing aggregate or DCB implementation.',
     specification: 'specification "Rule name" { rule """multi-line rule"""? expression { validation* }? scenario "Example" { given* when then }+ } defines a business rule once and verifies it with one or more concrete scenarios. rule and expression are independently optional; at least one scenario is required. The legacy single-scenario GWT form remains readable.',
-    expression: 'expression is reserved for business invariants and supports unique Path and assert Operand operator Operand. Put format, length, range, matches, and oneOf constraints on reusable type definitions.',
+    expression: 'expression is reserved for business invariants and supports single-field unique Path, composite unique (Path, Path, ...), and assert Operand operator Operand. Put format, length, range, matches, and oneOf constraints on reusable type definitions.',
     automation: 'automation Name { condition expression emits CommandName } captures automatic behavior.',
     policy: 'policy Name { on EventName issue CommandName } captures event-triggered command policy.',
     hotspot: 'hotspot "..." records open questions, unclear rules, or decisions that are not ready to encode.'

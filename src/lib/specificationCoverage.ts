@@ -13,8 +13,8 @@ const expressionIsViolated = (
   expression: string,
   metadata: Record<string, string>
 ): boolean => {
-  const unique = /^unique\s+([A-Za-z_][\w]*)\.([A-Za-z_][\w]*)$/.exec(expression);
-  if (unique) return uniqueIsViolated(unique[2], metadata);
+  const unique = parseUniqueFields(expression);
+  if (unique) return uniqueIsViolated(unique, metadata);
 
   const assertion = /^assert\s+(.+?)\s*(>=|<=|==|!=|>|<)\s*(.+)$/.exec(expression);
   if (!assertion) return false;
@@ -26,16 +26,36 @@ const expressionIsViolated = (
 };
 
 const uniqueIsViolated = (
-  field: string,
+  fields: string[],
   metadata: Record<string, string>
 ): boolean => {
-  const submitted = metadata[`example:${field}`];
-  if (submitted === undefined) return false;
-  return Object.entries(metadata).some(([key, value]) =>
-    /^givenExample:\d+:/.test(key)
-    && key.endsWith(`:${field}`)
-    && valuesEqual(parseLiteral(value), parseLiteral(submitted))
+  const submitted = fields.map((field) => metadata[`example:${field}`]);
+  if (submitted.some((value) => value === undefined)) return false;
+  const givenIndexes = Object.keys(metadata)
+    .map((key) => /^given(\d+)$/.exec(key)?.[1])
+    .filter((index): index is string => Boolean(index));
+  return givenIndexes.some((index) =>
+    fields.every((field, fieldIndex) => {
+      const existing = metadata[`givenExample:${index}:${field}`];
+      return existing !== undefined
+        && valuesEqual(parseLiteral(existing), parseLiteral(submitted[fieldIndex]!));
+    })
   );
+};
+
+const parseUniqueFields = (expression: string): string[] | undefined => {
+  const single = /^unique\s+[A-Za-z_][\w]*\.([A-Za-z_][\w]*)$/.exec(expression);
+  if (single) return [single[1]];
+
+  const composite = /^unique\s+\((.+)\)$/.exec(expression);
+  if (!composite) return undefined;
+  const fields = composite[1].split(',').map((target) => {
+    const match = /^\s*[A-Za-z_][\w]*\.([A-Za-z_][\w]*)\s*$/.exec(target);
+    return match?.[1];
+  });
+  return fields.length >= 2 && fields.every((field): field is string => Boolean(field))
+    ? fields
+    : undefined;
 };
 
 const resolveOperand = (

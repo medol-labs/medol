@@ -509,11 +509,13 @@ const validateSpecification = (
 
   for (const expression of specification.expressions) {
     if (isUniqueValidation(expression)) {
-      const resolved = resolveFieldSource(expression.target, symbols);
-      if (!resolved) {
-        diagnostics.push(`${scope}: unique references unknown field ${fieldSourceText(expression.target)}.`);
-      } else if (resolved.cardinality === 'List') {
-        diagnostics.push(`${scope}: unique cannot target collection field ${resolved.label}.`);
+      for (const target of uniqueTargets(expression)) {
+        const resolved = resolveFieldSource(target, symbols);
+        if (!resolved) {
+          diagnostics.push(`${scope}: unique references unknown field ${fieldSourceText(target)}.`);
+        } else if (resolved.cardinality === 'List') {
+          diagnostics.push(`${scope}: unique cannot target collection field ${resolved.label}.`);
+        }
       }
     } else if (isAssertValidation(expression)) {
       const left = resolveOperand(expression.left, symbols);
@@ -565,13 +567,14 @@ const scenarioViolatesExpression = (
   expression: Specification['expressions'][number]
 ): boolean => {
   if (isUniqueValidation(expression)) {
-    const field = expression.target.parts.at(-1);
-    if (!field) return false;
-    const submitted = assignmentLiteral(scenario.when.condition?.assignments ?? [], field);
-    if (!submitted.resolved) return false;
+    const fields = uniqueTargets(expression).map((target) => target.parts.at(-1));
+    if (fields.some((field) => !field)) return false;
     return scenario.givens.some((given) => {
-      const existing = assignmentLiteral(given.condition?.assignments ?? [], field);
-      return existing.resolved && Object.is(existing.value, submitted.value);
+      return fields.every((field) => {
+        const submitted = assignmentLiteral(scenario.when.condition?.assignments ?? [], field!);
+        const existing = assignmentLiteral(given.condition?.assignments ?? [], field!);
+        return submitted.resolved && existing.resolved && Object.is(existing.value, submitted.value);
+      });
     });
   }
 
@@ -647,8 +650,14 @@ const compareLiteralValues = (
 
 const expressionText = (expression: Specification['expressions'][number]): string =>
   isUniqueValidation(expression)
-    ? `unique ${fieldSourceText(expression.target)}`
+    ? expression.target
+      ? `unique ${fieldSourceText(expression.target)}`
+      : `unique (${expression.targets.map(fieldSourceText).join(', ')})`
     : `assert ${operandText(expression.left)} ${expression.operator} ${operandText(expression.right)}`;
+
+const uniqueTargets = (
+  expression: Extract<Specification['expressions'][number], { $type: 'UniqueValidation' }>
+): FieldSource[] => expression.target ? [expression.target] : expression.targets;
 
 const validateScenario = (
   scenario: Scenario,
