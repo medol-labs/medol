@@ -69,6 +69,16 @@ export function SemanticCanvas({
     return () => window.cancelAnimationFrame(frame);
   }, [fitKey, fitView]);
 
+  useEffect(() => {
+    if (!selectedNodeId) return;
+    const node = localNodes.find((candidate) => candidate.id === selectedNodeId);
+    if (!node) return;
+    const frame = window.requestAnimationFrame(() => {
+      void fitView({ nodes: [node], padding: 0.8, duration: 240, maxZoom: 1.2 });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [fitView, localNodes, selectedNodeId]);
+
   const visibleEdges = useMemo(
     () => showAllRelations
       ? localEdges

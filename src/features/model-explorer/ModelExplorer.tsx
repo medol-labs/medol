@@ -1,5 +1,5 @@
 import { FileSearch } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OverflowText } from '../../components/ui/overflow-text';
 import type { EmAggregate, EmConcept, EmContext, EmDomain, EmModel, EmSlice } from '../../lib/model';
 
@@ -35,6 +35,7 @@ export function ModelExplorer({
   onLocateDocumentation
 }: ModelExplorerProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const treeRef = useRef<HTMLDivElement | null>(null);
   const domains = model.domains.length > 0 ? model.domains : [{
     id: 'default-domain',
     name: 'Model',
@@ -53,6 +54,30 @@ export function ModelExplorer({
     });
   };
 
+  useEffect(() => {
+    const activeIds = [activeDomainId, activeContextId, activeAggregateId, activeConceptId].filter(
+      (id): id is string => Boolean(id)
+    );
+    if (!activeIds.length) return;
+    setCollapsed((previous) => {
+      if (!activeIds.some((id) => previous.has(id))) return previous;
+      const next = new Set(previous);
+      for (const id of activeIds) next.delete(id);
+      return next;
+    });
+  }, [activeAggregateId, activeConceptId, activeContextId, activeDomainId, activeSliceId]);
+
+  useEffect(() => {
+    const activeId = activeSliceId ?? activeConceptId ?? activeAggregateId ?? activeContextId ?? activeDomainId;
+    if (!activeId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = Array.from(treeRef.current?.querySelectorAll<HTMLElement>('[data-explorer-id]') ?? [])
+        .find((element) => element.dataset.explorerId === activeId);
+      target?.scrollIntoView({ block: 'center' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeAggregateId, activeConceptId, activeContextId, activeDomainId, activeSliceId]);
+
   const selectConcept = (context: EmContext, concept: EmConcept) => {
     setCollapsed((previous) => {
       if (!previous.has(concept.id)) return previous;
@@ -69,7 +94,7 @@ export function ModelExplorer({
         <p className="eyebrow">Model</p>
         <h2>Explorer</h2>
       </header>
-      <div className="explorer-tree">
+      <div className="explorer-tree" ref={treeRef}>
         {domains.map((domain) => {
           const domainCollapsed = collapsed.has(domain.id);
           const domainSourceIds = [
@@ -90,6 +115,7 @@ export function ModelExplorer({
                 <button
                   type="button"
                   className={domain.id === activeDomainId ? 'explorer-item is-active' : 'explorer-item'}
+                  data-explorer-id={domain.id}
                   onClick={() => onSelectDomain(domain as EmDomain)}
                 >
                   <span>{domain.contexts.length} contexts</span>
@@ -120,6 +146,7 @@ export function ModelExplorer({
                           <button
                             type="button"
                             className={context.id === activeContextId ? 'explorer-item is-active' : 'explorer-item'}
+                            data-explorer-id={context.id}
                             onClick={() => onSelectContext(context)}
                           >
                             <span>Context</span>
@@ -156,6 +183,7 @@ export function ModelExplorer({
                   <button
                     type="button"
                     className={aggregate.id === activeAggregateId && !activeSliceId ? 'explorer-item explorer-item--nested is-active' : 'explorer-item explorer-item--nested'}
+                    data-explorer-id={aggregate.id}
                     onClick={() => onSelectAggregate(context, aggregate)}
                   >
                     <span>{aggregate.slices.length} slices</span>
@@ -174,6 +202,7 @@ export function ModelExplorer({
                           <button
                             type="button"
                             className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                            data-explorer-id={slice.id}
                             onClick={() => onSelectSlice(context, aggregate, slice)}
                           >
                             <span>{slice.resultingState ?? 'Slice'}</span>
@@ -199,6 +228,7 @@ export function ModelExplorer({
                                 <button
                                   type="button"
                                   className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                                  data-explorer-id={slice.id}
                                   onClick={() => onSelectSlice(context, undefined, slice)}
                                 >
                                   <span>
@@ -242,6 +272,7 @@ export function ModelExplorer({
                                       className={concept.id === activeConceptId && !activeSliceId
                                         ? 'explorer-item explorer-item--nested is-active'
                                         : 'explorer-item explorer-item--nested'}
+                                      data-explorer-id={concept.id}
                                       onClick={() => selectConcept(context, concept)}
                                     >
                                       <span>Organizes {slices.length} slices · {concept.states.length} states</span>
@@ -260,6 +291,7 @@ export function ModelExplorer({
                                           <button
                                             type="button"
                                             className={slice.id === activeSliceId ? 'explorer-item explorer-item--slice is-active' : 'explorer-item explorer-item--slice'}
+                                            data-explorer-id={slice.id}
                                             onClick={() => onSelectSlice(context, undefined, slice)}
                                           >
                                             <span>{slice.tags.length > 0 ? `${slice.tags.length} tags` : slice.resultingState ?? 'Slice'}</span>

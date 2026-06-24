@@ -1,5 +1,6 @@
 import { getViewportForBounds } from '@xyflow/react';
 import { useEffect, useMemo, useState, type CSSProperties, type PointerEvent } from 'react';
+import { Search } from 'lucide-react';
 import { DslEditor } from '../features/dsl-editor/DslEditor';
 import { findDslLine, type DslLocationTarget } from '../features/dsl-editor/dslLocation';
 import { AgentChatDock } from '../features/agent-chat/AgentChatDock';
@@ -10,6 +11,8 @@ import { OverflowText } from '../components/ui/overflow-text';
 import { ModelExplorer } from '../features/model-explorer/ModelExplorer';
 import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
 import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
+import { GlobalSearchDialog } from '../features/model-search/GlobalSearchDialog';
+import { buildModelSearchIndex, type ModelSearchItem } from '../features/model-search/modelSearch';
 import { useModelingWorkspace } from '../features/workspace/useModelingWorkspace';
 import { generateModelingDocument } from '../features/documentation/documentationClient';
 import { DocumentWorkspace } from '../features/documentation/DocumentWorkspace';
@@ -84,6 +87,7 @@ const documentationKindFromAction = (
 };
 
 const previewSyncChannelName = 'medol-preview-sync:v1';
+const recentSearchStoragePrefix = 'medol:recent-search:v1';
 const syncedPreviewModes = new Set<PreviewMode>(['canvas', 'global', 'layout', 'documents']);
 
 interface PreviewSyncMessage {
@@ -139,6 +143,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const [documentFocusVersion, setDocumentFocusVersion] = useState(0);
   const [documentNavigationMessage, setDocumentNavigationMessage] = useState<string>();
   const [documentNavigationTone, setDocumentNavigationTone] = useState<'info' | 'warning'>('warning');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [recentSearchIds, setRecentSearchIds] = useState<string[]>([]);
   const debouncedDsl = useDebouncedValue(dsl, 800);
   const {
     documents,
@@ -188,6 +194,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     sliceId: selectedSliceId,
     nodeId: selectedNodeId
   }), [model, selectedDomainId, selectedContextId, selectedAggregateId, selectedConceptId, selectedSliceId, selectedNodeId]);
+  const modelSearchIndex = useMemo(() => buildModelSearchIndex(model), [model]);
   const emModelJson = useMemo(() => emModelToJson(model), [model]);
   const codegenModelJson = useMemo(() => JSON.stringify(codegenModel, null, 2), [codegenModel]);
   const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
@@ -277,6 +284,31 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setDocumentNavigationTone('warning');
   }, [activeWorkspaceId]);
 
+  useEffect(() => {
+    if (!activeWorkspaceId || typeof window === 'undefined') {
+      setRecentSearchIds([]);
+      return;
+    }
+    try {
+      const stored = window.localStorage.getItem(`${recentSearchStoragePrefix}:${activeWorkspaceId}`);
+      const parsed = stored ? JSON.parse(stored) : [];
+      setRecentSearchIds(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string').slice(0, 10) : []);
+    } catch {
+      setRecentSearchIds([]);
+    }
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSearchOpen((current) => !current);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
+
   const selectDomain = (domain: EmDomain) => {
     setSelectedDomainId(domain.id);
     setSelectedContextId(undefined);
@@ -343,6 +375,38 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setDslFocusTarget({ kind: 'slice', name: slice.name });
     setDslFocusVersion((version) => version + 1);
   };
+
+  const navigateToSearchItem = (item: ModelSearchItem) => {
+    setSelectedDomainId(item.domainId);
+    setSelectedContextId(item.contextId);
+    setSelectedAggregateId(item.aggregateId);
+    setSelectedConceptId(item.conceptId);
+    setSelectedSliceId(item.sliceId);
+    setSelectedNodeId(item.nodeId);
+    setDslFocusTarget(undefined);
+    setDslFocusPosition(item.sourceRange?.start);
+    setDslFocusVersion((version) => version + 1);
+    if (!previewOnly) setLeftPanelOpen(true);
+    setPreviewMode(item.kind === 'domain' ? 'global' : 'canvas');
+
+    setRecentSearchIds((current) => {
+      const next = [item.id, ...current.filter((id) => id !== item.id)].slice(0, 10);
+      if (activeWorkspaceId && typeof window !== 'undefined') {
+        window.localStorage.setItem(`${recentSearchStoragePrefix}:${activeWorkspaceId}`, JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
+  const globalSearch = (
+    <GlobalSearchDialog
+      open={searchOpen}
+      items={modelSearchIndex}
+      recentIds={recentSearchIds}
+      onOpenChange={setSearchOpen}
+      onSelect={navigateToSearchItem}
+    />
+  );
 
   const selectOverviewGroup = (nodeId: string) => {
     const contextId = contextIdFromOverviewNodeId(nodeId);
@@ -708,6 +772,15 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
               <button
                 type="button"
                 className="direction-toggle"
+                onClick={() => setSearchOpen(true)}
+                title="Search model (Cmd/Ctrl+K)"
+              >
+                <Search size={14} />
+                Search
+              </button>
+              <button
+                type="button"
+                className="direction-toggle"
                 onClick={openPreviewPage}
                 title="Open preview in a separate page"
               >
@@ -779,6 +852,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
             )}
           </section>
         </div>
+        {globalSearch}
       </main>
     );
   }
@@ -953,6 +1027,15 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           </div>
           <div className="toolbar-actions">
             <div className="toolbar-view-controls">
+              <button
+                type="button"
+                className="direction-toggle"
+                onClick={() => setSearchOpen(true)}
+                title="Search model (Cmd/Ctrl+K)"
+              >
+                <Search size={14} />
+                Search
+              </button>
               <div className="preview-tabs" role="tablist" aria-label="Preview mode">
                 <button
                   type="button"
@@ -1179,6 +1262,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           Inspector
         </button>
       )}
+      {globalSearch}
     </main>
   );
 }

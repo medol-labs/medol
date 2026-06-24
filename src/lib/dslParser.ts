@@ -70,7 +70,7 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type MedolDiagnostic } from './model';
+import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 
@@ -250,6 +250,7 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
   const domain: EmDomain = {
     id: scopedId('domain', safeName(node.name, 'UnnamedDomain')),
     name: safeName(node.name, 'UnnamedDomain'),
+    ...withSourceRange(node),
     contexts: []
   };
 
@@ -265,6 +266,7 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   const context: EmContext = {
     id: domainId ? `${domainId}/context/${contextName}` : scopedId('context', contextName),
     name: contextName,
+    ...withSourceRange(node),
     valueTypes: [],
     aggregates: [],
     slices: [],
@@ -339,6 +341,7 @@ const parseValueType = (node: AstValueType, contextId: string): EmValueType => {
   return {
     id: `${contextId}/type/${name}`,
     name,
+    ...withSourceRange(node),
     kind: 'scalar',
     baseType: safeName(node.baseType, 'String'),
     constraints: (node.constraints ?? []).map(parseValueTypeConstraint),
@@ -352,6 +355,7 @@ const parseEnumType = (node: AstEnumType, contextId: string): EmValueType => {
   return {
     id: `${contextId}/type/${name}`,
     name,
+    ...withSourceRange(node),
     kind: 'enum',
     baseType: 'String',
     constraints: [],
@@ -365,6 +369,7 @@ const parseStructuredValueType = (node: AstStructuredValueType, contextId: strin
   return {
     id: `${contextId}/type/${name}`,
     name,
+    ...withSourceRange(node),
     kind: 'object',
     baseType: name,
     constraints: [],
@@ -400,6 +405,7 @@ const parseConcept = (node: AstConcept, contextId: string): EmConcept => {
   return {
     id: `${contextId}/concept/${name}`,
     name,
+    ...withSourceRange(node),
     states: (node.features ?? [])
       .filter(isState)
       .map((state) => safeName(state.name, 'UnnamedState')),
@@ -417,6 +423,7 @@ const parseAggregate = (node: AstAggregate, contextId: string, edges: EmEdge[]):
   const aggregate: EmAggregate = {
     id: aggregateId,
     name: aggregateName,
+    ...withSourceRange(node),
     states: [],
     slices: []
   };
@@ -442,6 +449,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
   const slice: EmSlice = {
     id: sliceId,
     name: sliceName,
+    ...withSourceRange(node),
     ...(aggregateId ? { aggregateId } : {}),
     startsLifecycle: elements.some(isStartsLifecycleMarker),
     resultingState: elements.find(isState)?.name,
@@ -460,6 +468,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
       kind: 'actor',
       name: actorRef.actor,
       fields: [],
+      ...withSourceRange(actorRef),
       sliceId,
       ...(aggregateId ? { aggregateId } : {})
     });
@@ -472,6 +481,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
       kind: 'screen',
       name: uiRef.view,
       fields: [],
+      ...withSourceRange(uiRef),
       sliceId,
       ...(aggregateId ? { aggregateId } : {}),
       ...(parseUi(uiRef) ? { ui: parseUi(uiRef) } : {})
@@ -527,6 +537,7 @@ const parseScenarioElement = (
   kind: 'gwt',
   name: safeName(scenario.name, 'UnnamedScenario'),
   fields: [],
+  ...withSourceRange(scenario),
   sliceId,
   aggregateId,
   metadata: {
@@ -626,6 +637,7 @@ const parseElement = (
     kind: kind as EmElement['kind'],
     name: safeName(node.name, 'UnnamedElement'),
     fields: parseElementFields(node),
+    ...withSourceRange(node),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     aggregateId,
@@ -660,6 +672,7 @@ const parseField = (field: AstField): EmField => {
   return {
     name: safeName(field.name, 'unnamedField'),
     type: safeName(field.type, 'Unknown'),
+    ...withSourceRange(field),
     cardinality: field.cardinality === '[]?'
       ? 'OptionalList'
       : field.cardinality === '[]'
@@ -670,6 +683,23 @@ const parseField = (field: AstField): EmField => {
     attributes: [...(field.attributes ?? [])],
     ...(field.details?.example ? { example: field.details.example } : {}),
     ...(mapping ? { mapping } : {})
+  };
+};
+
+const withSourceRange = (node: AstNode): { sourceRange?: MedolSourceRange } => {
+  const range = node.$cstNode?.range;
+  if (!range) return {};
+  return {
+    sourceRange: {
+      start: {
+        line: range.start.line + 1,
+        column: range.start.character + 1
+      },
+      end: {
+        line: range.end.line + 1,
+        column: range.end.character + 1
+      }
+    }
   };
 };
 

@@ -16,6 +16,7 @@ export interface EmField {
   type: string;
   cardinality?: 'Single' | 'List' | 'Optional' | 'OptionalList';
   attributes: string[];
+  sourceRange?: MedolSourceRange;
   example?: string;
   mapping?: EmFieldMapping;
 }
@@ -34,6 +35,7 @@ export interface EmElement {
   listElement?: boolean;
   sliceId?: string;
   aggregateId?: string;
+  sourceRange?: MedolSourceRange;
   metadata?: Record<string, string>;
   ui?: EmUi;
 }
@@ -57,6 +59,7 @@ export interface EmSlice {
   id: string;
   name: string;
   aggregateId?: string;
+  sourceRange?: MedolSourceRange;
   startsLifecycle?: boolean;
   resultingState?: string;
   tags: EmSliceTag[];
@@ -72,6 +75,7 @@ export interface EmSliceTag {
 export interface EmConcept {
   id: string;
   name: string;
+  sourceRange?: MedolSourceRange;
   states: string[];
   sliceNames: string[];
   sliceIds: string[];
@@ -87,6 +91,7 @@ export type EmValueTypeConstraint =
 export interface EmValueType {
   id: string;
   name: string;
+  sourceRange?: MedolSourceRange;
   kind: 'scalar' | 'enum' | 'object';
   baseType: string;
   constraints: EmValueTypeConstraint[];
@@ -97,6 +102,7 @@ export interface EmValueType {
 export interface EmAggregate {
   id: string;
   name: string;
+  sourceRange?: MedolSourceRange;
   states: string[];
   slices: EmSlice[];
 }
@@ -104,6 +110,7 @@ export interface EmAggregate {
 export interface EmContext {
   id: string;
   name: string;
+  sourceRange?: MedolSourceRange;
   valueTypes: EmValueType[];
   aggregates: EmAggregate[];
   slices: EmSlice[];
@@ -118,6 +125,7 @@ export interface EmContext {
 export interface EmDomain {
   id: string;
   name: string;
+  sourceRange?: MedolSourceRange;
   contexts: EmContext[];
 }
 
