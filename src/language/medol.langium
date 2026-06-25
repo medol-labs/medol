@@ -319,7 +319,11 @@ Assignment:
 ;
 
 Field:
-    name=FieldName ':' type=ID cardinality=Cardinality? attributes+=FieldAttribute* mapping=FieldMapping? details=FieldDetails?
+    name=FieldName ':' type=QualifiedType cardinality=Cardinality? attributes+=FieldAttribute* mapping=FieldMapping? details=FieldDetails?
+;
+
+QualifiedType returns string:
+    ID ('.' ID)*
 ;
 
 FieldName returns string:

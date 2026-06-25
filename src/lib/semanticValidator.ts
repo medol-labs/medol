@@ -186,9 +186,29 @@ const buildContextSymbols = (context: EmContext): ContextSymbols => {
     fieldsByConcept.set(concept.name, mergeFields(memberSlices.flatMap((slice) => slice.elements)));
   }
 
+  const valueTypes = new Map(context.valueTypes.map((valueType) => [valueType.name, valueType]));
+  for (const aggregate of context.aggregates) {
+    if (aggregate.states.length > 0) {
+      valueTypes.set(`${aggregate.name}.State`, lifecycleStateType(
+        `${aggregate.id}/state-type`,
+        `${aggregate.name}.State`,
+        aggregate.states
+      ));
+    }
+  }
+  for (const concept of context.concepts) {
+    if (concept.states.length > 0) {
+      valueTypes.set(`${concept.name}.State`, lifecycleStateType(
+        `${concept.id}/state-type`,
+        `${concept.name}.State`,
+        concept.states
+      ));
+    }
+  }
+
   return {
     context,
-    valueTypes: new Map(context.valueTypes.map((valueType) => [valueType.name, valueType])),
+    valueTypes,
     slices,
     elements,
     fieldsByElement,
@@ -196,6 +216,20 @@ const buildContextSymbols = (context: EmContext): ContextSymbols => {
     fieldsByConcept
   };
 };
+
+const lifecycleStateType = (
+  id: string,
+  name: string,
+  states: string[]
+): EmValueType => ({
+  id,
+  name,
+  kind: 'enum',
+  baseType: 'String',
+  constraints: [],
+  values: states,
+  fields: []
+});
 
 const validateValueTypes = (symbols: ContextSymbols, diagnostics: string[]): void => {
   const scope = `Context ${symbols.context.name}`;

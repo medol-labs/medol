@@ -79,6 +79,153 @@ test('parses optional list fields and preserves codegen cardinality', () => {
   assert.match(roundTripDsl, /shape: Int\[\]\?/);
 });
 
+test('uses aggregate lifecycle states as qualified enum field types', () => {
+  const model = parseMedol(`
+    context Training {
+      aggregate TrainingJob {
+        state Draft
+        state Running
+        state Completed
+
+        slice CreateTrainingJob {
+          startsLifecycle
+          command CreateTrainingJob {
+            trainingJobId: UUID
+          }
+          event TrainingJobCreated {
+            trainingJobId: UUID
+          }
+          state Draft
+        }
+
+        slice TrainingJobDashboard {
+          readmodel TrainingJobDashboard[] {
+            trainingJobId: UUID id
+            currentStatus: TrainingJob.State
+            subscribe TrainingJobCreated
+          }
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  assert.deepEqual(codegen.aggregates[0].states, ['Draft', 'Running', 'Completed']);
+  assert.equal(
+    codegen.slices.find((slice) => slice.name === 'TrainingJobDashboard')
+      ?.readmodels[0].fields.find((field) => field.name === 'currentStatus')?.type,
+    'TrainingJob.State'
+  );
+
+  const roundTripDsl = configToDsl({
+    context: 'Training',
+    aggregates: [{
+      name: 'TrainingJob',
+      states: ['Draft', 'Running', 'Completed']
+    }],
+    slices: [{
+      title: 'TrainingJobDashboard',
+      aggregates: [{ name: 'TrainingJob' }],
+      readmodels: [{
+        title: 'TrainingJobDashboard',
+        fields: [{
+          name: 'currentStatus',
+          type: 'TrainingJob.State'
+        }]
+      }]
+    }]
+  });
+  assert.match(roundTripDsl, /currentStatus: TrainingJob\.State/);
+});
+
+test('exports concept lifecycle states and qualified readmodel field types', () => {
+  const model = parseMedol(`
+    context Training {
+      slice CreateTrainingJob {
+        startsLifecycle
+        command CreateTrainingJob {
+          trainingJobId: UUID
+        }
+        event TrainingJobCreated {
+          trainingJobId: UUID
+        }
+        state Draft
+      }
+
+      slice TrainingJobDashboard {
+        readmodel TrainingJobDashboard[] {
+          trainingJobId: UUID id
+          state: TrainingJob.State
+          subscribe TrainingJobCreated
+        }
+      }
+
+      concept TrainingJob {
+        state Draft
+        state Running
+        state Completed
+        slice CreateTrainingJob
+        slice TrainingJobDashboard
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  assert.deepEqual(codegen.concepts, [{
+    id: codegen.concepts[0].id,
+    name: 'TrainingJob',
+    title: 'Training Job',
+    context: 'Training',
+    states: ['Draft', 'Running', 'Completed'],
+    slices: [
+      {
+        id: codegen.slices[0].id,
+        name: 'CreateTrainingJob',
+        title: 'Create Training Job'
+      },
+      {
+        id: codegen.slices[1].id,
+        name: 'TrainingJobDashboard',
+        title: 'Training Job Dashboard'
+      }
+    ]
+  }]);
+  assert.deepEqual(codegen.contexts[0].concepts[0], {
+    id: codegen.concepts[0].id,
+    name: 'TrainingJob',
+    title: 'Training Job',
+    states: ['Draft', 'Running', 'Completed']
+  });
+  assert.deepEqual(codegen.slices.map((slice) => slice.concepts), [
+    ['TrainingJob'],
+    ['TrainingJob']
+  ]);
+  assert.equal(
+    codegen.slices[1].readmodels[0].fields.find((field) => field.name === 'state')?.type,
+    'TrainingJob.State'
+  );
+});
+
+test('rejects unknown lifecycle state owners and owners without states', () => {
+  const model = parseMedol(`
+    context Training {
+      aggregate EmptyJob {
+        slice Dashboard {
+          readmodel Dashboard {
+            emptyStatus: EmptyJob.State
+            missingStatus: MissingJob.State
+          }
+        }
+      }
+    }
+  `);
+
+  assert(model.diagnostics.some((message) => message.includes('unknown type EmptyJob.State')));
+  assert(model.diagnostics.some((message) => message.includes('unknown type MissingJob.State')));
+});
+
 test('validates enum examples and structured value fields', () => {
   const model = parseMedol(`
     context Orders {

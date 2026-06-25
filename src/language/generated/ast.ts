@@ -518,7 +518,7 @@ export interface Field extends langium.AstNode {
     details?: FieldDetails;
     mapping?: FieldMapping;
     name: FieldName;
-    type: string;
+    type: QualifiedType;
 }
 
 export const Field = {
@@ -808,6 +808,12 @@ export const PrimaryExpr = {
 
 export function isPrimaryExpr(item: unknown): item is PrimaryExpr {
     return reflection.isInstance(item, PrimaryExpr.$type);
+}
+
+export type QualifiedType = string;
+
+export function isQualifiedType(item: unknown): item is QualifiedType {
+    return typeof item === 'string';
 }
 
 export interface ReactsTo extends langium.AstNode {

@@ -466,6 +466,7 @@ fieldName: Type
 fieldName: Type?
 fieldName: Type[]
 fieldName: Type[]?
+currentStatus: TrainingJob.State
 fieldName: Type id generated technical query
 fieldName: Type { example "A readable sample value." }
 copiedName: Type from UpstreamElement.sourceName
@@ -475,6 +476,8 @@ computedName: Type derived { from Aggregate.state, Command.input rule "Explain t
 ```
 
 Fields without `?` are required. `type` defines constrained scalar values, `enum` defines a closed business vocabulary, and `value` defines a structured value object without identity. Reusable value types carry intrinsic field validity; specifications carry business invariants that depend on domain meaning, state, or other instances.
+
+An aggregate or concept that declares lifecycle states also exposes a generated enum type named `Owner.State`. For example, `currentStatus: TrainingJob.State` stores one of the states declared by `TrainingJob`. The codegen model keeps the qualified field type while the owning aggregate or concept supplies the enum values through its `states` declaration.
 
 Imports are resolved relative to the importing file by the MEDOL CLI. Files may contribute fragments to the same domain and context; the compiler merges them before semantic validation. Generated IDs use fully qualified semantic paths, so moving a declaration between imported files or changing file order does not change its ID.
 

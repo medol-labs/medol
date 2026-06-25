@@ -3,11 +3,15 @@ context FederationManagement {
   
   note "Federation management owns organizations, federations, and trusted compute nodes."
 
+  risk "Inactive or unverified organizations joining a federation can compromise model governance and data sharing agreements."
+  risk "Trusted compute nodes with stale capability declarations can be selected for jobs they cannot safely execute."
+  metric participantApprovalLeadTime
+  metric trustedNodeCoverage
+
   slice RegisterOrganization {
     startsLifecycle
 
     tags {
-      organizationId
       organizationName = normalize(organizationName)
     }
 
@@ -32,7 +36,7 @@ context FederationManagement {
 
     specification "Organization Name Unique" {
       rule """
-        Active organization names must be unique.
+        Organization names must be unique.
       """
 
       expression {
@@ -52,10 +56,6 @@ context FederationManagement {
   }
 
   slice VerifyOrganizationIdentity {
-    tags {
-      organizationId
-    }
-
     actor ComplianceOfficer
     ui OrganizationVerificationScreen
     reactsTo OrganizationRegistered
@@ -76,10 +76,6 @@ context FederationManagement {
   }
 
   slice ActivateOrganization {
-    tags {
-      organizationId
-    }
-
     actor PlatformAdmin
     ui OrganizationAdminScreen
     reactsTo OrganizationIdentityVerified
@@ -98,10 +94,6 @@ context FederationManagement {
   }
 
   slice DeactivateOrganization {
-    tags {
-      organizationId
-    }
-
     actor PlatformAdmin
     ui OrganizationAdminScreen
     reactsTo OrganizationActivated
@@ -122,11 +114,11 @@ context FederationManagement {
   slice OrganizationDirectory {
     ui OrganizationDirectory
 
-    projection OrganizationDirectory[] {
+    readmodel OrganizationDirectory[] {
       organizationId: UUID id
       organizationName: String
       organizationType: String
-      state: String
+      state: Organization.State
       verified: Boolean
       trustedNodeCount: Int
       approvedDatasetCount: Int
@@ -152,328 +144,376 @@ context FederationManagement {
     slice OrganizationDirectory
   }
 
-  aggregate Federation {
+  slice CreateFederation {
+    startsLifecycle
+    actor PlatformAdmin
+    ui FederationSetupScreen form
+
+    command CreateFederation {
+      federationId: UUID id generated technical
+      federationName: String
+      description: String
+      governancePolicyId: UUID
+      minimumParticipantCount: Int
+      minimumTrustedNodeCount: Int
+    }
+
+    event FederationCreated {
+      federationId: UUID id technical
+      federationName: String
+      description: String
+      governancePolicyId: UUID
+      minimumParticipantCount: Int
+      minimumTrustedNodeCount: Int
+    }
+
+    state Draft
+  }
+
+  slice FederationOverview {
+    reactsTo ParticipantJoined
+
+    readmodel FederationOverview[] {
+      federationId: UUID id
+      federationName: String
+      state: Federation.State
+      activeMemberCount: Int
+      pendingInvitationCount: Int
+      trustedNodeCount: Int
+      activeTrainingJobCount: Int
+      subscribe FederationCreated
+      subscribe ParticipantInvited
+      subscribe ParticipantJoined
+      subscribe ParticipantRejected
+      subscribe ParticipantInvitationRevoked
+      subscribe ParticipantSuspended
+      subscribe ParticipantRemoved
+      subscribe ComputeNodeTrusted
+      subscribe ComputeNodeSuspended
+      subscribe TrainingJobSubmitted
+    }
+  }
+
+  slice InviteParticipant {
+    actor FederationOwner
+    ui ParticipantInvitationScreen dialog
+    reactsTo FederationCreated
+
+    command InviteParticipant {
+      federationId: UUID id technical
+      organizationId: UUID
+      invitationNote: String
+    }
+
+    event ParticipantInvited {
+      federationId: UUID id technical
+      organizationId: UUID
+      invitationNote: String
+    }
+  }
+
+  slice ApproveParticipant {
+    actor GovernanceReviewer
+    ui MembershipReviewScreen dialog
+    reactsTo ParticipantInvited
+
+    command ApproveParticipant {
+      federationId: UUID id technical
+      organizationId: UUID
+      approvalNote: String?
+    }
+
+    event ParticipantJoined {
+      federationId: UUID id technical from ApproveParticipant.federationId
+      organizationId: UUID from ApproveParticipant.organizationId
+      approvalNote: String? from ApproveParticipant.approvalNote
+    }
+
+    specification "Only Invited Active Organizations Join Federation" {
+      rule """
+        A participant can join only after the organization is active and has an outstanding invitation for the target federation.
+      """
+
+      scenario "Approve Invited Participant" {
+        given OrganizationActivated {
+          organizationId = "org-1"
+        }
+        given ParticipantInvited {
+          federationId = "fed-1"
+          organizationId = "org-1"
+        }
+        when ApproveParticipant {
+          federationId = "fed-1"
+          organizationId = "org-1"
+        }
+        then ParticipantJoined
+      }
+
+      scenario "Reject Uninvited Participant Approval" {
+        when ApproveParticipant {
+          federationId = "fed-1"
+          organizationId = "org-2"
+        }
+        then reject "Participant Invitation Required"
+      }
+    }
+
+    state Active
+  }
+
+  slice RejectParticipant {
+    actor GovernanceReviewer
+    ui MembershipReviewScreen dialog
+    reactsTo ParticipantInvited
+
+    command RejectParticipant {
+      federationId: UUID id technical
+      organizationId: UUID
+      rejectionReason: String
+    }
+
+    event ParticipantRejected {
+      federationId: UUID id technical
+      organizationId: UUID
+      rejectionReason: String
+    }
+  }
+
+  slice RevokeParticipantInvitation {
+    actor FederationOwner
+    ui ParticipantInvitationScreen confirm
+    reactsTo ParticipantInvited
+
+    command RevokeParticipantInvitation {
+      federationId: UUID id technical
+      organizationId: UUID
+      revokeReason: String
+    }
+
+    event ParticipantInvitationRevoked {
+      federationId: UUID id technical
+      organizationId: UUID
+      revokeReason: String
+    }
+  }
+
+  slice SuspendParticipant {
+    actor GovernanceReviewer
+    ui MembershipReviewScreen dialog
+    reactsTo ParticipantJoined
+
+    command SuspendParticipant {
+      federationId: UUID id technical
+      organizationId: UUID
+      suspensionReason: String
+    }
+
+    event ParticipantSuspended {
+      federationId: UUID id technical
+      organizationId: UUID
+      suspensionReason: String
+    }
+  }
+
+  slice RemoveParticipant {
+    actor GovernanceReviewer
+    ui MembershipReviewScreen confirm
+    reactsTo ParticipantSuspended
+
+    command RemoveParticipant {
+      federationId: UUID id technical
+      organizationId: UUID
+      removalReason: String
+    }
+
+    event ParticipantRemoved {
+      federationId: UUID id technical
+      organizationId: UUID
+      removalReason: String
+    }
+  }
+
+  slice FederationMembershipDirectory {
+    reactsTo ParticipantInvited
+
+    readmodel FederationMembershipDirectory[] {
+      federationId: UUID id
+      organizationId: UUID id
+      organizationName: String
+      membershipStatus: String
+      invitationNote: String?
+      approvalNote: String?
+      subscribe ParticipantInvited
+      subscribe ParticipantJoined
+      subscribe ParticipantRejected
+      subscribe ParticipantInvitationRevoked
+      subscribe ParticipantSuspended
+      subscribe ParticipantRemoved
+      subscribe OrganizationRegistered
+      subscribe OrganizationActivated
+    }
+  }
+
+  concept Federation {
     state Draft
     state Active
     state Suspended
 
-    slice CreateFederation {
-      startsLifecycle
-      actor PlatformAdmin
-      ui FederationSetupScreen form
-
-      command CreateFederation {
-        federationId: UUID id generated technical
-        federationName: String
-        description: String
-        governancePolicyId: UUID
-        minimumParticipantCount: Int
-        minimumTrustedNodeCount: Int
-      }
-
-      event FederationCreated {
-        federationId: UUID id technical
-        federationName: String
-        description: String
-        governancePolicyId: UUID
-        minimumParticipantCount: Int
-        minimumTrustedNodeCount: Int
-      }
-
-      state Draft
-    }
-
-    slice FederationOverview {
-      reactsTo ParticipantJoined
-
-      projection FederationOverview[] {
-        federationId: UUID id
-        federationName: String
-        state: String
-        activeMemberCount: Int
-        pendingInvitationCount: Int
-        trustedNodeCount: Int
-        activeTrainingJobCount: Int
-        subscribe FederationCreated
-        subscribe ParticipantInvited
-        subscribe ParticipantJoined
-        subscribe ParticipantRejected
-        subscribe ParticipantInvitationRevoked
-        subscribe ParticipantSuspended
-        subscribe ParticipantRemoved
-        subscribe ComputeNodeTrusted
-        subscribe ComputeNodeSuspended
-        subscribe TrainingJobSubmitted
-      }
-    }
-
-    slice InviteParticipant {
-      actor FederationOwner
-      ui ParticipantInvitationScreen dialog
-      reactsTo FederationCreated
-
-      command InviteParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        invitationNote: String
-      }
-
-      event ParticipantInvited {
-        federationId: UUID id technical
-        organizationId: UUID
-        invitationNote: String
-      }
-    }
-
-    slice ApproveParticipant {
-      actor GovernanceReviewer
-      ui MembershipReviewScreen dialog
-      reactsTo ParticipantInvited
-
-      command ApproveParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        approvalNote: String?
-      }
-
-      event ParticipantJoined {
-        federationId: UUID id technical
-        organizationId: UUID
-        approvalNote: String?
-      }
-
-      state Active
-    }
-
-    slice RejectParticipant {
-      actor GovernanceReviewer
-      ui MembershipReviewScreen dialog
-      reactsTo ParticipantInvited
-
-      command RejectParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        rejectionReason: String
-      }
-
-      event ParticipantRejected {
-        federationId: UUID id technical
-        organizationId: UUID
-        rejectionReason: String
-      }
-    }
-
-    slice RevokeParticipantInvitation {
-      actor FederationOwner
-      ui ParticipantInvitationScreen confirm
-      reactsTo ParticipantInvited
-
-      command RevokeParticipantInvitation {
-        federationId: UUID id technical
-        organizationId: UUID
-        revokeReason: String
-      }
-
-      event ParticipantInvitationRevoked {
-        federationId: UUID id technical
-        organizationId: UUID
-        revokeReason: String
-      }
-    }
-
-    slice SuspendParticipant {
-      actor GovernanceReviewer
-      ui MembershipReviewScreen dialog
-      reactsTo ParticipantJoined
-
-      command SuspendParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        suspensionReason: String
-      }
-
-      event ParticipantSuspended {
-        federationId: UUID id technical
-        organizationId: UUID
-        suspensionReason: String
-      }
-    }
-
-    slice RemoveParticipant {
-      actor GovernanceReviewer
-      ui MembershipReviewScreen confirm
-      reactsTo ParticipantSuspended
-
-      command RemoveParticipant {
-        federationId: UUID id technical
-        organizationId: UUID
-        removalReason: String
-      }
-
-      event ParticipantRemoved {
-        federationId: UUID id technical
-        organizationId: UUID
-        removalReason: String
-      }
-    }
-
-    slice FederationMembershipDirectory {
-      reactsTo ParticipantInvited
-
-      projection FederationMembershipDirectory[] {
-        federationId: UUID id
-        organizationId: UUID id
-        organizationName: String
-        membershipStatus: String
-        invitationNote: String?
-        approvalNote: String?
-        subscribe ParticipantInvited
-        subscribe ParticipantJoined
-        subscribe ParticipantRejected
-        subscribe ParticipantInvitationRevoked
-        subscribe ParticipantSuspended
-        subscribe ParticipantRemoved
-        subscribe OrganizationRegistered
-        subscribe OrganizationActivated
-      }
-    }
-
-
+    slice CreateFederation
+    slice FederationOverview
+    slice InviteParticipant
+    slice ApproveParticipant
+    slice RejectParticipant
+    slice RevokeParticipantInvitation
+    slice SuspendParticipant
+    slice RemoveParticipant
+    slice FederationMembershipDirectory
   }
 
-  aggregate ComputeNode {
+  slice RegisterComputeNode {
+    startsLifecycle
+    actor NodeOperator
+    ui NodeRegistrationScreen
+    reactsTo OrganizationActivated
+
+    command RegisterComputeNode {
+      nodeId: UUID id generated technical
+      organizationId: UUID
+      nodeName: String
+      nodeType: String
+      hardwareProfile: String
+      runtimeProfile: String
+      confidentialComputeSupported: Boolean
+    }
+
+    event ComputeNodeRegistered {
+      nodeId: UUID id technical
+      organizationId: UUID
+      nodeName: String
+      nodeType: String
+      hardwareProfile: String
+      runtimeProfile: String
+      confidentialComputeSupported: Boolean
+    }
+
+    state Registered
+  }
+
+  slice UpdateNodeCapability {
+    actor NodeOperator
+    ui NodeCapabilityScreen
+    reactsTo ComputeNodeRegistered
+
+    command UpdateNodeCapability {
+      nodeId: UUID id technical
+      gpuCount: Int
+      cpuCoreCount: Int
+      memoryGb: Int
+      storageGb: Int
+      supportedFrameworks: String[]
+      maxConcurrentJobs: Int
+    }
+
+    event NodeCapabilityUpdated {
+      nodeId: UUID id technical
+      gpuCount: Int
+      cpuCoreCount: Int
+      memoryGb: Int
+      storageGb: Int
+      supportedFrameworks: String[]
+      maxConcurrentJobs: Int
+    }
+
+    state CapabilityDeclared
+  }
+
+  slice TrustComputeNode {
+    actor SecurityReviewer
+    ui NodeTrustScreen
+    reactsTo NodeCapabilityUpdated
+
+    command TrustComputeNode {
+      nodeId: UUID id technical
+      trustLevel: String
+      attestationReportId: UUID
+      attestationExpiresAt: DateTime
+    }
+
+    event ComputeNodeTrusted {
+      nodeId: UUID id technical
+      trustLevel: String
+      attestationReportId: UUID
+      attestationExpiresAt: DateTime
+    }
+
+    state Trusted
+  }
+
+  slice SuspendComputeNode {
+    actor SecurityReviewer
+    ui NodeTrustScreen
+    reactsTo RuntimeHeartbeatRecorded
+
+    command SuspendComputeNode {
+      nodeId: UUID id technical
+      suspensionReason: String
+    }
+
+    event ComputeNodeSuspended {
+      nodeId: UUID id technical
+      suspensionReason: String
+    }
+
+    state Suspended
+  }
+
+  slice ComputeNodeCatalog {
+    readmodel ComputeNodeCatalog[] {
+      nodeId: UUID id
+      organizationId: UUID
+      nodeName: String
+      nodeType: String
+      hardwareProfile: String
+      runtimeProfile: String
+      confidentialComputeSupported: Boolean
+      gpuCount: Int
+      cpuCoreCount: Int
+      memoryGb: Int
+      storageGb: Int
+      supportedFrameworks: String[]
+      maxConcurrentJobs: Int
+      trustLevel: String?
+      attestationExpiresAt: DateTime?
+      nodeStatus: String
+      suspensionReason: String?
+      subscribe ComputeNodeRegistered
+      subscribe NodeCapabilityUpdated
+      subscribe ComputeNodeTrusted
+      subscribe ComputeNodeSuspended
+    }
+  }
+
+  concept ComputeNode {
     state Registered
     state CapabilityDeclared
     state Trusted
     state Suspended
 
-    slice RegisterComputeNode {
-      startsLifecycle
-      actor NodeOperator
-      ui NodeRegistrationScreen
-      reactsTo OrganizationActivated
-
-      command RegisterComputeNode {
-        nodeId: UUID id generated technical
-        organizationId: UUID
-        nodeName: String
-        nodeType: String
-        hardwareProfile: String
-        runtimeProfile: String
-        confidentialComputeSupported: Boolean
-      }
-
-      event ComputeNodeRegistered {
-        nodeId: UUID id technical
-        organizationId: UUID
-        nodeName: String
-        nodeType: String
-        hardwareProfile: String
-        runtimeProfile: String
-        confidentialComputeSupported: Boolean
-      }
-
-      state Registered
-    }
-
-    slice UpdateNodeCapability {
-      actor NodeOperator
-      ui NodeCapabilityScreen
-      reactsTo ComputeNodeRegistered
-
-      command UpdateNodeCapability {
-        nodeId: UUID id technical
-        gpuCount: Int
-        cpuCoreCount: Int
-        memoryGb: Int
-        storageGb: Int
-        supportedFrameworks: String[]
-        maxConcurrentJobs: Int
-      }
-
-      event NodeCapabilityUpdated {
-        nodeId: UUID id technical
-        gpuCount: Int
-        cpuCoreCount: Int
-        memoryGb: Int
-        storageGb: Int
-        supportedFrameworks: String[]
-        maxConcurrentJobs: Int
-      }
-
-      state CapabilityDeclared
-    }
-
-    slice TrustComputeNode {
-      actor SecurityReviewer
-      ui NodeTrustScreen
-      reactsTo NodeCapabilityUpdated
-
-      command TrustComputeNode {
-        nodeId: UUID id technical
-        trustLevel: String
-        attestationReportId: UUID
-        attestationExpiresAt: DateTime
-      }
-
-      event ComputeNodeTrusted {
-        nodeId: UUID id technical
-        trustLevel: String
-        attestationReportId: UUID
-        attestationExpiresAt: DateTime
-      }
-
-      state Trusted
-    }
-
-    slice SuspendComputeNode {
-      actor SecurityReviewer
-      ui NodeTrustScreen
-      reactsTo RuntimeHeartbeatRecorded
-
-      command SuspendComputeNode {
-        nodeId: UUID id technical
-        suspensionReason: String
-      }
-
-      event ComputeNodeSuspended {
-        nodeId: UUID id technical
-        suspensionReason: String
-      }
-
-      state Suspended
-    }
-
-    slice ComputeNodeCatalog {
-      projection ComputeNodeCatalog[] {
-        nodeId: UUID id
-        organizationId: UUID
-        nodeName: String
-        nodeType: String
-        hardwareProfile: String
-        runtimeProfile: String
-        confidentialComputeSupported: Boolean
-        gpuCount: Int
-        cpuCoreCount: Int
-        memoryGb: Int
-        storageGb: Int
-        supportedFrameworks: String[]
-        maxConcurrentJobs: Int
-        trustLevel: String?
-        attestationExpiresAt: DateTime?
-        nodeStatus: String
-        suspensionReason: String?
-        subscribe ComputeNodeRegistered
-        subscribe NodeCapabilityUpdated
-        subscribe ComputeNodeTrusted
-        subscribe ComputeNodeSuspended
-      }
-    }
+    slice RegisterComputeNode
+    slice UpdateNodeCapability
+    slice TrustComputeNode
+    slice SuspendComputeNode
+    slice ComputeNodeCatalog
   }
 }
 
 context DatasetGovernance {
   note "Dataset governance separates schema, dataset assets, runtime access profiles, and train evaluation bundles."
+
+  risk "Datasets may be approved despite schema drift, privacy sensitivity, or non IID skew that invalidates training assumptions."
+  risk "Runtime dataset access credentials can remain usable after policy revocation unless blocked explicitly."
+  metric datasetContractValidationFailureRate
+  metric runtimeDatasetAccessValidationLatency
 
   integration DatasetAccessRuntime {
     source DatasetAccessProfile
@@ -482,44 +522,464 @@ context DatasetGovernance {
     emits CompleteRuntimeDatasetAccessValidation
   }
 
-  aggregate FeatureSchema {
-    state Published
-
-    slice DefineFeatureSchema {
-      startsLifecycle
-      actor DataSteward
-      ui FeatureSchemaEditor
-
-      command DefineFeatureSchema {
-        featureSchemaId: UUID id generated technical
-        domain: String
-        version: Int
-        featureCount: Int
-      }
-
-      event FeatureSchemaPublished {
-        featureSchemaId: UUID id technical
-        domain: String
-        version: Int
-        featureCount: Int
-      }
-
-      state Published
+  slice DefineFeatureSchema {
+    startsLifecycle
+    actor DataSteward
+    ui FeatureSchemaEditor
+  
+    command DefineFeatureSchema {
+      featureSchemaId: UUID id generated technical
+      domain: String
+      version: Int
+      features: FeatureDefinition[]
     }
-
-    slice FeatureSchemaCatalog {
-      projection FeatureSchemaCatalog[] {
-        featureSchemaId: UUID id
-        domain: String
-        version: Int
-        featureCount: Int
-        schemaStatus: String
-        subscribe FeatureSchemaPublished
+  
+    event FeatureSchemaPublished {
+      featureSchemaId: UUID id technical
+      domain: String
+      version: Int
+      featureCount: Int derived {
+        from DefineFeatureSchema.features
+        rule "Count entries in the features collection."
+      }
+    }
+  
+    state Draft
+  
+    specification "Feature Schema Domain Version Unique" {
+      rule """
+        A feature schema is uniquely identified by the combination of its domain and version. Two schemas within the same domain cannot share a version.
+      """
+  
+      expression {
+        unique (FeatureSchema.domain, FeatureSchema.version)
+      }
+  
+      scenario "Reject Duplicate Feature Schema Version" {
+        given FeatureSchemaPublished {
+          domain = "CreditRisk"
+          version = 1
+        }
+        when DefineFeatureSchema {
+          domain = "CreditRisk"
+          version = 1
+        }
+        then reject "Feature Schema Version Already Exists"
       }
     }
   }
 
-  aggregate Dataset {
+  slice PublishFeatureSchema {
+    actor DataSteward
+    ui FeatureSchemaEditor confirm
+    reactsTo FeatureSchemaPublished
+  
+    command PublishFeatureSchema {
+      featureSchemaId: UUID id technical
+      publishNote: String?
+    }
+  
+    event FeatureSchemaPublishConfirmed {
+      featureSchemaId: UUID id technical
+      domain: String
+      version: Int
+      publishedAt: DateTime
+      publishNote: String?
+    }
+  
+    state Published
+  
+    specification "Only Draft Schemas Can Be Published" {
+      rule """
+        A feature schema can be published only from the Draft lifecycle state.
+      """
+  
+      scenario "Publish Draft Schema" {
+        given FeatureSchemaPublished {
+          featureSchemaId = "schema-1"
+          domain = "CreditRisk"
+          version = 1
+        }
+        when PublishFeatureSchema {
+          featureSchemaId = "schema-1"
+        }
+        then FeatureSchemaPublishConfirmed
+      }
+    }
+  }
+  
+  slice DeprecateFeatureSchema {
+    actor DataSteward
+    ui FeatureSchemaEditor confirm
+    reactsTo FeatureSchemaPublishConfirmed
+  
+    command DeprecateFeatureSchema {
+      featureSchemaId: UUID id technical
+      deprecationReason: String
+    }
+  
+    event FeatureSchemaDeprecated {
+      featureSchemaId: UUID id technical
+      domain: String
+      version: Int
+      deprecatedAt: DateTime
+      deprecationReason: String
+    }
+  
+    state Deprecated
+  }
+  
+  slice RetireFeatureSchema {
+    actor DataSteward
+    ui FeatureSchemaEditor confirm
+    reactsTo FeatureSchemaDeprecated
+  
+    command RetireFeatureSchema {
+      featureSchemaId: UUID id technical
+      retirementReason: String
+    }
+  
+    event FeatureSchemaRetired {
+      featureSchemaId: UUID id technical
+      domain: String
+      version: Int
+      retiredAt: DateTime
+      retirementReason: String
+    }
+  
+    state Retired
+  }
+  
+  slice SupersedeFeatureSchemaVersion {
+    actor DataSteward
+    ui FeatureSchemaEditor confirm
+    reactsTo FeatureSchemaPublishConfirmed
+  
+    command SupersedeFeatureSchemaVersion {
+      featureSchemaId: UUID id technical
+      supersededByFeatureSchemaId: UUID
+      supersessionReason: String?
+    }
+  
+    event FeatureSchemaVersionSuperseded {
+      featureSchemaId: UUID id technical
+      supersededByFeatureSchemaId: UUID
+      domain: String
+      supersededVersion: Int
+      supersessionReason: String?
+      supersededAt: DateTime
+    }
+  
+    specification "Supersede Published Schema With Newer Version" {
+      rule """
+        Only schemas in the Published state can be superseded, and the superseding schema must belong to the same domain and have a higher version.
+      """
+  
+      scenario "Supersede Older Version" {
+        given FeatureSchemaPublishConfirmed {
+          featureSchemaId = "schema-1"
+          domain = "CreditRisk"
+          version = 1
+        }
+        given FeatureSchemaPublishConfirmed {
+          featureSchemaId = "schema-2"
+          domain = "CreditRisk"
+          version = 2
+        }
+        when SupersedeFeatureSchemaVersion {
+          featureSchemaId = "schema-1"
+          supersededByFeatureSchemaId = "schema-2"
+        }
+        then FeatureSchemaVersionSuperseded
+      }
+    }
+  }
+  
+  slice MarkCurrentRecommendedFeatureSchemaVersion {
+    actor DataSteward
+    ui FeatureSchemaEditor confirm
+    reactsTo FeatureSchemaPublishConfirmed
+  
+    command MarkCurrentRecommendedFeatureSchemaVersion {
+      featureSchemaId: UUID id technical
+      domain: String
+      recommendationNote: String?
+    }
+  
+    event CurrentRecommendedFeatureSchemaVersionMarked {
+      featureSchemaId: UUID id technical
+      domain: String
+      version: Int
+      recommendedAt: DateTime
+      recommendationNote: String?
+    }
+  
+    specification "Only One Recommended Version Per Domain" {
+      rule """
+        For each domain, at most one feature schema version is marked as the current recommended version. Marking a new version as recommended must clear the previous recommended version in the same domain.
+      """
+  
+      scenario "Mark New Recommended Version" {
+        given FeatureSchemaPublishConfirmed {
+          featureSchemaId = "schema-2"
+          domain = "CreditRisk"
+          version = 2
+        }
+        when MarkCurrentRecommendedFeatureSchemaVersion {
+          featureSchemaId = "schema-2"
+          domain = "CreditRisk"
+        }
+        then CurrentRecommendedFeatureSchemaVersionMarked
+      }
+    }
+  }
+  
+  slice CurrentRecommendedFeatureSchemaCatalog {
+    readmodel CurrentRecommendedFeatureSchemaCatalog[] {
+      domain: String id
+      recommendedFeatureSchemaId: UUID
+      recommendedVersion: Int
+      recommendedAt: DateTime
+      recommendationNote: String?
+      subscribe CurrentRecommendedFeatureSchemaVersionMarked
+    }
+  }
+  slice FeatureSchemaCatalog {
+    readmodel FeatureSchemaCatalog[] {
+      featureSchemaId: UUID id
+      domain: String
+      version: Int
+      featureCount: Int
+      schemaStatus: String
+      supersededByFeatureSchemaId: UUID?
+      recommendedForDomain: Boolean
+      subscribe FeatureSchemaPublished
+      subscribe FeatureSchemaPublishConfirmed
+      subscribe FeatureSchemaDeprecated
+      subscribe FeatureSchemaRetired
+      subscribe FeatureSchemaVersionSuperseded
+      subscribe CurrentRecommendedFeatureSchemaVersionMarked
+    }
+  }
+
+  concept FeatureSchema {
+    state Draft
+    state Published
+    state Deprecated
+    state Retired
+  
+    slice DefineFeatureSchema
+    slice PublishFeatureSchema
+    slice DeprecateFeatureSchema
+    slice RetireFeatureSchema
+    slice FeatureSchemaCatalog
+    slice SupersedeFeatureSchemaVersion
+    slice MarkCurrentRecommendedFeatureSchemaVersion
+    slice CurrentRecommendedFeatureSchemaCatalog
+  }
+
+  slice RegisterDataset {
+    startsLifecycle
+    actor DataOwner
+    ui DatasetRegistrationScreen
+    reactsTo FeatureSchemaPublished
+  
+    command RegisterDataset {
+      datasetId: UUID id generated technical
+      organizationId: UUID
+      featureSchemaId: UUID
+      labelSchemaId: UUID
+      datasetType: String
+      datasetUsage: String
+      sampleCount: Int
+      sensitivityLevel: String
+      containsPII: Boolean
+      region: String
+      usagePolicyId: UUID
+    }
+  
+    event DatasetRegistered {
+      datasetId: UUID id technical
+      organizationId: UUID
+      featureSchemaId: UUID
+      labelSchemaId: UUID
+      datasetType: String
+      datasetUsage: String
+      sampleCount: Int
+      sensitivityLevel: String
+      containsPII: Boolean
+      region: String
+      usagePolicyId: UUID
+    }
+  
+    state Registered
+  }
+
+  slice ValidateDatasetContract {
+    reactsTo DatasetRegistered
+  
+    automation ValidateDatasetContractAutomatically {
+      condition sampleCount > 0
+      emits ValidateDatasetContract
+    }
+  
+    command ValidateDatasetContract {
+      datasetId: UUID id technical
+      featureSchemaId: UUID
+      labelSchemaId: UUID
+      validationProfile: String
+  
+    }
+    event DatasetContractValidated {
+      datasetId: UUID id technical
+      featureSchemaId: UUID
+      labelSchemaId: UUID
+      schemaCompatible: Boolean derived {
+        from Dataset.featureSchemaId, ValidateDatasetContract.featureSchemaId
+        rule "Validate dataset feature schema compatibility."
+      }
+      labelCompatible: Boolean derived {
+        from Dataset.labelSchemaId, ValidateDatasetContract.labelSchemaId
+        rule "Validate dataset label compatibility against the referenced label schema."
+      }
+      qualityScore: Decimal derived {
+        from Dataset.statistics, ValidationProfile
+        rule "Score dataset quality against the validation profile."
+        example "0.86"
+      }
+      nonIidScore: Decimal derived {
+        from Dataset.statistics, ValidationProfile
+        rule "Score dataset distribution skew for training selection."
+      }
+    }
+  
+    state ContractValidated
+  }
+
+  slice RejectDatasetForTraining {
+    actor ComplianceOfficer
+    ui DatasetApprovalScreen
+    reactsTo DatasetContractValidated
+
+    command RejectDatasetForTraining {
+      datasetId: UUID id technical
+      rejectionReason: String
+    }
+
+    event DatasetRejectedForTraining {
+      datasetId: UUID id technical
+      rejectionReason: String
+    }
+
+    state Rejected
+  }
+
+  slice ApproveDatasetForTraining {
+    actor ComplianceOfficer
+    ui DatasetApprovalScreen
+    reactsTo DatasetContractValidated
+
+    command ApproveDatasetForTraining {
+      datasetId: UUID id technical
+      allowedFederatedUse: String
+      expiresAt: DateTime
+    }
+
+    event DatasetApprovedForTraining {
+      datasetId: UUID id technical from ApproveDatasetForTraining.datasetId
+      allowedFederatedUse: String from ApproveDatasetForTraining.allowedFederatedUse
+      expiresAt: DateTime from ApproveDatasetForTraining.expiresAt
+    }
+
+    specification "Only Validated Quality Datasets Are Approved" {
+      rule """
+        A dataset can be approved only after contract validation succeeds and the validation profile reports acceptable quality and schema compatibility.
+      """
+
+      scenario "Approve Validated Dataset" {
+        given DatasetContractValidated {
+          datasetId = "dataset-1"
+          schemaCompatible = true
+          labelCompatible = true
+          qualityScore = 0.86
+        }
+        when ApproveDatasetForTraining {
+          datasetId = "dataset-1"
+        }
+        then DatasetApprovedForTraining
+      }
+
+      scenario "Reject Approval Before Contract Validation" {
+        when ApproveDatasetForTraining {
+          datasetId = "dataset-2"
+        }
+        then reject "Dataset Contract Validation Required"
+      }
+    }
+
+    state Approved
+  }
+
+  slice ExpireDatasetTrainingApproval {
+    reactsTo DatasetApprovedForTraining
+
+    automation ExpireDatasetApprovalWhenPastExpiry {
+      condition expiresAt < now
+      emits ExpireDatasetTrainingApproval
+    }
+
+    command ExpireDatasetTrainingApproval {
+      datasetId: UUID id technical
+      expiredAt: DateTime
+    }
+
+    event DatasetTrainingApprovalExpired {
+      datasetId: UUID id technical
+      expiredAt: DateTime
+    }
+
+    state ApprovalExpired
+  }
+
+  slice RevokeDatasetTrainingApproval {
+    actor ComplianceOfficer
+    ui DatasetApprovalScreen
+    reactsTo DatasetApprovedForTraining
+
+    command RevokeDatasetTrainingApproval {
+      datasetId: UUID id technical
+      revokeReason: String
+    }
+
+    event DatasetTrainingApprovalRevoked {
+      datasetId: UUID id technical
+      revokeReason: String
+    }
+
+    state ApprovalRevoked
+  }
+
+  slice DatasetCapability {
+    readmodel DatasetCapability[] {
+      datasetId: UUID id
+      organizationId: UUID
+      featureSchemaId: UUID
+      datasetUsage: String
+      sampleCount: Int
+      qualityScore: Decimal
+      approvalStatus: String
+      expiresAt: DateTime?
+      approved: Boolean
+      subscribe DatasetRegistered
+      subscribe DatasetContractValidated
+      subscribe DatasetRejectedForTraining
+      subscribe DatasetApprovedForTraining
+      subscribe DatasetTrainingApprovalExpired
+      subscribe DatasetTrainingApprovalRevoked
+    }
+  }
+
+  concept Dataset {
     state Registered
     state ContractValidated
     state Approved
@@ -527,341 +987,264 @@ context DatasetGovernance {
     state ApprovalExpired
     state ApprovalRevoked
 
-    slice RegisterDataset {
-      startsLifecycle
-      actor DataOwner
-      ui DatasetRegistrationScreen
-      reactsTo FeatureSchemaPublished
+    slice RegisterDataset
+    slice ValidateDatasetContract
+    slice RejectDatasetForTraining
+    slice ApproveDatasetForTraining
+    slice ExpireDatasetTrainingApproval
+    slice RevokeDatasetTrainingApproval
+    slice DatasetCapability
+  }
 
-      command RegisterDataset {
-        datasetId: UUID id generated technical
-        organizationId: UUID
-        featureSchemaId: UUID
-        datasetType: String
-        datasetUsage: String
-        sampleCount: Int
-        sensitivityLevel: String
-        containsPII: Boolean
-        region: String
-        usagePolicyId: UUID
-      }
+  slice ConfigureDatasetAccessProfile {
+    startsLifecycle
+    actor NodeOperator
+    ui DatasetAccessProfileScreen
+    reactsTo DatasetApprovedForTraining
 
-      event DatasetRegistered {
-        datasetId: UUID id technical
-        organizationId: UUID
-        featureSchemaId: UUID
-        datasetType: String
-        datasetUsage: String
-        sampleCount: Int
-        sensitivityLevel: String
-        containsPII: Boolean
-        region: String
-        usagePolicyId: UUID
-      }
-
-      state Registered
+    command ConfigureDatasetAccessProfile {
+      accessProfileId: UUID id generated technical
+      datasetId: UUID
+      nodeId: UUID
+      runtimeId: UUID
+      connectorType: String
+      connectionProfileRef: String
+      credentialRef: String
+      storageLocationRef: String
+      dataFormat: String
+      readerPlugin: String
+      readMode: String
+      featureMappingId: UUID?
     }
 
-    slice ValidateDatasetContract {
-      reactsTo DatasetRegistered
+    event DatasetAccessProfileConfigured {
+      accessProfileId: UUID id technical
+      datasetId: UUID
+      nodeId: UUID
+      runtimeId: UUID
+      connectorType: String
+      connectionProfileRef: String
+      credentialRef: String
+      storageLocationRef: String
+      dataFormat: String
+      readerPlugin: String
+      readMode: String
+      featureMappingId: UUID?
+    }
 
-      automation ValidateDatasetContractAutomatically {
-        condition sampleCount > 0
-        emits ValidateDatasetContract
-      }
+    state Configured
+  }
 
-      command ValidateDatasetContract {
-        datasetId: UUID id technical
-        featureSchemaId: UUID
-        validationProfile: String
+  slice RequestRuntimeDatasetAccessValidation {
+    reactsTo DatasetAccessProfileConfigured
 
-      }
-      event DatasetContractValidated {
-        datasetId: UUID id technical
-        featureSchemaId: UUID
-        schemaCompatible: Boolean derived {
-          from Dataset.featureSchemaId, ValidateDatasetContract.featureSchemaId
-          rule "Validate dataset feature schema compatibility."
+    policy ValidateDatasetAccessAfterProfileConfigured {
+      on DatasetAccessProfileConfigured
+      issue RequestRuntimeDatasetAccessValidation
+    }
+
+    command RequestRuntimeDatasetAccessValidation {
+      accessProfileId: UUID id technical
+      datasetId: UUID
+      runtimeId: UUID
+      validationMode: String
+    }
+
+    event DatasetAccessValidationRequested {
+      accessProfileId: UUID id technical
+      datasetId: UUID
+      runtimeId: UUID
+      validationMode: String
+    }
+
+    state ValidationRequested
+  }
+
+  slice CompleteRuntimeDatasetAccessValidation {
+    command CompleteRuntimeDatasetAccessValidation {
+      accessProfileId: UUID id technical
+      datasetId: UUID
+      runtimeId: UUID
+      readable: Boolean
+      schemaReadable: Boolean
+      sampleBatchReadable: Boolean
+      validationReportId: UUID
+    }
+
+    event RuntimeDatasetAccessValidated {
+      accessProfileId: UUID id technical
+      datasetId: UUID
+      runtimeId: UUID
+      readable: Boolean
+      schemaReadable: Boolean
+      sampleBatchReadable: Boolean
+      validationReportId: UUID
+    }
+
+    state Validated
+  }
+
+  slice BlockDatasetAccessOnPolicyViolation {
+    actor ComplianceOfficer
+    ui DatasetAccessProfileScreen confirm
+    reactsTo RuntimeDatasetAccessValidated
+
+    command BlockDatasetAccessOnPolicyViolation {
+      accessProfileId: UUID id technical
+      datasetId: UUID
+      runtimeId: UUID
+      violationReason: String
+      blockedBy: String
+    }
+
+    event DatasetAccessBlocked {
+      accessProfileId: UUID id technical from BlockDatasetAccessOnPolicyViolation.accessProfileId
+      datasetId: UUID from BlockDatasetAccessOnPolicyViolation.datasetId
+      runtimeId: UUID from BlockDatasetAccessOnPolicyViolation.runtimeId
+      violationReason: String from BlockDatasetAccessOnPolicyViolation.violationReason
+      blockedBy: String from BlockDatasetAccessOnPolicyViolation.blockedBy
+    }
+
+    state AccessBlocked
+
+    specification "Blocked Dataset Access Cannot Be Used For Training" {
+      rule """
+        A blocked dataset access profile must not be selected by any future training job or node participation request.
+      """
+
+      scenario "Block Violating Access Profile" {
+        given RuntimeDatasetAccessValidated {
+          accessProfileId = "access-1"
+          readable = true
         }
-        labelCompatible: Boolean derived {
-          from Dataset.labelSchema, FeatureSchema
-          rule "Validate dataset label compatibility."
+        when BlockDatasetAccessOnPolicyViolation {
+          accessProfileId = "access-1"
+          violationReason = "Policy Revoked"
         }
-        qualityScore: Decimal derived {
-          from Dataset.statistics, ValidationProfile
-          rule "Score dataset quality against the validation profile."
-          example "0.86"
-        }
-        nonIidScore: Decimal derived {
-          from Dataset.statistics, ValidationProfile
-          rule "Score dataset distribution skew for training selection."
-        }
-      }
-
-      state ContractValidated
-    }
-
-    slice RejectDatasetForTraining {
-      actor ComplianceOfficer
-      ui DatasetApprovalScreen
-      reactsTo DatasetContractValidated
-
-      command RejectDatasetForTraining {
-        datasetId: UUID id technical
-        rejectionReason: String
-      }
-
-      event DatasetRejectedForTraining {
-        datasetId: UUID id technical
-        rejectionReason: String
-      }
-
-      state Rejected
-    }
-
-    slice ApproveDatasetForTraining {
-      actor ComplianceOfficer
-      ui DatasetApprovalScreen
-      reactsTo DatasetContractValidated
-
-      command ApproveDatasetForTraining {
-        datasetId: UUID id technical
-        allowedFederatedUse: String
-        expiresAt: DateTime
-      }
-
-      event DatasetApprovedForTraining {
-        datasetId: UUID id technical
-        allowedFederatedUse: String
-        expiresAt: DateTime
-      }
-
-      state Approved
-    }
-
-    slice ExpireDatasetTrainingApproval {
-      reactsTo DatasetApprovedForTraining
-
-      automation ExpireDatasetApprovalWhenPastExpiry {
-        condition expiresAt < now
-        emits ExpireDatasetTrainingApproval
-      }
-
-      command ExpireDatasetTrainingApproval {
-        datasetId: UUID id technical
-        expiredAt: DateTime
-      }
-
-      event DatasetTrainingApprovalExpired {
-        datasetId: UUID id technical
-        expiredAt: DateTime
-      }
-
-      state ApprovalExpired
-    }
-
-    slice RevokeDatasetTrainingApproval {
-      actor ComplianceOfficer
-      ui DatasetApprovalScreen
-      reactsTo DatasetApprovedForTraining
-
-      command RevokeDatasetTrainingApproval {
-        datasetId: UUID id technical
-        revokeReason: String
-      }
-
-      event DatasetTrainingApprovalRevoked {
-        datasetId: UUID id technical
-        revokeReason: String
-      }
-
-      state ApprovalRevoked
-    }
-
-    slice DatasetCapability {
-      projection DatasetCapability[] {
-        datasetId: UUID id
-        organizationId: UUID
-        featureSchemaId: UUID
-        datasetUsage: String
-        sampleCount: Int
-        qualityScore: Decimal
-        approvalStatus: String
-        expiresAt: DateTime?
-        approved: Boolean
-        subscribe DatasetRegistered
-        subscribe DatasetContractValidated
-        subscribe DatasetRejectedForTraining
-        subscribe DatasetApprovedForTraining
-        subscribe DatasetTrainingApprovalExpired
-        subscribe DatasetTrainingApprovalRevoked
+        then DatasetAccessBlocked
       }
     }
   }
 
-  aggregate DatasetAccessProfile {
+  slice DatasetRuntimeAccessCatalog {
+    readmodel DatasetRuntimeAccessCatalog[] {
+      accessProfileId: UUID id
+      datasetId: UUID
+      nodeId: UUID
+      runtimeId: UUID
+      connectorType: String
+      readerPlugin: String
+      readMode: String
+      readable: Boolean
+      subscribe DatasetAccessProfileConfigured
+      subscribe RuntimeDatasetAccessValidated
+      subscribe DatasetAccessBlocked
+    }
+  }
+
+  concept DatasetAccessProfile {
     state Configured
     state ValidationRequested
     state Validated
+    state AccessBlocked
 
-    slice ConfigureDatasetAccessProfile {
-      startsLifecycle
-      actor NodeOperator
-      ui DatasetAccessProfileScreen
-      reactsTo DatasetApprovedForTraining
+    slice ConfigureDatasetAccessProfile
+    slice RequestRuntimeDatasetAccessValidation
+    slice CompleteRuntimeDatasetAccessValidation
+    slice BlockDatasetAccessOnPolicyViolation
+    slice DatasetRuntimeAccessCatalog
+  }
 
-      command ConfigureDatasetAccessProfile {
-        accessProfileId: UUID id generated technical
-        datasetId: UUID
-        nodeId: UUID
-        runtimeId: UUID
-        connectorType: String
-        connectionProfileRef: String
-        credentialRef: String
-        storageLocationRef: String
-        dataFormat: String
-        readerPlugin: String
-        readMode: String
-        featureMappingId: UUID?
-      }
-
-      event DatasetAccessProfileConfigured {
-        accessProfileId: UUID id technical
-        datasetId: UUID
-        nodeId: UUID
-        runtimeId: UUID
-        connectorType: String
-        connectionProfileRef: String
-        credentialRef: String
-        storageLocationRef: String
-        dataFormat: String
-        readerPlugin: String
-        readMode: String
-        featureMappingId: UUID?
-      }
-
-      state Configured
+  slice DeclareTrainingEvaluationDatasets {
+    startsLifecycle
+    actor DataOwner
+    ui DatasetBundleScreen
+    reactsTo RuntimeDatasetAccessValidated
+  
+    command DeclareTrainingEvaluationDatasets {
+      datasetBundleId: UUID id generated technical
+      organizationId: UUID
+      nodeId: UUID
+      ownerRole: String
+      trainingDatasetId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      featureSchemaId: UUID
+      labelSchemaId: UUID
     }
-
-    slice RequestRuntimeDatasetAccessValidation {
-      reactsTo DatasetAccessProfileConfigured
-
-      policy ValidateDatasetAccessAfterProfileConfigured {
-        on DatasetAccessProfileConfigured
-        issue RequestRuntimeDatasetAccessValidation
-      }
-
-      command RequestRuntimeDatasetAccessValidation {
-        accessProfileId: UUID id technical
-        datasetId: UUID
-        runtimeId: UUID
-        validationMode: String
-      }
-
-      event DatasetAccessValidationRequested {
-        accessProfileId: UUID id technical
-        datasetId: UUID
-        runtimeId: UUID
-        validationMode: String
-      }
-
-      state ValidationRequested
+  
+    event TrainingEvaluationDatasetsDeclared {
+      datasetBundleId: UUID id technical
+      organizationId: UUID
+      nodeId: UUID
+      ownerRole: String
+      trainingDatasetId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      featureSchemaId: UUID
+      labelSchemaId: UUID
     }
+  
+    state Declared
+  }
 
-    slice CompleteRuntimeDatasetAccessValidation {
-      command CompleteRuntimeDatasetAccessValidation {
-        accessProfileId: UUID id technical
-        datasetId: UUID
-        runtimeId: UUID
-        readable: Boolean
-        schemaReadable: Boolean
-        sampleBatchReadable: Boolean
-        validationReportId: UUID
-      }
-
-      event RuntimeDatasetAccessValidated {
-        accessProfileId: UUID id technical
-        datasetId: UUID
-        runtimeId: UUID
-        readable: Boolean
-        schemaReadable: Boolean
-        sampleBatchReadable: Boolean
-        validationReportId: UUID
-      }
-
-      state Validated
-    }
-
-    slice DatasetRuntimeAccessCatalog {
-      projection DatasetRuntimeAccessCatalog[] {
-        accessProfileId: UUID id
-        datasetId: UUID
-        nodeId: UUID
-        runtimeId: UUID
-        connectorType: String
-        readerPlugin: String
-        readMode: String
-        readable: Boolean
-        subscribe DatasetAccessProfileConfigured
-        subscribe RuntimeDatasetAccessValidated
-      }
+  slice TrainingEvaluationDatasetCatalog {
+    readmodel TrainingEvaluationDatasetCatalog[] {
+      datasetBundleId: UUID id
+      organizationId: UUID
+      nodeId: UUID
+      ownerRole: String
+      trainingDatasetId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      subscribe TrainingEvaluationDatasetsDeclared
     }
   }
 
-  aggregate TrainingEvaluationDatasetBundle {
+  concept TrainingEvaluationDatasetBundle {
     state Declared
 
-    slice DeclareTrainingEvaluationDatasets {
-      startsLifecycle
-      actor DataOwner
-      ui DatasetBundleScreen
-      reactsTo RuntimeDatasetAccessValidated
-
-      command DeclareTrainingEvaluationDatasets {
-        datasetBundleId: UUID id generated technical
-        organizationId: UUID
-        nodeId: UUID
-        ownerRole: String
-        trainingDatasetId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        featureSchemaId: UUID
-      }
-
-      event TrainingEvaluationDatasetsDeclared {
-        datasetBundleId: UUID id technical
-        organizationId: UUID
-        nodeId: UUID
-        ownerRole: String
-        trainingDatasetId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        featureSchemaId: UUID
-      }
-
-      state Declared
-    }
-
-    slice TrainingEvaluationDatasetCatalog {
-      projection TrainingEvaluationDatasetCatalog[] {
-        datasetBundleId: UUID id
-        organizationId: UUID
-        nodeId: UUID
-        ownerRole: String
-        trainingDatasetId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        subscribe TrainingEvaluationDatasetsDeclared
-      }
-    }
+    slice DeclareTrainingEvaluationDatasets
+    slice TrainingEvaluationDatasetCatalog
+  }
+  
+  value FeatureDefinition {
+    featureName: String
+    dataType: String
+    shape: Int[]?
+    nullable: Boolean
+    description: String?
+    validationRules: String[]
+    defaultValue: String?
+    isIdentifier: Boolean
+    isSensitive: Boolean
+    encodingStrategy: String?
+    featureTags: String[]
+  }
+  
+  value LabelDefinition {
+    labelName: String
+    dataType: String
+    cardinality: Int
+    classLabels: String[]?
+    isMultilabel: Boolean
+    description: String?
+    validationRules: String[]
+    defaultValue: String?
   }
 }
 
 context TrainingOrchestration {
   note "Training orchestration owns job intent and each round of distributed training and evaluation."
+
+  risk "Training can stall when ready nodes fall below quorum or when secure aggregation is requested before enough evaluated updates exist."
+  risk "Poisoned local updates can degrade the global model if anomaly checks are not modeled as a first class decision."
+  metric nodeDropoutRate
+  metric roundCompletionLatency
+  metric globalAccuracyGap
 
   integration SecureAggregationProvider {
     source TrainingRound
@@ -885,140 +1268,517 @@ context TrainingOrchestration {
     emits SubmitGlobalModelEvaluation
   }
 
-  aggregate TrainingRunConfiguration {
+  slice DefineTrainingRunConfiguration {
+    startsLifecycle
+    actor MLOpsEngineer
+    ui TrainingRunConfigurationScreen
+    reactsTo TrainingEvaluationDatasetsDeclared
+
+    command DefineTrainingRunConfiguration {
+      trainingRunConfigurationId: UUID id generated technical
+      federationId: UUID
+      featureSchemaId: UUID
+      strategyName: String
+      aggregationAlgorithm: String
+      maxRounds: Int
+      minimumNodesPerRound: Int
+      roundTimeoutSeconds: Int
+      nodeResponseTimeoutSeconds: Int
+      localEpochs: Int
+      batchSize: Int
+      learningRate: Decimal
+      optimizer: String
+      lossFunction: String
+      gradientClippingNorm: Decimal?
+      secureAggregationRequired: Boolean
+      differentialPrivacyEnabled: Boolean
+      dpNoiseMultiplier: Decimal?
+      dpClipNorm: Decimal?
+      minimumAccuracy: Decimal
+      minimumFairnessScore: Decimal?
+      failureToleranceRatio: Decimal
+    }
+
+    event TrainingRunConfigurationDefined {
+      trainingRunConfigurationId: UUID id technical
+      federationId: UUID
+      featureSchemaId: UUID
+      strategyName: String
+      aggregationAlgorithm: String
+      maxRounds: Int
+      minimumNodesPerRound: Int
+      roundTimeoutSeconds: Int
+      nodeResponseTimeoutSeconds: Int
+      localEpochs: Int
+      batchSize: Int
+      learningRate: Decimal
+      optimizer: String
+      lossFunction: String
+      gradientClippingNorm: Decimal?
+      secureAggregationRequired: Boolean
+      differentialPrivacyEnabled: Boolean
+      dpNoiseMultiplier: Decimal?
+      dpClipNorm: Decimal?
+      minimumAccuracy: Decimal
+      minimumFairnessScore: Decimal?
+      failureToleranceRatio: Decimal
+    }
+
     state Draft
+  }
+
+  slice ValidateTrainingRunConfiguration {
+    reactsTo TrainingRunConfigurationDefined
+
+    automation ValidateTrainingRunConfigurationAutomatically {
+      condition maxRounds > 0
+      emits ValidateTrainingRunConfiguration
+    }
+
+    command ValidateTrainingRunConfiguration {
+      trainingRunConfigurationId: UUID id technical
+      validationProfile: String
+    }
+
+    event TrainingRunConfigurationValidated {
+      trainingRunConfigurationId: UUID id technical from ValidateTrainingRunConfiguration.trainingRunConfigurationId
+      valid: Boolean
+      validationReportId: UUID
+      effectiveMinimumNodesPerRound: Int derived {
+        from TrainingRunConfiguration.minimumNodesPerRound, TrainingRunConfiguration.failureToleranceRatio
+        rule "Derive the effective node quorum from the selected strategy and failure tolerance."
+      }
+    }
+
     state Validated
-    state Locked
 
-    slice DefineTrainingRunConfiguration {
-      startsLifecycle
-      actor MLOpsEngineer
-      ui TrainingRunConfigurationScreen
-      reactsTo TrainingEvaluationDatasetsDeclared
+    specification "Training Configuration Must Be Runnable" {
+      rule """
+        A training run configuration must define a positive round budget, a feasible node quorum, and privacy parameters when differential privacy is enabled.
+      """
 
-      command DefineTrainingRunConfiguration {
-        trainingRunConfigurationId: UUID id generated technical
-        federationId: UUID
-        featureSchemaId: UUID
-        strategyName: String
-        aggregationAlgorithm: String
-        maxRounds: Int
-        minimumNodesPerRound: Int
-        roundTimeoutSeconds: Int
-        nodeResponseTimeoutSeconds: Int
-        localEpochs: Int
-        batchSize: Int
-        learningRate: Decimal
-        optimizer: String
-        lossFunction: String
-        gradientClippingNorm: Decimal?
-        secureAggregationRequired: Boolean
-        differentialPrivacyEnabled: Boolean
-        dpNoiseMultiplier: Decimal?
-        dpClipNorm: Decimal?
-        minimumAccuracy: Decimal
-        minimumFairnessScore: Decimal?
-        failureToleranceRatio: Decimal
-      }
-
-      event TrainingRunConfigurationDefined {
-        trainingRunConfigurationId: UUID id technical
-        federationId: UUID
-        featureSchemaId: UUID
-        strategyName: String
-        aggregationAlgorithm: String
-        maxRounds: Int
-        minimumNodesPerRound: Int
-        roundTimeoutSeconds: Int
-        nodeResponseTimeoutSeconds: Int
-        localEpochs: Int
-        batchSize: Int
-        learningRate: Decimal
-        optimizer: String
-        lossFunction: String
-        gradientClippingNorm: Decimal?
-        secureAggregationRequired: Boolean
-        differentialPrivacyEnabled: Boolean
-        dpNoiseMultiplier: Decimal?
-        dpClipNorm: Decimal?
-        minimumAccuracy: Decimal
-        minimumFairnessScore: Decimal?
-        failureToleranceRatio: Decimal
-      }
-
-      state Draft
-    }
-
-    slice ValidateTrainingRunConfiguration {
-      reactsTo TrainingRunConfigurationDefined
-
-      automation ValidateTrainingRunConfigurationAutomatically {
-        condition maxRounds > 0
-        emits ValidateTrainingRunConfiguration
-      }
-
-      command ValidateTrainingRunConfiguration {
-        trainingRunConfigurationId: UUID id technical
-        validationProfile: String
-      }
-
-      event TrainingRunConfigurationValidated {
-        trainingRunConfigurationId: UUID id technical
-        valid: Boolean
-        validationReportId: UUID
-        effectiveMinimumNodesPerRound: Int derived {
-          from TrainingRunConfiguration.minimumNodesPerRound, TrainingRunConfiguration.failureToleranceRatio
-          rule "Derive the effective node quorum from the selected strategy and failure tolerance."
+      scenario "Validate Runnable Configuration" {
+        given TrainingRunConfigurationDefined {
+          trainingRunConfigurationId = "cfg-1"
+          maxRounds = 10
+          minimumNodesPerRound = 3
         }
+        when ValidateTrainingRunConfiguration {
+          trainingRunConfigurationId = "cfg-1"
+        }
+        then TrainingRunConfigurationValidated
       }
 
-      state Validated
-    }
-
-    slice LockTrainingRunConfiguration {
-      reactsTo TrainingJobSubmitted
-
-      policy LockConfigurationWhenTrainingSubmitted {
-        on TrainingJobSubmitted
-        issue LockTrainingRunConfiguration
-      }
-
-      command LockTrainingRunConfiguration {
-        trainingRunConfigurationId: UUID id technical
-        trainingJobId: UUID
-        lockedBy: String
-      }
-
-      event TrainingRunConfigurationLocked {
-        trainingRunConfigurationId: UUID id technical
-        trainingJobId: UUID
-        lockedBy: String
-      }
-
-      state Locked
-    }
-
-    slice TrainingRunConfigurationCatalog {
-      projection TrainingRunConfigurationCatalog[] {
-        trainingRunConfigurationId: UUID id
-        federationId: UUID
-        featureSchemaId: UUID
-        strategyName: String
-        aggregationAlgorithm: String
-        maxRounds: Int
-        minimumNodesPerRound: Int
-        secureAggregationRequired: Boolean
-        differentialPrivacyEnabled: Boolean
-        minimumAccuracy: Decimal
-        state: String
-        subscribe TrainingRunConfigurationDefined
-        subscribe TrainingRunConfigurationValidated
-        subscribe TrainingRunConfigurationLocked
+      scenario "Reject Empty Round Budget" {
+        given TrainingRunConfigurationDefined {
+          trainingRunConfigurationId = "cfg-2"
+          maxRounds = 0
+        }
+        when ValidateTrainingRunConfiguration {
+          trainingRunConfigurationId = "cfg-2"
+        }
+        then reject "Positive Round Budget Required"
       }
     }
   }
 
-  aggregate TrainingJob {
+  slice LockTrainingRunConfiguration {
+    reactsTo TrainingJobSubmitted
+
+    policy LockConfigurationWhenTrainingSubmitted {
+      on TrainingJobSubmitted
+      issue LockTrainingRunConfiguration
+    }
+
+    command LockTrainingRunConfiguration {
+      trainingRunConfigurationId: UUID id technical
+      trainingJobId: UUID
+      lockedBy: String
+    }
+
+    event TrainingRunConfigurationLocked {
+      trainingRunConfigurationId: UUID id technical
+      trainingJobId: UUID
+      lockedBy: String
+    }
+
+    state Locked
+  }
+
+  slice TrainingRunConfigurationCatalog {
+    readmodel TrainingRunConfigurationCatalog[] {
+      trainingRunConfigurationId: UUID id
+      federationId: UUID
+      featureSchemaId: UUID
+      strategyName: String
+      aggregationAlgorithm: String
+      maxRounds: Int
+      minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
+      differentialPrivacyEnabled: Boolean
+      minimumAccuracy: Decimal
+      state: TrainingRunConfiguration.State
+      subscribe TrainingRunConfigurationDefined
+      subscribe TrainingRunConfigurationValidated
+      subscribe TrainingRunConfigurationLocked
+    }
+  }
+
+  concept TrainingRunConfiguration {
+    state Draft
+    state Validated
+    state Locked
+
+    slice DefineTrainingRunConfiguration
+    slice ValidateTrainingRunConfiguration
+    slice LockTrainingRunConfiguration
+    slice TrainingRunConfigurationCatalog
+  }
+
+  slice CreateTrainingJob {
+    startsLifecycle
+    actor ResearchLead
+    ui TrainingJobCreationScreen
+    reactsTo TrainingRunConfigurationValidated
+
+    command CreateTrainingJob {
+      trainingJobId: UUID id generated technical
+      federationId: UUID
+      featureSchemaId: UUID
+      trainingRunConfigurationId: UUID
+      aggregatorDatasetBundleId: UUID
+      aggregatorTrainingDatasetId: UUID
+      aggregatorTrainingDatasetAccessProfileId: UUID
+      aggregatorEvaluationDatasetId: UUID
+      aggregatorEvaluationDatasetAccessProfileId: UUID
+      objective: String
+      targetMetric: String
+    }
+
+    event TrainingJobCreated {
+      trainingJobId: UUID id technical
+      federationId: UUID
+      featureSchemaId: UUID
+      trainingRunConfigurationId: UUID
+      aggregatorDatasetBundleId: UUID
+      aggregatorTrainingDatasetId: UUID
+      aggregatorTrainingDatasetAccessProfileId: UUID
+      aggregatorEvaluationDatasetId: UUID
+      aggregatorEvaluationDatasetAccessProfileId: UUID
+      objective: String
+      targetMetric: String
+    }
+
+    state Draft
+  }
+
+  slice ConfigureTrainingStrategy {
+    actor MLOpsEngineer
+    ui TrainingStrategyScreen
+    reactsTo TrainingJobCreated
+
+    command ConfigureTrainingStrategy {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      strategyName: String
+      maxRounds: Int derived {
+        from TrainingRunConfiguration.maxRounds
+        rule "Copy the locked training run configuration round budget onto the training job strategy."
+      }
+      minimumNodesPerRound: Int derived {
+        from TrainingRunConfiguration.minimumNodesPerRound
+        rule "Copy the configured minimum node quorum onto the training job strategy."
+      }
+      secureAggregationRequired: Boolean derived {
+        from TrainingRunConfiguration.secureAggregationRequired
+        rule "Copy the secure aggregation requirement onto the training job strategy."
+      }
+    }
+
+    event TrainingStrategyConfigured {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      strategyName: String
+      maxRounds: Int
+      minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
+    }
+
+    state StrategyConfigured
+  }
+
+  slice SubmitTrainingJob {
+    actor ResearchLead
+    ui TrainingSubmissionScreen
+    reactsTo TrainingStrategyConfigured
+
+    command SubmitTrainingJob {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+    }
+
+    event TrainingJobSubmitted {
+      trainingJobId: UUID id technical from SubmitTrainingJob.trainingJobId
+      trainingRunConfigurationId: UUID from SubmitTrainingJob.trainingRunConfigurationId
+      minimumNodesPerRound: Int derived {
+        from TrainingJob.trainingStrategy
+        rule "Derive the minimum selected nodes from the configured training strategy."
+      }
+      maxRounds: Int derived {
+        from TrainingRunConfiguration.maxRounds
+        rule "Snapshot the configured round budget when the training job is submitted."
+      }
+      minimumAccuracy: Decimal derived {
+        from TrainingRunConfiguration.minimumAccuracy
+        rule "Snapshot the configured target accuracy when the training job is submitted."
+      }
+    }
+
+    state Submitted
+  }
+
+  slice RequestNodeParticipation {
+    reactsTo TrainingJobSubmitted
+
+    policy RequestEligibleNodes {
+      on TrainingJobSubmitted
+      issue RequestNodeParticipation
+    }
+
+    command RequestNodeParticipation {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      nodeId: UUID
+      participantDatasetBundleId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+    }
+
+    event NodeParticipationRequested {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      nodeId: UUID
+      participantDatasetBundleId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+    }
+
+    state RecruitingNodes
+  }
+
+  slice AcceptNodeParticipation {
+    actor NodeOperator
+    ui NodeParticipationScreen
+    reactsTo NodeParticipationRequested
+
+    command AcceptNodeParticipation {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      nodeId: UUID
+      participantDatasetBundleId: UUID
+      availableGpuCount: Int
+    }
+
+    event NodeReadyForTraining {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      nodeId: UUID
+      participantDatasetBundleId: UUID
+      availableGpuCount: Int
+    }
+  }
+
+  slice TrainingParticipantEligibility {
+    reactsTo TrainingJobSubmitted
+
+    readmodel TrainingParticipantEligibility[] {
+      trainingJobId: UUID id
+      federationId: UUID
+      organizationId: UUID
+      nodeId: UUID
+      participantDatasetBundleId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      trustedNode: Boolean
+      runtimeReadable: Boolean
+      nodeHealthy: Boolean
+      eligible: Boolean
+      eligibilityReason: String?
+      subscribe TrainingJobSubmitted
+      subscribe ParticipantJoined
+      subscribe ParticipantSuspended
+      subscribe ParticipantRemoved
+      subscribe ComputeNodeTrusted
+      subscribe ComputeNodeSuspended
+      subscribe TrainingEvaluationDatasetsDeclared
+      subscribe RuntimeDatasetAccessValidated
+      subscribe RuntimeHeartbeatRecorded
+      subscribe NodeParticipationRequested
+      subscribe NodeReadyForTraining
+    }
+  }
+
+  slice TrackTrainingJobRunning {
+    reactsTo TrainingRoundStarted
+
+    policy MarkTrainingJobRunningWhenRoundStarts {
+      on TrainingRoundStarted
+      issue MarkTrainingJobRunning
+    }
+
+    command MarkTrainingJobRunning {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+    }
+
+    event TrainingJobRunning {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+    }
+
+    state Running
+  }
+
+  slice PauseTrainingJob {
+    actor MLOpsEngineer
+    ui TrainingOperationsScreen
+    reactsTo TrainingJobRunning
+
+    command PauseTrainingJob {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      pauseReason: String
+      requestedBy: String
+    }
+
+    event TrainingJobPaused {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      pauseReason: String
+      requestedBy: String
+    }
+
+    state Paused
+  }
+
+  slice ResumeTrainingJob {
+    actor MLOpsEngineer
+    ui TrainingOperationsScreen
+    reactsTo TrainingJobPaused
+
+    command ResumeTrainingJob {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      resumeReason: String?
+      requestedBy: String
+    }
+
+    event TrainingJobResumed {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      resumeReason: String?
+      requestedBy: String
+    }
+
+    state Running
+  }
+
+  slice CancelTrainingJob {
+    actor MLOpsEngineer
+    ui TrainingOperationsScreen
+
+    command CancelTrainingJob {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      cancelReason: String?
+    }
+
+    event TrainingJobCanceled {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      cancelReason: String?
+    }
+
+    state Canceled
+  }
+
+  slice ScheduleNextTrainingRound {
+    reactsTo TrainingRoundCompleted
+
+    automation StartNextRoundWhenGlobalMetricNotReached {
+      condition globalAccuracy < minimumAccuracy
+      emits StartTrainingRound
+    }
+  }
+
+  slice CompleteTrainingJob {
+    reactsTo TrainingRoundCompleted
+
+    automation CompleteJobWhenRoundBudgetExhausted {
+      condition currentRoundNumber >= maxRounds
+      emits CompleteTrainingJob
+    }
+
+    automation CompleteJobWhenGlobalMetricReached {
+      condition globalAccuracy >= minimumAccuracy
+      emits CompleteTrainingJob
+    }
+
+    command CompleteTrainingJob {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      finalRoundId: UUID
+      finalModelVersionId: UUID
+      stopReason: String
+    }
+
+    event TrainingJobCompleted {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      finalRoundId: UUID
+      finalModelVersionId: UUID
+      stopReason: String
+    }
+
+    state Completed
+  }
+
+  slice TrainingJobDashboard {
+    readmodel TrainingJobDashboard[] {
+      trainingJobId: UUID id
+      federationId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      objective: String
+      targetMetric: String
+      state: TrainingJob.State
+      currentRoundNumber: Int
+      readyNodeCount: Int
+      minimumNodesPerRound: Int
+      maxRounds: Int
+      globalAccuracy: Decimal?
+      finalModelVersionId: UUID?
+      stopReason: String?
+      subscribe TrainingJobCreated
+      subscribe TrainingStrategyConfigured
+      subscribe TrainingJobSubmitted
+      subscribe NodeParticipationRequested
+      subscribe NodeReadyForTraining
+      subscribe TrainingJobRunning
+      subscribe TrainingJobPaused
+      subscribe TrainingJobResumed
+      subscribe TrainingJobCanceled
+      subscribe TrainingRoundStarted
+      subscribe TrainingRoundCompleted
+      subscribe TrainingJobCompleted
+    }
+  }
+
+  concept TrainingJob {
     state Draft
     state StrategyConfigured
     state Submitted
@@ -1028,1025 +1788,977 @@ context TrainingOrchestration {
     state Canceled
     state Completed
 
-    slice CreateTrainingJob {
-      startsLifecycle
-      actor ResearchLead
-      ui TrainingJobCreationScreen
-      reactsTo TrainingRunConfigurationValidated
+    slice CreateTrainingJob
+    slice ConfigureTrainingStrategy
+    slice SubmitTrainingJob
+    slice RequestNodeParticipation
+    slice AcceptNodeParticipation
+    slice TrainingParticipantEligibility
+    slice TrackTrainingJobRunning
+    slice PauseTrainingJob
+    slice ResumeTrainingJob
+    slice CancelTrainingJob
+    slice ScheduleNextTrainingRound
+    slice CompleteTrainingJob
+    slice TrainingJobDashboard
+  }
 
-      command CreateTrainingJob {
-        trainingJobId: UUID id generated technical
-        federationId: UUID
-        featureSchemaId: UUID
-        trainingRunConfigurationId: UUID
-        aggregatorDatasetBundleId: UUID
-        aggregatorTrainingDatasetId: UUID
-        aggregatorTrainingDatasetAccessProfileId: UUID
-        aggregatorEvaluationDatasetId: UUID
-        aggregatorEvaluationDatasetAccessProfileId: UUID
-        objective: String
-        targetMetric: String
-      }
+  slice StartTrainingRound {
+    startsLifecycle
+    reactsTo NodeReadyForTraining
 
-      event TrainingJobCreated {
-        trainingJobId: UUID id technical
-        federationId: UUID
-        featureSchemaId: UUID
-        trainingRunConfigurationId: UUID
-        aggregatorDatasetBundleId: UUID
-        aggregatorTrainingDatasetId: UUID
-        aggregatorTrainingDatasetAccessProfileId: UUID
-        aggregatorEvaluationDatasetId: UUID
-        aggregatorEvaluationDatasetAccessProfileId: UUID
-        objective: String
-        targetMetric: String
-      }
-
-      state Draft
+    automation StartRoundWhenEnoughNodesReady {
+      condition readyNodeCount >= 3
+      emits StartTrainingRound
     }
 
-    slice ConfigureTrainingStrategy {
-      actor MLOpsEngineer
-      ui TrainingStrategyScreen
-      reactsTo TrainingJobCreated
+    command StartTrainingRound {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID generated technical
+      roundNumber: Int
+      readyNodeCount: Int
+    }
 
-      command ConfigureTrainingStrategy {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        strategyName: String
-        maxRounds: Int derived {
-          from TrainingRunConfiguration.maxRounds
-          rule "Copy the locked training run configuration round budget onto the training job strategy."
+    event TrainingRoundStarted {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+      readyNodeCount: Int
+    }
+
+    state Running
+  }
+
+  slice DistributeGlobalModel {
+    reactsTo TrainingRoundStarted
+
+    policy RequestDistributeGlobalModel {
+      on TrainingRoundStarted
+      issue DistributeGlobalModel
+    }
+
+    command DistributeGlobalModel {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      modelVersionId: UUID
+      targetNodeCount: Int
+    }
+
+    event GlobalModelDistributed {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      modelVersionId: UUID
+      targetNodeCount: Int
+    }
+
+    state CollectingUpdates
+  }
+
+  slice SubmitLocalModelUpdate {
+    actor EdgeRuntime
+    reactsTo GlobalModelDistributed
+
+    command SubmitLocalModelUpdate {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      localModelVersionId: UUID
+      updateArtifactId: UUID
+      trainingLoss: Decimal
+    }
+
+    event LocalModelUpdateSubmitted {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      localModelVersionId: UUID
+      updateArtifactId: UUID
+      trainingLoss: Decimal
+    }
+  }
+
+  slice RejectPoisonedLocalUpdate {
+    actor AggregationRuntime
+    reactsTo LocalModelUpdateSubmitted
+
+    command RejectPoisonedLocalUpdate {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      updateArtifactId: UUID
+      anomalyScore: Decimal
+      rejectionReason: String
+    }
+
+    event LocalModelUpdateRejected {
+      trainingJobId: UUID id technical from RejectPoisonedLocalUpdate.trainingJobId
+      trainingRunConfigurationId: UUID from RejectPoisonedLocalUpdate.trainingRunConfigurationId
+      roundId: UUID from RejectPoisonedLocalUpdate.roundId
+      nodeId: UUID from RejectPoisonedLocalUpdate.nodeId
+      updateArtifactId: UUID from RejectPoisonedLocalUpdate.updateArtifactId
+      anomalyScore: Decimal from RejectPoisonedLocalUpdate.anomalyScore
+      rejectionReason: String from RejectPoisonedLocalUpdate.rejectionReason
+    }
+
+    specification "Poisoned Local Updates Are Excluded" {
+      rule """
+        A local model update with an anomaly score above the configured policy threshold must be rejected and excluded from secure aggregation quorum counts.
+      """
+
+      scenario "Reject Anomalous Update" {
+        given LocalModelUpdateSubmitted {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+          nodeId = "node-1"
+          updateArtifactId = "artifact-1"
+          trainingLoss = 99.0
         }
-        minimumNodesPerRound: Int derived {
-          from TrainingRunConfiguration.minimumNodesPerRound
-          rule "Copy the configured minimum node quorum onto the training job strategy."
+        when RejectPoisonedLocalUpdate {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+          nodeId = "node-1"
+          anomalyScore = 0.98
         }
-        secureAggregationRequired: Boolean derived {
-          from TrainingRunConfiguration.secureAggregationRequired
-          rule "Copy the secure aggregation requirement onto the training job strategy."
-        }
-      }
-
-      event TrainingStrategyConfigured {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        strategyName: String
-        maxRounds: Int
-        minimumNodesPerRound: Int
-        secureAggregationRequired: Boolean
-      }
-
-      state StrategyConfigured
-    }
-
-    slice SubmitTrainingJob {
-      actor ResearchLead
-      ui TrainingSubmissionScreen
-      reactsTo TrainingStrategyConfigured
-
-      command SubmitTrainingJob {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-      }
-
-      event TrainingJobSubmitted {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        minimumNodesPerRound: Int derived {
-          from TrainingJob.trainingStrategy
-          rule "Derive the minimum selected nodes from the configured training strategy."
-        }
-        maxRounds: Int derived {
-          from TrainingRunConfiguration.maxRounds
-          rule "Snapshot the configured round budget when the training job is submitted."
-        }
-        minimumAccuracy: Decimal derived {
-          from TrainingRunConfiguration.minimumAccuracy
-          rule "Snapshot the configured target accuracy when the training job is submitted."
-        }
-      }
-
-      state Submitted
-    }
-
-    slice RequestNodeParticipation {
-      reactsTo TrainingJobSubmitted
-
-      policy RequestEligibleNodes {
-        on TrainingJobSubmitted
-        issue RequestNodeParticipation
-      }
-
-      command RequestNodeParticipation {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        nodeId: UUID
-        participantDatasetBundleId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetAccessProfileId: UUID
-      }
-
-      event NodeParticipationRequested {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        nodeId: UUID
-        participantDatasetBundleId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetAccessProfileId: UUID
-      }
-
-      state RecruitingNodes
-    }
-
-    slice AcceptNodeParticipation {
-      actor NodeOperator
-      ui NodeParticipationScreen
-      reactsTo NodeParticipationRequested
-
-      command AcceptNodeParticipation {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        nodeId: UUID
-        participantDatasetBundleId: UUID
-        availableGpuCount: Int
-      }
-
-      event NodeReadyForTraining {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        nodeId: UUID
-        participantDatasetBundleId: UUID
-        availableGpuCount: Int
-      }
-    }
-
-    slice TrainingParticipantEligibility {
-      reactsTo TrainingJobSubmitted
-
-      projection TrainingParticipantEligibility[] {
-        trainingJobId: UUID id
-        federationId: UUID
-        organizationId: UUID
-        nodeId: UUID
-        participantDatasetBundleId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        trustedNode: Boolean
-        runtimeReadable: Boolean
-        nodeHealthy: Boolean
-        eligible: Boolean
-        eligibilityReason: String?
-        subscribe TrainingJobSubmitted
-        subscribe ParticipantJoined
-        subscribe ParticipantSuspended
-        subscribe ParticipantRemoved
-        subscribe ComputeNodeTrusted
-        subscribe ComputeNodeSuspended
-        subscribe TrainingEvaluationDatasetsDeclared
-        subscribe RuntimeDatasetAccessValidated
-        subscribe RuntimeHeartbeatRecorded
-        subscribe NodeParticipationRequested
-        subscribe NodeReadyForTraining
-      }
-    }
-    slice TrackTrainingJobRunning {
-      reactsTo TrainingRoundStarted
-
-      policy MarkTrainingJobRunningWhenRoundStarts {
-        on TrainingRoundStarted
-        issue MarkTrainingJobRunning
-      }
-
-      command MarkTrainingJobRunning {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        roundNumber: Int
-      }
-
-      event TrainingJobRunning {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        roundNumber: Int
-      }
-
-      state Running
-    }
-
-    slice PauseTrainingJob {
-      actor MLOpsEngineer
-      ui TrainingOperationsScreen
-      reactsTo TrainingJobRunning
-
-      command PauseTrainingJob {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        pauseReason: String
-        requestedBy: String
-      }
-
-      event TrainingJobPaused {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        pauseReason: String
-        requestedBy: String
-      }
-
-      state Paused
-    }
-
-    slice ResumeTrainingJob {
-      actor MLOpsEngineer
-      ui TrainingOperationsScreen
-      reactsTo TrainingJobPaused
-
-      command ResumeTrainingJob {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        resumeReason: String?
-        requestedBy: String
-      }
-
-      event TrainingJobResumed {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        resumeReason: String?
-        requestedBy: String
-      }
-
-      state Running
-    }
-
-    slice CancelTrainingJob {
-      actor MLOpsEngineer
-      ui TrainingOperationsScreen
-
-      command CancelTrainingJob {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        cancelReason: String?
-      }
-
-      event TrainingJobCanceled {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        cancelReason: String?
-      }
-
-      state Canceled
-    }
-
-    slice ScheduleNextTrainingRound {
-      reactsTo TrainingRoundCompleted
-
-      automation StartNextRoundWhenGlobalMetricNotReached {
-        condition globalAccuracy < minimumAccuracy
-        emits StartTrainingRound
-      }
-    }
-
-    slice CompleteTrainingJob {
-      reactsTo TrainingRoundCompleted
-
-      automation CompleteJobWhenRoundBudgetExhausted {
-        condition currentRoundNumber >= maxRounds
-        emits CompleteTrainingJob
-      }
-
-      automation CompleteJobWhenGlobalMetricReached {
-        condition globalAccuracy >= minimumAccuracy
-        emits CompleteTrainingJob
-      }
-
-      command CompleteTrainingJob {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        finalRoundId: UUID
-        finalModelVersionId: UUID
-        stopReason: String
-      }
-
-      event TrainingJobCompleted {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        finalRoundId: UUID
-        finalModelVersionId: UUID
-        stopReason: String
-      }
-
-      state Completed
-    }
-
-    slice TrainingJobDashboard {
-      projection TrainingJobDashboard[] {
-        trainingJobId: UUID id
-        federationId: UUID
-        trainingRunConfigurationId: UUID
-        featureSchemaId: UUID
-        objective: String
-        targetMetric: String
-        state: String
-        currentRoundNumber: Int
-        readyNodeCount: Int
-        minimumNodesPerRound: Int
-        maxRounds: Int
-        globalAccuracy: Decimal?
-        finalModelVersionId: UUID?
-        stopReason: String?
-        subscribe TrainingJobCreated
-        subscribe TrainingStrategyConfigured
-        subscribe TrainingJobSubmitted
-        subscribe NodeParticipationRequested
-        subscribe NodeReadyForTraining
-        subscribe TrainingJobRunning
-        subscribe TrainingJobPaused
-        subscribe TrainingJobResumed
-        subscribe TrainingJobCanceled
-        subscribe TrainingRoundStarted
-        subscribe TrainingRoundCompleted
-        subscribe TrainingJobCompleted
+        then LocalModelUpdateRejected
       }
     }
   }
 
-  aggregate TrainingRound {
+  slice SubmitLocalModelEvaluation {
+    reactsTo LocalModelUpdateSubmitted
+
+    command SubmitLocalModelEvaluation {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      localModelVersionId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      localAccuracy: Decimal
+      localFairnessScore: Decimal
+    }
+
+    event LocalModelEvaluationSubmitted {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      localModelVersionId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      localAccuracy: Decimal
+      localFairnessScore: Decimal
+    }
+  }
+
+  slice RequestSecureAggregation {
+    reactsTo LocalModelEvaluationSubmitted
+
+    automation RequestAggregationWhenEvaluatedUpdatesComplete {
+      condition evaluatedUpdateCount >= 3
+      emits RequestSecureAggregation
+    }
+
+    command RequestSecureAggregation {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      evaluatedUpdateCount: Int
+      aggregationProvider: String
+    }
+
+    event SecureAggregationRequested {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      evaluatedUpdateCount: Int
+      aggregationProvider: String
+    }
+
+    state Aggregating
+  }
+
+  slice CompleteSecureAggregation {
+    command CompleteSecureAggregation {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      requestId: UUID
+      aggregatedModelVersionId: UUID
+    }
+
+    event GlobalModelUpdated {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      requestId: UUID
+      aggregatedModelVersionId: UUID
+    }
+
+    state EvaluatingGlobalModel
+  }
+
+  slice SubmitGlobalModelEvaluation {
+    reactsTo GlobalModelUpdated
+
+    command SubmitGlobalModelEvaluation {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      aggregatedModelVersionId: UUID
+      aggregatorEvaluationDatasetAccessProfileId: UUID
+      globalAccuracy: Decimal
+      globalFairnessScore: Decimal
+    }
+
+    event GlobalModelEvaluationSubmitted {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      aggregatedModelVersionId: UUID
+      aggregatorEvaluationDatasetAccessProfileId: UUID
+      globalAccuracy: Decimal
+      globalFairnessScore: Decimal
+    }
+  }
+
+  slice CompleteTrainingRound {
+    reactsTo GlobalModelEvaluationSubmitted
+
+    policy FinishRoundAfterGlobalModelEvaluated {
+      on GlobalModelEvaluationSubmitted
+      issue CompleteTrainingRound
+    }
+
+    command CompleteTrainingRound {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      aggregatedModelVersionId: UUID
+      globalAccuracy: Decimal
+    }
+
+    event TrainingRoundCompleted {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      aggregatedModelVersionId: UUID
+      globalAccuracy: Decimal
+    }
+
+    state Completed
+  }
+
+  slice FailTrainingRoundOnQuorumLoss {
+    actor AggregationRuntime
+    reactsTo LocalModelUpdateRejected
+
+    command FailTrainingRoundOnQuorumLoss {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      readyNodeCount: Int
+      minimumNodesPerRound: Int
+      failureReason: String
+    }
+
+    event TrainingRoundFailed {
+      trainingJobId: UUID id technical from FailTrainingRoundOnQuorumLoss.trainingJobId
+      trainingRunConfigurationId: UUID from FailTrainingRoundOnQuorumLoss.trainingRunConfigurationId
+      roundId: UUID from FailTrainingRoundOnQuorumLoss.roundId
+      readyNodeCount: Int from FailTrainingRoundOnQuorumLoss.readyNodeCount
+      minimumNodesPerRound: Int from FailTrainingRoundOnQuorumLoss.minimumNodesPerRound
+      failureReason: String from FailTrainingRoundOnQuorumLoss.failureReason
+    }
+
+    state Failed
+  }
+
+  slice TrainingRoundProgress {
+    readmodel TrainingRoundProgress[] {
+      trainingJobId: UUID id
+      trainingRunConfigurationId: UUID
+      roundId: UUID id
+      roundNumber: Int
+      state: TrainingRound.State
+      readyNodeCount: Int
+      targetNodeCount: Int
+      submittedUpdateCount: Int
+      evaluatedUpdateCount: Int
+      aggregationProvider: String?
+      aggregatedModelVersionId: UUID?
+      globalAccuracy: Decimal?
+      globalFairnessScore: Decimal?
+      subscribe TrainingRoundStarted
+      subscribe GlobalModelDistributed
+      subscribe LocalModelUpdateSubmitted
+      subscribe LocalModelEvaluationSubmitted
+      subscribe LocalModelUpdateRejected
+      subscribe SecureAggregationRequested
+      subscribe GlobalModelUpdated
+      subscribe GlobalModelEvaluationSubmitted
+      subscribe TrainingRoundCompleted
+      subscribe TrainingRoundFailed
+    }
+  }
+
+  concept TrainingRound {
     state Running
     state CollectingUpdates
     state Aggregating
     state EvaluatingGlobalModel
     state Completed
+    state Failed
 
-    slice StartTrainingRound {
-      startsLifecycle
-      reactsTo NodeReadyForTraining
-
-      automation StartRoundWhenEnoughNodesReady {
-        condition readyNodeCount >= 3
-        emits StartTrainingRound
-      }
-
-      command StartTrainingRound {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID generated technical
-        roundNumber: Int
-        readyNodeCount: Int
-      }
-
-      event TrainingRoundStarted {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        roundNumber: Int
-        readyNodeCount: Int
-      }
-
-      state Running
-    }
-
-    slice DistributeGlobalModel {
-      reactsTo TrainingRoundStarted
-
-      policy RequestDistributeGlobalModel {
-        on TrainingRoundStarted
-        issue DistributeGlobalModel
-      }
-
-      command DistributeGlobalModel {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        modelVersionId: UUID
-        targetNodeCount: Int
-      }
-
-      event GlobalModelDistributed {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        modelVersionId: UUID
-        targetNodeCount: Int
-      }
-
-      state CollectingUpdates
-    }
-
-    slice SubmitLocalModelUpdate {
-      actor EdgeRuntime
-      reactsTo GlobalModelDistributed
-
-      command SubmitLocalModelUpdate {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        nodeId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        localModelVersionId: UUID
-        updateArtifactId: UUID
-        trainingLoss: Decimal
-      }
-
-      event LocalModelUpdateSubmitted {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        nodeId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        localModelVersionId: UUID
-        updateArtifactId: UUID
-        trainingLoss: Decimal
-      }
-    }
-
-    slice SubmitLocalModelEvaluation {
-      reactsTo LocalModelUpdateSubmitted
-
-      command SubmitLocalModelEvaluation {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        nodeId: UUID
-        localModelVersionId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        localAccuracy: Decimal
-        localFairnessScore: Decimal
-      }
-
-      event LocalModelEvaluationSubmitted {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        nodeId: UUID
-        localModelVersionId: UUID
-        evaluationDatasetAccessProfileId: UUID
-        localAccuracy: Decimal
-        localFairnessScore: Decimal
-      }
-    }
-
-    slice RequestSecureAggregation {
-      reactsTo LocalModelEvaluationSubmitted
-
-      automation RequestAggregationWhenEvaluatedUpdatesComplete {
-        condition evaluatedUpdateCount >= 3
-        emits RequestSecureAggregation
-      }
-
-      command RequestSecureAggregation {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        evaluatedUpdateCount: Int
-        aggregationProvider: String
-      }
-
-      event SecureAggregationRequested {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        evaluatedUpdateCount: Int
-        aggregationProvider: String
-      }
-
-      state Aggregating
-    }
-
-    slice CompleteSecureAggregation {
-      command CompleteSecureAggregation {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        requestId: UUID
-        aggregatedModelVersionId: UUID
-      }
-
-      event GlobalModelUpdated {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        requestId: UUID
-        aggregatedModelVersionId: UUID
-      }
-
-      state EvaluatingGlobalModel
-    }
-
-    slice SubmitGlobalModelEvaluation {
-      reactsTo GlobalModelUpdated
-
-      command SubmitGlobalModelEvaluation {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        aggregatedModelVersionId: UUID
-        aggregatorEvaluationDatasetAccessProfileId: UUID
-        globalAccuracy: Decimal
-        globalFairnessScore: Decimal
-      }
-
-      event GlobalModelEvaluationSubmitted {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        aggregatedModelVersionId: UUID
-        aggregatorEvaluationDatasetAccessProfileId: UUID
-        globalAccuracy: Decimal
-        globalFairnessScore: Decimal
-      }
-    }
-
-    slice CompleteTrainingRound {
-      reactsTo GlobalModelEvaluationSubmitted
-
-      policy FinishRoundAfterGlobalModelEvaluated {
-        on GlobalModelEvaluationSubmitted
-        issue CompleteTrainingRound
-      }
-
-      command CompleteTrainingRound {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        aggregatedModelVersionId: UUID
-        globalAccuracy: Decimal
-      }
-
-      event TrainingRoundCompleted {
-        trainingJobId: UUID id technical
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        aggregatedModelVersionId: UUID
-        globalAccuracy: Decimal
-      }
-
-      state Completed
-    }
-
-    slice TrainingRoundProgress {
-      projection TrainingRoundProgress[] {
-        trainingJobId: UUID id
-        trainingRunConfigurationId: UUID
-        roundId: UUID id
-        roundNumber: Int
-        state: String
-        readyNodeCount: Int
-        targetNodeCount: Int
-        submittedUpdateCount: Int
-        evaluatedUpdateCount: Int
-        aggregationProvider: String?
-        aggregatedModelVersionId: UUID?
-        globalAccuracy: Decimal?
-        globalFairnessScore: Decimal?
-        subscribe TrainingRoundStarted
-        subscribe GlobalModelDistributed
-        subscribe LocalModelUpdateSubmitted
-        subscribe LocalModelEvaluationSubmitted
-        subscribe SecureAggregationRequested
-        subscribe GlobalModelUpdated
-        subscribe GlobalModelEvaluationSubmitted
-        subscribe TrainingRoundCompleted
-      }
-    }
+    slice StartTrainingRound
+    slice DistributeGlobalModel
+    slice SubmitLocalModelUpdate
+    slice RejectPoisonedLocalUpdate
+    slice SubmitLocalModelEvaluation
+    slice RequestSecureAggregation
+    slice CompleteSecureAggregation
+    slice SubmitGlobalModelEvaluation
+    slice CompleteTrainingRound
+    slice FailTrainingRoundOnQuorumLoss
+    slice TrainingRoundProgress
   }
 }
 
 context ModelLifecycle {
   note "Model lifecycle starts after training has produced a final evaluated candidate."
 
-  aggregate ModelVersion {
+  risk "A model can be promoted without a reproducibility package, model card, or approved evaluation report."
+  risk "Rollback decisions may lose lineage if previous production versions are not captured."
+  metric modelApprovalLeadTime
+  metric productionRollbackRate
+
+  slice RegisterCandidateModel {
+    startsLifecycle
+    reactsTo TrainingJobCompleted
+
+    policy RegisterFinalModelWhenTrainingJobCompleted {
+      on TrainingJobCompleted
+      issue RegisterCandidateModel
+    }
+
+    command RegisterCandidateModel {
+      modelVersionId: UUID id technical
+      trainingJobId: UUID
+      finalRoundId: UUID
+      modelArtifactId: UUID
+      modelHash: String
+      evaluationReportId: UUID
+      lineageRef: String
+      finalGlobalAccuracy: Decimal
+    }
+
+    event ModelCandidateRegistered {
+      modelVersionId: UUID id technical
+      trainingJobId: UUID
+      finalRoundId: UUID
+      modelArtifactId: UUID
+      modelHash: String
+      evaluationReportId: UUID
+      lineageRef: String
+      finalGlobalAccuracy: Decimal
+    }
+
     state Candidate
+  }
+
+  slice RecordModelEvaluationPackage {
+    actor GovernanceReviewer
+    ui ModelApprovalScreen
+    reactsTo ModelEvaluationPackageRecorded
+
+    command RecordModelEvaluationPackage {
+      modelVersionId: UUID id technical
+      trainingJobId: UUID
+      evaluationReportId: UUID
+      experimentId: UUID
+      hyperparameterSnapshotId: UUID
+      reproducibilityManifestId: UUID
+      modelCardId: UUID
+      baselineModelVersionId: UUID?
+    }
+
+    event ModelEvaluationPackageRecorded {
+      modelVersionId: UUID id technical from RecordModelEvaluationPackage.modelVersionId
+      trainingJobId: UUID from RecordModelEvaluationPackage.trainingJobId
+      evaluationReportId: UUID from RecordModelEvaluationPackage.evaluationReportId
+      experimentId: UUID from RecordModelEvaluationPackage.experimentId
+      hyperparameterSnapshotId: UUID from RecordModelEvaluationPackage.hyperparameterSnapshotId
+      reproducibilityManifestId: UUID from RecordModelEvaluationPackage.reproducibilityManifestId
+      modelCardId: UUID from RecordModelEvaluationPackage.modelCardId
+      baselineModelVersionId: UUID? from RecordModelEvaluationPackage.baselineModelVersionId
+    }
+
+    state EvaluationPackaged
+
+    specification "Model Approval Requires Evaluation Package" {
+      rule """
+        A model candidate must have an evaluation report, reproducibility manifest, hyperparameter snapshot, and model card before governance approval.
+      """
+
+      scenario "Record Complete Evaluation Package" {
+        given ModelCandidateRegistered {
+          modelVersionId = "model-1"
+          evaluationReportId = "report-1"
+        }
+        when RecordModelEvaluationPackage {
+          modelVersionId = "model-1"
+          reproducibilityManifestId = "manifest-1"
+          modelCardId = "card-1"
+        }
+        then ModelEvaluationPackageRecorded
+      }
+    }
+  }
+
+  slice ApproveModel {
+    actor GovernanceReviewer
+    ui ModelApprovalScreen
+    reactsTo ModelCandidateRegistered
+
+    command ApproveModel {
+      modelVersionId: UUID id technical
+      approvalNote: String?
+    }
+
+    event ModelApproved {
+      modelVersionId: UUID id technical
+      approvalNote: String?
+    }
+
+    state Approved
+  }
+
+  slice PromoteModelToProduction {
+    actor ReleaseManager
+    ui ModelReleaseScreen
+    reactsTo ModelApproved
+
+    command PromoteModelToProduction {
+      modelVersionId: UUID id technical
+      releaseChannel: String
+      deploymentTarget: String
+    }
+
+    event ModelPromotedToProduction {
+      modelVersionId: UUID id technical
+      releaseChannel: String
+      deploymentTarget: String
+    }
+
+    state Production
+  }
+
+  slice RollbackModelVersion {
+    actor ReleaseManager
+    ui ModelReleaseScreen
+    reactsTo ModelPromotedToProduction
+
+    command RollbackModelVersion {
+      modelVersionId: UUID id technical
+      previousModelVersionId: UUID
+      rollbackReason: String
+      requestedBy: String
+    }
+
+    event ModelVersionRolledBack {
+      modelVersionId: UUID id technical
+      previousModelVersionId: UUID
+      rollbackReason: String
+      requestedBy: String
+    }
+
+    state RolledBack
+  }
+
+  slice RetireModelVersion {
+    actor ReleaseManager
+    ui ModelReleaseScreen
+    reactsTo ModelPromotedToProduction
+
+    command RetireModelVersion {
+      modelVersionId: UUID id technical
+      retirementReason: String
+      requestedBy: String
+    }
+
+    event ModelVersionRetired {
+      modelVersionId: UUID id technical
+      retirementReason: String
+      requestedBy: String
+    }
+
+    state Retired
+  }
+
+  slice ModelVersionCatalog {
+    readmodel ModelVersionCatalog[] {
+      modelVersionId: UUID id
+      trainingJobId: UUID
+      finalRoundId: UUID
+      modelArtifactId: UUID
+      modelHash: String
+      evaluationReportId: UUID
+      lineageRef: String
+      finalGlobalAccuracy: Decimal
+      state: ModelVersion.State
+      releaseChannel: String?
+      deploymentTarget: String?
+      previousModelVersionId: UUID?
+      experimentId: UUID?
+      hyperparameterSnapshotId: UUID?
+      reproducibilityManifestId: UUID?
+      modelCardId: UUID?
+      baselineModelVersionId: UUID?
+      subscribe ModelCandidateRegistered
+      subscribe ModelEvaluationPackageRecorded
+      subscribe ModelApproved
+      subscribe ModelPromotedToProduction
+      subscribe ModelVersionRolledBack
+      subscribe ModelVersionRetired
+    }
+  }
+
+  concept ModelVersion {
+    state Candidate
+    state EvaluationPackaged
     state Approved
     state Production
     state RolledBack
     state Retired
 
-    slice RegisterCandidateModel {
-      startsLifecycle
-      reactsTo TrainingJobCompleted
-
-      policy RegisterFinalModelWhenTrainingJobCompleted {
-        on TrainingJobCompleted
-        issue RegisterCandidateModel
-      }
-
-      command RegisterCandidateModel {
-        modelVersionId: UUID id technical
-        trainingJobId: UUID
-        finalRoundId: UUID
-        modelArtifactId: UUID
-        modelHash: String
-        evaluationReportId: UUID
-        lineageRef: String
-        finalGlobalAccuracy: Decimal
-      }
-
-      event ModelCandidateRegistered {
-        modelVersionId: UUID id technical
-        trainingJobId: UUID
-        finalRoundId: UUID
-        modelArtifactId: UUID
-        modelHash: String
-        evaluationReportId: UUID
-        lineageRef: String
-        finalGlobalAccuracy: Decimal
-      }
-
-      state Candidate
-    }
-
-    slice ApproveModel {
-      actor GovernanceReviewer
-      ui ModelApprovalScreen
-      reactsTo ModelCandidateRegistered
-
-      command ApproveModel {
-        modelVersionId: UUID id technical
-        approvalNote: String?
-      }
-
-      event ModelApproved {
-        modelVersionId: UUID id technical
-        approvalNote: String?
-      }
-
-      state Approved
-    }
-
-    slice PromoteModelToProduction {
-      actor ReleaseManager
-      ui ModelReleaseScreen
-      reactsTo ModelApproved
-
-      command PromoteModelToProduction {
-        modelVersionId: UUID id technical
-        releaseChannel: String
-        deploymentTarget: String
-      }
-
-      event ModelPromotedToProduction {
-        modelVersionId: UUID id technical
-        releaseChannel: String
-        deploymentTarget: String
-      }
-
-      state Production
-    }
-
-    slice RollbackModelVersion {
-      actor ReleaseManager
-      ui ModelReleaseScreen
-      reactsTo ModelPromotedToProduction
-
-      command RollbackModelVersion {
-        modelVersionId: UUID id technical
-        previousModelVersionId: UUID
-        rollbackReason: String
-        requestedBy: String
-      }
-
-      event ModelVersionRolledBack {
-        modelVersionId: UUID id technical
-        previousModelVersionId: UUID
-        rollbackReason: String
-        requestedBy: String
-      }
-
-      state RolledBack
-    }
-
-    slice RetireModelVersion {
-      actor ReleaseManager
-      ui ModelReleaseScreen
-      reactsTo ModelPromotedToProduction
-
-      command RetireModelVersion {
-        modelVersionId: UUID id technical
-        retirementReason: String
-        requestedBy: String
-      }
-
-      event ModelVersionRetired {
-        modelVersionId: UUID id technical
-        retirementReason: String
-        requestedBy: String
-      }
-
-      state Retired
-    }
-
-    slice ModelVersionCatalog {
-      projection ModelVersionCatalog[] {
-        modelVersionId: UUID id
-        trainingJobId: UUID
-        finalRoundId: UUID
-        modelArtifactId: UUID
-        modelHash: String
-        evaluationReportId: UUID
-        lineageRef: String
-        finalGlobalAccuracy: Decimal
-        state: String
-        releaseChannel: String?
-        deploymentTarget: String?
-        previousModelVersionId: UUID?
-        subscribe ModelCandidateRegistered
-        subscribe ModelApproved
-        subscribe ModelPromotedToProduction
-        subscribe ModelVersionRolledBack
-        subscribe ModelVersionRetired
-      }
-    }
+    slice RegisterCandidateModel
+    slice RecordModelEvaluationPackage
+    slice ApproveModel
+    slice PromoteModelToProduction
+    slice RollbackModelVersion
+    slice RetireModelVersion
+    slice ModelVersionCatalog
   }
 }
 
 context RuntimeOperations {
   note "Runtime operations separates heartbeat monitoring, training alerts, and append only audit records."
 
-  aggregate NodeRuntimeHealth {
+  risk "Operational alerts without acknowledgement or resolution tracking can hide node degradation during training."
+  risk "Audit records without payload hashes and source event classification weaken compliance evidence."
+  metric runtimeAlertMeanTimeToAcknowledge
+  metric auditTrailCompleteness
+
+  slice RecordRuntimeHeartbeat {
+    startsLifecycle
+    actor EdgeRuntime
+    ui RuntimeMonitorScreen
+
+    command RecordRuntimeHeartbeat {
+      nodeId: UUID id technical
+      federationId: UUID
+      cpuLoad: Decimal
+      gpuLoad: Decimal
+      memoryLoad: Decimal
+    }
+
+    event RuntimeHeartbeatRecorded {
+      nodeId: UUID id technical
+      federationId: UUID
+      cpuLoad: Decimal
+      gpuLoad: Decimal
+      memoryLoad: Decimal
+    }
+
+    state Healthy
+  }
+
+  slice RuntimeHealthDashboard {
+    readmodel RuntimeHealthDashboard[] {
+      nodeId: UUID id
+      federationId: UUID
+      cpuLoad: Decimal
+      gpuLoad: Decimal
+      memoryLoad: Decimal
+      healthStatus: String
+      lastHeartbeatAt: DateTime
+      subscribe RuntimeHeartbeatRecorded
+      subscribe TrainingAlertRaised
+    }
+  }
+
+  concept NodeRuntimeHealth {
     state Healthy
 
-    slice RecordRuntimeHeartbeat {
-      startsLifecycle
-      actor EdgeRuntime
-      ui RuntimeMonitorScreen
+    slice RecordRuntimeHeartbeat
+    slice RuntimeHealthDashboard
+  }
 
-      command RecordRuntimeHeartbeat {
-        nodeId: UUID id technical
-        federationId: UUID
-        cpuLoad: Decimal
-        gpuLoad: Decimal
-        memoryLoad: Decimal
-      }
+  slice RaiseTrainingAlert {
+    startsLifecycle
+    reactsTo RuntimeHeartbeatRecorded
 
-      event RuntimeHeartbeatRecorded {
-        nodeId: UUID id technical
-        federationId: UUID
-        cpuLoad: Decimal
-        gpuLoad: Decimal
-        memoryLoad: Decimal
-      }
-
-      state Healthy
+    automation RaiseAlertOnNodeResourcePressure {
+      condition gpuLoad > 95
+      emits RaiseTrainingAlert
     }
 
-    slice RuntimeHealthDashboard {
-      projection RuntimeHealthDashboard[] {
-        nodeId: UUID id
-        federationId: UUID
-        cpuLoad: Decimal
-        gpuLoad: Decimal
-        memoryLoad: Decimal
-        healthStatus: String
-        lastHeartbeatAt: DateTime
-        subscribe RuntimeHeartbeatRecorded
-        subscribe TrainingAlertRaised
-      }
+    command RaiseTrainingAlert {
+      alertId: UUID id generated technical
+      nodeId: UUID
+      trainingJobId: UUID?
+      severity: String
+      message: String
+    }
+
+    event TrainingAlertRaised {
+      alertId: UUID id technical
+      nodeId: UUID
+      trainingJobId: UUID?
+      severity: String
+      message: String
+    }
+
+    state Raised
+  }
+
+  slice TrainingAlertCatalog {
+    readmodel TrainingAlertCatalog[] {
+      alertId: UUID id
+      nodeId: UUID
+      trainingJobId: UUID?
+      severity: String
+      message: String
+      state: TrainingAlert.State
+      subscribe TrainingAlertRaised
     }
   }
 
-  aggregate TrainingAlert {
+  concept TrainingAlert {
     state Raised
 
-    slice RaiseTrainingAlert {
-      startsLifecycle
-      reactsTo RuntimeHeartbeatRecorded
+    slice RaiseTrainingAlert
+    slice TrainingAlertCatalog
+  }
 
-      automation RaiseAlertOnNodeResourcePressure {
-        condition gpuLoad > 95
-        emits RaiseTrainingAlert
-      }
+  slice AppendAuditTrail {
+    startsLifecycle
+    reactsTo TrainingAlertRaised
 
-      command RaiseTrainingAlert {
-        alertId: UUID id generated technical
-        nodeId: UUID
-        trainingJobId: UUID?
-        severity: String
-        message: String
-      }
-
-      event TrainingAlertRaised {
-        alertId: UUID id technical
-        nodeId: UUID
-        trainingJobId: UUID?
-        severity: String
-        message: String
-      }
-
-      state Raised
+    policy AuditCriticalTrainingEvents {
+      on TrainingAlertRaised
+      issue AppendAuditTrail
     }
 
-    slice TrainingAlertCatalog {
-      projection TrainingAlertCatalog[] {
-        alertId: UUID id
-        nodeId: UUID
-        trainingJobId: UUID?
-        severity: String
-        message: String
-        state: String
-        subscribe TrainingAlertRaised
-      }
+    policy AuditParticipantJoined {
+      on ParticipantJoined
+      issue AppendAuditTrail
+    }
+
+    policy AuditParticipantSuspended {
+      on ParticipantSuspended
+      issue AppendAuditTrail
+    }
+
+    policy AuditDatasetApproval {
+      on DatasetApprovedForTraining
+      issue AppendAuditTrail
+    }
+
+    policy AuditDatasetApprovalRevoked {
+      on DatasetTrainingApprovalRevoked
+      issue AppendAuditTrail
+    }
+
+    policy AuditTrainingJobSubmitted {
+      on TrainingJobSubmitted
+      issue AppendAuditTrail
+    }
+
+    policy AuditModelPromotedToProduction {
+      on ModelPromotedToProduction
+      issue AppendAuditTrail
+    }
+
+    policy AuditNodeTrustChanged {
+      on ComputeNodeTrusted
+      issue AppendAuditTrail
+    }
+
+    command AppendAuditTrail {
+      auditRecordId: UUID id generated technical
+      sourceEventName: String
+      sourceEntityId: UUID?
+      severity: String
+      payloadHash: String
+    }
+
+    event AuditTrailAppended {
+      auditRecordId: UUID id technical
+      sourceEventName: String
+      sourceEntityId: UUID?
+      severity: String
+      payloadHash: String
+    }
+
+    state Appended
+  }
+
+  slice AuditRecordLog {
+    readmodel AuditRecordLog[] {
+      auditRecordId: UUID id
+      sourceEventName: String
+      sourceEntityId: UUID?
+      severity: String
+      payloadHash: String
+      subscribe AuditTrailAppended
     }
   }
 
-  aggregate AuditRecord {
+  concept AuditRecord {
     state Appended
 
-    slice AppendAuditTrail {
-      startsLifecycle
-      reactsTo TrainingAlertRaised
-
-      policy AuditCriticalTrainingEvents {
-        on TrainingAlertRaised
-        issue AppendAuditTrail
-      }
-
-      policy AuditParticipantJoined {
-        on ParticipantJoined
-        issue AppendAuditTrail
-      }
-
-      policy AuditParticipantSuspended {
-        on ParticipantSuspended
-        issue AppendAuditTrail
-      }
-
-      policy AuditDatasetApproval {
-        on DatasetApprovedForTraining
-        issue AppendAuditTrail
-      }
-
-      policy AuditDatasetApprovalRevoked {
-        on DatasetTrainingApprovalRevoked
-        issue AppendAuditTrail
-      }
-
-      policy AuditTrainingJobSubmitted {
-        on TrainingJobSubmitted
-        issue AppendAuditTrail
-      }
-
-      policy AuditModelPromotedToProduction {
-        on ModelPromotedToProduction
-        issue AppendAuditTrail
-      }
-
-      policy AuditNodeTrustChanged {
-        on ComputeNodeTrusted
-        issue AppendAuditTrail
-      }
-
-      command AppendAuditTrail {
-        auditRecordId: UUID id generated technical
-        sourceEventName: String
-        sourceEntityId: UUID?
-        severity: String
-        payloadHash: String
-      }
-
-      event AuditTrailAppended {
-        auditRecordId: UUID id technical
-        sourceEventName: String
-        sourceEntityId: UUID?
-        severity: String
-        payloadHash: String
-      }
-
-      state Appended
-    }
-
-    slice AuditRecordLog {
-      projection AuditRecordLog[] {
-        auditRecordId: UUID id
-        sourceEventName: String
-        sourceEntityId: UUID?
-        severity: String
-        payloadHash: String
-        subscribe AuditTrailAppended
-      }
-    }
+    slice AppendAuditTrail
+    slice AuditRecordLog
   }
 }
   context KeyAndAttestationManagement {
     note "Key and attestation management owns node attestation reports, secure aggregation key material, and dataset access credentials, replacing ad hoc cryptography fields scattered across other contexts."
 
-  aggregate NodeEncryptionKey {
+    risk "Expired attestation or revoked key material can allow an unsafe node to continue participating in training."
+    risk "Secure aggregation key compromise can expose participant updates or invalidate aggregation results."
+    metric attestationVerificationFailureRate
+    metric keyRotationLeadTime
+
+  slice GenerateNodeKey {
+    startsLifecycle
+    actor SecurityReviewer
+    ui NodeKeyManagementScreen
+    reactsTo ComputeNodeTrusted
+
+    command GenerateNodeKey {
+      nodeKeyId: UUID id generated technical
+      nodeId: UUID
+      keyAlgorithm: String
+      keyPurpose: String
+      publicKeyRef: String
+      keyExpiresAt: DateTime
+    }
+
+    event NodeKeyGenerated {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      keyAlgorithm: String
+      keyPurpose: String
+      publicKeyRef: String
+      keyExpiresAt: DateTime
+    }
+
+    state Generated
+  }
+
+  slice DistributeNodeKey {
+    reactsTo NodeKeyGenerated
+
+    policy DistributeKeyWhenGenerated {
+      on NodeKeyGenerated
+      issue DistributeNodeKey
+    }
+
+    command DistributeNodeKey {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      distributionChannel: String
+      deliveredAt: DateTime
+    }
+
+    event NodeKeyDistributed {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      distributionChannel: String
+      deliveredAt: DateTime
+    }
+
+    state Distributed
+  }
+
+  slice ActivateNodeKey {
+    actor NodeOperator
+    ui NodeKeyManagementScreen
+    reactsTo NodeKeyDistributed
+
+    command ActivateNodeKey {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      activationNote: String?
+    }
+
+    event NodeKeyActivated {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      activationNote: String?
+    }
+
+    state Active
+  }
+
+  slice RevokeNodeKey {
+    actor SecurityReviewer
+    ui NodeKeyManagementScreen
+    reactsTo NodeKeyActivated
+
+    command RevokeNodeKey {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      revocationReason: String
+    }
+
+    event NodeKeyRevoked {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      revocationReason: String
+    }
+
+    state Revoked
+  }
+
+  slice ExpireNodeKey {
+    reactsTo NodeKeyActivated
+
+    automation ExpireNodeKeyWhenPastExpiry {
+      condition keyExpiresAt < now
+      emits ExpireNodeKey
+    }
+
+    command ExpireNodeKey {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      expiredAt: DateTime
+    }
+
+    event NodeKeyExpired {
+      nodeKeyId: UUID id technical
+      nodeId: UUID
+      expiredAt: DateTime
+    }
+
+    state Expired
+  }
+
+  slice NodeKeyCatalog {
+    readmodel NodeKeyCatalog[] {
+      nodeKeyId: UUID id
+      nodeId: UUID
+      keyAlgorithm: String
+      keyPurpose: String
+      publicKeyRef: String
+      keyExpiresAt: DateTime
+      state: NodeEncryptionKey.State
+      revokedReason: String?
+      expiredAt: DateTime?
+      subscribe NodeKeyGenerated
+      subscribe NodeKeyDistributed
+      subscribe NodeKeyActivated
+      subscribe NodeKeyRevoked
+      subscribe NodeKeyExpired
+    }
+  }
+
+  concept NodeEncryptionKey {
     state Generated
     state Distributed
     state Active
     state Revoked
     state Expired
 
-    slice GenerateNodeKey {
+    slice GenerateNodeKey
+    slice DistributeNodeKey
+    slice ActivateNodeKey
+    slice RevokeNodeKey
+    slice ExpireNodeKey
+    slice NodeKeyCatalog
+  }
+  
+    slice SubmitNodeAttestationReport {
       startsLifecycle
-      actor SecurityReviewer
-      ui NodeKeyManagementScreen
-      reactsTo ComputeNodeTrusted
-
-      command GenerateNodeKey {
-        nodeKeyId: UUID id generated technical
-        nodeId: UUID
-        keyAlgorithm: String
-        keyPurpose: String
-        publicKeyRef: String
-        keyExpiresAt: DateTime
-      }
-
-      event NodeKeyGenerated {
-        nodeKeyId: UUID id technical
-        nodeId: UUID
-        keyAlgorithm: String
-        keyPurpose: String
-        publicKeyRef: String
-        keyExpiresAt: DateTime
-      }
-
-      state Generated
-    }
-
-    slice DistributeNodeKey {
-      reactsTo NodeKeyGenerated
-
-      policy DistributeKeyWhenGenerated {
-        on NodeKeyGenerated
-        issue DistributeNodeKey
-      }
-
-      command DistributeNodeKey {
-        nodeKeyId: UUID id technical
-        nodeId: UUID
-        distributionChannel: String
-        deliveredAt: DateTime
-      }
-
-      event NodeKeyDistributed {
-        nodeKeyId: UUID id technical
-        nodeId: UUID
-        distributionChannel: String
-        deliveredAt: DateTime
-      }
-
-      state Distributed
-    }
-
-    slice ActivateNodeKey {
       actor NodeOperator
-      ui NodeKeyManagementScreen
-      reactsTo NodeKeyDistributed
+      ui NodeAttestationSubmissionScreen
+      reactsTo ComputeNodeRegistered
 
-      command ActivateNodeKey {
-        nodeKeyId: UUID id technical
+      command SubmitNodeAttestationReport {
+        attestationReportId: UUID id generated technical
         nodeId: UUID
-        activationNote: String?
+        attestationType: String
+        hardwareFingerprint: String
+        measurementHash: String
+        signedBy: String
+        submittedAt: DateTime
+        expiresAt: DateTime
       }
 
-      event NodeKeyActivated {
-        nodeKeyId: UUID id technical
+      event NodeAttestationReportSubmitted {
+        attestationReportId: UUID id technical
         nodeId: UUID
-        activationNote: String?
+        attestationType: String
+        hardwareFingerprint: String
+        measurementHash: String
+        signedBy: String
+        submittedAt: DateTime
+        expiresAt: DateTime
       }
 
-      state Active
+      state Submitted
     }
 
-    slice RevokeNodeKey {
+    slice VerifyNodeAttestationReport {
       actor SecurityReviewer
-      ui NodeKeyManagementScreen
-      reactsTo NodeKeyActivated
+      ui NodeAttestationReviewScreen
+      reactsTo NodeAttestationReportSubmitted
 
-      command RevokeNodeKey {
-        nodeKeyId: UUID id technical
+      command VerifyNodeAttestationReport {
+        attestationReportId: UUID id technical
         nodeId: UUID
-        revocationReason: String
+        verificationOutcome: String
+        verificationNote: String?
       }
 
-      event NodeKeyRevoked {
-        nodeKeyId: UUID id technical
+      event NodeAttestationReportVerified {
+        attestationReportId: UUID id technical
         nodeId: UUID
-        revocationReason: String
+        verificationOutcome: String
+        verificationNote: String?
+        verifiedAt: DateTime
       }
 
-      state Revoked
+      state Verified
     }
 
-    slice ExpireNodeKey {
-      reactsTo NodeKeyActivated
+    slice ExpireNodeAttestationReport {
+      reactsTo NodeAttestationReportVerified
 
-      automation ExpireNodeKeyWhenPastExpiry {
-        condition keyExpiresAt < now
-        emits ExpireNodeKey
+      automation ExpireAttestationWhenPastExpiry {
+        condition expiresAt < now
+        emits ExpireNodeAttestationReport
       }
 
-      command ExpireNodeKey {
-        nodeKeyId: UUID id technical
+      command ExpireNodeAttestationReport {
+        attestationReportId: UUID id technical
         nodeId: UUID
         expiredAt: DateTime
       }
 
-      event NodeKeyExpired {
-        nodeKeyId: UUID id technical
+      event NodeAttestationReportExpired {
+        attestationReportId: UUID id technical
         nodeId: UUID
         expiredAt: DateTime
       }
@@ -2054,529 +2766,499 @@ context RuntimeOperations {
       state Expired
     }
 
-    slice NodeKeyCatalog {
-      readmodel NodeKeyCatalog[] {
-        nodeKeyId: UUID id
+    slice RevokeNodeAttestationReport {
+      actor SecurityReviewer
+      ui NodeAttestationReviewScreen
+      reactsTo NodeAttestationReportVerified
+
+      command RevokeNodeAttestationReport {
+        attestationReportId: UUID id technical
         nodeId: UUID
-        keyAlgorithm: String
-        keyPurpose: String
-        publicKeyRef: String
-        keyExpiresAt: DateTime
-        state: String
-        revokedReason: String?
-        expiredAt: DateTime?
-        subscribe NodeKeyGenerated
-        subscribe NodeKeyDistributed
-        subscribe NodeKeyActivated
-        subscribe NodeKeyRevoked
-        subscribe NodeKeyExpired
+        revokeReason: String
+      }
+
+      event NodeAttestationReportRevoked {
+        attestationReportId: UUID id technical
+        nodeId: UUID
+        revokeReason: String
+      }
+
+      state Revoked
+    }
+
+    slice QuarantineNodeAfterAttestationFailure {
+      actor SecurityReviewer
+      ui NodeAttestationReviewScreen confirm
+      reactsTo NodeAttestationReportRevoked
+
+      command QuarantineNodeAfterAttestationFailure {
+        attestationReportId: UUID id technical
+        nodeId: UUID
+        quarantineReason: String
+        quarantinedBy: String
+      }
+
+      event NodeQuarantined {
+        attestationReportId: UUID id technical from QuarantineNodeAfterAttestationFailure.attestationReportId
+        nodeId: UUID from QuarantineNodeAfterAttestationFailure.nodeId
+        quarantineReason: String from QuarantineNodeAfterAttestationFailure.quarantineReason
+        quarantinedBy: String from QuarantineNodeAfterAttestationFailure.quarantinedBy
+      }
+
+      state Quarantined
+
+      specification "Revoked Attestation Quarantines Node" {
+        rule """
+          Nodes with revoked attestation reports must be quarantined before they can be considered for future training participation.
+        """
+
+        scenario "Quarantine Revoked Attestation Node" {
+          given NodeAttestationReportRevoked {
+            attestationReportId = "att-1"
+            nodeId = "node-1"
+          }
+          when QuarantineNodeAfterAttestationFailure {
+            attestationReportId = "att-1"
+            nodeId = "node-1"
+          }
+          then NodeQuarantined
+        }
       }
     }
-  }
-  
-    aggregate NodeAttestationReport {
+
+    slice NodeAttestationCatalog {
+      readmodel NodeAttestationCatalog[] {
+        attestationReportId: UUID id
+        nodeId: UUID
+        attestationType: String
+        verificationOutcome: String?
+        verifiedAt: DateTime?
+        submittedAt: DateTime
+        expiresAt: DateTime
+        state: NodeAttestationReport.State
+        subscribe NodeAttestationReportSubmitted
+        subscribe NodeAttestationReportVerified
+        subscribe NodeAttestationReportExpired
+        subscribe NodeAttestationReportRevoked
+        subscribe NodeQuarantined
+      }
+    }
+
+    concept NodeAttestationReport {
       state Submitted
       state Verified
       state Expired
       state Revoked
-  
-      slice SubmitNodeAttestationReport {
-        startsLifecycle
-        actor NodeOperator
-        ui NodeAttestationSubmissionScreen
-        reactsTo ComputeNodeRegistered
-  
-        command SubmitNodeAttestationReport {
-          attestationReportId: UUID id generated technical
-          nodeId: UUID
-          attestationType: String
-          hardwareFingerprint: String
-          measurementHash: String
-          signedBy: String
-          submittedAt: DateTime
-          expiresAt: DateTime
-        }
-  
-        event NodeAttestationReportSubmitted {
-          attestationReportId: UUID id technical
-          nodeId: UUID
-          attestationType: String
-          hardwareFingerprint: String
-          measurementHash: String
-          signedBy: String
-          submittedAt: DateTime
-          expiresAt: DateTime
-        }
-  
-        state Submitted
-      }
-  
-      slice VerifyNodeAttestationReport {
-        actor SecurityReviewer
-        ui NodeAttestationReviewScreen
-        reactsTo NodeAttestationReportSubmitted
-  
-        command VerifyNodeAttestationReport {
-          attestationReportId: UUID id technical
-          nodeId: UUID
-          verificationOutcome: String
-          verificationNote: String?
-        }
-  
-        event NodeAttestationReportVerified {
-          attestationReportId: UUID id technical
-          nodeId: UUID
-          verificationOutcome: String
-          verificationNote: String?
-          verifiedAt: DateTime
-        }
-  
-        state Verified
-      }
-  
-      slice ExpireNodeAttestationReport {
-        reactsTo NodeAttestationReportVerified
-  
-        automation ExpireAttestationWhenPastExpiry {
-          condition expiresAt < now
-          emits ExpireNodeAttestationReport
-        }
-  
-        command ExpireNodeAttestationReport {
-          attestationReportId: UUID id technical
-          nodeId: UUID
-          expiredAt: DateTime
-        }
-  
-        event NodeAttestationReportExpired {
-          attestationReportId: UUID id technical
-          nodeId: UUID
-          expiredAt: DateTime
-        }
-  
-        state Expired
-      }
-  
-      slice RevokeNodeAttestationReport {
-        actor SecurityReviewer
-        ui NodeAttestationReviewScreen
-        reactsTo NodeAttestationReportVerified
-  
-        command RevokeNodeAttestationReport {
-          attestationReportId: UUID id technical
-          nodeId: UUID
-          revokeReason: String
-        }
-  
-        event NodeAttestationReportRevoked {
-          attestationReportId: UUID id technical
-          nodeId: UUID
-          revokeReason: String
-        }
-  
-        state Revoked
-      }
-  
-      slice NodeAttestationCatalog {
-        projection NodeAttestationCatalog[] {
-          attestationReportId: UUID id
-          nodeId: UUID
-          attestationType: String
-          verificationOutcome: String?
-          verifiedAt: DateTime?
-          submittedAt: DateTime
-          expiresAt: DateTime
-          state: String
-          subscribe NodeAttestationReportSubmitted
-          subscribe NodeAttestationReportVerified
-          subscribe NodeAttestationReportExpired
-          subscribe NodeAttestationReportRevoked
-        }
-      }
+      state Quarantined
+
+      slice SubmitNodeAttestationReport
+      slice VerifyNodeAttestationReport
+      slice ExpireNodeAttestationReport
+      slice RevokeNodeAttestationReport
+      slice QuarantineNodeAfterAttestationFailure
+      slice NodeAttestationCatalog
     }
   
-    aggregate SecureAggregationKey {
+    slice GenerateSecureAggregationKey {
+      startsLifecycle
+      actor MLOpsEngineer
+      ui SecureAggregationKeyScreen
+      reactsTo TrainingJobSubmitted
+
+      command GenerateSecureAggregationKey {
+        aggregationKeyId: UUID id generated technical
+        trainingJobId: UUID
+        trainingRunConfigurationId: UUID
+        aggregationAlgorithm: String
+        keyAlgorithm: String
+        shareCount: Int
+        quorumThreshold: Int
+        generatedAt: DateTime
+        expiresAt: DateTime
+      }
+
+      event SecureAggregationKeyGenerated {
+        aggregationKeyId: UUID id technical
+        trainingJobId: UUID
+        trainingRunConfigurationId: UUID
+        aggregationAlgorithm: String
+        keyAlgorithm: String
+        shareCount: Int
+        quorumThreshold: Int
+        generatedAt: DateTime
+        expiresAt: DateTime
+      }
+
+      state Generated
+    }
+
+    slice DistributeKeyShare {
+      actor MLOpsEngineer
+      ui SecureAggregationKeyScreen
+      reactsTo SecureAggregationKeyGenerated
+
+      command DistributeKeyShare {
+        aggregationKeyId: UUID id technical
+        trainingJobId: UUID
+        nodeId: UUID
+        shareIndex: Int
+        shareMaterialRef: String
+        distributedAt: DateTime
+      }
+
+      event SecureAggregationKeyShareDistributed {
+        aggregationKeyId: UUID id technical
+        trainingJobId: UUID
+        nodeId: UUID
+        shareIndex: Int
+        shareMaterialRef: String
+        distributedAt: DateTime
+      }
+
+      state Distributed
+    }
+
+    slice MarkSecureAggregationKeyUsed {
+      reactsTo GlobalModelUpdated
+
+      automation MarkKeyUsedWhenAggregationCompletes {
+        condition aggregatedModelVersionId != null
+        emits MarkSecureAggregationKeyUsed
+      }
+
+      command MarkSecureAggregationKeyUsed {
+        aggregationKeyId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        usedAt: DateTime
+      }
+
+      event SecureAggregationKeyUsed {
+        aggregationKeyId: UUID id technical
+        trainingJobId: UUID
+        roundId: UUID
+        usedAt: DateTime
+      }
+
+      state Used
+    }
+
+    slice RevokeSecureAggregationKey {
+      actor SecurityReviewer
+      ui SecureAggregationKeyScreen
+      reactsTo SecureAggregationKeyGenerated
+
+      command RevokeSecureAggregationKey {
+        aggregationKeyId: UUID id technical
+        trainingJobId: UUID
+        revokeReason: String
+      }
+
+      event SecureAggregationKeyRevoked {
+        aggregationKeyId: UUID id technical
+        trainingJobId: UUID
+        revokeReason: String
+      }
+
+      state Revoked
+    }
+
+    slice SecureAggregationKeyCatalog {
+      readmodel SecureAggregationKeyCatalog[] {
+        aggregationKeyId: UUID id
+        trainingJobId: UUID
+        trainingRunConfigurationId: UUID
+        aggregationAlgorithm: String
+        keyAlgorithm: String
+        shareCount: Int
+        quorumThreshold: Int
+        state: SecureAggregationKey.State
+        generatedAt: DateTime
+        expiresAt: DateTime
+        subscribe SecureAggregationKeyGenerated
+        subscribe SecureAggregationKeyShareDistributed
+        subscribe SecureAggregationKeyUsed
+        subscribe SecureAggregationKeyRevoked
+      }
+    }
+
+    concept SecureAggregationKey {
       state Generated
       state Distributed
       state Used
       state Revoked
-  
-      slice GenerateSecureAggregationKey {
-        startsLifecycle
-        actor MLOpsEngineer
-        ui SecureAggregationKeyScreen
-        reactsTo TrainingJobSubmitted
-  
-        command GenerateSecureAggregationKey {
-          aggregationKeyId: UUID id generated technical
-          trainingJobId: UUID
-          trainingRunConfigurationId: UUID
-          aggregationAlgorithm: String
-          keyAlgorithm: String
-          shareCount: Int
-          quorumThreshold: Int
-          generatedAt: DateTime
-          expiresAt: DateTime
-        }
-  
-        event SecureAggregationKeyGenerated {
-          aggregationKeyId: UUID id technical
-          trainingJobId: UUID
-          trainingRunConfigurationId: UUID
-          aggregationAlgorithm: String
-          keyAlgorithm: String
-          shareCount: Int
-          quorumThreshold: Int
-          generatedAt: DateTime
-          expiresAt: DateTime
-        }
-  
-        state Generated
-      }
-  
-      slice DistributeKeyShare {
-        actor MLOpsEngineer
-        ui SecureAggregationKeyScreen
-        reactsTo SecureAggregationKeyGenerated
-  
-        command DistributeKeyShare {
-          aggregationKeyId: UUID id technical
-          trainingJobId: UUID
-          nodeId: UUID
-          shareIndex: Int
-          shareMaterialRef: String
-          distributedAt: DateTime
-        }
-  
-        event SecureAggregationKeyShareDistributed {
-          aggregationKeyId: UUID id technical
-          trainingJobId: UUID
-          nodeId: UUID
-          shareIndex: Int
-          shareMaterialRef: String
-          distributedAt: DateTime
-        }
-  
-        state Distributed
-      }
-  
-      slice MarkSecureAggregationKeyUsed {
-        reactsTo GlobalModelUpdated
-  
-        automation MarkKeyUsedWhenAggregationCompletes {
-          condition aggregatedModelVersionId != null
-          emits MarkSecureAggregationKeyUsed
-        }
-  
-        command MarkSecureAggregationKeyUsed {
-          aggregationKeyId: UUID id technical
-          trainingJobId: UUID
-          roundId: UUID
-          usedAt: DateTime
-        }
-  
-        event SecureAggregationKeyUsed {
-          aggregationKeyId: UUID id technical
-          trainingJobId: UUID
-          roundId: UUID
-          usedAt: DateTime
-        }
-  
-        state Used
-      }
-  
-      slice RevokeSecureAggregationKey {
-        actor SecurityReviewer
-        ui SecureAggregationKeyScreen
-        reactsTo SecureAggregationKeyGenerated
-  
-        command RevokeSecureAggregationKey {
-          aggregationKeyId: UUID id technical
-          trainingJobId: UUID
-          revokeReason: String
-        }
-  
-        event SecureAggregationKeyRevoked {
-          aggregationKeyId: UUID id technical
-          trainingJobId: UUID
-          revokeReason: String
-        }
-  
-        state Revoked
-      }
-  
-      slice SecureAggregationKeyCatalog {
-        projection SecureAggregationKeyCatalog[] {
-          aggregationKeyId: UUID id
-          trainingJobId: UUID
-          trainingRunConfigurationId: UUID
-          aggregationAlgorithm: String
-          keyAlgorithm: String
-          shareCount: Int
-          quorumThreshold: Int
-          state: String
-          generatedAt: DateTime
-          expiresAt: DateTime
-          subscribe SecureAggregationKeyGenerated
-          subscribe SecureAggregationKeyShareDistributed
-          subscribe SecureAggregationKeyUsed
-          subscribe SecureAggregationKeyRevoked
-        }
-      }
+
+      slice GenerateSecureAggregationKey
+      slice DistributeKeyShare
+      slice MarkSecureAggregationKeyUsed
+      slice RevokeSecureAggregationKey
+      slice SecureAggregationKeyCatalog
     }
 
-  aggregate SecureAggregationRound {
+  slice InitializeSecureAggregationRound {
+    startsLifecycle
+    reactsTo SecureAggregationRequested
+
+    policy InitializeAggregationRoundWhenRequested {
+      on SecureAggregationRequested
+      issue InitializeSecureAggregationRound
+    }
+
+    command InitializeSecureAggregationRound {
+      aggregationRoundId: UUID id generated technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      aggregationProvider: String
+      shareAlgorithm: String
+    }
+
+    event SecureAggregationRoundInitialized {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      aggregationProvider: String
+      shareAlgorithm: String
+    }
+
+    state Initialized
+  }
+
+  slice DistributeAggregationMaskShares {
+    actor SecureAggregationService
+    reactsTo SecureAggregationRoundInitialized
+
+    command DistributeAggregationMaskShares {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      roundId: UUID
+      nodeId: UUID
+      maskShareArtifactId: UUID
+    }
+
+    event AggregationMaskShareDistributed {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      roundId: UUID
+      nodeId: UUID
+      maskShareArtifactId: UUID
+    }
+
+    state SharesDistributed
+  }
+
+  slice CollectAggregationMaskShares {
+    actor SecureAggregationService
+    reactsTo AggregationMaskShareDistributed
+
+    command CollectAggregationMaskShares {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      roundId: UUID
+      collectedNodeCount: Int
+    }
+
+    event AggregationMaskSharesCollected {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      roundId: UUID
+      collectedNodeCount: Int
+    }
+
+    state SharesCollected
+  }
+
+  slice CompleteSecureAggregationDecrypt {
+    reactsTo AggregationMaskSharesCollected
+
+    automation CompleteDecryptionWhenSharesReady {
+      condition collectedNodeCount >= 3
+      emits CompleteSecureAggregationDecrypt
+    }
+
+    command CompleteSecureAggregationDecrypt {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      roundId: UUID
+      aggregatedModelVersionId: UUID
+    }
+
+    event SecureAggregationDecrypted {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      roundId: UUID
+      aggregatedModelVersionId: UUID
+    }
+
+    state Aggregated
+  }
+
+  slice RevokeSecureAggregationRound {
+    actor SecurityReviewer
+    ui SecureAggregationScreen
+    reactsTo SecureAggregationRoundInitialized
+
+    command RevokeSecureAggregationRound {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      roundId: UUID
+      revocationReason: String
+    }
+
+    event SecureAggregationRoundRevoked {
+      aggregationRoundId: UUID id technical
+      trainingJobId: UUID
+      roundId: UUID
+      revocationReason: String
+    }
+
+    state Revoked
+  }
+
+  slice SecureAggregationRoundCatalog {
+    readmodel SecureAggregationRoundCatalog[] {
+      aggregationRoundId: UUID id
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      aggregationProvider: String
+      shareAlgorithm: String
+      collectedNodeCount: Int
+      aggregatedModelVersionId: UUID?
+      state: SecureAggregationRound.State
+      revocationReason: String?
+      subscribe SecureAggregationRoundInitialized
+      subscribe AggregationMaskShareDistributed
+      subscribe AggregationMaskSharesCollected
+      subscribe SecureAggregationDecrypted
+      subscribe SecureAggregationRoundRevoked
+    }
+  }
+
+  concept SecureAggregationRound {
     state Initialized
     state SharesDistributed
     state SharesCollected
     state Aggregated
     state Revoked
 
-    slice InitializeSecureAggregationRound {
+    slice InitializeSecureAggregationRound
+    slice DistributeAggregationMaskShares
+    slice CollectAggregationMaskShares
+    slice CompleteSecureAggregationDecrypt
+    slice RevokeSecureAggregationRound
+    slice SecureAggregationRoundCatalog
+  }
+  
+    slice IssueDatasetAccessCredential {
       startsLifecycle
-      reactsTo SecureAggregationRequested
+      actor NodeOperator
+      ui DatasetAccessCredentialScreen
+      reactsTo DatasetAccessProfileConfigured
 
-      policy InitializeAggregationRoundWhenRequested {
-        on SecureAggregationRequested
-        issue InitializeSecureAggregationRound
-      }
-
-      command InitializeSecureAggregationRound {
-        aggregationRoundId: UUID id generated technical
-        trainingJobId: UUID
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        aggregationProvider: String
-        shareAlgorithm: String
-      }
-
-      event SecureAggregationRoundInitialized {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        aggregationProvider: String
-        shareAlgorithm: String
-      }
-
-      state Initialized
-    }
-
-    slice DistributeAggregationMaskShares {
-      actor SecureAggregationService
-      reactsTo SecureAggregationRoundInitialized
-
-      command DistributeAggregationMaskShares {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
+      command IssueDatasetAccessCredential {
+        credentialId: UUID id generated technical
+        accessProfileId: UUID
+        datasetId: UUID
         nodeId: UUID
-        maskShareArtifactId: UUID
+        runtimeId: UUID
+        credentialAlgorithm: String
+        keyMaterialRef: String
+        issuedAt: DateTime
+        expiresAt: DateTime
       }
 
-      event AggregationMaskShareDistributed {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
+      event DatasetAccessCredentialIssued {
+        credentialId: UUID id technical
+        accessProfileId: UUID
+        datasetId: UUID
         nodeId: UUID
-        maskShareArtifactId: UUID
+        runtimeId: UUID
+        credentialAlgorithm: String
+        keyMaterialRef: String
+        issuedAt: DateTime
+        expiresAt: DateTime
       }
 
-      state SharesDistributed
+      state Issued
     }
 
-    slice CollectAggregationMaskShares {
-      actor SecureAggregationService
-      reactsTo AggregationMaskShareDistributed
+    slice RotateDatasetAccessCredential {
+      actor NodeOperator
+      ui DatasetAccessCredentialScreen
+      reactsTo DatasetAccessCredentialIssued
 
-      command CollectAggregationMaskShares {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
-        collectedNodeCount: Int
+      command RotateDatasetAccessCredential {
+        credentialId: UUID id technical
+        accessProfileId: UUID
+        previousCredentialId: UUID
+        credentialAlgorithm: String
+        keyMaterialRef: String
+        issuedAt: DateTime
+        expiresAt: DateTime
       }
 
-      event AggregationMaskSharesCollected {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
-        collectedNodeCount: Int
+      event DatasetAccessCredentialRotated {
+        credentialId: UUID id technical
+        accessProfileId: UUID
+        previousCredentialId: UUID
+        credentialAlgorithm: String
+        keyMaterialRef: String
+        issuedAt: DateTime
+        expiresAt: DateTime
       }
 
-      state SharesCollected
+      state Rotated
     }
 
-    slice CompleteSecureAggregationDecrypt {
-      reactsTo AggregationMaskSharesCollected
+    slice RevokeDatasetAccessCredential {
+      actor ComplianceOfficer
+      ui DatasetAccessCredentialScreen
+      reactsTo DatasetAccessCredentialIssued
 
-      automation CompleteDecryptionWhenSharesReady {
-        condition collectedNodeCount >= 3
-        emits CompleteSecureAggregationDecrypt
+      command RevokeDatasetAccessCredential {
+        credentialId: UUID id technical
+        accessProfileId: UUID
+        revokeReason: String
       }
 
-      command CompleteSecureAggregationDecrypt {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
-        aggregatedModelVersionId: UUID
-      }
-
-      event SecureAggregationDecrypted {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
-        aggregatedModelVersionId: UUID
-      }
-
-      state Aggregated
-    }
-
-    slice RevokeSecureAggregationRound {
-      actor SecurityReviewer
-      ui SecureAggregationScreen
-      reactsTo SecureAggregationRoundInitialized
-
-      command RevokeSecureAggregationRound {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
-        revocationReason: String
-      }
-
-      event SecureAggregationRoundRevoked {
-        aggregationRoundId: UUID id technical
-        trainingJobId: UUID
-        roundId: UUID
-        revocationReason: String
+      event DatasetAccessCredentialRevoked {
+        credentialId: UUID id technical
+        accessProfileId: UUID
+        revokeReason: String
       }
 
       state Revoked
     }
 
-    slice SecureAggregationRoundCatalog {
-      readmodel SecureAggregationRoundCatalog[] {
-        aggregationRoundId: UUID id
-        trainingJobId: UUID
-        trainingRunConfigurationId: UUID
-        roundId: UUID
-        aggregationProvider: String
-        shareAlgorithm: String
-        collectedNodeCount: Int
-        aggregatedModelVersionId: UUID?
-        state: String
-        revocationReason: String?
-        subscribe SecureAggregationRoundInitialized
-        subscribe AggregationMaskShareDistributed
-        subscribe AggregationMaskSharesCollected
-        subscribe SecureAggregationDecrypted
-        subscribe SecureAggregationRoundRevoked
+    slice DatasetAccessCredentialCatalog {
+      readmodel DatasetAccessCredentialCatalog[] {
+        credentialId: UUID id
+        accessProfileId: UUID
+        datasetId: UUID
+        nodeId: UUID
+        runtimeId: UUID
+        credentialAlgorithm: String
+        state: DatasetAccessCredential.State
+        issuedAt: DateTime
+        expiresAt: DateTime
+        previousCredentialId: UUID?
+        subscribe DatasetAccessCredentialIssued
+        subscribe DatasetAccessCredentialRotated
+        subscribe DatasetAccessCredentialRevoked
       }
     }
-  }
-  
-    aggregate DatasetAccessCredential {
+
+    concept DatasetAccessCredential {
       state Issued
       state Rotated
       state Revoked
-  
-      slice IssueDatasetAccessCredential {
-        startsLifecycle
-        actor NodeOperator
-        ui DatasetAccessCredentialScreen
-        reactsTo DatasetAccessProfileConfigured
-  
-        command IssueDatasetAccessCredential {
-          credentialId: UUID id generated technical
-          accessProfileId: UUID
-          datasetId: UUID
-          nodeId: UUID
-          runtimeId: UUID
-          credentialAlgorithm: String
-          keyMaterialRef: String
-          issuedAt: DateTime
-          expiresAt: DateTime
-        }
-  
-        event DatasetAccessCredentialIssued {
-          credentialId: UUID id technical
-          accessProfileId: UUID
-          datasetId: UUID
-          nodeId: UUID
-          runtimeId: UUID
-          credentialAlgorithm: String
-          keyMaterialRef: String
-          issuedAt: DateTime
-          expiresAt: DateTime
-        }
-  
-        state Issued
-      }
-  
-      slice RotateDatasetAccessCredential {
-        actor NodeOperator
-        ui DatasetAccessCredentialScreen
-        reactsTo DatasetAccessCredentialIssued
-  
-        command RotateDatasetAccessCredential {
-          credentialId: UUID id technical
-          accessProfileId: UUID
-          previousCredentialId: UUID
-          credentialAlgorithm: String
-          keyMaterialRef: String
-          issuedAt: DateTime
-          expiresAt: DateTime
-        }
-  
-        event DatasetAccessCredentialRotated {
-          credentialId: UUID id technical
-          accessProfileId: UUID
-          previousCredentialId: UUID
-          credentialAlgorithm: String
-          keyMaterialRef: String
-          issuedAt: DateTime
-          expiresAt: DateTime
-        }
-  
-        state Rotated
-      }
-  
-      slice RevokeDatasetAccessCredential {
-        actor ComplianceOfficer
-        ui DatasetAccessCredentialScreen
-        reactsTo DatasetAccessCredentialIssued
-  
-        command RevokeDatasetAccessCredential {
-          credentialId: UUID id technical
-          accessProfileId: UUID
-          revokeReason: String
-        }
-  
-        event DatasetAccessCredentialRevoked {
-          credentialId: UUID id technical
-          accessProfileId: UUID
-          revokeReason: String
-        }
-  
-        state Revoked
-      }
-  
-      slice DatasetAccessCredentialCatalog {
-        projection DatasetAccessCredentialCatalog[] {
-          credentialId: UUID id
-          accessProfileId: UUID
-          datasetId: UUID
-          nodeId: UUID
-          runtimeId: UUID
-          credentialAlgorithm: String
-          state: String
-          issuedAt: DateTime
-          expiresAt: DateTime
-          previousCredentialId: UUID?
-          subscribe DatasetAccessCredentialIssued
-          subscribe DatasetAccessCredentialRotated
-          subscribe DatasetAccessCredentialRevoked
-        }
-      }
+
+      slice IssueDatasetAccessCredential
+      slice RotateDatasetAccessCredential
+      slice RevokeDatasetAccessCredential
+      slice DatasetAccessCredentialCatalog
     }
     
   }

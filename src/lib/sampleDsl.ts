@@ -96,7 +96,7 @@ context FederationManagement {
         organizationId: UUID id
         organizationName: String
         organizationType: String
-        state: String
+        state: Organization.State
         verified: Boolean
         trustedNodeCount: Int
         approvedDatasetCount: Int
@@ -147,7 +147,7 @@ context FederationManagement {
       readmodel FederationOverview[] {
         federationId: UUID id
         federationName: String
-        state: String
+        state: Federation.State
         activeMemberCount: Int
         pendingInvitationCount: Int
         trustedNodeCount: Int
@@ -968,7 +968,7 @@ context TrainingOrchestration {
         secureAggregationRequired: Boolean
         differentialPrivacyEnabled: Boolean
         minimumAccuracy: Decimal
-        state: String
+        state: TrainingRunConfiguration.State
         subscribe TrainingRunConfigurationDefined
         subscribe TrainingRunConfigurationValidated
         subscribe TrainingRunConfigurationLocked
@@ -1305,7 +1305,7 @@ context TrainingOrchestration {
         featureSchemaId: UUID
         objective: String
         targetMetric: String
-        state: String
+        state: TrainingJob.State
         currentRoundNumber: Int
         readyNodeCount: Int
         minimumNodesPerRound: Int
@@ -1550,7 +1550,7 @@ context TrainingOrchestration {
         trainingRunConfigurationId: UUID
         roundId: UUID id
         roundNumber: Int
-        state: String
+        state: TrainingRound.State
         readyNodeCount: Int
         targetNodeCount: Int
         submittedUpdateCount: Int
@@ -1706,7 +1706,7 @@ context ModelLifecycle {
         evaluationReportId: UUID
         lineageRef: String
         finalGlobalAccuracy: Decimal
-        state: String
+        state: ModelVersion.State
         releaseChannel: String?
         deploymentTarget: String?
         previousModelVersionId: UUID?
@@ -1803,7 +1803,7 @@ context RuntimeOperations {
         trainingJobId: UUID?
         severity: String
         message: String
-        state: String
+        state: TrainingAlert.State
         subscribe TrainingAlertRaised
       }
     }

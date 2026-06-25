@@ -428,7 +428,7 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
 };
 
 const formatField = (field: ConfigField): string => {
-  const type = toDslId(field.type, 'String');
+  const type = toDslType(field.type);
   const cardinality = field.cardinality === 'Multiple'
     ? field.optional ? '[]?' : '[]'
     : field.optional ? '?' : '';
@@ -447,6 +447,12 @@ const formatField = (field: ConfigField): string => {
     return `${prefix}${mapping.inline} { ${mapping.details} example ${quote(field.example)} }`;
   }
   return `${prefix}${mapping.inline}${mapping.details ? ` { ${mapping.details} }` : ''}`;
+};
+
+const toDslType = (value: string | undefined): string => {
+  const parts = (value || 'String').split('.').filter(Boolean);
+  if (parts.length === 0) return 'String';
+  return parts.map((part, index) => toDslId(part, index === 0 ? 'String' : 'Type')).join('.');
 };
 
 const formatMapping = (field: ConfigField): { inline: string; details?: string } => {
