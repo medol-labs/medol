@@ -118,10 +118,28 @@ export const configToDsl = (config: ConfigRoot): string => {
   const grouped = new Map<string, ConfigSlice[]>();
   const directSlices: ConfigSlice[] = [];
   const aggregateStates = new Map<string, string[]>();
+  const conceptRecords = new Map<string, NonNullable<ConfigRoot['concepts']>[number]>();
+
+  const addConcept = (name: string | undefined, states: string[] = [], slices: Array<{ name?: string; title?: string }> = []): void => {
+    const conceptName = toDslId(name, 'Concept');
+    const existing = conceptRecords.get(conceptName);
+    conceptRecords.set(conceptName, {
+      name: conceptName,
+      states: [...new Set([...(existing?.states ?? []), ...states])],
+      slices: [
+        ...(existing?.slices ?? []),
+        ...slices.filter((slice) => {
+          const sliceName = toDslId(slice.name || slice.title, 'Slice');
+          return !(existing?.slices ?? []).some((existingSlice) => toDslId(existingSlice.name || existingSlice.title, 'Slice') === sliceName);
+        })
+      ]
+    });
+  };
 
   for (const aggregate of config.aggregates ?? []) {
     const aggregateId = toDslId(aggregate.name || aggregate.title, 'Aggregate');
     aggregateStates.set(aggregateId, aggregate.states ?? []);
+    addConcept(aggregateId, aggregate.states ?? []);
   }
 
   for (const slice of config.slices ?? []) {
@@ -137,11 +155,15 @@ export const configToDsl = (config: ConfigRoot): string => {
     grouped.set(aggregateId, [...(grouped.get(aggregateId) ?? []), slice]);
   }
   const concepts = config.concepts?.length ? config.concepts : deriveConcepts(config.slices ?? []);
+  for (const concept of concepts) {
+    addConcept(concept.name, concept.states ?? [], concept.slices ?? []);
+  }
+  for (const [conceptName, slices] of grouped) {
+    addConcept(conceptName, aggregateStates.get(conceptName) ?? [], slices.map((slice) => ({ title: slice.title })));
+  }
 
   const contextIndent = domainName ? 2 : 0;
-  const aggregateIndent = contextIndent + 2;
-  const sliceIndent = aggregateIndent + 2;
-  const elementIndent = sliceIndent + 2;
+  const childIndent = contextIndent + 2;
   const lines: string[] = [];
 
   if (domainName) {
@@ -149,26 +171,21 @@ export const configToDsl = (config: ConfigRoot): string => {
   }
   lines.push(`${pad(contextIndent)}context ${contextName} {`);
   for (const valueType of config.valueTypes ?? []) {
-    appendValueType(lines, valueType, aggregateIndent);
+    appendValueType(lines, valueType, childIndent);
   }
-  for (const [aggregateName, slices] of grouped) {
-    lines.push(`${pad(aggregateIndent)}aggregate ${aggregateName} {`);
-    for (const state of aggregateStates.get(aggregateName) ?? []) {
-      lines.push(`${pad(aggregateIndent + 2)}state ${toDslId(state, 'State')}`);
-    }
-    for (const slice of slices) appendSlice(lines, slice, sliceIndent);
-    lines.push(`${pad(aggregateIndent)}}`);
+  for (const slices of grouped.values()) {
+    for (const slice of slices) appendSlice(lines, slice, childIndent);
   }
-  for (const slice of directSlices) appendSlice(lines, slice, aggregateIndent);
-  for (const concept of concepts) {
-    lines.push(`${pad(aggregateIndent)}concept ${toDslId(concept.name, 'Concept')} {`);
+  for (const slice of directSlices) appendSlice(lines, slice, childIndent);
+  for (const concept of conceptRecords.values()) {
+    lines.push(`${pad(childIndent)}concept ${toDslId(concept.name, 'Concept')} {`);
     for (const state of concept.states ?? []) {
-      lines.push(`${pad(aggregateIndent + 2)}state ${toDslId(state, 'State')}`);
+      lines.push(`${pad(childIndent + 2)}state ${toDslId(state, 'State')}`);
     }
     for (const slice of concept.slices ?? []) {
-      lines.push(`${pad(aggregateIndent + 2)}slice ${toDslId(slice.name || slice.title, 'Slice')}`);
+      lines.push(`${pad(childIndent + 2)}slice ${toDslId(slice.name || slice.title, 'Slice')}`);
     }
-    lines.push(`${pad(aggregateIndent)}}`);
+    lines.push(`${pad(childIndent)}}`);
   }
   lines.push(`${pad(contextIndent)}}`);
   if (domainName) {

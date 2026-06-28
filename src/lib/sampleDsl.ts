@@ -2,13 +2,6 @@ export const sampleDsl = `domain FederationLearningPlatform {
 context FederationManagement {
   
   note "Federation management owns organizations, federations, and trusted compute nodes."
-
-  aggregate Organization {
-    state Registered
-    state IdentityVerified
-    state Active
-    state Deactivated
-
     slice RegisterOrganization {
       startsLifecycle
       actor OrganizationAdmin
@@ -30,7 +23,6 @@ context FederationManagement {
         legalEntityId: String
       }
 
-      state Registered
     }
 
     slice VerifyOrganizationIdentity {
@@ -50,7 +42,6 @@ context FederationManagement {
         identityEvidenceId: UUID
       }
 
-      state IdentityVerified
     }
 
     slice ActivateOrganization {
@@ -68,7 +59,6 @@ context FederationManagement {
         activationNote: String?
       }
 
-      state Active
     }
 
     slice DeactivateOrganization {
@@ -86,7 +76,6 @@ context FederationManagement {
         deactivationReason: String
       }
 
-      state Deactivated
     }
 
     slice OrganizationDirectory {
@@ -108,13 +97,38 @@ context FederationManagement {
         subscribe DatasetApprovedForTraining
       }
     }
-  }
 
-  aggregate Federation {
-    state Draft
+
+  concept Organization {
+
+    state Registered
+
+    state IdentityVerified
+
     state Active
-    state Suspended
 
+    state Deactivated
+
+    state Registered
+
+    state IdentityVerified
+
+    state Active
+
+    state Deactivated
+
+
+    slice RegisterOrganization
+
+    slice VerifyOrganizationIdentity
+
+    slice ActivateOrganization
+
+    slice DeactivateOrganization
+
+    slice OrganizationDirectory
+
+  }
     slice CreateFederation {
       startsLifecycle
       actor PlatformAdmin
@@ -138,7 +152,6 @@ context FederationManagement {
         minimumTrustedNodeCount: Int
       }
 
-      state Draft
     }
 
     slice FederationOverview {
@@ -200,7 +213,6 @@ context FederationManagement {
         approvalNote: String?
       }
 
-      state Active
     }
 
     slice RejectParticipant {
@@ -297,14 +309,38 @@ context FederationManagement {
     }
 
 
-  }
+  concept Federation {
 
-  aggregate ComputeNode {
-    state Registered
-    state CapabilityDeclared
-    state Trusted
+    state Draft
+
+    state Active
+
     state Suspended
 
+    state Draft
+
+    state Active
+
+
+    slice CreateFederation
+
+    slice FederationOverview
+
+    slice InviteParticipant
+
+    slice ApproveParticipant
+
+    slice RejectParticipant
+
+    slice RevokeParticipantInvitation
+
+    slice SuspendParticipant
+
+    slice RemoveParticipant
+
+    slice FederationMembershipDirectory
+
+  }
     slice RegisterComputeNode {
       startsLifecycle
       actor NodeOperator
@@ -331,7 +367,6 @@ context FederationManagement {
         confidentialComputeSupported: Boolean
       }
 
-      state Registered
     }
 
     slice UpdateNodeCapability {
@@ -359,7 +394,6 @@ context FederationManagement {
         maxConcurrentJobs: Int
       }
 
-      state CapabilityDeclared
     }
 
     slice TrustComputeNode {
@@ -381,7 +415,6 @@ context FederationManagement {
         attestationExpiresAt: DateTime
       }
 
-      state Trusted
     }
 
     slice SuspendComputeNode {
@@ -399,7 +432,6 @@ context FederationManagement {
         suspensionReason: String
       }
 
-      state Suspended
     }
 
     slice ComputeNodeCatalog {
@@ -427,6 +459,37 @@ context FederationManagement {
         subscribe ComputeNodeSuspended
       }
     }
+
+
+  concept ComputeNode {
+
+    state Registered
+
+    state CapabilityDeclared
+
+    state Trusted
+
+    state Suspended
+
+    state Registered
+
+    state CapabilityDeclared
+
+    state Trusted
+
+    state Suspended
+
+
+    slice RegisterComputeNode
+
+    slice UpdateNodeCapability
+
+    slice TrustComputeNode
+
+    slice SuspendComputeNode
+
+    slice ComputeNodeCatalog
+
   }
 }
 
@@ -439,10 +502,6 @@ context DatasetGovernance {
     reactsTo DatasetAccessValidationRequested
     emits CompleteRuntimeDatasetAccessValidation
   }
-
-  aggregate FeatureSchema {
-    state Published
-
     slice DefineFeatureSchema {
       startsLifecycle
       actor DataSteward
@@ -462,7 +521,6 @@ context DatasetGovernance {
         featureCount: Int
       }
 
-      state Published
     }
 
     slice FeatureSchemaCatalog {
@@ -475,16 +533,20 @@ context DatasetGovernance {
         subscribe FeatureSchemaPublished
       }
     }
+
+
+  concept FeatureSchema {
+
+    state Published
+
+    state Published
+
+
+    slice DefineFeatureSchema
+
+    slice FeatureSchemaCatalog
+
   }
-
-  aggregate Dataset {
-    state Registered
-    state ContractValidated
-    state Approved
-    state Rejected
-    state ApprovalExpired
-    state ApprovalRevoked
-
     slice RegisterDataset {
       startsLifecycle
       actor DataOwner
@@ -517,7 +579,6 @@ context DatasetGovernance {
         usagePolicyId: UUID
       }
 
-      state Registered
     }
 
     slice ValidateDatasetContract {
@@ -556,7 +617,6 @@ context DatasetGovernance {
         }
       }
 
-      state ContractValidated
     }
 
     slice RejectDatasetForTraining {
@@ -574,7 +634,6 @@ context DatasetGovernance {
         rejectionReason: String
       }
 
-      state Rejected
     }
 
     slice ApproveDatasetForTraining {
@@ -594,7 +653,6 @@ context DatasetGovernance {
         expiresAt: DateTime
       }
 
-      state Approved
     }
 
     slice ExpireDatasetTrainingApproval {
@@ -615,7 +673,6 @@ context DatasetGovernance {
         expiredAt: DateTime
       }
 
-      state ApprovalExpired
     }
 
     slice RevokeDatasetTrainingApproval {
@@ -633,7 +690,6 @@ context DatasetGovernance {
         revokeReason: String
       }
 
-      state ApprovalRevoked
     }
 
     slice DatasetCapability {
@@ -655,13 +711,50 @@ context DatasetGovernance {
         subscribe DatasetTrainingApprovalRevoked
       }
     }
+
+
+  concept Dataset {
+
+    state Registered
+
+    state ContractValidated
+
+    state Approved
+
+    state Rejected
+
+    state ApprovalExpired
+
+    state ApprovalRevoked
+
+    state Registered
+
+    state ContractValidated
+
+    state Rejected
+
+    state Approved
+
+    state ApprovalExpired
+
+    state ApprovalRevoked
+
+
+    slice RegisterDataset
+
+    slice ValidateDatasetContract
+
+    slice RejectDatasetForTraining
+
+    slice ApproveDatasetForTraining
+
+    slice ExpireDatasetTrainingApproval
+
+    slice RevokeDatasetTrainingApproval
+
+    slice DatasetCapability
+
   }
-
-  aggregate DatasetAccessProfile {
-    state Configured
-    state ValidationRequested
-    state Validated
-
     slice ConfigureDatasetAccessProfile {
       startsLifecycle
       actor NodeOperator
@@ -698,7 +791,6 @@ context DatasetGovernance {
         featureMappingId: UUID?
       }
 
-      state Configured
     }
 
     slice RequestRuntimeDatasetAccessValidation {
@@ -723,7 +815,6 @@ context DatasetGovernance {
         validationMode: String
       }
 
-      state ValidationRequested
     }
 
     slice CompleteRuntimeDatasetAccessValidation {
@@ -747,7 +838,6 @@ context DatasetGovernance {
         validationReportId: UUID
       }
 
-      state Validated
     }
 
     slice DatasetRuntimeAccessCatalog {
@@ -764,11 +854,32 @@ context DatasetGovernance {
         subscribe RuntimeDatasetAccessValidated
       }
     }
+
+
+  concept DatasetAccessProfile {
+
+    state Configured
+
+    state ValidationRequested
+
+    state Validated
+
+    state Configured
+
+    state ValidationRequested
+
+    state Validated
+
+
+    slice ConfigureDatasetAccessProfile
+
+    slice RequestRuntimeDatasetAccessValidation
+
+    slice CompleteRuntimeDatasetAccessValidation
+
+    slice DatasetRuntimeAccessCatalog
+
   }
-
-  aggregate TrainingEvaluationDatasetBundle {
-    state Declared
-
     slice DeclareTrainingEvaluationDatasets {
       startsLifecycle
       actor DataOwner
@@ -799,7 +910,6 @@ context DatasetGovernance {
         featureSchemaId: UUID
       }
 
-      state Declared
     }
 
     slice TrainingEvaluationDatasetCatalog {
@@ -815,6 +925,19 @@ context DatasetGovernance {
         subscribe TrainingEvaluationDatasetsDeclared
       }
     }
+
+
+  concept TrainingEvaluationDatasetBundle {
+
+    state Declared
+
+    state Declared
+
+
+    slice DeclareTrainingEvaluationDatasets
+
+    slice TrainingEvaluationDatasetCatalog
+
   }
 }
 
@@ -842,12 +965,6 @@ context TrainingOrchestration {
     reactsTo GlobalModelUpdated
     emits SubmitGlobalModelEvaluation
   }
-
-  aggregate TrainingRunConfiguration {
-    state Draft
-    state Validated
-    state Locked
-
     slice DefineTrainingRunConfiguration {
       startsLifecycle
       actor MLOpsEngineer
@@ -904,7 +1021,6 @@ context TrainingOrchestration {
         failureToleranceRatio: Decimal
       }
 
-      state Draft
     }
 
     slice ValidateTrainingRunConfiguration {
@@ -930,7 +1046,6 @@ context TrainingOrchestration {
         }
       }
 
-      state Validated
     }
 
     slice LockTrainingRunConfiguration {
@@ -953,7 +1068,6 @@ context TrainingOrchestration {
         lockedBy: String
       }
 
-      state Locked
     }
 
     slice TrainingRunConfigurationCatalog {
@@ -974,18 +1088,32 @@ context TrainingOrchestration {
         subscribe TrainingRunConfigurationLocked
       }
     }
-  }
 
-  aggregate TrainingJob {
+
+  concept TrainingRunConfiguration {
+
     state Draft
-    state StrategyConfigured
-    state Submitted
-    state RecruitingNodes
-    state Running
-    state Paused
-    state Canceled
-    state Completed
 
+    state Validated
+
+    state Locked
+
+    state Draft
+
+    state Validated
+
+    state Locked
+
+
+    slice DefineTrainingRunConfiguration
+
+    slice ValidateTrainingRunConfiguration
+
+    slice LockTrainingRunConfiguration
+
+    slice TrainingRunConfigurationCatalog
+
+  }
     slice CreateTrainingJob {
       startsLifecycle
       actor ResearchLead
@@ -1020,7 +1148,6 @@ context TrainingOrchestration {
         targetMetric: String
       }
 
-      state Draft
     }
 
     slice ConfigureTrainingStrategy {
@@ -1055,7 +1182,6 @@ context TrainingOrchestration {
         secureAggregationRequired: Boolean
       }
 
-      state StrategyConfigured
     }
 
     slice SubmitTrainingJob {
@@ -1085,7 +1211,6 @@ context TrainingOrchestration {
         }
       }
 
-      state Submitted
     }
 
     slice RequestNodeParticipation {
@@ -1114,7 +1239,6 @@ context TrainingOrchestration {
         evaluationDatasetAccessProfileId: UUID
       }
 
-      state RecruitingNodes
     }
 
     slice AcceptNodeParticipation {
@@ -1190,7 +1314,6 @@ context TrainingOrchestration {
         roundNumber: Int
       }
 
-      state Running
     }
 
     slice PauseTrainingJob {
@@ -1212,7 +1335,6 @@ context TrainingOrchestration {
         requestedBy: String
       }
 
-      state Paused
     }
 
     slice ResumeTrainingJob {
@@ -1234,7 +1356,6 @@ context TrainingOrchestration {
         requestedBy: String
       }
 
-      state Running
     }
 
     slice CancelTrainingJob {
@@ -1253,7 +1374,6 @@ context TrainingOrchestration {
         cancelReason: String?
       }
 
-      state Canceled
     }
 
     slice ScheduleNextTrainingRound {
@@ -1294,7 +1414,6 @@ context TrainingOrchestration {
         stopReason: String
       }
 
-      state Completed
     }
 
     slice TrainingJobDashboard {
@@ -1327,15 +1446,72 @@ context TrainingOrchestration {
         subscribe TrainingJobCompleted
       }
     }
-  }
 
-  aggregate TrainingRound {
+
+  concept TrainingJob {
+
+    state Draft
+
+    state StrategyConfigured
+
+    state Submitted
+
+    state RecruitingNodes
+
     state Running
-    state CollectingUpdates
-    state Aggregating
-    state EvaluatingGlobalModel
+
+    state Paused
+
+    state Canceled
+
     state Completed
 
+    state Draft
+
+    state StrategyConfigured
+
+    state Submitted
+
+    state RecruitingNodes
+
+    state Running
+
+    state Paused
+
+    state Running
+
+    state Canceled
+
+    state Completed
+
+
+    slice CreateTrainingJob
+
+    slice ConfigureTrainingStrategy
+
+    slice SubmitTrainingJob
+
+    slice RequestNodeParticipation
+
+    slice AcceptNodeParticipation
+
+    slice TrainingParticipantEligibility
+
+    slice TrackTrainingJobRunning
+
+    slice PauseTrainingJob
+
+    slice ResumeTrainingJob
+
+    slice CancelTrainingJob
+
+    slice ScheduleNextTrainingRound
+
+    slice CompleteTrainingJob
+
+    slice TrainingJobDashboard
+
+  }
     slice StartTrainingRound {
       startsLifecycle
       reactsTo NodeReadyForTraining
@@ -1361,7 +1537,6 @@ context TrainingOrchestration {
         readyNodeCount: Int
       }
 
-      state Running
     }
 
     slice DistributeGlobalModel {
@@ -1388,7 +1563,6 @@ context TrainingOrchestration {
         targetNodeCount: Int
       }
 
-      state CollectingUpdates
     }
 
     slice SubmitLocalModelUpdate {
@@ -1470,7 +1644,6 @@ context TrainingOrchestration {
         aggregationProvider: String
       }
 
-      state Aggregating
     }
 
     slice CompleteSecureAggregation {
@@ -1490,7 +1663,6 @@ context TrainingOrchestration {
         aggregatedModelVersionId: UUID
       }
 
-      state EvaluatingGlobalModel
     }
 
     slice SubmitGlobalModelEvaluation {
@@ -1541,7 +1713,6 @@ context TrainingOrchestration {
         globalAccuracy: Decimal
       }
 
-      state Completed
     }
 
     slice TrainingRoundProgress {
@@ -1569,19 +1740,54 @@ context TrainingOrchestration {
         subscribe TrainingRoundCompleted
       }
     }
+
+
+  concept TrainingRound {
+
+    state Running
+
+    state CollectingUpdates
+
+    state Aggregating
+
+    state EvaluatingGlobalModel
+
+    state Completed
+
+    state Running
+
+    state CollectingUpdates
+
+    state Aggregating
+
+    state EvaluatingGlobalModel
+
+    state Completed
+
+
+    slice StartTrainingRound
+
+    slice DistributeGlobalModel
+
+    slice SubmitLocalModelUpdate
+
+    slice SubmitLocalModelEvaluation
+
+    slice RequestSecureAggregation
+
+    slice CompleteSecureAggregation
+
+    slice SubmitGlobalModelEvaluation
+
+    slice CompleteTrainingRound
+
+    slice TrainingRoundProgress
+
   }
 }
 
 context ModelLifecycle {
   note "Model lifecycle starts after training has produced a final evaluated candidate."
-
-  aggregate ModelVersion {
-    state Candidate
-    state Approved
-    state Production
-    state RolledBack
-    state Retired
-
     slice RegisterCandidateModel {
       startsLifecycle
       reactsTo TrainingJobCompleted
@@ -1613,7 +1819,6 @@ context ModelLifecycle {
         finalGlobalAccuracy: Decimal
       }
 
-      state Candidate
     }
 
     slice ApproveModel {
@@ -1631,7 +1836,6 @@ context ModelLifecycle {
         approvalNote: String?
       }
 
-      state Approved
     }
 
     slice PromoteModelToProduction {
@@ -1651,7 +1855,6 @@ context ModelLifecycle {
         deploymentTarget: String
       }
 
-      state Production
     }
 
     slice RollbackModelVersion {
@@ -1673,7 +1876,6 @@ context ModelLifecycle {
         requestedBy: String
       }
 
-      state RolledBack
     }
 
     slice RetireModelVersion {
@@ -1693,7 +1895,6 @@ context ModelLifecycle {
         requestedBy: String
       }
 
-      state Retired
     }
 
     slice ModelVersionCatalog {
@@ -1717,15 +1918,48 @@ context ModelLifecycle {
         subscribe ModelVersionRetired
       }
     }
+
+
+  concept ModelVersion {
+
+    state Candidate
+
+    state Approved
+
+    state Production
+
+    state RolledBack
+
+    state Retired
+
+    state Candidate
+
+    state Approved
+
+    state Production
+
+    state RolledBack
+
+    state Retired
+
+
+    slice RegisterCandidateModel
+
+    slice ApproveModel
+
+    slice PromoteModelToProduction
+
+    slice RollbackModelVersion
+
+    slice RetireModelVersion
+
+    slice ModelVersionCatalog
+
   }
 }
 
 context RuntimeOperations {
   note "Runtime operations separates heartbeat monitoring, training alerts, and append only audit records."
-
-  aggregate NodeRuntimeHealth {
-    state Healthy
-
     slice RecordRuntimeHeartbeat {
       startsLifecycle
       actor EdgeRuntime
@@ -1747,7 +1981,6 @@ context RuntimeOperations {
         memoryLoad: Decimal
       }
 
-      state Healthy
     }
 
     slice RuntimeHealthDashboard {
@@ -1763,11 +1996,20 @@ context RuntimeOperations {
         subscribe TrainingAlertRaised
       }
     }
+
+
+  concept NodeRuntimeHealth {
+
+    state Healthy
+
+    state Healthy
+
+
+    slice RecordRuntimeHeartbeat
+
+    slice RuntimeHealthDashboard
+
   }
-
-  aggregate TrainingAlert {
-    state Raised
-
     slice RaiseTrainingAlert {
       startsLifecycle
       reactsTo RuntimeHeartbeatRecorded
@@ -1793,7 +2035,6 @@ context RuntimeOperations {
         message: String
       }
 
-      state Raised
     }
 
     slice TrainingAlertCatalog {
@@ -1807,11 +2048,20 @@ context RuntimeOperations {
         subscribe TrainingAlertRaised
       }
     }
+
+
+  concept TrainingAlert {
+
+    state Raised
+
+    state Raised
+
+
+    slice RaiseTrainingAlert
+
+    slice TrainingAlertCatalog
+
   }
-
-  aggregate AuditRecord {
-    state Appended
-
     slice AppendAuditTrail {
       startsLifecycle
       reactsTo TrainingAlertRaised
@@ -1872,7 +2122,6 @@ context RuntimeOperations {
         payloadHash: String
       }
 
-      state Appended
     }
 
     slice AuditRecordLog {
@@ -1885,6 +2134,19 @@ context RuntimeOperations {
         subscribe AuditTrailAppended
       }
     }
+
+
+  concept AuditRecord {
+
+    state Appended
+
+    state Appended
+
+
+    slice AppendAuditTrail
+
+    slice AuditRecordLog
+
   }
 }
 }

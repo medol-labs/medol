@@ -2,22 +2,23 @@ import "./shared-types.medol"
 
 domain Commerce {
   context Orders {
-    aggregate Order {
-      slice SubmitOrder {
-        startsLifecycle
+    slice SubmitOrder {
+      startsLifecycle
 
-        command SubmitOrder {
-          orderId: UUID id
-          shippingAddress: Address
-          status: OrderStatus
-        }
-
-        event OrderSubmitted {
-          orderId: UUID id
-          shippingAddress: Address
-          status: OrderStatus
-        }
+      command SubmitOrder {
+        orderId: UUID id
+        shippingAddress: Address
+        status: OrderStatus
       }
+
+      event OrderSubmitted {
+        orderId: UUID id
+        shippingAddress: Address
+        status: OrderStatus
+      }
+    }
+    concept Order {
+      slice SubmitOrder
     }
   }
 }

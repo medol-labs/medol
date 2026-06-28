@@ -25,7 +25,6 @@ ContextElement:
       ValueType
     | EnumType
     | StructuredValueType
-    | Aggregate
     | Slice
     | Concept
     | Policy
@@ -82,17 +81,6 @@ TypeMatchesConstraint:
 
 TypeOneOfConstraint:
     'oneOf' values+=Literal (',' values+=Literal)*
-;
-
-Aggregate:
-    'aggregate' name=ID '{'
-        features+=AggregateFeature*
-    '}'
-;
-
-AggregateFeature:
-      State
-    | Slice
 ;
 
 State:

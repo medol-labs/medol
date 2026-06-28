@@ -79,39 +79,41 @@ test('parses optional list fields and preserves codegen cardinality', () => {
   assert.match(roundTripDsl, /shape: Int\[\]\?/);
 });
 
-test('uses aggregate lifecycle states as qualified enum field types', () => {
+test('uses concept lifecycle states as qualified enum field types', () => {
   const model = parseMedol(`
     context Training {
-      aggregate TrainingJob {
+      slice CreateTrainingJob {
+        startsLifecycle
+        command CreateTrainingJob {
+          trainingJobId: UUID
+        }
+        event TrainingJobCreated {
+          trainingJobId: UUID
+        }
+        state Draft
+      }
+
+      slice TrainingJobDashboard {
+        readmodel TrainingJobDashboard[] {
+          trainingJobId: UUID id
+          currentStatus: TrainingJob.State
+          subscribe TrainingJobCreated
+        }
+      }
+
+      concept TrainingJob {
         state Draft
         state Running
         state Completed
-
-        slice CreateTrainingJob {
-          startsLifecycle
-          command CreateTrainingJob {
-            trainingJobId: UUID
-          }
-          event TrainingJobCreated {
-            trainingJobId: UUID
-          }
-          state Draft
-        }
-
-        slice TrainingJobDashboard {
-          readmodel TrainingJobDashboard[] {
-            trainingJobId: UUID id
-            currentStatus: TrainingJob.State
-            subscribe TrainingJobCreated
-          }
-        }
+        slice CreateTrainingJob
+        slice TrainingJobDashboard
       }
     }
   `);
 
   assert.deepEqual(model.diagnostics, []);
   const codegen = modelToCodegenModel(model);
-  assert.deepEqual(codegen.aggregates[0].states, ['Draft', 'Running', 'Completed']);
+  assert.deepEqual(codegen.concepts[0].states, ['Draft', 'Running', 'Completed']);
   assert.equal(
     codegen.slices.find((slice) => slice.name === 'TrainingJobDashboard')
       ?.readmodels[0].fields.find((field) => field.name === 'currentStatus')?.type,
@@ -137,6 +139,8 @@ test('uses aggregate lifecycle states as qualified enum field types', () => {
     }]
   });
   assert.match(roundTripDsl, /currentStatus: TrainingJob\.State/);
+  assert.doesNotMatch(roundTripDsl, /\baggregate\b/);
+  assert.match(roundTripDsl, /concept TrainingJob/);
 });
 
 test('exports concept lifecycle states and qualified readmodel field types', () => {
@@ -211,13 +215,14 @@ test('exports concept lifecycle states and qualified readmodel field types', () 
 test('rejects unknown lifecycle state owners and owners without states', () => {
   const model = parseMedol(`
     context Training {
-      aggregate EmptyJob {
-        slice Dashboard {
-          readmodel Dashboard {
-            emptyStatus: EmptyJob.State
-            missingStatus: MissingJob.State
-          }
+      slice Dashboard {
+        readmodel Dashboard {
+          emptyStatus: EmptyJob.State
+          missingStatus: MissingJob.State
         }
+      }
+      concept EmptyJob {
+        slice Dashboard
       }
     }
   `);
@@ -277,13 +282,14 @@ test('loads imports, merges context fragments, and keeps qualified IDs stable', 
       import "./types.medol"
       domain Commerce {
         context Orders {
-          aggregate Order {
-            slice SubmitOrder {
-              command SubmitOrder {
-                status: OrderStatus
-                address: Address
-              }
+          slice SubmitOrder {
+            command SubmitOrder {
+              status: OrderStatus
+              address: Address
             }
+          }
+          concept Order {
+            slice SubmitOrder
           }
         }
       }
@@ -312,29 +318,30 @@ test('loads imports, merges context fragments, and keeps qualified IDs stable', 
         value Address {
           city: String
         }
-        aggregate Order {
-          slice SubmitOrder {
-            command SubmitOrder {
-              status: OrderStatus
-              address: Address
-            }
+        slice SubmitOrder {
+          command SubmitOrder {
+            status: OrderStatus
+            address: Address
           }
+        }
+        concept Order {
+          slice SubmitOrder
         }
       }
     }
   `));
-  assert.equal(first.aggregates[0].id, second.aggregates[0].id);
+  assert.equal(first.concepts[0].id, second.concepts[0].id);
   assert.equal(first.slices[0].id, second.slices[0].id);
   assert.equal(first.valueTypes[0].id, second.valueTypes[0].id);
-  assert.equal(first.aggregates[0].id, inline.aggregates[0].id);
+  assert.equal(first.concepts[0].id, inline.concepts[0].id);
   assert.equal(first.slices[0].id, inline.slices[0].id);
   assert.equal(first.valueTypes[0].id, inline.valueTypes[0].id);
 });
 
-test('reports circular imports and keeps same aggregate names distinct across contexts', () => {
+test('reports circular imports and keeps same concept names distinct across contexts', () => {
   const files = new Map<string, string>([
-    ['/workspace/a.medol', 'import "./b.medol"\ncontext Sales { aggregate Item {} }'],
-    ['/workspace/b.medol', 'import "./a.medol"\ncontext Catalog { aggregate Item {} }']
+    ['/workspace/a.medol', 'import "./b.medol"\ncontext Sales { concept Item {} }'],
+    ['/workspace/b.medol', 'import "./a.medol"\ncontext Catalog { concept Item {} }']
   ]);
   const fileSystem: MedolProjectFileSystem = {
     readFile: (path) => files.get(path) ?? (() => { throw new Error('not found'); })(),
@@ -344,5 +351,5 @@ test('reports circular imports and keeps same aggregate names distinct across co
   const model = parseMedolFile('/workspace/a.medol', fileSystem);
   assert(model.diagnostics.some((message) => message.includes('Circular import')));
   const codegen = modelToCodegenModel(model);
-  assert.equal(new Set(codegen.aggregates.map((aggregate) => aggregate.id)).size, 2);
+  assert.equal(new Set(codegen.concepts.map((concept) => concept.id)).size, 2);
 });

@@ -344,7 +344,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setSelectedNodeId(undefined);
     setPreviewMode('canvas');
     setDslFocusPosition(undefined);
-    setDslFocusTarget({ kind: 'aggregate', name: aggregate.name });
+    setDslFocusTarget(undefined);
     setDslFocusVersion((version) => version + 1);
   };
 

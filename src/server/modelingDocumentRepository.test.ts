@@ -153,11 +153,12 @@ test('backfills source references for previously generated documents', () => {
     dsl: `
 domain Orders {
   context Sales {
-    aggregate Order {
-      slice CreateOrder {
-        command CreateOrder
-        event OrderCreated
-      }
+    slice CreateOrder {
+      command CreateOrder
+      event OrderCreated
+    }
+    concept Order {
+      slice CreateOrder
     }
   }
 }`

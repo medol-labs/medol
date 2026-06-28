@@ -210,6 +210,8 @@ context FederationManagement {
       organizationId: UUID
       invitationNote: String
     }
+
+    state Invited
   }
 
   slice ApproveParticipant {
@@ -277,6 +279,8 @@ context FederationManagement {
       organizationId: UUID
       rejectionReason: String
     }
+
+    state Rejected
   }
 
   slice RevokeParticipantInvitation {
@@ -295,6 +299,8 @@ context FederationManagement {
       organizationId: UUID
       revokeReason: String
     }
+
+    state InvitationRevoked
   }
 
   slice SuspendParticipant {
@@ -313,6 +319,8 @@ context FederationManagement {
       organizationId: UUID
       suspensionReason: String
     }
+
+    state Suspended
   }
 
   slice RemoveParticipant {
@@ -331,6 +339,8 @@ context FederationManagement {
       organizationId: UUID
       removalReason: String
     }
+
+    state Removed
   }
 
   slice FederationMembershipDirectory {

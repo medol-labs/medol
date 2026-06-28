@@ -1,4 +1,4 @@
-import type { EmAggregate, EmConcept, EmContext, EmElement, EmModel, EmSlice } from '../../lib/model';
+import type { EmConcept, EmContext, EmElement, EmModel, EmSlice } from '../../lib/model';
 import type { SelectedModelItem } from '../../app/modelSelection';
 import type { AgentDslKnowledge, AgentDslKnowledgeManifest } from './dslKnowledge';
 
@@ -19,7 +19,7 @@ export interface AgentDslSnippet {
 export interface AgentModelSummary {
   domainCount: number;
   contextCount: number;
-  aggregateCount: number;
+  conceptCount: number;
   sliceCount: number;
   elementCount: number;
   diagnostics: string[];
@@ -27,7 +27,6 @@ export interface AgentModelSummary {
     type: SelectedModelItem['type'];
     name: string;
     context?: string;
-    aggregate?: string;
     concept?: string;
     slice?: string;
     elementKind?: string;
@@ -195,7 +194,7 @@ const selectRelevantDslKnowledge = (input: {
     });
   }
 
-  if (matches(intentText, ['command', 'event', 'slice', 'createsaggregate', 'state', '命令', '事件', '状态'])) {
+  if (matches(intentText, ['command', 'event', 'slice', 'startslifecycle', 'state', '命令', '事件', '状态'])) {
     snippets.push({
       topic: 'timeline-modeling',
       reason: 'The request or selected MEDOL references slice timeline, command/event, creation, or state behavior.',
@@ -237,11 +236,8 @@ const selectRelevantDslKnowledge = (input: {
 };
 
 const summarizeModel = (model: EmModel, selectedItem?: SelectedModelItem): AgentModelSummary => {
-  const aggregates = model.contexts.flatMap((context) => context.aggregates);
-  const slices = model.contexts.flatMap((context) => [
-    ...context.slices,
-    ...context.aggregates.flatMap((aggregate) => aggregate.slices)
-  ]);
+  const concepts = model.contexts.flatMap((context) => context.concepts);
+  const slices = model.contexts.flatMap((context) => context.slices);
   const elements = [
     ...slices.flatMap((slice) => slice.elements),
     ...model.contexts.flatMap((context) => context.looseElements)
@@ -250,7 +246,7 @@ const summarizeModel = (model: EmModel, selectedItem?: SelectedModelItem): Agent
   return {
     domainCount: model.domains.length,
     contextCount: model.contexts.length,
-    aggregateCount: aggregates.length,
+    conceptCount: concepts.length,
     sliceCount: slices.length,
     elementCount: elements.length,
     diagnostics: model.diagnostics.slice(0, 8),
@@ -260,7 +256,6 @@ const summarizeModel = (model: EmModel, selectedItem?: SelectedModelItem): Agent
             type: selectedItem.type,
             name: selectedItem.name,
             ...(selectedItem.context ? { context: selectedItem.context.name } : {}),
-            ...(selectedItem.aggregate ? { aggregate: selectedItem.aggregate.name } : {}),
             ...(selectedItem.concept ? { concept: selectedItem.concept.name } : {}),
             ...(selectedItem.slice ? { slice: selectedItem.slice.name } : {}),
             ...(selectedItem.element ? { elementKind: selectedItem.element.kind } : {})
@@ -275,16 +270,10 @@ const summarizeSelectedContext = (selectedItem?: SelectedModelItem): string => {
 
   const parts = [`Selected ${selectedItem.type}: ${selectedItem.name}.`];
   if (selectedItem.context) parts.push(`Context: ${selectedItem.context.name}.`);
-  if (selectedItem.aggregate) parts.push(summarizeAggregate(selectedItem.aggregate));
   if (selectedItem.concept) parts.push(summarizeConcept(selectedItem.concept));
   if (selectedItem.slice) parts.push(summarizeSlice(selectedItem.slice));
   if (selectedItem.element) parts.push(summarizeElement(selectedItem.element));
   return parts.join(' ');
-};
-
-const summarizeAggregate = (aggregate: EmAggregate): string => {
-  const stateSummary = aggregate.states.length ? `states ${aggregate.states.join(', ')}` : 'no explicit states';
-  return `Aggregate ${aggregate.name} has ${aggregate.slices.length} slice(s) and ${stateSummary}.`;
 };
 
 const summarizeConcept = (concept: EmConcept): string => {
@@ -349,7 +338,6 @@ const findSelectedDslSnippet = (dsl: string, selectedItem?: SelectedModelItem): 
 const getBlockCandidates = (selectedItem: SelectedModelItem) => {
   if (selectedItem.type === 'domain') return [{ keyword: 'domain', name: selectedItem.name }];
   if (selectedItem.type === 'context') return [{ keyword: 'context', name: selectedItem.name }];
-  if (selectedItem.type === 'aggregate') return [{ keyword: 'aggregate', name: selectedItem.name }];
   if (selectedItem.type === 'concept') return [{ keyword: 'concept', name: selectedItem.name }];
   if (selectedItem.type === 'slice') return [{ keyword: 'slice', name: selectedItem.name }];
   if (!selectedItem.element) return [];

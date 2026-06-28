@@ -72,7 +72,7 @@ export const agentStructuredResponseSchema = z.discriminatedUnion('type', [
       })).min(1),
       preview: z.string().optional(),
       focusTarget: z.object({
-        kind: z.enum(['domain', 'context', 'aggregate', 'slice']),
+        kind: z.enum(['domain', 'context', 'concept', 'slice']),
         name: z.string()
       }).optional()
     })
@@ -228,7 +228,7 @@ const isOperation = (value: unknown): value is AgentDslPatchOperation['operation
 };
 
 const isFocusKind = (value: unknown): value is DslLocationTarget['kind'] => {
-  return value === 'domain' || value === 'context' || value === 'aggregate' || value === 'slice';
+  return value === 'domain' || value === 'context' || value === 'concept' || value === 'slice';
 };
 
 const createId = (prefix: string): string => {

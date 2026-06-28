@@ -17,71 +17,72 @@ domain ValidationExamples {
       oneOf "Admin", "Member"
     }
 
-    aggregate Account {
-      slice RegisterAccount {
-        startsLifecycle
+    slice RegisterAccount {
+      startsLifecycle
 
-        command RegisterAccount {
-          accountId: UUID id generated technical
-          email: Email
-          displayName: DisplayName
-          age: AccountAge
-          role: AccountRole
+      command RegisterAccount {
+        accountId: UUID id generated technical
+        email: Email
+        displayName: DisplayName
+        age: AccountAge
+        role: AccountRole
+      }
+
+      event AccountRegistered {
+        accountId: UUID id technical
+        email: Email
+        displayName: DisplayName
+        age: AccountAge
+        role: AccountRole
+      }
+
+      specification "Account Registration Valid" {
+        rule """
+          Accounts require a valid adult owner, a supported role,
+          and a unique email address.
+        """
+
+        expression {
+          unique Account.email
+          assert RegisterAccount.age >= 18
         }
 
-        event AccountRegistered {
-          accountId: UUID id technical
-          email: Email
-          displayName: DisplayName
-          age: AccountAge
-          role: AccountRole
+        scenario "Register a valid account" {
+          when RegisterAccount {
+            email = "owner@example.com"
+            displayName = "Example Owner"
+            age = 32
+            role = "Member"
+          }
+          then AccountRegistered
         }
 
-        specification "Account Registration Valid" {
-          rule """
-            Accounts require a valid adult owner, a supported role,
-            and a unique email address.
-          """
-
-          expression {
-            unique Account.email
-            assert RegisterAccount.age >= 18
+        scenario "Reject a duplicate email address" {
+          given AccountRegistered {
+            email = "owner@example.com"
           }
-
-          scenario "Register a valid account" {
-            when RegisterAccount {
-              email = "owner@example.com"
-              displayName = "Example Owner"
-              age = 32
-              role = "Member"
-            }
-            then AccountRegistered
+          when RegisterAccount {
+            email = "owner@example.com"
+            displayName = "Another Owner"
+            age = 28
+            role = "Member"
           }
+          then reject "Account Email Already Exists"
+        }
 
-          scenario "Reject a duplicate email address" {
-            given AccountRegistered {
-              email = "owner@example.com"
-            }
-            when RegisterAccount {
-              email = "owner@example.com"
-              displayName = "Another Owner"
-              age = 28
-              role = "Member"
-            }
-            then reject "Account Email Already Exists"
+        scenario "Reject an underage account owner" {
+          when RegisterAccount {
+            email = "young@example.com"
+            displayName = "Young Owner"
+            age = 16
+            role = "Member"
           }
-
-          scenario "Reject an underage account owner" {
-            when RegisterAccount {
-              email = "young@example.com"
-              displayName = "Young Owner"
-              age = 16
-              role = "Member"
-            }
-            then reject "Account Owner Must Be An Adult"
-          }
+          then reject "Account Owner Must Be An Adult"
         }
       }
+    }
+    concept Account {
+      slice RegisterAccount
     }
   }
 }

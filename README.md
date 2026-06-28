@@ -1,6 +1,6 @@
 # MEDOL
 
-MEDOL is a Domain Design Language for describing business domains, bounded contexts, aggregates, event-modeling timelines, read models, rules, UI interactions, and code-generation intent.
+MEDOL is a Domain Design Language for describing business domains, bounded contexts, concepts, event-modeling timelines, read models, rules, UI interactions, and code-generation intent.
 
 The project provides a Langium language implementation, Monaco editor, React Flow visual model, agentic modeling workflow, design-document generation, and adapters for application code generation. Each `slice` is rendered as a timeline column in the order it appears in MEDOL.
 
@@ -157,7 +157,7 @@ Choose a document generation action from the toolbar to save and open the result
 Documents preview. The document workspace supports Markdown editing, live rendered preview,
 explicit save, Markdown/Word download, deletion, and reopening documents associated with the active modeling
 workspace. Generated sections retain stable MEDOL source references. The Explorer shows a
-document-location action for referenced domains, contexts, aggregates, concepts, and slices;
+document-location action for referenced domains, contexts, concepts, and slices;
 document sections can navigate back to the corresponding MEDOL element. A source hash also marks
 whether a document still represents the current MEDOL content or needs regeneration. The Markdown
 editor and rendered preview scroll together in both directions. Regenerating the same document kind
@@ -258,11 +258,11 @@ The toolkit now uses an internal `CodegenModel` between `EmModel` and the Martin
 `CodegenModel` covers:
 
 - code generation metadata: `rootPackage` and optional top-level `domain`; the config adapter derives `codeGen.application` from `domain`
-- contexts: id, name, title, notes, risks, decisions, metrics, and aggregate references
-- aggregates: id, name, title, owning context, states, and aggregate fields placeholder
-- slices: id, index, name, title, `chapter`, context, aggregate reference, hotspots, actors, and optional state change
+- contexts: id, name, title, notes, risks, decisions, metrics, and concept references
+- concepts: id, name, title, owning context, states, and referenced slices
+- slices: id, index, name, title, `chapter`, context, concept references, hotspots, actors, and optional state change
 - elements: commands, events, readmodels, screens, processors, and specifications
-- element codegen data: id, name, title, type, model context, slice, aggregate, fields, dependencies, `startsLifecycle`, and `listElement`
+- element codegen data: id, name, title, type, model context, slice, concept, fields, dependencies, `startsLifecycle`, and `listElement`
 - fields: name, type, cardinality, optional/id/generated/technical/query flags, field-level `example`, and optional source metadata
 - field source metadata: direct mappings and derived mappings with source paths and optional rule text
 - dependencies: inbound/outbound element links with generated ids, titles, and element types
@@ -342,67 +342,72 @@ It accepts `medol`, `kind`, optional `language` (`en` or `zh-CN`), and optional 
 ```medol
 domain FederationLearningPlatform {
 context FederationLearning {
-  aggregate Federation {
+  slice CreateFederation {
+    startsLifecycle
+    actor Admin
+    ui CreateFederationScreen
+
+    command CreateFederation {
+      federationId: UUID id generated technical
+      federationName: String
+      description: String
+      governancePolicyId: UUID
+      minimumParticipantCount: Int
+    }
+
+    event FederationCreated {
+      federationId: UUID id technical
+      federationName: String
+      description: String
+      governancePolicyId: UUID
+      minimumParticipantCount: Int
+    }
+
+    state Draft
+
+    specification "Create federation with valid governance" {
+      when CreateFederation
+      then FederationCreated
+    }
+  }
+
+  slice FederationOverview {
+    reactsTo FederationCreated
+
+    readmodel FederationList[] {
+      federationId: UUID id
+      federationName: String
+      status: String
+      subscribe FederationCreated
+    }
+  }
+
+  slice AutoActivateFederation {
+    reactsTo FederationCreated
+
+    automation ActivateNewFederation {
+      condition status == "Draft"
+      emits ActivateFederation
+    }
+
+    command ActivateFederation {
+      federationId: UUID id
+      activateReason: String?
+    }
+
+    event FederationActivated {
+      federationId: UUID id
+      activateReason: String?
+      status: String
+    }
+  }
+
+  concept Federation {
     state Draft
     state Active
-
-    slice CreateFederation {
-      startsLifecycle
-      actor Admin
-      ui CreateFederationScreen
-
-      command CreateFederation {
-        federationId: UUID id generated technical
-        federationName: String
-        description: String
-        governancePolicyId: UUID
-        minimumParticipantCount: Int
-      }
-
-      event FederationCreated {
-        federationId: UUID id technical
-        federationName: String
-        description: String
-        governancePolicyId: UUID
-        minimumParticipantCount: Int
-      }
-
-      specification "Create federation with valid governance" {
-        when CreateFederation
-        then FederationCreated
-      }
-    }
-
-    slice FederationOverview {
-      reactsTo FederationCreated
-
-      readmodel FederationList[] {
-        federationId: UUID id
-        federationName: String
-        status: String
-        subscribe FederationCreated
-      }
-    }
-
-    slice AutoActivateFederation {
-      reactsTo FederationCreated
-
-      automation ActivateNewFederation {
-        condition status == "Draft"
-        emits ActivateFederation
-      }
-
-      command ActivateFederation {
-        federationId: UUID id
-        activateReason: String?
-      }
-
-      event FederationActivated {
-        federationId: UUID id
-        activateReason: String?
-        status: String
-      }
-    }
+    slice CreateFederation
+    slice FederationOverview
+    slice AutoActivateFederation
   }
 }
 }
@@ -413,12 +418,11 @@ context FederationLearning {
 - `domain`: A top-level domain that groups one or more modeling contexts.
 - `context`: A bounded modeling context inside a domain. Legacy files may still start with `context`.
 - `type`: A reusable context-level value type. It carries field-level `format`, `length`, `range`, `matches`, or `oneOf` constraints.
-- `aggregate`: A domain aggregate containing states and slices.
-- `concept`: A named business concept shared by context-level slices. It declares the concept's states and groups related behavior through slice references without prescribing aggregate or consistency-boundary implementation.
+- `concept`: A named business concept shared by context-level slices. It declares the concept's states and groups related behavior through slice references.
 - `slice`: A timeline column in the event modeling board.
-- `state`: Inside an aggregate or concept, declares an allowed lifecycle state; inside a slice, declares that slice's resulting state.
+- `state`: Inside a concept, declares an allowed lifecycle state; inside a slice, declares that slice's resulting state.
 - `tags`: Selection values used to identify the concept instance involved in a slice. Tag expressions may normalize or derive values.
-- `startsLifecycle`: Marks the entry slice that begins a business concept lifecycle without choosing Aggregate or DCB implementation.
+- `startsLifecycle`: Marks the entry slice that begins a business concept lifecycle.
 - `ui`: A screen or view reference.
 - `command`: A user or automation intent.
 - `event`: A domain fact produced by a command.
@@ -471,13 +475,13 @@ fieldName: Type id generated technical query
 fieldName: Type { example "A readable sample value." }
 copiedName: Type from UpstreamElement.sourceName
 computedName: Type derived
-computedName: Type derived from Aggregate.policy
-computedName: Type derived { from Aggregate.state, Command.input rule "Explain the domain rule." example "42" }
+computedName: Type derived from Concept.policy
+computedName: Type derived { from Concept.state, Command.input rule "Explain the domain rule." example "42" }
 ```
 
 Fields without `?` are required. `type` defines constrained scalar values, `enum` defines a closed business vocabulary, and `value` defines a structured value object without identity. Reusable value types carry intrinsic field validity; specifications carry business invariants that depend on domain meaning, state, or other instances.
 
-An aggregate or concept that declares lifecycle states also exposes a generated enum type named `Owner.State`. For example, `currentStatus: TrainingJob.State` stores one of the states declared by `TrainingJob`. The codegen model keeps the qualified field type while the owning aggregate or concept supplies the enum values through its `states` declaration.
+A concept that declares lifecycle states also exposes a generated enum type named `Owner.State`. For example, `currentStatus: TrainingJob.State` stores one of the states declared by `TrainingJob`. The codegen model keeps the qualified field type while the owning concept supplies the enum values through its `states` declaration.
 
 Imports are resolved relative to the importing file by the MEDOL CLI. Files may contribute fragments to the same domain and context; the compiler merges them before semantic validation. Generated IDs use fully qualified semantic paths, so moving a declaration between imported files or changing file order does not change its ID.
 
@@ -485,10 +489,10 @@ Imports are resolved relative to the importing file by the MEDOL CLI. Files may 
 
 MEDOL validates the parsed model before preview, documentation, or code generation. Diagnostics cover:
 
-- duplicate domains, contexts, types, aggregates, concepts, slices, states, tags, elements, fields, scenarios, and assignments
+- duplicate domains, contexts, types, concepts, slices, states, tags, elements, fields, scenarios, and assignments
 - unknown field types, unknown value-type base types, cyclic scalar or structured value definitions, invalid enum examples, and incompatible `oneOf` literals
 - invalid constraint bounds, invalid regular expressions, and constraints applied to incompatible base types
-- invalid Concept/Aggregate lifecycle starts and resulting states that were not declared
+- invalid concept lifecycle starts and resulting states that were not declared
 - missing or ambiguous Concept Slice references and Slices assigned to multiple Concepts
 - unknown Tag fields and Tag expressions that reference missing fields
 - unresolved command/event relationships such as `reactsTo`, `subscribe`, policy, automation, and GWT references
@@ -507,7 +511,7 @@ Supported field attributes:
 Field mappings:
 
 - `from`: Maps a field directly from one or more upstream element or field paths.
-- `derived`: Marks a field produced from a domain rule or aggregate state rather than copied input.
+- `derived`: Marks a field produced from a domain rule or concept state rather than copied input.
 - `{ example "..." }`: Stores a field-level example value apart from specification examples.
 - `derived { from ... rule "..." example "..." }`: Keeps derivation metadata with the field. MEDOL-to-config writes sources and rules as field `mappings`.
 

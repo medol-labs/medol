@@ -91,7 +91,6 @@ interface ContextSymbols {
   slices: Map<string, EmSlice[]>;
   elements: Map<string, EmElement[]>;
   fieldsByElement: Map<string, EmField[]>;
-  fieldsByAggregate: Map<string, EmField[]>;
   fieldsByConcept: Map<string, EmField[]>;
 }
 
@@ -135,7 +134,6 @@ const validateContext = (
     scope,
     diagnostics
   );
-  validateDuplicateNames(symbols.context.aggregates.map((item) => item.name), 'aggregate', scope, diagnostics);
   validateDuplicateNames(symbols.context.concepts.map((item) => item.name), 'concept', scope, diagnostics);
   validateDuplicateNames(
     [...symbols.slices.entries()].flatMap(([name, values]) => values.length > 0 ? [name, ...Array(values.length - 1).fill(name)] : []),
@@ -146,16 +144,11 @@ const validateContext = (
 
   validateValueTypes(symbols, diagnostics);
   validateElements(symbols, diagnostics);
-  validateAggregates(symbols, diagnostics);
   validateConcepts(symbols, diagnostics);
 
   for (const element of definitions) {
     if (isSlice(element)) {
       validateAstSlice(element, symbols, diagnostics);
-    } else if (element.$type === 'Aggregate') {
-      for (const feature of element.features ?? []) {
-        if (isSlice(feature)) validateAstSlice(feature, symbols, diagnostics);
-      }
     }
   }
 };
@@ -164,7 +157,6 @@ const buildContextSymbols = (context: EmContext): ContextSymbols => {
   const slices = new Map<string, EmSlice[]>();
   const elements = new Map<string, EmElement[]>();
   const fieldsByElement = new Map<string, EmField[]>();
-  const fieldsByAggregate = new Map<string, EmField[]>();
   const fieldsByConcept = new Map<string, EmField[]>();
 
   for (const slice of allSlices(context)) {
@@ -178,24 +170,12 @@ const buildContextSymbols = (context: EmContext): ContextSymbols => {
     addMulti(elements, element.name, element);
     if (element.fields.length > 0) fieldsByElement.set(element.name, element.fields);
   }
-  for (const aggregate of context.aggregates) {
-    fieldsByAggregate.set(aggregate.name, mergeFields(aggregate.slices.flatMap((slice) => slice.elements)));
-  }
   for (const concept of context.concepts) {
     const memberSlices = allSlices(context).filter((slice) => concept.sliceIds.includes(slice.id));
     fieldsByConcept.set(concept.name, mergeFields(memberSlices.flatMap((slice) => slice.elements)));
   }
 
   const valueTypes = new Map(context.valueTypes.map((valueType) => [valueType.name, valueType]));
-  for (const aggregate of context.aggregates) {
-    if (aggregate.states.length > 0) {
-      valueTypes.set(`${aggregate.name}.State`, lifecycleStateType(
-        `${aggregate.id}/state-type`,
-        `${aggregate.name}.State`,
-        aggregate.states
-      ));
-    }
-  }
   for (const concept of context.concepts) {
     if (concept.states.length > 0) {
       valueTypes.set(`${concept.name}.State`, lifecycleStateType(
@@ -212,7 +192,6 @@ const buildContextSymbols = (context: EmContext): ContextSymbols => {
     slices,
     elements,
     fieldsByElement,
-    fieldsByAggregate,
     fieldsByConcept
   };
 };
@@ -412,26 +391,6 @@ const validateFieldConsistency = (
   }
 };
 
-const validateAggregates = (symbols: ContextSymbols, diagnostics: string[]): void => {
-  for (const aggregate of symbols.context.aggregates) {
-    const scope = `Aggregate ${aggregate.name}`;
-    validateDuplicateNames(aggregate.states, 'state', scope, diagnostics);
-    const starts = aggregate.slices.filter((slice) => slice.startsLifecycle);
-    if (starts.length > 1) {
-      diagnostics.push(`${scope}: multiple slices start the lifecycle: ${starts.map((slice) => slice.name).join(', ')}.`);
-    }
-    if (aggregate.states.length > 0 && aggregate.slices.length > 0 && starts.length === 0) {
-      diagnostics.push(`${scope}: a stateful aggregate must have one slice marked startsLifecycle.`);
-    }
-    for (const slice of aggregate.slices) {
-      if (slice.resultingState && !aggregate.states.includes(slice.resultingState)) {
-        diagnostics.push(`${scope}: slice ${slice.name} results in undeclared state ${slice.resultingState}.`);
-      }
-    }
-    validateFieldConsistency(scope, aggregate.slices.flatMap((slice) => slice.elements), symbols, diagnostics);
-  }
-};
-
 const validateConcepts = (symbols: ContextSymbols, diagnostics: string[]): void => {
   const sliceConcepts = new Map<string, string[]>();
   for (const concept of symbols.context.concepts) {
@@ -450,7 +409,7 @@ const validateConcepts = (symbols: ContextSymbols, diagnostics: string[]): void 
       }
       sliceConcepts.set(sliceName, [...(sliceConcepts.get(sliceName) ?? []), concept.name]);
       const slice = slices[0];
-      if (slice.resultingState && concept.states.length > 0 && !concept.states.includes(slice.resultingState)) {
+      if (slice.resultingState && concept.states.length > 0 && !concept.states.includes(slice.resultingState) && !isChildEntityStateSlice(slice, concept.name)) {
         diagnostics.push(`${scope}: slice ${slice.name} results in undeclared state ${slice.resultingState}.`);
       }
     }
@@ -471,6 +430,18 @@ const validateConcepts = (symbols: ContextSymbols, diagnostics: string[]): void 
       diagnostics.push(`Slice ${sliceName}: belongs to multiple concepts (${concepts.join(', ')}); lifecycle state and tag semantics are ambiguous.`);
     }
   }
+};
+
+const isChildEntityStateSlice = (slice: EmSlice, conceptName: string): boolean => {
+  const rootIdentityName = `${conceptName.charAt(0).toLowerCase()}${conceptName.slice(1)}Id`;
+  return slice.elements.some((element) =>
+    (element.kind === 'command' || element.kind === 'event') &&
+    element.fields.some((field) =>
+      field.name.endsWith('Id') &&
+      field.name !== rootIdentityName &&
+      !field.attributes.includes('id')
+    )
+  );
 };
 
 const validateAstSlice = (
@@ -782,7 +753,6 @@ const resolveFieldPath = (parts: string[], symbols: ContextSymbols): ResolvedOpe
   const [owner, fieldName] = parts;
   const fields =
     symbols.fieldsByElement.get(owner) ??
-    symbols.fieldsByAggregate.get(owner) ??
     symbols.fieldsByConcept.get(owner);
   const field = fields?.find((candidate) => candidate.name === fieldName);
   return field ? { type: field.type, cardinality: field.cardinality, label: `${owner}.${fieldName}` } : undefined;
@@ -866,8 +836,7 @@ const mergeFields = (elements: EmElement[]): EmField[] => {
 };
 
 const allSlices = (context: EmContext): EmSlice[] => [
-  ...context.slices,
-  ...context.aggregates.flatMap((aggregate) => aggregate.slices)
+  ...context.slices
 ];
 
 const addMulti = <T>(target: Map<string, T[]>, key: string, value: T): void => {

@@ -2,7 +2,6 @@ import { createDefaultCoreModule, createDefaultSharedCoreModule, EmptyFileSystem
 import { MedolGeneratedModule, MedolGeneratedSharedModule } from '../language/generated/module';
 import {
   isActorRef,
-  isAggregate,
   isAutomation,
   isBinaryExpr,
   isBooleanLiteral,
@@ -44,7 +43,6 @@ import {
   isValueType
 } from '../language/generated/ast';
 import type {
-  Aggregate as AstAggregate,
   Automation as AstAutomation,
   Command as AstCommand,
   Context as AstContext,
@@ -70,7 +68,7 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmAggregate, EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type MedolDiagnostic, type MedolSourceRange } from './model';
+import { EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 
@@ -291,10 +289,6 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
       context.valueTypes.push(parseStructuredValueType(element, context.id));
       continue;
     }
-    if (isAggregate(element)) {
-      context.aggregates.push(parseAggregate(element, context.id, edges));
-      continue;
-    }
     if (isSlice(element)) {
       context.slices.push(parseSlice(element, context.id, edges));
       continue;
@@ -417,31 +411,7 @@ const parseConcept = (node: AstConcept, contextId: string): EmConcept => {
   };
 };
 
-const parseAggregate = (node: AstAggregate, contextId: string, edges: EmEdge[]): EmAggregate => {
-  const aggregateName = safeName(node.name, 'UnnamedAggregate');
-  const aggregateId = `${contextId}/aggregate/${aggregateName}`;
-  const aggregate: EmAggregate = {
-    id: aggregateId,
-    name: aggregateName,
-    ...withSourceRange(node),
-    states: [],
-    slices: []
-  };
-
-  for (const feature of node.features ?? []) {
-    if (isState(feature)) {
-      aggregate.states.push(feature.name);
-      continue;
-    }
-    if (isSlice(feature)) {
-      aggregate.slices.push(parseSlice(feature, aggregateId, edges, aggregateId));
-    }
-  }
-
-  return aggregate;
-};
-
-const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateId?: string): EmSlice => {
+const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[]): EmSlice => {
   const sliceName = safeName(node.name, 'UnnamedSlice');
   const elements = node.elements ?? [];
   const sliceId = `${scopeId}/slice/${sliceName}`;
@@ -450,7 +420,6 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
     id: sliceId,
     name: sliceName,
     ...withSourceRange(node),
-    ...(aggregateId ? { aggregateId } : {}),
     startsLifecycle: elements.some(isStartsLifecycleMarker),
     resultingState: elements.find(isState)?.name,
     tags: tags.map((tag) => ({
@@ -469,8 +438,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
       name: actorRef.actor,
       fields: [],
       ...withSourceRange(actorRef),
-      sliceId,
-      ...(aggregateId ? { aggregateId } : {})
+      sliceId
     });
   }
 
@@ -483,7 +451,6 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
       fields: [],
       ...withSourceRange(uiRef),
       sliceId,
-      ...(aggregateId ? { aggregateId } : {}),
       ...(parseUi(uiRef) ? { ui: parseUi(uiRef) } : {})
     });
   }
@@ -491,14 +458,14 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
   for (const element of elements) {
     if (isSpecification(element) && element.scenarios.length > 0) {
       for (const scenario of element.scenarios) {
-        const parsed = parseScenarioElement(element, scenario, sliceId, aggregateId);
+        const parsed = parseScenarioElement(element, scenario, sliceId);
         slice.elements.push(parsed);
         collectScenarioEdges(scenario, parsed.id, edges);
       }
       continue;
     }
     if (isCommand(element) || isEvent(element) || isReadModel(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
-      const parsed = parseElement(element, sliceId, aggregateId);
+      const parsed = parseElement(element, sliceId);
       slice.elements.push(parsed);
       collectElementEdges(element, parsed.id, edges);
     }
@@ -530,8 +497,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[], aggregateI
 const parseScenarioElement = (
   specification: AstSpecification,
   scenario: AstScenario,
-  sliceId: string,
-  aggregateId?: string
+  sliceId: string
 ): EmElement => ({
   id: `${sliceId}/gwt/${safeName(specification.name, 'UnnamedSpecification')}/${safeName(scenario.name, 'UnnamedScenario')}`,
   kind: 'gwt',
@@ -539,7 +505,6 @@ const parseScenarioElement = (
   fields: [],
   ...withSourceRange(scenario),
   sliceId,
-  aggregateId,
   metadata: {
     specification: safeName(specification.name, 'UnnamedSpecification'),
     ...(specification.rule ? { rule: normalizeMultilineString(specification.rule) } : {}),
@@ -623,8 +588,7 @@ const parseUi = (uiRef: AstUiRef): EmUi | undefined => {
 
 const parseElement = (
   node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
-  scopeId: string,
-  aggregateId?: string
+  scopeId: string
 ): EmElement => {
   const kind = isReadModel(node)
     ? 'readmodel'
@@ -640,7 +604,6 @@ const parseElement = (
     ...withSourceRange(node),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
-    aggregateId,
     metadata: parseElementMetadata(node)
   };
 };
@@ -856,15 +819,11 @@ const contextIdFromElementId = (id: string): string => {
 export const flattenElements = (model: EmModel): EmElement[] =>
   model.contexts.flatMap((context) => [
     ...context.looseElements,
-    ...context.slices.flatMap((slice) => slice.elements),
-    ...context.aggregates.flatMap((aggregate) =>
-      aggregate.slices.flatMap((slice) => slice.elements)
-    )
+    ...context.slices.flatMap((slice) => slice.elements)
   ]);
 
 export const allContextSlices = (context: EmContext): EmSlice[] => [
-  ...context.slices,
-  ...context.aggregates.flatMap((aggregate) => aggregate.slices)
+  ...context.slices
 ];
 
 const dedupeEdges = (model: EmModel): void => {

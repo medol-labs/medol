@@ -44,24 +44,23 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Prefer small MEDOL patches over broad rewrites.',
     'Preserve existing names, ordering, indentation, and user-authored comments where possible.',
     'When a business rule is unclear, add or update a hotspot instead of inventing behavior.',
-    'Command and event fields do not need to be identical. Event fields may be derived from command fields, aggregate state, read models, policies, or integrations.',
+    'Command and event fields do not need to be identical. Event fields may be derived from command fields, concept state, read models, policies, or integrations.',
     'When proposing MEDOL changes, return focused patch operations plus a short preview and focus target; the server generates nextDsl.'
   ],
   syntax: {
     domain: 'domain Name { context ... } groups bounded contexts under a business domain.',
-    context: 'context Name { type | aggregate | slice | concept | policy | integration | readmodel | userJourney | risk | note | decision | metric } describes a bounded context.',
+    context: 'context Name { type | slice | concept | policy | integration | readmodel | userJourney | risk | note | decision | metric } describes a bounded context.',
     valueType: 'type Name = BaseType { format Name | length min..max | range min..max | matches "pattern" | oneOf value1, value2 } defines constrained scalar types. enum Name { Value... } defines a closed set. value Name { field: Type... } defines a structured value object.',
     import: 'import "./shared-types.medol" loads another MEDOL file. Imported fragments with the same domain and context are merged before semantic validation.',
-    aggregate: 'aggregate Name { state StateName | slice SliceName { ... } } owns lifecycle states and timeline slices.',
     slice: 'slice Name { tags { tagName | tagName = expression } actor | startsLifecycle | ui | reactsTo | command | event | state | specification | readmodel | automation | policy | hotspot } describes one timeline capability and may live directly under context.',
     tags: 'tags { methodId methodCode = normalize(code) } declares event-selection values used to identify a business concept across slices; a bare tag uses its same-named value.',
-    concept: 'concept Name { state StateName* slice SliceName* } groups context slices and their lifecycle states without prescribing aggregate or DCB implementation.',
+    concept: 'concept Name { state StateName* slice SliceName* } groups context slices, lifecycle states, and code-generation consistency boundaries.',
     command: 'command Name { fieldName: Type attributes? mapping? details? example? } represents user or system intent.',
     event: 'event Name { fieldName: Type attributes? mapping? details? } records a fact after command/rule processing.',
     readmodel: 'readmodel Name[]? { subscribe EventName? fieldName: Type ... } represents information available for queries and UI. [] marks collection semantics.',
     ui: 'ui ViewName type? attaches a UI surface to a slice. Supported types: list, detail, form, dialog, drawer, confirm, wizard, inline, background.',
-    state: 'state StateName inside an aggregate or concept declares a lifecycle enum value. state StateName inside a slice marks the resulting state. Use Owner.State as the field type when a read model or event stores that lifecycle enum.',
-    startsLifecycle: 'startsLifecycle marks the entry slice that begins a business concept lifecycle without prescribing aggregate or DCB implementation.',
+    state: 'state StateName inside a concept declares a lifecycle enum value. state StateName inside a slice marks the resulting state. Use Owner.State as the field type when a read model or event stores that lifecycle enum.',
+    startsLifecycle: 'startsLifecycle marks the entry slice that begins a business concept lifecycle.',
     specification: 'specification "Rule name" { rule """multi-line rule"""? expression { validation* }? scenario "Example" { given* when then }+ } defines a business rule once and verifies it with one or more concrete scenarios. rule and expression are independently optional; at least one scenario is required. The legacy single-scenario GWT form remains readable.',
     expression: 'expression is reserved for business invariants and supports single-field unique Path, composite unique (Path, Path, ...), and assert Operand operator Operand. Put format, length, range, matches, and oneOf constraints on reusable type definitions.',
     automation: 'automation Name { condition expression emits CommandName } captures automatic behavior.',
@@ -72,8 +71,8 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Use slices to model timeline flow. Command, event, state, read model, automation, and hotspot placement matters.',
     'Place read model slices where the timeline makes the resulting information visible.',
     'Use startsLifecycle only on the entry command slice that begins a business concept lifecycle.',
-    'Use state in aggregate or concept for possible lifecycle states and state in slice for the resulting state after that slice.',
-    'Owner.State is the generated lifecycle enum for an aggregate or concept named Owner. A field such as currentStatus: TrainingJob.State is restricted to the states declared by TrainingJob.',
+    'Use state in concept for possible lifecycle states and state in slice for the resulting state after that slice.',
+    'Owner.State is the generated lifecycle enum for a concept named Owner. A field such as currentStatus: TrainingJob.State is restricted to the states declared by TrainingJob.',
     'Use reactsTo when a slice starts from a prior event instead of a direct UI/user command.',
     'Do not force commands and events to have identical fields. Events should contain the important recorded facts.',
     'Use then reject "description" for expected business rejection outcomes. Keep technical failures outside the domain timeline.',
@@ -82,7 +81,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
     'Use reusable type definitions for field-level validity. Use specification expressions only for business invariants such as uniqueness and business assertions.',
     'Use enum for closed business vocabularies and value for immutable structured values without identity. Use import to split a model by bounded context or shared type catalog.',
     'Treat semantic diagnostics as blocking issues: types, references, lifecycle states, tags, expressions, and scenario examples must resolve and type-check before applying a patch.',
-    'For concept modeling, place slices directly under context, declare their selection tags, and reference them from concept blocks. Do not invent an aggregate merely as a container.',
+    'Place slices directly under context, declare their selection tags when needed, and reference them from concept blocks. Do not use legacy container syntax.',
     'Prefer explicit rule/hotspot notes for domain logic that code generation or a human must later implement.'
   ],
   fieldMappingRules: [
@@ -128,7 +127,7 @@ export const eventModelingDslKnowledge: AgentDslKnowledge = {
       ].join('\n')
     },
     {
-      name: 'Create aggregate slice',
+      name: 'Create concept slice',
       dsl: [
         'slice CreateFederation {',
         '  startsLifecycle',
@@ -208,7 +207,7 @@ export const eventModelingDslKnowledgeManifest: AgentDslKnowledgeManifest = {
     'Use then reject "description" for expected business rejection outcomes; rejection is part of the specification and is not declared as a separate element.',
     'Define reusable business meaning with specification rule and expression; place concrete examples in scenario blocks.',
     'Close every unique/assert rule with a rejecting scenario whose examples prove the violation.',
-    'Use context-level slices with tags and concept references when multiple slices operate on the same business concept; existing aggregate syntax remains valid.'
+    'Use context-level slices with tags and concept references when multiple slices operate on the same business concept.'
   ]
 };
 

@@ -37,9 +37,7 @@ export const runMockStructuredAgent = async (
   const contextName = selected ? `${selected.type} "${selected.name}"` : 'the whole model';
   const diagnostics = request.model.diagnostics.length;
   const contextCount = request.model.contexts.length;
-  const sliceCount = request.model.contexts.reduce((total, context) => (
-    total + context.slices.length + context.aggregates.reduce((sum, aggregate) => sum + aggregate.slices.length, 0)
-  ), 0);
+  const sliceCount = request.model.contexts.reduce((total, context) => total + context.slices.length, 0);
   const conceptCount = request.model.contexts.reduce((total, context) => total + context.concepts.length, 0);
   const dslKnowledgeVersion = request.dslKnowledgeManifest?.version ?? request.dslKnowledge?.version;
   const selectedSnippet = request.agentContext?.selectedDslSnippet;

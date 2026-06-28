@@ -1,4 +1,4 @@
-export type DslLocationKind = 'domain' | 'context' | 'aggregate' | 'concept' | 'slice';
+export type DslLocationKind = 'domain' | 'context' | 'concept' | 'slice';
 
 export interface DslLocationTarget {
   kind: DslLocationKind;

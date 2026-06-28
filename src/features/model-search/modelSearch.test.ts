@@ -9,15 +9,16 @@ const model = parseMedol(`
       value FeatureDefinition {
         featureName: String
       }
-      aggregate TrainingJob {
-        slice StartTraining {
-          command StartTraining {
-            jobId: UUID
-          }
-          event TrainingStarted {
-            jobId: UUID
-          }
+      slice StartTraining {
+        command StartTraining {
+          jobId: UUID
         }
+        event TrainingStarted {
+          jobId: UUID
+        }
+      }
+      concept TrainingJob {
+        slice StartTraining
       }
     }
   }
@@ -27,8 +28,8 @@ const index = buildModelSearchIndex(model);
 test('builds searchable model paths with source ranges', () => {
   const command = index.find((item) => item.kind === 'command');
   assert.equal(command?.name, 'StartTraining');
-  assert.deepEqual(command?.path, ['Federation', 'Training', 'TrainingJob', 'StartTraining']);
-  assert.equal(command?.sourceRange?.start.line, 9);
+  assert.deepEqual(command?.path, ['Federation', 'Training', 'StartTraining']);
+  assert.equal(command?.sourceRange?.start.line, 8);
 });
 
 test('supports kind filters, acronym, and hidden field results', () => {

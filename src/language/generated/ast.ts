@@ -36,7 +36,6 @@ export type MedolKeywordNames =
     | "[]"
     | "[]?"
     | "actor"
-    | "aggregate"
     | "assert"
     | "automation"
     | "background"
@@ -124,33 +123,6 @@ export const ActorRef = {
 
 export function isActorRef(item: unknown): item is ActorRef {
     return reflection.isInstance(item, ActorRef.$type);
-}
-
-export interface Aggregate extends langium.AstNode {
-    readonly $container: Context;
-    readonly $type: 'Aggregate';
-    features: Array<AggregateFeature>;
-    name: string;
-}
-
-export const Aggregate = {
-    $type: 'Aggregate',
-    features: 'features',
-    name: 'name'
-} as const;
-
-export function isAggregate(item: unknown): item is Aggregate {
-    return reflection.isInstance(item, Aggregate.$type);
-}
-
-export type AggregateFeature = Slice | State;
-
-export const AggregateFeature = {
-    $type: 'AggregateFeature'
-} as const;
-
-export function isAggregateFeature(item: unknown): item is AggregateFeature {
-    return reflection.isInstance(item, AggregateFeature.$type);
 }
 
 export interface AssertValidation extends langium.AstNode {
@@ -364,7 +336,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Aggregate | Concept | Decision | EnumType | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
+export type ContextElement = Concept | Decision | EnumType | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -914,7 +886,7 @@ export function isScenario(item: unknown): item is Scenario {
 }
 
 export interface Slice extends langium.AstNode {
-    readonly $container: Aggregate | Context;
+    readonly $container: Context;
     readonly $type: 'Slice';
     elements: Array<SliceElement>;
     name: string;
@@ -1032,7 +1004,7 @@ export function isStartsLifecycleMarker(item: unknown): item is StartsLifecycleM
 }
 
 export interface State extends langium.AstNode {
-    readonly $container: Aggregate | Concept | Slice;
+    readonly $container: Concept | Slice;
     readonly $type: 'State';
     name: string;
 }
@@ -1413,8 +1385,6 @@ export function isWhen(item: unknown): item is When {
 
 export type MedolAstType = {
     ActorRef: ActorRef
-    Aggregate: Aggregate
-    AggregateFeature: AggregateFeature
     AssertValidation: AssertValidation
     Assignment: Assignment
     Automation: Automation
@@ -1507,25 +1477,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [SliceElement.$type]
-        },
-        Aggregate: {
-            name: Aggregate.$type,
-            properties: {
-                features: {
-                    name: Aggregate.features,
-                    defaultValue: []
-                },
-                name: {
-                    name: Aggregate.name
-                }
-            },
-            superTypes: [ContextElement.$type]
-        },
-        AggregateFeature: {
-            name: AggregateFeature.$type,
-            properties: {
-            },
-            superTypes: []
         },
         AssertValidation: {
             name: AssertValidation.$type,
@@ -2066,7 +2017,7 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: Slice.name
                 }
             },
-            superTypes: [AggregateFeature.$type, ContextElement.$type]
+            superTypes: [ContextElement.$type]
         },
         SliceElement: {
             name: SliceElement.$type,
@@ -2155,7 +2106,7 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: State.name
                 }
             },
-            superTypes: [AggregateFeature.$type, ConceptFeature.$type, SliceElement.$type]
+            superTypes: [ConceptFeature.$type, SliceElement.$type]
         },
         StepValue: {
             name: StepValue.$type,

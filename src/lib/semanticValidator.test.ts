@@ -40,68 +40,69 @@ test('accepts reusable types, business expressions, booleans, and null optionals
         type Role = String {
           oneOf "Admin", "Member"
         }
-        aggregate Account {
+        slice RegisterAccount {
+          startsLifecycle
+          command RegisterAccount {
+            accountId: UUID
+            email: Email
+            role: Role
+            enabled: Boolean
+            memo: String?
+            age: Int
+          }
+          event AccountRegistered {
+            accountId: UUID
+            email: Email
+            role: Role
+            enabled: Boolean
+            memo: String?
+            age: Int
+          }
           state Active
-          slice RegisterAccount {
-            startsLifecycle
-            command RegisterAccount {
-              accountId: UUID
-              email: Email
-              role: Role
-              enabled: Boolean
-              memo: String?
-              age: Int
+          specification "Account rules" {
+            expression {
+              unique Account.email
+              assert RegisterAccount.age >= 18
             }
-            event AccountRegistered {
-              accountId: UUID
-              email: Email
-              role: Role
-              enabled: Boolean
-              memo: String?
-              age: Int
+            scenario "Register" {
+              when RegisterAccount {
+                accountId = "9d037349-42a5-4ce7-9e39-cab0df01e408"
+                email = "owner@example.com"
+                role = "Admin"
+                enabled = true
+                memo = null
+                age = 32
+              }
+              then AccountRegistered
             }
-            state Active
-            specification "Account rules" {
-              expression {
-                unique Account.email
-                assert RegisterAccount.age >= 18
+            scenario "Reject duplicate email" {
+              given AccountRegistered {
+                email = "owner@example.com"
               }
-              scenario "Register" {
-                when RegisterAccount {
-                  accountId = "9d037349-42a5-4ce7-9e39-cab0df01e408"
-                  email = "owner@example.com"
-                  role = "Admin"
-                  enabled = true
-                  memo = null
-                  age = 32
-                }
-                then AccountRegistered
+              when RegisterAccount {
+                email = "owner@example.com"
+                role = "Admin"
+                enabled = true
+                memo = null
+                age = 32
               }
-              scenario "Reject duplicate email" {
-                given AccountRegistered {
-                  email = "owner@example.com"
-                }
-                when RegisterAccount {
-                  email = "owner@example.com"
-                  role = "Admin"
-                  enabled = true
-                  memo = null
-                  age = 32
-                }
-                then reject "Account Email Already Exists"
+              then reject "Account Email Already Exists"
+            }
+            scenario "Reject underage owner" {
+              when RegisterAccount {
+                email = "young@example.com"
+                role = "Member"
+                enabled = true
+                memo = null
+                age = 16
               }
-              scenario "Reject underage owner" {
-                when RegisterAccount {
-                  email = "young@example.com"
-                  role = "Member"
-                  enabled = true
-                  memo = null
-                  age = 16
-                }
-                then reject "Account Owner Must Be An Adult"
-              }
+              then reject "Account Owner Must Be An Adult"
             }
           }
+        }
+        concept Account {
+          state Active
+          slice RegisterAccount
         }
       }
     }
@@ -217,30 +218,31 @@ test('reports invalid specification operands and examples', () => {
 test('requires rejecting scenarios to demonstrate unique and assert violations', () => {
   const diagnostics = diagnosticsFor(`
     context Rules {
-      aggregate Account {
-        slice Register {
-          command Register {
-            email: String
-            age: Int
+      slice Register {
+        command Register {
+          email: String
+          age: Int
+        }
+        event Registered {
+          email: String
+          age: Int
+        }
+        specification "Registration rules" {
+          expression {
+            unique Account.email
+            assert Register.age >= 18
           }
-          event Registered {
-            email: String
-            age: Int
-          }
-          specification "Registration rules" {
-            expression {
-              unique Account.email
-              assert Register.age >= 18
+          scenario "Unrelated rejection" {
+            when Register {
+              email = "new@example.com"
+              age = 21
             }
-            scenario "Unrelated rejection" {
-              when Register {
-                email = "new@example.com"
-                age = 21
-              }
-              then reject "Rejected"
-            }
+            then reject "Rejected"
           }
         }
+      }
+      concept Account {
+        slice Register
       }
     }
   `);
@@ -253,33 +255,34 @@ test('requires rejecting scenarios to demonstrate unique and assert violations',
 test('accepts and validates composite unique expressions', () => {
   const diagnostics = diagnosticsFor(`
     context Federation {
-      aggregate Membership {
-        slice JoinFederation {
-          command JoinFederation {
-            federationId: UUID
-            participantId: UUID
+      slice JoinFederation {
+        command JoinFederation {
+          federationId: UUID
+          participantId: UUID
+        }
+        event ParticipantJoined {
+          federationId: UUID
+          participantId: UUID
+        }
+        specification "Participant unique within federation" {
+          expression {
+            unique (Membership.federationId, Membership.participantId)
           }
-          event ParticipantJoined {
-            federationId: UUID
-            participantId: UUID
-          }
-          specification "Participant unique within federation" {
-            expression {
-              unique (Membership.federationId, Membership.participantId)
+          scenario "Reject duplicate membership" {
+            given ParticipantJoined {
+              federationId = "f-1"
+              participantId = "p-1"
             }
-            scenario "Reject duplicate membership" {
-              given ParticipantJoined {
-                federationId = "f-1"
-                participantId = "p-1"
-              }
-              when JoinFederation {
-                federationId = "f-1"
-                participantId = "p-1"
-              }
-              then reject "Participant Already Joined"
+            when JoinFederation {
+              federationId = "f-1"
+              participantId = "p-1"
             }
+            then reject "Participant Already Joined"
           }
         }
+      }
+      concept Membership {
+        slice JoinFederation
       }
     }
   `);
@@ -290,33 +293,34 @@ test('accepts and validates composite unique expressions', () => {
 test('composite unique coverage requires all fields to match', () => {
   const diagnostics = diagnosticsFor(`
     context Federation {
-      aggregate Membership {
-        slice JoinFederation {
-          command JoinFederation {
-            federationId: UUID
-            participantId: UUID
+      slice JoinFederation {
+        command JoinFederation {
+          federationId: UUID
+          participantId: UUID
+        }
+        event ParticipantJoined {
+          federationId: UUID
+          participantId: UUID
+        }
+        specification "Participant unique within federation" {
+          expression {
+            unique (Membership.federationId, Membership.participantId)
           }
-          event ParticipantJoined {
-            federationId: UUID
-            participantId: UUID
-          }
-          specification "Participant unique within federation" {
-            expression {
-              unique (Membership.federationId, Membership.participantId)
+          scenario "Different participant" {
+            given ParticipantJoined {
+              federationId = "f-1"
+              participantId = "p-1"
             }
-            scenario "Different participant" {
-              given ParticipantJoined {
-                federationId = "f-1"
-                participantId = "p-1"
-              }
-              when JoinFederation {
-                federationId = "f-1"
-                participantId = "p-2"
-              }
-              then reject "Rejected"
+            when JoinFederation {
+              federationId = "f-1"
+              participantId = "p-2"
             }
+            then reject "Rejected"
           }
         }
+      }
+      concept Membership {
+        slice JoinFederation
       }
     }
   `);
