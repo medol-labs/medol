@@ -128,7 +128,7 @@ function ModulePreview({ module, contextTitle }: { module: LayoutModule; context
       {module.states.length > 0 && (
         <div className="layout-module__states">
           <span>Lifecycle</span>
-          {module.states.map((state) => <em key={state}>{state}</em>)}
+          {module.states.map((state, index) => <em key={`${state}:${index}`}>{state}</em>)}
         </div>
       )}
 

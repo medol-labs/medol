@@ -30,7 +30,7 @@ export function SliceSummaryNode({ data }: NodeProps) {
       </header>
       {node.tags.length > 0 && (
         <ul className="slice-summary-node__tags">
-          {node.tags.map((tag) => <OverflowText as="li" key={tag} text={tag} />)}
+          {node.tags.map((tag, index) => <OverflowText as="li" key={`${tag}:${index}`} text={tag} />)}
         </ul>
       )}
       <dl>

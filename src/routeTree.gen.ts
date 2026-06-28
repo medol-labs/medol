@@ -13,6 +13,7 @@ import { Route as PreviewRouteImport } from './routes/preview'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiModelingWorkspacesRouteImport } from './routes/api/modeling/workspaces'
+import { Route as ApiModelingTranslationsRouteImport } from './routes/api/modeling/translations'
 import { Route as ApiModelingDocumentsRouteImport } from './routes/api/modeling/documents'
 import { Route as ApiModelingDocumentRecordsRouteImport } from './routes/api/modeling/document-records'
 import { Route as ApiModelingDocumentExportRouteImport } from './routes/api/modeling/document-export'
@@ -39,6 +40,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiModelingWorkspacesRoute = ApiModelingWorkspacesRouteImport.update({
   id: '/api/modeling/workspaces',
   path: '/api/modeling/workspaces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiModelingTranslationsRoute = ApiModelingTranslationsRouteImport.update({
+  id: '/api/modeling/translations',
+  path: '/api/modeling/translations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiModelingDocumentsRoute = ApiModelingDocumentsRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
+  '/api/modeling/translations': typeof ApiModelingTranslationsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
   '/api/modeling/document-records/$documentId': typeof ApiModelingDocumentRecordsDocumentIdRoute
   '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
+  '/api/modeling/translations': typeof ApiModelingTranslationsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
   '/api/modeling/document-records/$documentId': typeof ApiModelingDocumentRecordsDocumentIdRoute
   '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
+  '/api/modeling/translations': typeof ApiModelingTranslationsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
   '/api/modeling/document-records/$documentId': typeof ApiModelingDocumentRecordsDocumentIdRoute
   '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
+    | '/api/modeling/translations'
     | '/api/modeling/workspaces'
     | '/api/modeling/document-records/$documentId'
     | '/api/modeling/workspaces/$workspaceId'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
+    | '/api/modeling/translations'
     | '/api/modeling/workspaces'
     | '/api/modeling/document-records/$documentId'
     | '/api/modeling/workspaces/$workspaceId'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
+    | '/api/modeling/translations'
     | '/api/modeling/workspaces'
     | '/api/modeling/document-records/$documentId'
     | '/api/modeling/workspaces/$workspaceId'
@@ -172,6 +184,7 @@ export interface RootRouteChildren {
   ApiModelingDocumentExportRoute: typeof ApiModelingDocumentExportRoute
   ApiModelingDocumentRecordsRoute: typeof ApiModelingDocumentRecordsRouteWithChildren
   ApiModelingDocumentsRoute: typeof ApiModelingDocumentsRoute
+  ApiModelingTranslationsRoute: typeof ApiModelingTranslationsRoute
   ApiModelingWorkspacesRoute: typeof ApiModelingWorkspacesRouteWithChildren
 }
 
@@ -203,6 +216,13 @@ declare module '@tanstack/react-router' {
       path: '/api/modeling/workspaces'
       fullPath: '/api/modeling/workspaces'
       preLoaderRoute: typeof ApiModelingWorkspacesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/modeling/translations': {
+      id: '/api/modeling/translations'
+      path: '/api/modeling/translations'
+      fullPath: '/api/modeling/translations'
+      preLoaderRoute: typeof ApiModelingTranslationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/modeling/documents': {
@@ -294,6 +314,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiModelingDocumentExportRoute: ApiModelingDocumentExportRoute,
   ApiModelingDocumentRecordsRoute: ApiModelingDocumentRecordsRouteWithChildren,
   ApiModelingDocumentsRoute: ApiModelingDocumentsRoute,
+  ApiModelingTranslationsRoute: ApiModelingTranslationsRoute,
   ApiModelingWorkspacesRoute: ApiModelingWorkspacesRouteWithChildren,
 }
 export const routeTree = rootRouteImport

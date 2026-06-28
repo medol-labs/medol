@@ -19,7 +19,7 @@ export function SliceHeader({ data }: NodeProps) {
       </div>
       {slice.tags.length > 0 && (
         <ul>
-          {slice.tags.map((tag) => <OverflowText as="li" key={tag} text={tag} />)}
+          {slice.tags.map((tag, index) => <OverflowText as="li" key={`${tag}:${index}`} text={tag} />)}
         </ul>
       )}
     </div>

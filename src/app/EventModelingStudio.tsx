@@ -18,6 +18,10 @@ import { generateModelingDocument } from '../features/documentation/documentatio
 import { DocumentWorkspace } from '../features/documentation/DocumentWorkspace';
 import { hashMedolSource } from '../features/documentation/documentReferences';
 import { useModelingDocuments } from '../features/documentation/useModelingDocuments';
+import {
+  generateModelTranslations,
+  readStoredModelTranslations
+} from '../features/model-i18n/modelTranslationClient';
 import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
 import { parseMedol } from '../lib/dslParser';
 import { emModelToJson } from '../lib/emModelExport';
@@ -46,6 +50,8 @@ type ToolbarAction =
   | 'software-design-ai'
   | 'database-design-ai'
   | 'process-ai'
+  | 'model-translations'
+  | 'download-translations'
   | 'reset';
 type PreviewMode = 'canvas' | 'global' | 'layout' | 'documents';
 
@@ -143,6 +149,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const [documentFocusVersion, setDocumentFocusVersion] = useState(0);
   const [documentNavigationMessage, setDocumentNavigationMessage] = useState<string>();
   const [documentNavigationTone, setDocumentNavigationTone] = useState<'info' | 'warning'>('warning');
+  const [modelTranslationMessage, setModelTranslationMessage] = useState<string>();
   const [searchOpen, setSearchOpen] = useState(false);
   const [recentSearchIds, setRecentSearchIds] = useState<string[]>([]);
   const debouncedDsl = useDebouncedValue(dsl, 800);
@@ -573,6 +580,9 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const runToolbarAction = async () => {
     if (!toolbarAction || toolbarActionPending) return;
     setToolbarActionPending(true);
+    if (toolbarAction === 'model-translations' || toolbarAction === 'download-translations') {
+      setModelTranslationMessage(undefined);
+    }
     try {
       if (toolbarAction === 'em-model') {
         downloadJson('em-model.json', emModelJson);
@@ -612,6 +622,25 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
         setDocumentNavigationTone(merge?.preserved ? 'warning' : 'info');
         setDocumentFocusSourceId(undefined);
         setPreviewMode('documents');
+      } else if (toolbarAction === 'model-translations') {
+        const result = await generateModelTranslations({
+          dsl,
+          locale: documentationLanguage,
+          workspaceId: activeWorkspaceId
+        });
+        setModelTranslationMessage(
+          result.warning
+            ? result.warning
+            : `Translations ${result.locale}: ${result.translated}/${result.total} stored`
+        );
+      } else if (toolbarAction === 'download-translations') {
+        const result = await readStoredModelTranslations({
+          locale: documentationLanguage,
+          sourceHash: medolSourceHash,
+          workspaceId: activeWorkspaceId
+        });
+        downloadJson(`model-translations.${result.locale}.json`, JSON.stringify(result.codegen, null, 2));
+        setModelTranslationMessage(`Translations ${result.locale}: ${result.translated} downloaded`);
       } else if (toolbarAction === 'reset') {
         setPreviewPatch(undefined);
         updateDsl(sampleDsl);
@@ -619,6 +648,9 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
       }
     } catch (error) {
       console.error(error);
+      if (toolbarAction === 'model-translations' || toolbarAction === 'download-translations') {
+        setModelTranslationMessage(error instanceof Error ? error.message : 'Model translation failed');
+      }
     } finally {
       setToolbarActionPending(false);
       setToolbarAction('');
@@ -1128,6 +1160,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                       'software-design-ai': 'Generate software design',
                       'database-design-ai': 'Generate database design',
                       'process-ai': 'Generate process document',
+                      'model-translations': 'Generate model translations',
+                      'download-translations': 'Download model translations',
                       reset: 'Reset MEDOL'
                     }[toolbarAction]
                   : 'Choose toolkit action'}
@@ -1142,6 +1176,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 <option value="software-design-ai">Generate software design</option>
                 <option value="database-design-ai">Generate database design</option>
                 <option value="process-ai">Generate process document</option>
+                <option value="model-translations">Generate translations</option>
+                <option value="download-translations">Download translations</option>
                 <option value="reset">Reset MEDOL</option>
               </select>
               <select
@@ -1212,6 +1248,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           {previewMode === 'global' && <span>domain map</span>}
           {previewMode === 'layout' && <span>ui preview</span>}
           {previewMode === 'documents' && <span>{activeDocument ? `${activeDocument.title} · ${documentStatus}` : 'documents'}</span>}
+          {modelTranslationMessage && <span>{modelTranslationMessage}</span>}
           {contextDesignMode && <span>context focused</span>}
           {selectedSliceId && <span>slice focused</span>}
           {selectedNodeId && <span>element focused</span>}

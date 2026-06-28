@@ -43,7 +43,7 @@ export function EmNode({ data, selected }: NodeProps) {
       {node.outcome && <p className="em-node__outcome">{node.outcome}</p>}
       {node.details && node.details.length > 0 && (
         <ul className="em-node__details">
-          {node.details.map((detail) => <li key={detail}>{detail}</li>)}
+          {node.details.map((detail, index) => <li key={`${detail}:${index}`}>{detail}</li>)}
         </ul>
       )}
       {fields.length > 0 && (

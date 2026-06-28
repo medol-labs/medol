@@ -18,7 +18,7 @@ export function ConceptHeader({ data }: NodeProps) {
       </div>
       {concept.states.length > 0 && (
         <ul>
-          {concept.states.map((state) => <OverflowText as="li" key={state} text={state} />)}
+          {concept.states.map((state, index) => <OverflowText as="li" key={`${state}:${index}`} text={state} />)}
         </ul>
       )}
     </section>

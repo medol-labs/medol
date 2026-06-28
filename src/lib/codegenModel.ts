@@ -6,6 +6,9 @@ import { coveredSpecificationExpressions } from './specificationCoverage';
 export interface CodegenModel {
   rootPackage: 'tech.medo';
   domain?: string;
+  locales?: string[];
+  defaultLocale?: string;
+  translations?: Record<string, Record<string, string>>;
   contexts: CodegenContext[];
   valueTypes: CodegenValueType[];
   aggregates: CodegenAggregate[];
