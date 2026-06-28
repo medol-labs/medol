@@ -23,7 +23,7 @@ import {
   persistAgentChatState,
   persistAgentChatUsage
 } from './agentChatPersistence';
-import { eventModelingDslKnowledgeManifest } from './dslKnowledge';
+import { eventModelingDslKnowledgeManifest } from './dslKnowledgeManifest';
 
 const agentChatConnection = fetchServerSentEvents('/api/agent/chat');
 

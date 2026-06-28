@@ -22,6 +22,11 @@ import {
   generateModelTranslations,
   readStoredModelTranslations
 } from '../features/model-i18n/modelTranslationClient';
+import {
+  agentSliceStatusClient,
+  toAgentSliceStatusMap,
+  type AgentSliceStatusMap
+} from '../features/agent-slices/agentSliceStatusClient';
 import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
 import { parseMedol } from '../lib/dslParser';
 import { emModelToJson } from '../lib/emModelExport';
@@ -35,6 +40,7 @@ import { findModelItem, resolveActiveAggregate, resolveActiveConcept, resolveAct
 import { useDebouncedValue } from './useDebouncedValue';
 import type { EmAggregate, EmConcept, EmContext, EmDomain, EmSlice } from '../lib/model';
 import type { AgentDslPatch } from '../features/agent-chat/agentTypes';
+import type { AgentSliceStatus } from '../contracts/agentSliceStatus';
 import type {
   DocumentationKind,
   DocumentationLanguage
@@ -150,6 +156,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const [documentNavigationMessage, setDocumentNavigationMessage] = useState<string>();
   const [documentNavigationTone, setDocumentNavigationTone] = useState<'info' | 'warning'>('warning');
   const [modelTranslationMessage, setModelTranslationMessage] = useState<string>();
+  const [agentSliceStatuses, setAgentSliceStatuses] = useState<AgentSliceStatusMap>({});
   const [searchOpen, setSearchOpen] = useState(false);
   const [recentSearchIds, setRecentSearchIds] = useState<string[]>([]);
   const debouncedDsl = useDebouncedValue(dsl, 800);
@@ -221,6 +228,67 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
       : model.diagnostics.length === 0
         ? 'Valid'
         : `${model.diagnostics.length} warnings`;
+
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      setAgentSliceStatuses({});
+      return;
+    }
+
+    const controller = new AbortController();
+    void agentSliceStatusClient.list({ workspaceId: activeWorkspaceId }, controller.signal)
+      .then((records) => {
+        if (!controller.signal.aborted) setAgentSliceStatuses(toAgentSliceStatusMap(records));
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        console.warn('Failed to load agent slice statuses', error);
+        setAgentSliceStatuses({});
+      });
+
+    return () => controller.abort();
+  }, [activeWorkspaceId]);
+
+  const updateSliceAgentStatus = (
+    context: EmContext,
+    aggregate: EmAggregate | undefined,
+    slice: EmSlice,
+    status: AgentSliceStatus
+  ) => {
+    if (!activeWorkspaceId) return;
+
+    const previousStatus = agentSliceStatuses[slice.id] ?? 'unplanned';
+    setAgentSliceStatuses((current) => {
+      const next = { ...current };
+      if (status === 'unplanned') {
+        delete next[slice.id];
+      } else {
+        next[slice.id] = status;
+      }
+      return next;
+    });
+
+    void agentSliceStatusClient.update({
+      workspaceId: activeWorkspaceId,
+      sliceId: slice.id,
+      contextName: context.name,
+      ...(aggregate ? { aggregateName: aggregate.name } : {}),
+      sliceName: slice.name,
+      status
+    }).catch((error: unknown) => {
+      console.warn('Failed to update agent slice status', error);
+      setAgentSliceStatuses((current) => {
+        const next = { ...current };
+        if (previousStatus === 'unplanned') {
+          delete next[slice.id];
+        } else {
+          next[slice.id] = previousStatus;
+        }
+        return next;
+      });
+    });
+  };
+
   const previewSyncMessage = useMemo<PreviewSyncMessage>(() => ({
     type: 'studio-state',
     ...(activeWorkspaceId ? { workspaceId: activeWorkspaceId } : {}),
@@ -829,12 +897,14 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
             activeAggregateId={selectedAggregateId}
             activeConceptId={selectedConceptId}
             activeSliceId={selectedSliceId}
+            sliceAgentStatuses={agentSliceStatuses}
             documentSourceRefs={documentSourceRefs}
             onSelectDomain={selectDomain}
             onSelectContext={selectContext}
             onSelectAggregate={selectAggregate}
             onSelectConcept={selectConcept}
             onSelectSlice={selectSlice}
+            onChangeSliceAgentStatus={updateSliceAgentStatus}
             onLocateDocumentation={(sourceIds) => void locateDocumentation(sourceIds)}
           />
           <div
@@ -944,12 +1014,14 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 activeAggregateId={selectedAggregateId}
                 activeConceptId={selectedConceptId}
                 activeSliceId={selectedSliceId}
+                sliceAgentStatuses={agentSliceStatuses}
                 documentSourceRefs={documentSourceRefs}
                 onSelectDomain={selectDomain}
                 onSelectContext={selectContext}
                 onSelectAggregate={selectAggregate}
                 onSelectConcept={selectConcept}
                 onSelectSlice={selectSlice}
+                onChangeSliceAgentStatus={updateSliceAgentStatus}
                 onLocateDocumentation={(sourceIds) => void locateDocumentation(sourceIds)}
               />
               <div
@@ -1068,40 +1140,6 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 <Search size={14} />
                 Search
               </button>
-              <div className="preview-tabs" role="tablist" aria-label="Preview mode">
-                <button
-                  type="button"
-                  className={previewMode === 'canvas' ? 'is-active' : undefined}
-                  aria-selected={previewMode === 'canvas'}
-                  onClick={() => setPreviewMode('canvas')}
-                >
-                  Model Canvas
-                </button>
-                <button
-                  type="button"
-                  className={previewMode === 'global' ? 'is-active' : undefined}
-                  aria-selected={previewMode === 'global'}
-                  onClick={() => setPreviewMode('global')}
-                >
-                  Domain Map
-                </button>
-                <button
-                  type="button"
-                  className={previewMode === 'layout' ? 'is-active' : undefined}
-                  aria-selected={previewMode === 'layout'}
-                  onClick={() => setPreviewMode('layout')}
-                >
-                  UI Preview
-                </button>
-                <button
-                  type="button"
-                  className={previewMode === 'documents' ? 'is-active' : undefined}
-                  aria-selected={previewMode === 'documents'}
-                  onClick={() => setPreviewMode('documents')}
-                >
-                  Documents
-                </button>
-              </div>
               <select
                 className="preview-mode-select"
                 value={previewMode}
@@ -1113,6 +1151,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 <option value="layout">UI Preview</option>
                 <option value="documents">Documents</option>
               </select>
+            </div>
+            <div className="toolbar-utility-controls">
               {!previewOnly && (
                 <button
                   type="button"
@@ -1167,17 +1207,17 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                   : 'Choose toolkit action'}
               >
                 <option value="" disabled>Choose action</option>
-                <option value="em-model">Export EmModel</option>
-                <option value="codegen-model">Export CodegenModel</option>
-                <option value="config">Export config</option>
+                <option value="em-model">EmModel JSON</option>
+                <option value="codegen-model">Codegen JSON</option>
+                <option value="config">Config JSON</option>
                 <option value="png">Export PNG</option>
                 <option value="svg">Export SVG</option>
-                <option value="prd-ai">Generate PRD</option>
-                <option value="software-design-ai">Generate software design</option>
-                <option value="database-design-ai">Generate database design</option>
-                <option value="process-ai">Generate process document</option>
-                <option value="model-translations">Generate translations</option>
-                <option value="download-translations">Download translations</option>
+                <option value="prd-ai">PRD</option>
+                <option value="software-design-ai">Software design</option>
+                <option value="database-design-ai">Database design</option>
+                <option value="process-ai">Process doc</option>
+                <option value="model-translations">Translate model</option>
+                <option value="download-translations">Download i18n</option>
                 <option value="reset">Reset MEDOL</option>
               </select>
               <select
@@ -1197,7 +1237,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 onClick={runToolbarAction}
                 disabled={!toolbarAction || toolbarActionPending}
               >
-                {toolbarActionPending ? 'Working' : 'OK'}
+                {toolbarActionPending ? 'Working' : 'Run'}
               </button>
             </div>
             )}

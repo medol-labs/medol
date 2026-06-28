@@ -210,10 +210,11 @@ textarea {
 
 .toolbar-actions {
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: minmax(0, auto) auto auto;
   align-items: center;
   justify-content: end;
   gap: 8px;
+  max-width: min(100%, 980px);
   min-width: 0;
   color: #64748b;
   font-size: 12px;
@@ -223,6 +224,7 @@ textarea {
 }
 
 .toolbar-view-controls,
+.toolbar-utility-controls,
 .toolbar-command-controls {
   display: flex;
   align-items: center;
@@ -231,8 +233,15 @@ textarea {
 }
 
 .toolbar-view-controls {
-  padding-right: 8px;
-  border-right: 1px solid #d8dee8;
+  overflow: hidden;
+}
+
+.toolbar-utility-controls,
+.toolbar-command-controls {
+  padding: 3px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .eyebrow {
@@ -262,13 +271,13 @@ textarea {
 }
 
 .toolbar-actions select {
-  width: 148px;
-  min-width: 132px;
+  width: 136px;
+  min-width: 118px;
 }
 
 .toolbar-actions .toolbar-language-select {
-  width: 64px;
-  min-width: 64px;
+  width: 62px;
+  min-width: 62px;
 }
 
 .toolbar-actions .direction-toggle,
@@ -314,21 +323,22 @@ textarea {
 
   .toolbar-actions {
     grid-template-columns: minmax(0, 1fr) auto;
+    justify-content: stretch;
     width: 100%;
   }
 
-  .preview-panel .preview-tabs {
-    display: none;
+  .toolbar-utility-controls {
+    justify-content: flex-end;
   }
 
   .preview-panel .preview-mode-select {
-    display: block;
     flex: 1 1 140px;
     width: min(180px, 100%);
     min-width: 0;
   }
 
   .toolbar-command-controls {
+    grid-column: 1 / -1;
     justify-content: flex-end;
   }
 }
@@ -341,14 +351,16 @@ textarea {
 
   .toolbar-view-controls {
     width: 100%;
-    padding-right: 0;
-    padding-bottom: 7px;
-    border-right: 0;
-    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .toolbar-utility-controls {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .toolbar-command-controls {
     width: 100%;
+    justify-content: stretch;
   }
 
   .toolbar-actions .toolbar-action-select {
@@ -563,7 +575,6 @@ textarea {
   background: #fbfdff;
 }
 
-.preview-tabs,
 .view-tabs {
   display: flex;
   flex-wrap: nowrap;
@@ -574,11 +585,10 @@ textarea {
 }
 
 .preview-mode-select {
-  display: none;
+  display: block;
   flex: 0 0 138px;
 }
 
-.preview-tabs button,
 .view-tabs button {
   height: 32px;
   padding: 0 10px;
@@ -591,13 +601,11 @@ textarea {
   font-weight: 700;
 }
 
-.preview-tabs button:hover,
 .view-tabs button:hover {
   color: #172033;
   background: #eef4fb;
 }
 
-.preview-tabs button.is-active,
 .view-tabs button.is-active {
   border-color: #b9c7d8;
   color: #172033;
@@ -718,13 +726,13 @@ textarea {
 
 .explorer-row {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 28px;
+  grid-template-columns: 20px minmax(0, 1fr) 26px;
   align-items: stretch;
-  gap: 5px;
+  gap: 4px;
 }
 
 .explorer-row--leaf {
-  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) 58px 26px;
 }
 
 .explorer-toggle {
@@ -750,8 +758,8 @@ textarea {
 .explorer-document-link {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   align-self: center;
   min-width: 0;
   padding: 0;
@@ -778,6 +786,58 @@ textarea {
 .explorer-document-link svg {
   width: 14px;
   height: 14px;
+}
+
+.explorer-agent-status {
+  align-self: center;
+  width: 58px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 16px 0 6px;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  color: #475569;
+  background-color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.explorer-agent-status:focus {
+  outline: 2px solid #bfdbfe;
+  outline-offset: 1px;
+}
+
+.explorer-agent-status--planned {
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  background-color: #eff6ff;
+}
+
+.explorer-agent-status--running {
+  border-color: #fde68a;
+  color: #92400e;
+  background-color: #fffbeb;
+}
+
+.explorer-agent-status--implemented,
+.explorer-agent-status--verified {
+  border-color: #bbf7d0;
+  color: #166534;
+  background-color: #f0fdf4;
+}
+
+.explorer-agent-status--blocked {
+  border-color: #fecaca;
+  color: #991b1b;
+  background-color: #fef2f2;
+}
+
+.explorer-agent-status--manual {
+  border-color: #ddd6fe;
+  color: #5b21b6;
+  background-color: #f5f3ff;
 }
 
 .explorer-item {

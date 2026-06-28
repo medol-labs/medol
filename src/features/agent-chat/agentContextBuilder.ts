@@ -84,7 +84,7 @@ export const buildAgentContext = (input: {
   return {
     systemRules: [
       'You are a MEDOL domain design assistant.',
-      'Use the MEDOL knowledge reference and compact rules before proposing changes.',
+      'Use the MEDOL agent skills before proposing changes.',
       'Answer direct questions naturally; a selected model item is optional context, not a requirement.',
       'If nothing is selected, use the whole MEDOL model and the model summary as context.',
       'Prefer a focused MEDOL patch over a broad rewrite.',
@@ -146,93 +146,46 @@ const selectRelevantDslKnowledge = (input: {
     input.selectedDslSnippet?.text
   ].filter(Boolean).join('\n').toLowerCase();
 
-  const snippets: AgentDslKnowledgeSnippet[] = [
-    {
-      topic: 'required-instructions',
-      reason: 'Always included as the baseline behavior contract.',
-      content: input.knowledge.requiredInstructions.join('\n')
-    },
-    {
-      topic: 'patch-rules',
-      reason: 'Always included because the assistant proposes MEDOL patches.',
-      content: input.knowledge.patchRules.join('\n')
-    }
-  ];
+  const snippets: AgentDslKnowledgeSnippet[] = [];
+  addSkill(snippets, input.knowledge, 'medol-modeling', 'Always included as the baseline MEDOL behavior contract.');
+  addSkill(snippets, input.knowledge, 'propose-medol-patch', 'Always included because the assistant may propose focused MEDOL patches.');
 
-  if (matches(intentText, ['field', 'from', 'derived', 'mapping', 'example', '字段', '推理', '计算'])) {
-    snippets.push({
-      topic: 'field-mapping',
-      reason: 'The request or selected MEDOL references field mapping, derived values, or examples.',
-      content: input.knowledge.fieldMappingRules.join('\n')
-    });
+  if (matches(intentText, ['codegen', 'generate', 'generator', '生成', '脚手架'])) {
+    addSkill(snippets, input.knowledge, 'run-codegen', 'The request references deterministic code generation.');
   }
 
-  if (matches(intentText, ['type', 'value object', 'format', 'length', 'range', 'matches', 'oneof', '类型', '值对象', '格式', '长度', '范围', '枚举'])) {
-    snippets.push({
-      topic: 'value-type-syntax',
-      reason: 'The request references reusable value types or field-level validity.',
-      content: input.knowledge.syntax.valueType
-    });
+  if (matches(intentText, ['axon', 'backend', 'kotlin', 'spring', 'command handler', '后端'])) {
+    addSkill(snippets, input.knowledge, 'axon-backend', 'The request references Axon/Kotlin backend implementation.');
   }
 
-  if (matches(intentText, ['ui', 'screen', 'page', 'layout', 'form', 'dialog', 'drawer', 'confirm', '页面', '布局', '表单'])) {
-    snippets.push({
-      topic: 'ui-rules',
-      reason: 'The request or selected MEDOL references UI/page interaction semantics.',
-      content: input.knowledge.uiRules.join('\n')
-    });
+  if (matches(intentText, ['refine', 'frontend', 'react', 'ui', 'screen', 'page', 'layout', 'form', 'dialog', '页面', '前端', '表单'])) {
+    addSkill(snippets, input.knowledge, 'refine-frontend', 'The request references Refine/React frontend implementation or UI semantics.');
   }
 
-  if (matches(intentText, ['read model', 'readmodel', 'projection', 'list', 'query', 'subscribe', '查询', '列表'])) {
-    snippets.push({
-      topic: 'readmodel-syntax',
-      reason: 'The request or selected MEDOL references read models, lists, queries, or subscriptions.',
-      content: [
-        input.knowledge.syntax.readmodel,
-        input.knowledge.examples.find((example) => example.name === 'Read model')?.dsl
-      ].filter(Boolean).join('\n')
-    });
+  if (matches(intentText, ['slice', 'command', 'event', 'readmodel', 'automation', 'policy', 'state', '命令', '事件', '切片', '状态'])) {
+    addSkill(snippets, input.knowledge, 'build-slice', 'The request references slice implementation or timeline behavior.');
   }
 
-  if (matches(intentText, ['command', 'event', 'slice', 'startslifecycle', 'state', '命令', '事件', '状态'])) {
-    snippets.push({
-      topic: 'timeline-modeling',
-      reason: 'The request or selected MEDOL references slice timeline, command/event, creation, or state behavior.',
-      content: [
-        input.knowledge.syntax.slice,
-        input.knowledge.syntax.command,
-        input.knowledge.syntax.event,
-        input.knowledge.syntax.startsLifecycle,
-        input.knowledge.syntax.state,
-        ...input.knowledge.modelingConventions
-      ].join('\n')
-    });
-  }
-
-  if (matches(intentText, ['specification', 'given', 'when', 'then', 'acceptance', '测试', '验收'])) {
-    snippets.push({
-      topic: 'specification-syntax',
-      reason: 'The request references behavior examples or acceptance specifications.',
-      content: [
-        input.knowledge.syntax.specification,
-        input.knowledge.syntax.expression
-      ].join('\n')
-    });
-  }
-
-  if (matches(intentText, ['automation', 'policy', 'reactsTo', 'integration', '集成', '策略', '自动化'])) {
-    snippets.push({
-      topic: 'automation-policy-integration',
-      reason: 'The request references event-triggered behavior, policies, automations, or integrations.',
-      content: [
-        input.knowledge.syntax.automation,
-        input.knowledge.syntax.policy,
-        input.knowledge.syntax.hotspot
-      ].join('\n')
-    });
+  if (matches(intentText, ['context', 'selected', 'workspace', 'model', '上下文', '工作区'])) {
+    addSkill(snippets, input.knowledge, 'load-medol-context', 'The request depends on selected MEDOL context.');
   }
 
   return uniqueSnippets(snippets).slice(0, 5);
+};
+
+const addSkill = (
+  snippets: AgentDslKnowledgeSnippet[],
+  knowledge: AgentDslKnowledge,
+  skillId: string,
+  reason: string
+) => {
+  const skill = knowledge.skills.find((candidate) => candidate.id === skillId);
+  if (!skill) return;
+  snippets.push({
+    topic: skill.id,
+    reason,
+    content: skill.content
+  });
 };
 
 const summarizeModel = (model: EmModel, selectedItem?: SelectedModelItem): AgentModelSummary => {

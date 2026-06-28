@@ -1,21 +1,20 @@
-# MEDOL Agent Assets
+# MEDOL Agent Skills
 
-This directory contains runtime-neutral agent knowledge for MEDOL.
-
-The goal is to keep domain-design guidance, task contracts, and runtime-specific execution notes separate:
+This directory is the runtime-neutral knowledge source for the MEDOL assistant.
 
 ```text
 .agent/
-  skills/           Runtime-neutral MEDOL skills. Each skill is a directory with SKILL.md.
-  task-protocols/   Stable JSON task/result contracts for agent runtimes.
-  runtimes/         Adapter notes for Codex, Claude Code, OpenCode, and future runtimes.
-  examples/         Example task payloads.
+  skills/
+    medol-modeling/
+      SKILL.md
+    propose-medol-patch/
+      SKILL.md
+    ...
 ```
 
-These files are owned by the MEDOL design platform. The code generator should be treated as a deterministic tool invoked by agent tasks, not as the primary home for modeling skills.
+The MEDOL server reads these files at runtime and injects the relevant skill
+content into agent prompts. Keep product and modeling guidance here instead of
+hard-coding long instruction blocks in TypeScript.
 
-## Skill Levels
-
-- Foundation skills describe MEDOL modeling, documentation, validation, and stack conventions.
-- Execution skills describe how an agent should load context, propose patches, run codegen, implement slices, fix generation errors, and report task status.
-- Runtime files describe how Codex, Claude Code, OpenCode, or future runtimes adapt the same skills and task protocols.
+Runtime adapters such as Claude Code, Codex, or OpenCode can consume these same
+skills, but runtime-specific configuration belongs outside this directory.

@@ -1,6 +1,7 @@
 import { FileSearch } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { OverflowText } from '../../components/ui/overflow-text';
+import { agentSliceStatusValues, type AgentSliceStatus } from '../../contracts/agentSliceStatus';
 import type { EmAggregate, EmConcept, EmContext, EmDomain, EmModel, EmSlice } from '../../lib/model';
 
 interface ModelExplorerProps {
@@ -10,12 +11,19 @@ interface ModelExplorerProps {
   activeAggregateId?: string;
   activeConceptId?: string;
   activeSliceId?: string;
+  sliceAgentStatuses?: Record<string, AgentSliceStatus>;
   documentSourceRefs: ReadonlySet<string>;
   onSelectDomain: (domain: EmDomain) => void;
   onSelectContext: (context: EmContext) => void;
   onSelectAggregate: (context: EmContext, aggregate: EmAggregate) => void;
   onSelectConcept: (context: EmContext, concept: EmConcept) => void;
   onSelectSlice: (context: EmContext, aggregate: EmAggregate | undefined, slice: EmSlice) => void;
+  onChangeSliceAgentStatus?: (
+    context: EmContext,
+    aggregate: EmAggregate | undefined,
+    slice: EmSlice,
+    status: AgentSliceStatus
+  ) => void;
   onLocateDocumentation: (sourceIds: string[]) => void;
 }
 
@@ -26,12 +34,14 @@ export function ModelExplorer({
   activeAggregateId,
   activeConceptId,
   activeSliceId,
+  sliceAgentStatuses = {},
   documentSourceRefs,
   onSelectDomain,
   onSelectContext,
   onSelectAggregate,
   onSelectConcept,
   onSelectSlice,
+  onChangeSliceAgentStatus,
   onLocateDocumentation
 }: ModelExplorerProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -208,6 +218,10 @@ export function ModelExplorer({
                             <span>{slice.resultingState ?? 'Slice'}</span>
                             <OverflowText as="strong" text={slice.name} />
                           </button>
+                          <SliceAgentStatusSelect
+                            value={sliceAgentStatuses[slice.id] ?? 'unplanned'}
+                            onChange={(status) => onChangeSliceAgentStatus?.(context, aggregate, slice, status)}
+                          />
                           <DocumentationLocator
                             sourceIds={[slice.id, aggregate.id, context.id]}
                             availableRefs={documentSourceRefs}
@@ -237,6 +251,10 @@ export function ModelExplorer({
                                   </span>
                                   <OverflowText as="strong" text={slice.name} />
                                 </button>
+                                <SliceAgentStatusSelect
+                                  value={sliceAgentStatuses[slice.id] ?? 'unplanned'}
+                                  onChange={(status) => onChangeSliceAgentStatus?.(context, undefined, slice, status)}
+                                />
                                 <DocumentationLocator
                                   sourceIds={[
                                     slice.id,
@@ -297,6 +315,10 @@ export function ModelExplorer({
                                             <span>{slice.tags.length > 0 ? `${slice.tags.length} tags` : slice.resultingState ?? 'Slice'}</span>
                                             <OverflowText as="strong" text={slice.name} />
                                           </button>
+                                          <SliceAgentStatusSelect
+                                            value={sliceAgentStatuses[slice.id] ?? 'unplanned'}
+                                            onChange={(status) => onChangeSliceAgentStatus?.(context, undefined, slice, status)}
+                                          />
                                           <DocumentationLocator
                                             sourceIds={[slice.id, concept.id, context.id]}
                                             availableRefs={documentSourceRefs}
@@ -333,6 +355,39 @@ const contextSourceIds = (context: EmContext): string[] => [
   ...context.slices.map((slice) => slice.id),
   ...context.concepts.map((concept) => concept.id)
 ];
+
+function SliceAgentStatusSelect({
+  value,
+  onChange
+}: {
+  value: AgentSliceStatus;
+  onChange: (status: AgentSliceStatus) => void;
+}) {
+  return (
+    <select
+      className={`explorer-agent-status explorer-agent-status--${value}`}
+      value={value}
+      aria-label="Agent implementation status"
+      title="Agent implementation status"
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => onChange(event.currentTarget.value as AgentSliceStatus)}
+    >
+      {agentSliceStatusValues.map((status) => (
+        <option key={status} value={status}>{agentSliceStatusLabel(status)}</option>
+      ))}
+    </select>
+  );
+}
+
+const agentSliceStatusLabel = (status: AgentSliceStatus): string => {
+  if (status === 'unplanned') return 'None';
+  if (status === 'planned') return 'Plan';
+  if (status === 'running') return 'Run';
+  if (status === 'implemented') return 'Done';
+  if (status === 'verified') return 'OK';
+  if (status === 'blocked') return 'Block';
+  return 'Manual';
+};
 
 function DocumentationLocator({
   sourceIds,

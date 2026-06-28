@@ -17,6 +17,7 @@ import { Route as ApiModelingTranslationsRouteImport } from './routes/api/modeli
 import { Route as ApiModelingDocumentsRouteImport } from './routes/api/modeling/documents'
 import { Route as ApiModelingDocumentRecordsRouteImport } from './routes/api/modeling/document-records'
 import { Route as ApiModelingDocumentExportRouteImport } from './routes/api/modeling/document-export'
+import { Route as ApiAgentSliceStatusesRouteImport } from './routes/api/agent/slice-statuses'
 import { Route as ApiAgentHistoryRouteImport } from './routes/api/agent/history'
 import { Route as ApiAgentChatRouteImport } from './routes/api/agent/chat'
 import { Route as ApiModelingWorkspacesWorkspaceIdRouteImport } from './routes/api/modeling/workspaces.$workspaceId'
@@ -64,6 +65,11 @@ const ApiModelingDocumentExportRoute =
     path: '/api/modeling/document-export',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAgentSliceStatusesRoute = ApiAgentSliceStatusesRouteImport.update({
+  id: '/api/agent/slice-statuses',
+  path: '/api/agent/slice-statuses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAgentHistoryRoute = ApiAgentHistoryRouteImport.update({
   id: '/api/agent/history',
   path: '/api/agent/history',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/preview': typeof PreviewRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/agent/slice-statuses': typeof ApiAgentSliceStatusesRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/preview': typeof PreviewRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/agent/slice-statuses': typeof ApiAgentSliceStatusesRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/preview': typeof PreviewRoute
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
+  '/api/agent/slice-statuses': typeof ApiAgentSliceStatusesRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/preview'
     | '/api/agent/chat'
     | '/api/agent/history'
+    | '/api/agent/slice-statuses'
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/preview'
     | '/api/agent/chat'
     | '/api/agent/history'
+    | '/api/agent/slice-statuses'
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/preview'
     | '/api/agent/chat'
     | '/api/agent/history'
+    | '/api/agent/slice-statuses'
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   PreviewRoute: typeof PreviewRoute
   ApiAgentChatRoute: typeof ApiAgentChatRoute
   ApiAgentHistoryRoute: typeof ApiAgentHistoryRoute
+  ApiAgentSliceStatusesRoute: typeof ApiAgentSliceStatusesRoute
   ApiModelingDocumentExportRoute: typeof ApiModelingDocumentExportRoute
   ApiModelingDocumentRecordsRoute: typeof ApiModelingDocumentRecordsRouteWithChildren
   ApiModelingDocumentsRoute: typeof ApiModelingDocumentsRoute
@@ -244,6 +257,13 @@ declare module '@tanstack/react-router' {
       path: '/api/modeling/document-export'
       fullPath: '/api/modeling/document-export'
       preLoaderRoute: typeof ApiModelingDocumentExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agent/slice-statuses': {
+      id: '/api/agent/slice-statuses'
+      path: '/api/agent/slice-statuses'
+      fullPath: '/api/agent/slice-statuses'
+      preLoaderRoute: typeof ApiAgentSliceStatusesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/agent/history': {
@@ -311,6 +331,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewRoute: PreviewRoute,
   ApiAgentChatRoute: ApiAgentChatRoute,
   ApiAgentHistoryRoute: ApiAgentHistoryRoute,
+  ApiAgentSliceStatusesRoute: ApiAgentSliceStatusesRoute,
   ApiModelingDocumentExportRoute: ApiModelingDocumentExportRoute,
   ApiModelingDocumentRecordsRoute: ApiModelingDocumentRecordsRouteWithChildren,
   ApiModelingDocumentsRoute: ApiModelingDocumentsRoute,
