@@ -260,6 +260,7 @@ The toolkit now uses an internal `CodegenModel` between `EmModel` and the Martin
 - code generation metadata: `rootPackage` and optional top-level `domain`; the config adapter derives `codeGen.application` from `domain`
 - contexts: id, name, title, notes, risks, decisions, metrics, and concept references
 - concepts: id, name, title, owning context, states, and referenced slices
+- transitions: lifecycle owner, command, event, trigger event, optional inferred `from` state, `to` state, and lifecycle-start marker
 - slices: id, index, name, title, `chapter`, context, concept references, hotspots, actors, and optional state change
 - elements: commands, events, readmodels, screens, processors, and specifications
 - element codegen data: id, name, title, type, model context, slice, concept, fields, dependencies, `startsLifecycle`, and `listElement`

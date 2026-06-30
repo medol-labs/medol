@@ -13,6 +13,7 @@ export interface CodegenModel {
   valueTypes: CodegenValueType[];
   aggregates: CodegenAggregate[];
   concepts: CodegenConcept[];
+  transitions: CodegenTransition[];
   actors: CodegenActor[];
   slices: CodegenSlice[];
 }
@@ -70,6 +71,26 @@ export interface CodegenAggregate {
 
 export interface CodegenActor {
   id: string;
+  name: string;
+  title: string;
+}
+
+export interface CodegenTransition {
+  id: string;
+  context: string;
+  owner: CodegenTransitionOwner;
+  slice: { id: string; name: string; title: string };
+  command?: { id: string; name: string; title: string };
+  event?: { id: string; name: string; title: string };
+  trigger?: { id: string; name: string; title: string };
+  from?: string;
+  to: string;
+  startsLifecycle: boolean;
+}
+
+export interface CodegenTransitionOwner {
+  id: string;
+  type: 'concept' | 'aggregate';
   name: string;
   title: string;
 }
@@ -320,10 +341,113 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         };
       })
     }))),
+    transitions: buildTransitions(model),
     actors: [...actorRecords.values()],
     slices
   };
 };
+
+const buildTransitions = (model: EmModel): CodegenTransition[] => {
+  const eventToSlice = new Map<string, EmSlice>();
+  const elementsById = new Map<string, EmElement>();
+  const contextBySliceId = new Map<string, string>();
+  const ownersBySliceId = new Map<string, CodegenTransitionOwner[]>();
+
+  for (const contextItem of model.contexts) {
+    const contextSlices = allContextSlices(contextItem);
+
+    for (const aggregate of contextItem.aggregates) {
+      const owner: CodegenTransitionOwner = {
+        id: stableId('aggregate', aggregate.id),
+        type: 'aggregate',
+        name: aggregate.name,
+        title: humanize(aggregate.name)
+      };
+      for (const slice of aggregate.slices) {
+        ownersBySliceId.set(slice.id, [...(ownersBySliceId.get(slice.id) ?? []), owner]);
+      }
+    }
+
+    for (const concept of contextItem.concepts) {
+      const owner: CodegenTransitionOwner = {
+        id: stableId('concept', concept.id),
+        type: 'concept',
+        name: concept.name,
+        title: humanize(concept.name)
+      };
+      for (const sliceId of concept.sliceIds) {
+        ownersBySliceId.set(sliceId, [...(ownersBySliceId.get(sliceId) ?? []), owner]);
+      }
+    }
+
+    for (const slice of contextSlices) {
+      contextBySliceId.set(slice.id, contextItem.name);
+      for (const element of slice.elements) {
+        elementsById.set(element.id, element);
+        if (element.kind === 'event') eventToSlice.set(element.id, slice);
+      }
+    }
+  }
+
+  const reactsToBySliceId = new Map<string, EmElement>();
+  for (const edge of model.edges) {
+    if (edge.label !== 'reactsTo') continue;
+    const source = elementsById.get(edge.source);
+    const target = elementsById.get(edge.target);
+    if (!source || source.kind !== 'event' || !target?.sliceId) continue;
+    reactsToBySliceId.set(target.sliceId, source);
+  }
+
+  const transitions: CodegenTransition[] = [];
+  for (const contextItem of model.contexts) {
+    for (const slice of allContextSlices(contextItem)) {
+      if (!slice.resultingState) continue;
+      const owners = ownersBySliceId.get(slice.id) ?? [];
+      if (owners.length === 0) continue;
+
+      const command = slice.elements.find((element) => element.kind === 'command');
+      const event = slice.elements.find((element) => element.kind === 'event');
+      const trigger = reactsToBySliceId.get(slice.id);
+
+      for (const owner of owners) {
+        transitions.push({
+          id: stableId('transition', `${owner.id}/${slice.id}`),
+          context: contextBySliceId.get(slice.id) ?? contextItem.name,
+          owner,
+          slice: toCodegenSliceRef(slice),
+          ...(command ? { command: toCodegenTransitionElement(command) } : {}),
+          ...(event ? { event: toCodegenTransitionElement(event) } : {}),
+          ...(trigger ? { trigger: toCodegenTransitionElement(trigger) } : {}),
+          ...(!slice.startsLifecycle ? inferTransitionFromState(owner, trigger, eventToSlice, ownersBySliceId) : {}),
+          to: slice.resultingState,
+          startsLifecycle: Boolean(slice.startsLifecycle)
+        });
+      }
+    }
+  }
+
+  return transitions;
+};
+
+const inferTransitionFromState = (
+  owner: CodegenTransitionOwner,
+  trigger: EmElement | undefined,
+  eventToSlice: Map<string, EmSlice>,
+  ownersBySliceId: Map<string, CodegenTransitionOwner[]>
+): { from: string } | {} => {
+  if (!trigger) return {};
+  const sourceSlice = eventToSlice.get(trigger.id);
+  if (!sourceSlice?.resultingState) return {};
+  const sourceOwners = ownersBySliceId.get(sourceSlice.id) ?? [];
+  const sameOwner = sourceOwners.some((candidate) => candidate.id === owner.id && candidate.type === owner.type);
+  return sameOwner ? { from: sourceSlice.resultingState } : {};
+};
+
+const toCodegenTransitionElement = (element: EmElement): { id: string; name: string; title: string } => ({
+  id: stableId(element.kind, element.id),
+  name: element.name,
+  title: humanize(element.name)
+});
 
 const toCodegenSlice = (
   slice: EmSlice,

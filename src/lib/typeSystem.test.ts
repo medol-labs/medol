@@ -212,6 +212,150 @@ test('exports concept lifecycle states and qualified readmodel field types', () 
   );
 });
 
+test('derives codegen transitions from lifecycle state changes and reactsTo', () => {
+  const model = parseMedol(`
+    context Federation {
+      slice RegisterOrganization {
+        startsLifecycle
+        command RegisterOrganization {
+          organizationId: UUID id generated technical
+        }
+        event OrganizationRegistered {
+          organizationId: UUID id technical
+        }
+        state Registered
+      }
+
+      slice VerifyOrganizationIdentity {
+        reactsTo OrganizationRegistered
+        command VerifyOrganizationIdentity {
+          organizationId: UUID id technical
+        }
+        event OrganizationIdentityVerified {
+          organizationId: UUID id technical
+        }
+        state IdentityVerified
+      }
+
+      concept Organization {
+        state Registered
+        state IdentityVerified
+        slice RegisterOrganization
+        slice VerifyOrganizationIdentity
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+
+  assert.deepEqual(
+    codegen.transitions.map((transition) => ({
+      owner: transition.owner.name,
+      command: transition.command?.name,
+      event: transition.event?.name,
+      trigger: transition.trigger?.name,
+      from: transition.from,
+      to: transition.to,
+      startsLifecycle: transition.startsLifecycle
+    })),
+    [
+      {
+        owner: 'Organization',
+        command: 'RegisterOrganization',
+        event: 'OrganizationRegistered',
+        trigger: undefined,
+        from: undefined,
+        to: 'Registered',
+        startsLifecycle: true
+      },
+      {
+        owner: 'Organization',
+        command: 'VerifyOrganizationIdentity',
+        event: 'OrganizationIdentityVerified',
+        trigger: 'OrganizationRegistered',
+        from: 'Registered',
+        to: 'IdentityVerified',
+        startsLifecycle: false
+      }
+    ]
+  );
+});
+
+test('does not infer fromState from cross concept reactsTo events', () => {
+  const model = parseMedol(`
+    context Training {
+      slice CreateTrainingJob {
+        startsLifecycle
+        command CreateTrainingJob {
+          trainingJobId: UUID id generated technical
+        }
+        event TrainingJobCreated {
+          trainingJobId: UUID id technical
+        }
+        state Draft
+      }
+
+      slice SubmitTrainingJob {
+        reactsTo TrainingJobCreated
+        command SubmitTrainingJob {
+          trainingJobId: UUID id technical
+        }
+        event TrainingJobSubmitted {
+          trainingJobId: UUID id technical
+        }
+        state Submitted
+      }
+
+      slice DefineTrainingRunConfiguration {
+        startsLifecycle
+        command DefineTrainingRunConfiguration {
+          trainingRunConfigurationId: UUID id generated technical
+        }
+        event TrainingRunConfigurationDefined {
+          trainingRunConfigurationId: UUID id technical
+        }
+        state Draft
+      }
+
+      slice LockTrainingRunConfiguration {
+        reactsTo TrainingJobSubmitted
+        command LockTrainingRunConfiguration {
+          trainingRunConfigurationId: UUID id technical
+        }
+        event TrainingRunConfigurationLocked {
+          trainingRunConfigurationId: UUID id technical
+        }
+        state Locked
+      }
+
+      concept TrainingJob {
+        state Draft
+        state Submitted
+        slice CreateTrainingJob
+        slice SubmitTrainingJob
+      }
+
+      concept TrainingRunConfiguration {
+        state Draft
+        state Locked
+        slice DefineTrainingRunConfiguration
+        slice LockTrainingRunConfiguration
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  const lockTransition = codegen.transitions.find((transition) =>
+    transition.owner.name === 'TrainingRunConfiguration' && transition.command?.name === 'LockTrainingRunConfiguration'
+  );
+
+  assert.equal(lockTransition?.trigger?.name, 'TrainingJobSubmitted');
+  assert.equal(lockTransition?.from, undefined);
+  assert.equal(lockTransition?.to, 'Locked');
+});
+
 test('rejects unknown lifecycle state owners and owners without states', () => {
   const model = parseMedol(`
     context Training {

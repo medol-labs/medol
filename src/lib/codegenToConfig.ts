@@ -142,6 +142,7 @@ export interface ConfigRoot {
     states: string[];
     slices: Array<{ id: string; name: string; title: string }>;
   }>;
+  transitions: CodegenModel['transitions'];
   domain?: string;
   context: string;
   codeGen: ConfigCodeGen;
@@ -169,6 +170,7 @@ export const codegenModelToConfig = (model: CodegenModel): ConfigRoot => ({
   })),
   actors: model.actors,
   concepts: model.concepts,
+  transitions: model.transitions,
   ...(model.domain ? { domain: model.domain } : {}),
   context: getPrimaryContextName(model),
   codeGen: {

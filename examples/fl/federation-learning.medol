@@ -1482,6 +1482,37 @@ context TrainingOrchestration {
     }
 
     state Draft
+
+    specification "Training Job Requires Validated Configuration And Runtime Access" {
+      rule """
+        A training job can be created only from a validated training run configuration and runtime-readable aggregator training and evaluation dataset access profiles.
+      """
+
+      scenario "Create Training Job With Validated Inputs" {
+        given TrainingRunConfigurationValidated {
+          trainingRunConfigurationId = "config-1"
+        }
+        when CreateTrainingJob {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          aggregatorTrainingDatasetAccessProfileId = "access-train-1"
+          aggregatorEvaluationDatasetAccessProfileId = "access-eval-1"
+        }
+        then TrainingJobCreated
+      }
+
+      scenario "Reject Training Job Without Validated Runtime Access" {
+        given TrainingRunConfigurationValidated {
+          trainingRunConfigurationId = "config-1"
+        }
+        when CreateTrainingJob {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          aggregatorTrainingDatasetAccessProfileId = "access-train-1"
+        }
+        then reject "Validated Runtime Dataset Access Required"
+      }
+    }
   }
 
   slice ConfigureTrainingStrategy {
@@ -1547,6 +1578,36 @@ context TrainingOrchestration {
     }
 
     state Submitted
+
+    specification "Only Strategy Configured Training Jobs Can Be Submitted" {
+      rule """
+        A training job can be submitted only after its training strategy has been configured.
+      """
+
+      scenario "Submit Strategy Configured Training Job" {
+        given TrainingStrategyConfigured {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+        }
+        when SubmitTrainingJob {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+        }
+        then TrainingJobSubmitted
+      }
+
+      scenario "Reject Draft Training Job Submission" {
+        given TrainingJobCreated {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+        }
+        when SubmitTrainingJob {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+        }
+        then reject "Training Strategy Required"
+      }
+    }
   }
 
   slice RequestNodeParticipation {
@@ -1611,11 +1672,19 @@ context TrainingOrchestration {
       participantDatasetBundleId: UUID
       trainingDatasetAccessProfileId: UUID
       evaluationDatasetAccessProfileId: UUID
+      participantStatus: String
+      readinessStatus: String
       trustedNode: Boolean
       runtimeReadable: Boolean
       nodeHealthy: Boolean
       eligible: Boolean
       eligibilityReason: String?
+      ineligibleReasons: String[]
+      hasAcceptedParticipation: Boolean
+      canRequestParticipation: Boolean
+      canStartRoundContribution: Boolean
+      lastHeartbeatAt: DateTime?
+      lastDatasetAccessValidationAt: DateTime?
       subscribe TrainingJobSubmitted
       subscribe ParticipantJoined
       subscribe ParticipantSuspended
@@ -1769,10 +1838,23 @@ context TrainingOrchestration {
       objective: String
       targetMetric: String
       state: TrainingJob.State
+      workflowStage: String
+      workflowStep: Int
+      nextAction: String?
+      availableActions: String[]
+      blockedReason: String?
+      canConfigureStrategy: Boolean
+      canSubmit: Boolean
+      canStartRound: Boolean
+      canPause: Boolean
+      canResume: Boolean
+      canCancel: Boolean
+      canComplete: Boolean
       currentRoundNumber: Int
       readyNodeCount: Int
       minimumNodesPerRound: Int
       maxRounds: Int
+      roundProgressPercent: Int
       globalAccuracy: Decimal?
       finalModelVersionId: UUID?
       stopReason: String?
@@ -1842,6 +1924,40 @@ context TrainingOrchestration {
     }
 
     state Running
+
+    specification "Training Round Requires Ready Node Quorum" {
+      rule """
+        A training round can start only when the ready node count satisfies the configured minimum node quorum for the training job.
+      """
+
+      scenario "Start Round With Ready Node Quorum" {
+        given NodeReadyForTraining {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          nodeId = "node-1"
+        }
+        when StartTrainingRound {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          readyNodeCount = 3
+        }
+        then TrainingRoundStarted
+      }
+
+      scenario "Reject Round Start Below Quorum" {
+        given NodeReadyForTraining {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          nodeId = "node-1"
+        }
+        when StartTrainingRound {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          readyNodeCount = 2
+        }
+        then reject "Ready Node Quorum Required"
+      }
+    }
   }
 
   slice DistributeGlobalModel {
@@ -2072,6 +2188,46 @@ context TrainingOrchestration {
     }
 
     state Completed
+
+    specification "Training Round Completion Requires Global Evaluation" {
+      rule """
+        A training round can be completed only after the aggregated global model has been evaluated.
+      """
+
+      scenario "Complete Round After Global Evaluation" {
+        given GlobalModelEvaluationSubmitted {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          roundId = "round-1"
+          aggregatedModelVersionId = "model-1"
+          globalAccuracy = 0.91
+        }
+        when CompleteTrainingRound {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          roundId = "round-1"
+          aggregatedModelVersionId = "model-1"
+          globalAccuracy = 0.91
+        }
+        then TrainingRoundCompleted
+      }
+
+      scenario "Reject Round Completion Without Global Evaluation" {
+        given GlobalModelUpdated {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          roundId = "round-1"
+          aggregatedModelVersionId = "model-1"
+        }
+        when CompleteTrainingRound {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          roundId = "round-1"
+          aggregatedModelVersionId = "model-1"
+        }
+        then reject "Global Model Evaluation Required"
+      }
+    }
   }
 
   slice FailTrainingRoundOnQuorumLoss {
@@ -2109,11 +2265,21 @@ context TrainingOrchestration {
       readyNodeCount: Int
       targetNodeCount: Int
       submittedUpdateCount: Int
+      rejectedUpdateCount: Int
       evaluatedUpdateCount: Int
+      pendingUpdateCount: Int
+      quorumMet: Boolean
+      aggregationReady: Boolean
+      evaluationComplete: Boolean
+      progressPercent: Int
+      currentPhase: String
+      nextAction: String?
+      blockedReason: String?
       aggregationProvider: String?
       aggregatedModelVersionId: UUID?
       globalAccuracy: Decimal?
       globalFairnessScore: Decimal?
+      failureReason: String?
       subscribe TrainingRoundStarted
       subscribe GlobalModelDistributed
       subscribe LocalModelUpdateSubmitted
@@ -2194,7 +2360,7 @@ context ModelLifecycle {
   slice RecordModelEvaluationPackage {
     actor GovernanceReviewer
     ui ModelApprovalScreen
-    reactsTo ModelEvaluationPackageRecorded
+    reactsTo ModelCandidateRegistered
 
     command RecordModelEvaluationPackage {
       modelVersionId: UUID id technical
@@ -2243,7 +2409,7 @@ context ModelLifecycle {
   slice ApproveModel {
     actor GovernanceReviewer
     ui ModelApprovalScreen
-    reactsTo ModelCandidateRegistered
+    reactsTo ModelEvaluationPackageRecorded
 
     command ApproveModel {
       modelVersionId: UUID id technical
@@ -2256,6 +2422,36 @@ context ModelLifecycle {
     }
 
     state Approved
+
+    specification "Only Evaluation Packaged Models Can Be Approved" {
+      rule """
+        A model can be approved only after its evaluation package has been recorded.
+      """
+
+      scenario "Approve Evaluation Packaged Model" {
+        given ModelEvaluationPackageRecorded {
+          modelVersionId = "model-1"
+          evaluationReportId = "report-1"
+          reproducibilityManifestId = "manifest-1"
+          modelCardId = "card-1"
+        }
+        when ApproveModel {
+          modelVersionId = "model-1"
+        }
+        then ModelApproved
+      }
+
+      scenario "Reject Candidate Without Evaluation Package" {
+        given ModelCandidateRegistered {
+          modelVersionId = "model-1"
+          evaluationReportId = "report-1"
+        }
+        when ApproveModel {
+          modelVersionId = "model-1"
+        }
+        then reject "Model Evaluation Package Required"
+      }
+    }
   }
 
   slice PromoteModelToProduction {
@@ -2276,6 +2472,36 @@ context ModelLifecycle {
     }
 
     state Production
+
+    specification "Only Approved Models Can Be Promoted To Production" {
+      rule """
+        A model version can be promoted to production only after governance approval.
+      """
+
+      scenario "Promote Approved Model" {
+        given ModelApproved {
+          modelVersionId = "model-1"
+        }
+        when PromoteModelToProduction {
+          modelVersionId = "model-1"
+          releaseChannel = "stable"
+          deploymentTarget = "production"
+        }
+        then ModelPromotedToProduction
+      }
+
+      scenario "Reject Unapproved Model Promotion" {
+        given ModelEvaluationPackageRecorded {
+          modelVersionId = "model-1"
+        }
+        when PromoteModelToProduction {
+          modelVersionId = "model-1"
+          releaseChannel = "stable"
+          deploymentTarget = "production"
+        }
+        then reject "Model Approval Required"
+      }
+    }
   }
 
   slice RollbackModelVersion {
@@ -2339,6 +2565,16 @@ context ModelLifecycle {
       reproducibilityManifestId: UUID?
       modelCardId: UUID?
       baselineModelVersionId: UUID?
+      hasEvaluationPackage: Boolean
+      approvalStatus: String
+      releaseStatus: String
+      isProduction: Boolean
+      canRecordEvaluationPackage: Boolean
+      canApprove: Boolean
+      canPromoteToProduction: Boolean
+      canRollback: Boolean
+      canRetire: Boolean
+      blockedReason: String?
       subscribe ModelCandidateRegistered
       subscribe ModelEvaluationPackageRecorded
       subscribe ModelApproved
