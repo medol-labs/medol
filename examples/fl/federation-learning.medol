@@ -1071,6 +1071,8 @@ context DatasetGovernance {
   }
 
   slice CompleteRuntimeDatasetAccessValidation {
+    reactsTo DatasetAccessValidationRequested
+
     command CompleteRuntimeDatasetAccessValidation {
       accessProfileId: UUID id technical
       datasetId: UUID
@@ -1700,6 +1702,7 @@ context TrainingOrchestration {
   slice CancelTrainingJob {
     actor MLOpsEngineer
     ui TrainingOperationsScreen
+    reactsTo TrainingJobRunning
 
     command CancelTrainingJob {
       trainingJobId: UUID id technical
@@ -1999,6 +2002,8 @@ context TrainingOrchestration {
   }
 
   slice CompleteSecureAggregation {
+    reactsTo SecureAggregationRequested
+
     command CompleteSecureAggregation {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
