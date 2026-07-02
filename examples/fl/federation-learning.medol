@@ -3919,9 +3919,6 @@ context RuntimeOperations {
     }
     
   }
-}
-
-domain FederationLearningPlatform {
   deployment PlatformBackend {
     includes FederationManagement
     includes DatasetGovernance
