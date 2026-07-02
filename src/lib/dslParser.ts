@@ -47,6 +47,7 @@ import type {
   Command as AstCommand,
   Context as AstContext,
   Domain as AstDomain,
+  Deployment as AstDeployment,
   Concept as AstConcept,
   Event as AstEvent,
   Expression,
@@ -68,7 +69,7 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmContext, EmConcept, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type MedolDiagnostic, type MedolSourceRange } from './model';
+import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 
@@ -189,24 +190,30 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
   const merged = models[0] ?? medolServices.parser.LangiumParser.parse<AstModel>('').value;
   const domainGroups = models.map((model) => [...(model.domains ?? [])]);
   const contextGroups = models.map((model) => [...(model.contexts ?? [])]);
+  const deploymentGroups = models.map((model) => [...(model.deployments ?? [])]);
   merged.imports = models.flatMap((model) => model.imports ?? []);
   merged.domains = [];
   merged.contexts = [];
+  merged.deployments = [];
 
   const domains = new Map<string, AstDomain>();
   const looseContexts = new Map<string, AstContext>();
+  const looseDeployments = new Map<string, AstDeployment>();
   for (let index = 0; index < models.length; index += 1) {
     for (const domain of domainGroups[index]) {
       const existing = domains.get(domain.name);
       if (!existing) {
         domain.contexts = [...(domain.contexts ?? [])];
+        domain.deployments = [...(domain.deployments ?? [])];
         domains.set(domain.name, domain);
         merged.domains.push(domain);
       } else {
         mergeContexts(existing.contexts, domain.contexts ?? []);
+        mergeDeployments(existing.deployments, domain.deployments ?? []);
       }
     }
     mergeContexts(merged.contexts, contextGroups[index], looseContexts);
+    mergeDeployments(merged.deployments, deploymentGroups[index], looseDeployments);
   }
   return merged;
 };
@@ -228,6 +235,23 @@ const mergeContexts = (
   }
 };
 
+const mergeDeployments = (
+  target: AstDeployment[],
+  additions: AstDeployment[],
+  existing = new Map(target.map((deployment) => [deployment.name, deployment]))
+): void => {
+  for (const deployment of additions) {
+    const current = existing.get(deployment.name);
+    if (current) {
+      current.contexts.push(...(deployment.contexts ?? []));
+    } else {
+      deployment.contexts = [...(deployment.contexts ?? [])];
+      target.push(deployment);
+      existing.set(deployment.name, deployment);
+    }
+  }
+};
+
 export const astToEmModel = (ast: AstModel): EmModel => {
   const model = emptyModel();
 
@@ -235,10 +259,15 @@ export const astToEmModel = (ast: AstModel): EmModel => {
     const domain = parseDomain(domainNode, model.edges);
     model.domains.push(domain);
     model.contexts.push(...domain.contexts);
+    model.deployments.push(...domain.deployments);
   }
 
   for (const contextNode of ast.contexts ?? []) {
     model.contexts.push(parseContext(contextNode, undefined, model.edges));
+  }
+
+  for (const deploymentNode of ast.deployments ?? []) {
+    model.deployments.push(parseDeployment(deploymentNode, undefined));
   }
 
   return model;
@@ -249,15 +278,27 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
     id: scopedId('domain', safeName(node.name, 'UnnamedDomain')),
     name: safeName(node.name, 'UnnamedDomain'),
     ...withSourceRange(node),
-    contexts: []
+    contexts: [],
+    deployments: []
   };
 
   for (const contextNode of node.contexts ?? []) {
     domain.contexts.push(parseContext(contextNode, domain.id, edges));
   }
+  for (const deploymentNode of node.deployments ?? []) {
+    domain.deployments.push(parseDeployment(deploymentNode, domain.name));
+  }
 
   return domain;
 };
+
+const parseDeployment = (node: AstDeployment, domainName: string | undefined): EmDeployment => ({
+  id: domainName ? scopedId('deployment', `${domainName}/${safeName(node.name, 'UnnamedDeployment')}`) : scopedId('deployment', safeName(node.name, 'UnnamedDeployment')),
+  name: safeName(node.name, 'UnnamedDeployment'),
+  ...(domainName ? { domain: domainName } : {}),
+  ...withSourceRange(node),
+  contexts: (node.contexts ?? []).map((item) => safeName(item.context, 'UnnamedContext'))
+});
 
 const parseContext = (node: AstContext, domainId: string | undefined, edges: EmEdge[]): EmContext => {
   const contextName = safeName(node.name, 'UnnamedContext');

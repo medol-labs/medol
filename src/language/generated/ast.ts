@@ -45,6 +45,7 @@ export type MedolKeywordNames =
     | "confirm"
     | "context"
     | "decision"
+    | "deployment"
     | "derived"
     | "detail"
     | "dialog"
@@ -64,6 +65,7 @@ export type MedolKeywordNames =
     | "hotspot"
     | "id"
     | "import"
+    | "includes"
     | "inline"
     | "integration"
     | "issue"
@@ -361,16 +363,50 @@ export function isDecision(item: unknown): item is Decision {
     return reflection.isInstance(item, Decision.$type);
 }
 
+export interface Deployment extends langium.AstNode {
+    readonly $container: Domain | Model;
+    readonly $type: 'Deployment';
+    contexts: Array<DeploymentContext>;
+    name: string;
+}
+
+export const Deployment = {
+    $type: 'Deployment',
+    contexts: 'contexts',
+    name: 'name'
+} as const;
+
+export function isDeployment(item: unknown): item is Deployment {
+    return reflection.isInstance(item, Deployment.$type);
+}
+
+export interface DeploymentContext extends langium.AstNode {
+    readonly $container: Deployment;
+    readonly $type: 'DeploymentContext';
+    context: string;
+}
+
+export const DeploymentContext = {
+    $type: 'DeploymentContext',
+    context: 'context'
+} as const;
+
+export function isDeploymentContext(item: unknown): item is DeploymentContext {
+    return reflection.isInstance(item, DeploymentContext.$type);
+}
+
 export interface Domain extends langium.AstNode {
     readonly $container: Model;
     readonly $type: 'Domain';
     contexts: Array<Context>;
+    deployments: Array<Deployment>;
     name: string;
 }
 
 export const Domain = {
     $type: 'Domain',
     contexts: 'contexts',
+    deployments: 'deployments',
     name: 'name'
 } as const;
 
@@ -695,6 +731,7 @@ export function isMetric(item: unknown): item is Metric {
 export interface Model extends langium.AstNode {
     readonly $type: 'Model';
     contexts: Array<Context>;
+    deployments: Array<Deployment>;
     domains: Array<Domain>;
     imports: Array<Import>;
 }
@@ -702,6 +739,7 @@ export interface Model extends langium.AstNode {
 export const Model = {
     $type: 'Model',
     contexts: 'contexts',
+    deployments: 'deployments',
     domains: 'domains',
     imports: 'imports'
 } as const;
@@ -1400,6 +1438,8 @@ export type MedolAstType = {
     Context: Context
     ContextElement: ContextElement
     Decision: Decision
+    Deployment: Deployment
+    DeploymentContext: DeploymentContext
     Domain: Domain
     Emits: Emits
     EnumType: EnumType
@@ -1641,11 +1681,37 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [ContextElement.$type]
         },
+        Deployment: {
+            name: Deployment.$type,
+            properties: {
+                contexts: {
+                    name: Deployment.contexts,
+                    defaultValue: []
+                },
+                name: {
+                    name: Deployment.name
+                }
+            },
+            superTypes: []
+        },
+        DeploymentContext: {
+            name: DeploymentContext.$type,
+            properties: {
+                context: {
+                    name: DeploymentContext.context
+                }
+            },
+            superTypes: []
+        },
         Domain: {
             name: Domain.$type,
             properties: {
                 contexts: {
                     name: Domain.contexts,
+                    defaultValue: []
+                },
+                deployments: {
+                    name: Domain.deployments,
                     defaultValue: []
                 },
                 name: {
@@ -1872,6 +1938,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             properties: {
                 contexts: {
                     name: Model.contexts,
+                    defaultValue: []
+                },
+                deployments: {
+                    name: Model.deployments,
                     defaultValue: []
                 },
                 domains: {

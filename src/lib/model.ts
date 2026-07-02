@@ -127,6 +127,15 @@ export interface EmDomain {
   name: string;
   sourceRange?: MedolSourceRange;
   contexts: EmContext[];
+  deployments: EmDeployment[];
+}
+
+export interface EmDeployment {
+  id: string;
+  name: string;
+  domain?: string;
+  sourceRange?: MedolSourceRange;
+  contexts: string[];
 }
 
 export interface EmEdge {
@@ -154,6 +163,7 @@ export interface MedolDiagnostic {
 
 export interface EmModel {
   domains: EmDomain[];
+  deployments: EmDeployment[];
   contexts: EmContext[];
   edges: EmEdge[];
   diagnostics: string[];
@@ -162,6 +172,7 @@ export interface EmModel {
 
 export const emptyModel = (): EmModel => ({
   domains: [],
+  deployments: [],
   contexts: [],
   edges: [],
   diagnostics: [],

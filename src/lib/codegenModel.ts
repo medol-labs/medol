@@ -6,6 +6,8 @@ import { coveredSpecificationExpressions } from './specificationCoverage';
 export interface CodegenModel {
   rootPackage: 'tech.medo';
   domain?: string;
+  domains?: Array<{ id: string; name: string; title: string; contexts: Array<{ id: string; name: string; title: string }> }>;
+  deployments?: Array<{ id: string; name: string; title: string; domain?: string; contexts: Array<{ id: string; name: string; title: string }> }>;
   locales?: string[];
   defaultLocale?: string;
   translations?: Record<string, Record<string, string>>;
@@ -22,6 +24,7 @@ export interface CodegenContext {
   id: string;
   name: string;
   title: string;
+  domain?: string;
   notes: string[];
   risks: string[];
   decisions: string[];
@@ -222,6 +225,14 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
   const aggregateRecords = new Map<string, CodegenAggregate>();
   const actorRecords = new Map<string, CodegenActor>();
   const elementsById = new Map<string, EmElement>();
+  const domainByContextId = new Map<string, string>();
+  const contextByName = new Map(model.contexts.map((contextItem) => [contextItem.name, contextItem]));
+
+  for (const domain of model.domains) {
+    for (const contextItem of domain.contexts) {
+      domainByContextId.set(contextItem.id, domain.name);
+    }
+  }
 
   for (const contextItem of model.contexts) {
     for (const aggregate of contextItem.aggregates) {
@@ -291,10 +302,43 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
   return {
     rootPackage: 'tech.medo',
     ...(model.domains[0] ? { domain: model.domains[0].name } : {}),
+    ...(model.domains.length
+      ? {
+          domains: model.domains.map((domain) => ({
+            id: stableId('domain', domain.id),
+            name: domain.name,
+            title: humanize(domain.name),
+            contexts: domain.contexts.map((contextItem) => ({
+              id: stableId('context', contextItem.id),
+              name: contextItem.name,
+              title: humanize(contextItem.name)
+            }))
+          }))
+        }
+      : {}),
+    ...(model.deployments.length
+      ? {
+          deployments: model.deployments.map((deployment) => ({
+            id: stableId('deployment', deployment.id),
+            name: deployment.name,
+            title: humanize(deployment.name),
+            ...(deployment.domain ? { domain: deployment.domain } : {}),
+            contexts: deployment.contexts.map((contextName) => {
+              const contextItem = contextByName.get(contextName);
+              return {
+                id: stableId('context', contextItem?.id ?? contextName),
+                name: contextName,
+                title: humanize(contextName)
+              };
+            })
+          }))
+        }
+      : {}),
     contexts: model.contexts.map((contextItem) => ({
       id: stableId('context', contextItem.id),
       name: contextItem.name,
       title: humanize(contextItem.name),
+      ...(domainByContextId.get(contextItem.id) ? { domain: domainByContextId.get(contextItem.id) } : {}),
       notes: contextItem.notes,
       risks: contextItem.risks,
       decisions: contextItem.decisions,
