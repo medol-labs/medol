@@ -216,6 +216,12 @@ context FederationManagement {
 
   slice ApproveParticipant {
     actor GovernanceReviewer
+
+    tags {
+      federationId
+      organizationId
+    }
+
     ui MembershipReviewScreen dialog
     reactsTo ParticipantInvited
 
@@ -516,125 +522,6 @@ context FederationManagement {
     slice ComputeNodeCatalog
   }
 
-  slice RegisterRuntimeAgent {
-    startsLifecycle
-    actor NodeOperator
-    ui RuntimeAgentRegistrationScreen
-    reactsTo ComputeNodeTrusted
-
-    command RegisterRuntimeAgent {
-      runtimeAgentId: UUID id generated technical
-      nodeId: UUID
-      organizationId: UUID
-      agentName: String
-      agentVersion: String
-      agentEndpointRef: String
-      k3sClusterRef: String
-      k3sNamespace: String
-      supportedRuntimeTypes: String[]
-    }
-
-    event RuntimeAgentRegistered {
-      runtimeAgentId: UUID id technical
-      nodeId: UUID
-      organizationId: UUID
-      agentName: String
-      agentVersion: String
-      agentEndpointRef: String
-      k3sClusterRef: String
-      k3sNamespace: String
-      supportedRuntimeTypes: String[]
-    }
-
-    state Registered
-  }
-
-  slice DeclareRuntimeAgentCapability {
-    actor NodeOperator
-    ui RuntimeAgentCapabilityScreen
-    reactsTo RuntimeAgentRegistered
-
-    command DeclareRuntimeAgentCapability {
-      runtimeAgentId: UUID id technical
-      maxConcurrentRuntimeJobs: Int
-      supportedDataConnectorTypes: String[]
-      supportedSecretRefTypes: String[]
-      supportedArtifactStores: String[]
-      supportsGpuScheduling: Boolean
-    }
-
-    event RuntimeAgentCapabilityDeclared {
-      runtimeAgentId: UUID id technical
-      maxConcurrentRuntimeJobs: Int
-      supportedDataConnectorTypes: String[]
-      supportedSecretRefTypes: String[]
-      supportedArtifactStores: String[]
-      supportsGpuScheduling: Boolean
-    }
-
-    state CapabilityDeclared
-  }
-
-  slice TrustRuntimeAgent {
-    actor SecurityReviewer
-    ui RuntimeAgentTrustScreen
-    reactsTo RuntimeAgentCapabilityDeclared
-
-    command TrustRuntimeAgent {
-      runtimeAgentId: UUID id technical
-      trustLevel: String
-      agentCertificateFingerprint: String
-      attestationReportId: UUID?
-      trustExpiresAt: DateTime
-    }
-
-    event RuntimeAgentTrusted {
-      runtimeAgentId: UUID id technical
-      trustLevel: String
-      agentCertificateFingerprint: String
-      attestationReportId: UUID?
-      trustExpiresAt: DateTime
-    }
-
-    state Trusted
-  }
-
-  slice RuntimeAgentCatalog {
-    readmodel RuntimeAgentCatalog[] {
-      runtimeAgentId: UUID id
-      nodeId: UUID
-      organizationId: UUID
-      agentName: String
-      agentVersion: String
-      agentEndpointRef: String
-      k3sClusterRef: String
-      k3sNamespace: String
-      supportedRuntimeTypes: String[]
-      maxConcurrentRuntimeJobs: Int
-      supportedDataConnectorTypes: String[]
-      supportedSecretRefTypes: String[]
-      supportedArtifactStores: String[]
-      supportsGpuScheduling: Boolean
-      trustLevel: String?
-      agentCertificateFingerprint: String?
-      trustExpiresAt: DateTime?
-      agentStatus: String
-      subscribe RuntimeAgentRegistered
-      subscribe RuntimeAgentCapabilityDeclared
-      subscribe RuntimeAgentTrusted
-    }
-  }
-
-  concept RuntimeAgent {
-    state Registered
-    state CapabilityDeclared
-    state Trusted
-
-    slice RegisterRuntimeAgent
-    slice DeclareRuntimeAgentCapability
-    slice TrustRuntimeAgent
-    slice RuntimeAgentCatalog
-  }
 }
 
 context DatasetGovernance {
@@ -1512,7 +1399,7 @@ context DatasetGovernance {
 }
 
 context TrainingOrchestration {
-  note "Training orchestration owns job intent and each round of distributed training and evaluation."
+  note "Training orchestration owns job intent, trusted runtime agents, and each round of distributed training and evaluation."
 
   risk "Training can stall when ready nodes fall below quorum or when secure aggregation is requested before enough evaluated updates exist."
   risk "Poisoned local updates can degrade the global model if anomaly checks are not modeled as a first class decision."
@@ -1547,6 +1434,126 @@ context TrainingOrchestration {
     target RuntimeAgent
     reactsTo NodeReadyForTraining
     emits DispatchTrainingRuntime
+  }
+
+  slice RegisterRuntimeAgent {
+    startsLifecycle
+    actor NodeOperator
+    ui RuntimeAgentRegistrationScreen
+    reactsTo ComputeNodeTrusted
+
+    command RegisterRuntimeAgent {
+      runtimeAgentId: UUID id generated technical
+      nodeId: UUID
+      organizationId: UUID
+      agentName: String
+      agentVersion: String
+      agentEndpointRef: String
+      k3sClusterRef: String
+      k3sNamespace: String
+      supportedRuntimeTypes: String[]
+    }
+
+    event RuntimeAgentRegistered {
+      runtimeAgentId: UUID id technical
+      nodeId: UUID
+      organizationId: UUID
+      agentName: String
+      agentVersion: String
+      agentEndpointRef: String
+      k3sClusterRef: String
+      k3sNamespace: String
+      supportedRuntimeTypes: String[]
+    }
+
+    state Registered
+  }
+
+  slice DeclareRuntimeAgentCapability {
+    actor NodeOperator
+    ui RuntimeAgentCapabilityScreen
+    reactsTo RuntimeAgentRegistered
+
+    command DeclareRuntimeAgentCapability {
+      runtimeAgentId: UUID id technical
+      maxConcurrentRuntimeJobs: Int
+      supportedDataConnectorTypes: String[]
+      supportedSecretRefTypes: String[]
+      supportedArtifactStores: String[]
+      supportsGpuScheduling: Boolean
+    }
+
+    event RuntimeAgentCapabilityDeclared {
+      runtimeAgentId: UUID id technical
+      maxConcurrentRuntimeJobs: Int
+      supportedDataConnectorTypes: String[]
+      supportedSecretRefTypes: String[]
+      supportedArtifactStores: String[]
+      supportsGpuScheduling: Boolean
+    }
+
+    state CapabilityDeclared
+  }
+
+  slice TrustRuntimeAgent {
+    actor SecurityReviewer
+    ui RuntimeAgentTrustScreen
+    reactsTo RuntimeAgentCapabilityDeclared
+
+    command TrustRuntimeAgent {
+      runtimeAgentId: UUID id technical
+      trustLevel: String
+      agentCertificateFingerprint: String
+      attestationReportId: UUID?
+      trustExpiresAt: DateTime
+    }
+
+    event RuntimeAgentTrusted {
+      runtimeAgentId: UUID id technical
+      trustLevel: String
+      agentCertificateFingerprint: String
+      attestationReportId: UUID?
+      trustExpiresAt: DateTime
+    }
+
+    state Trusted
+  }
+
+  slice RuntimeAgentCatalog {
+    readmodel RuntimeAgentCatalog[] {
+      runtimeAgentId: UUID id
+      nodeId: UUID
+      organizationId: UUID
+      agentName: String
+      agentVersion: String
+      agentEndpointRef: String
+      k3sClusterRef: String
+      k3sNamespace: String
+      supportedRuntimeTypes: String[]
+      maxConcurrentRuntimeJobs: Int
+      supportedDataConnectorTypes: String[]
+      supportedSecretRefTypes: String[]
+      supportedArtifactStores: String[]
+      supportsGpuScheduling: Boolean
+      trustLevel: String?
+      agentCertificateFingerprint: String?
+      trustExpiresAt: DateTime?
+      agentStatus: String
+      subscribe RuntimeAgentRegistered
+      subscribe RuntimeAgentCapabilityDeclared
+      subscribe RuntimeAgentTrusted
+    }
+  }
+
+  concept RuntimeAgent {
+    state Registered
+    state CapabilityDeclared
+    state Trusted
+
+    slice RegisterRuntimeAgent
+    slice DeclareRuntimeAgentCapability
+    slice TrustRuntimeAgent
+    slice RuntimeAgentCatalog
   }
 
   slice DefineTrainingRunConfiguration {
@@ -3919,7 +3926,7 @@ context RuntimeOperations {
     }
     
   }
-  deployment PlatformBackend {
+  deployment FLPlatformBackend {
     includes FederationManagement
     includes DatasetGovernance
     includes TrainingOrchestration
@@ -3928,7 +3935,7 @@ context RuntimeOperations {
     includes KeyAndAttestationManagement
   }
 
-  deployment RuntimeAgent {
+  deployment FLRuntimeAgent {
     includes RuntimeAgentOperations
   }
 
