@@ -195,9 +195,15 @@ context FederationManagement {
   }
 
   slice InviteParticipant {
+    startsLifecycle
     actor FederationOwner
     ui ParticipantInvitationScreen dialog
     reactsTo FederationCreated
+
+    tags {
+      federationId
+      organizationId
+    }
 
     command InviteParticipant {
       federationId: UUID id technical
@@ -274,6 +280,11 @@ context FederationManagement {
     ui MembershipReviewScreen dialog
     reactsTo ParticipantInvited
 
+    tags {
+      federationId
+      organizationId
+    }
+
     command RejectParticipant {
       federationId: UUID id technical
       organizationId: UUID
@@ -293,6 +304,11 @@ context FederationManagement {
     actor FederationOwner
     ui ParticipantInvitationScreen confirm
     reactsTo ParticipantInvited
+
+    tags {
+      federationId
+      organizationId
+    }
 
     command RevokeParticipantInvitation {
       federationId: UUID id technical
@@ -314,6 +330,11 @@ context FederationManagement {
     ui MembershipReviewScreen dialog
     reactsTo ParticipantJoined
 
+    tags {
+      federationId
+      organizationId
+    }
+
     command SuspendParticipant {
       federationId: UUID id technical
       organizationId: UUID
@@ -333,6 +354,11 @@ context FederationManagement {
     actor GovernanceReviewer
     ui MembershipReviewScreen confirm
     reactsTo ParticipantSuspended
+
+    tags {
+      federationId
+      organizationId
+    }
 
     command RemoveParticipant {
       federationId: UUID id technical
@@ -377,6 +403,16 @@ context FederationManagement {
 
     slice CreateFederation
     slice FederationOverview
+  }
+
+  concept FederationMembership {
+    state Invited
+    state Active
+    state Rejected
+    state InvitationRevoked
+    state Suspended
+    state Removed
+
     slice InviteParticipant
     slice ApproveParticipant
     slice RejectParticipant
