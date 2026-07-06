@@ -424,6 +424,12 @@ context FederationManagement {
 
   slice RegisterComputeNode {
     startsLifecycle
+
+    tags {
+      organizationId
+      nodeName = normalize(nodeName)
+    }
+
     actor NodeOperator
     ui NodeRegistrationScreen
     reactsTo OrganizationActivated
