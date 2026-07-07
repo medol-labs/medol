@@ -55,21 +55,45 @@ context FederationManagement {
     }
   }
 
+  slice SubmitOrganizationIdentityEvidence {
+    actor OrganizationAdmin
+    ui OrganizationVerificationScreen
+    reactsTo OrganizationRegistered
+
+    command SubmitOrganizationIdentityEvidence {
+      organizationId: UUID id technical
+      legalEntityName: String
+      registrationNumber: String
+      identityEvidenceRef: String
+    }
+
+    event OrganizationIdentityEvidenceSubmitted {
+      organizationId: UUID id technical
+      legalEntityName: String
+      registrationNumber: String
+      identityEvidenceRef: String
+    }
+
+    state IdentityEvidenceSubmitted
+  }
+
   slice VerifyOrganizationIdentity {
     actor ComplianceOfficer
     ui OrganizationVerificationScreen
-    reactsTo OrganizationRegistered
+    reactsTo OrganizationIdentityEvidenceSubmitted
 
     command VerifyOrganizationIdentity {
       organizationId: UUID id technical
       verificationProvider: String
-      identityEvidenceId: UUID
+      identityEvidenceRef: String
+      verificationNote: String?
     }
 
     event OrganizationIdentityVerified {
       organizationId: UUID id technical
       verificationProvider: String
-      identityEvidenceId: UUID
+      identityEvidenceRef: String
+      verificationNote: String?
     }
 
     state IdentityVerified
@@ -111,6 +135,24 @@ context FederationManagement {
     state Deactivated
   }
 
+  slice ReactivateOrganization {
+    actor PlatformAdmin
+    ui OrganizationAdminScreen
+    reactsTo OrganizationDeactivated
+
+    command ReactivateOrganization {
+      organizationId: UUID id technical
+      reactivationReason: String
+    }
+
+    event OrganizationReactivated {
+      organizationId: UUID id technical
+      reactivationReason: String
+    }
+
+    state Active
+  }
+
   slice OrganizationDirectory {
     ui OrganizationDirectory
 
@@ -119,13 +161,14 @@ context FederationManagement {
       organizationName: String
       organizationType: String
       state: Organization.State
-      verified: Boolean
       trustedNodeCount: Int
       approvedDatasetCount: Int
       subscribe OrganizationRegistered
+      subscribe OrganizationIdentityEvidenceSubmitted
       subscribe OrganizationIdentityVerified
       subscribe OrganizationActivated
       subscribe OrganizationDeactivated
+      subscribe OrganizationReactivated
       subscribe ComputeNodeTrusted
       subscribe DatasetApprovedForTraining
     }
@@ -133,19 +176,173 @@ context FederationManagement {
 
   concept Organization {
     state Registered
+    state IdentityEvidenceSubmitted
     state IdentityVerified
     state Active
     state Deactivated
 
     slice RegisterOrganization
+    slice SubmitOrganizationIdentityEvidence
     slice VerifyOrganizationIdentity
     slice ActivateOrganization
     slice DeactivateOrganization
+    slice ReactivateOrganization
     slice OrganizationDirectory
+  }
+
+  slice RegisterComputeNode {
+    startsLifecycle
+
+    tags {
+      organizationId
+      nodeName = normalize(nodeName)
+    }
+
+    actor NodeOperator
+    ui NodeRegistrationScreen
+    reactsTo OrganizationActivated
+
+    command RegisterComputeNode {
+      nodeId: UUID id generated technical
+      organizationId: UUID
+      nodeName: String
+      nodeType: String
+      hardwareProfile: String
+      runtimeProfile: String
+      confidentialComputeSupported: Boolean
+    }
+
+    event ComputeNodeRegistered {
+      nodeId: UUID id technical
+      organizationId: UUID
+      nodeName: String
+      nodeType: String
+      hardwareProfile: String
+      runtimeProfile: String
+      confidentialComputeSupported: Boolean
+    }
+
+    state Registered
+  }
+
+  slice UpdateNodeCapability {
+    actor RuntimeAgent
+    ui NodeCapabilityScreen
+    reactsTo ComputeNodeRegistered
+
+    command UpdateNodeCapability {
+      nodeId: UUID id technical
+      gpuCount: Int
+      cpuCoreCount: Int
+      memoryGb: Int
+      storageGb: Int
+      supportedFrameworks: String[]
+      maxConcurrentJobs: Int
+    }
+
+    event NodeCapabilityUpdated {
+      nodeId: UUID id technical
+      gpuCount: Int
+      cpuCoreCount: Int
+      memoryGb: Int
+      storageGb: Int
+      supportedFrameworks: String[]
+      maxConcurrentJobs: Int
+    }
+
+    state CapabilityDeclared
+  }
+
+  slice TrustComputeNode {
+    actor SecurityReviewer
+    ui NodeTrustScreen
+    reactsTo NodeAttestationReportVerified
+
+    command TrustComputeNode {
+      nodeId: UUID id technical
+      trustLevel: String
+      attestationReportId: UUID
+      attestationExpiresAt: DateTime
+    }
+
+    event ComputeNodeTrusted {
+      nodeId: UUID id technical
+      organizationId: UUID derived {
+        from ComputeNode.organizationId
+        rule "Carry the owning organization for organization-level node counts."
+      }
+      trustLevel: String
+      attestationReportId: UUID
+      attestationExpiresAt: DateTime
+    }
+
+    state Trusted
+  }
+
+  slice SuspendComputeNode {
+    actor SecurityReviewer
+    ui NodeTrustScreen
+    reactsTo TrainingAlertRaised
+
+    command SuspendComputeNode {
+      nodeId: UUID id technical
+      suspensionReason: String
+    }
+
+    event ComputeNodeSuspended {
+      nodeId: UUID id technical
+      suspensionReason: String
+    }
+
+    state Suspended
+  }
+
+  slice ComputeNodeCatalog {
+    readmodel ComputeNodeCatalog[] {
+      nodeId: UUID id
+      organizationId: UUID
+      nodeName: String
+      nodeType: String
+      hardwareProfile: String
+      runtimeProfile: String
+      confidentialComputeSupported: Boolean
+      gpuCount: Int
+      cpuCoreCount: Int
+      memoryGb: Int
+      storageGb: Int
+      supportedFrameworks: String[]
+      maxConcurrentJobs: Int
+      trustLevel: String?
+      attestationExpiresAt: DateTime?
+      nodeStatus: String
+      suspensionReason: String?
+      subscribe ComputeNodeRegistered
+      subscribe NodeCapabilityUpdated
+      subscribe ComputeNodeTrusted
+      subscribe ComputeNodeSuspended
+    }
+  }
+
+  concept ComputeNode {
+    state Registered
+    state CapabilityDeclared
+    state Trusted
+    state Suspended
+
+    slice RegisterComputeNode
+    slice UpdateNodeCapability
+    slice TrustComputeNode
+    slice SuspendComputeNode
+    slice ComputeNodeCatalog
   }
 
   slice CreateFederation {
     startsLifecycle
+
+    tags {
+      federationName
+    }
+
     actor PlatformAdmin
     ui FederationSetupScreen form
 
@@ -168,6 +365,26 @@ context FederationManagement {
     }
 
     state Draft
+
+    specification "Federation Name Unique" {
+      rule """
+        Federation names must be unique.
+      """
+
+      expression {
+        unique Federation.federationName
+      }
+
+      scenario "Reject Duplicate Federation" {
+        given FederationCreated {
+          federationName = "B"
+        }
+        when CreateFederation {
+          federationName = "B"
+        }
+        then reject "Federation Already Exists"
+      }
+    }
   }
 
   slice FederationOverview {
@@ -178,6 +395,7 @@ context FederationManagement {
       federationName: String
       state: Federation.State
       activeMemberCount: Int
+      // 计算逻辑 TODO
       pendingInvitationCount: Int
       trustedNodeCount: Int
       activeTrainingJobCount: Int
@@ -195,7 +413,9 @@ context FederationManagement {
   }
 
   slice InviteParticipant {
+    // 这里怎么也是 start TODO 
     startsLifecycle
+
     actor FederationOwner
     ui ParticipantInvitationScreen dialog
     reactsTo FederationCreated
@@ -220,9 +440,32 @@ context FederationManagement {
     state Invited
   }
 
+
+  slice FederationMembershipDirectory {
+    reactsTo ParticipantInvited
+
+    readmodel FederationMembershipDirectory[] {
+      federationId: UUID id
+      organizationId: UUID id
+      // 这个值怎么来 TODO
+      organizationName: String
+      membershipStatus: String
+      invitationNote: String?
+      approvalNote: String?
+      subscribe ParticipantInvited
+      subscribe ParticipantJoined
+      subscribe ParticipantRejected
+      subscribe ParticipantInvitationRevoked
+      subscribe ParticipantSuspended
+      subscribe ParticipantRemoved
+      subscribe OrganizationRegistered
+      subscribe OrganizationActivated
+    }
+  }
+
   slice ApproveParticipant {
     actor GovernanceReviewer
-
+    // 这里也需要 tags 吗  TODO
     tags {
       federationId
       organizationId
@@ -238,9 +481,9 @@ context FederationManagement {
     }
 
     event ParticipantJoined {
-      federationId: UUID id technical from ApproveParticipant.federationId
-      organizationId: UUID from ApproveParticipant.organizationId
-      approvalNote: String? from ApproveParticipant.approvalNote
+      federationId: UUID id technical
+      organizationId: UUID
+      approvalNote: String?
     }
 
     specification "Only Invited Active Organizations Join Federation" {
@@ -277,6 +520,7 @@ context FederationManagement {
 
   slice RejectParticipant {
     actor GovernanceReviewer
+
     ui MembershipReviewScreen dialog
     reactsTo ParticipantInvited
 
@@ -299,7 +543,7 @@ context FederationManagement {
 
     state Rejected
   }
-
+  // 什么情况下可以撤销，已被使用能否撤销 TODO
   slice RevokeParticipantInvitation {
     actor FederationOwner
     ui ParticipantInvitationScreen confirm
@@ -375,26 +619,6 @@ context FederationManagement {
     state Removed
   }
 
-  slice FederationMembershipDirectory {
-    reactsTo ParticipantInvited
-
-    readmodel FederationMembershipDirectory[] {
-      federationId: UUID id
-      organizationId: UUID id
-      organizationName: String
-      membershipStatus: String
-      invitationNote: String?
-      approvalNote: String?
-      subscribe ParticipantInvited
-      subscribe ParticipantJoined
-      subscribe ParticipantRejected
-      subscribe ParticipantInvitationRevoked
-      subscribe ParticipantSuspended
-      subscribe ParticipantRemoved
-      subscribe OrganizationRegistered
-      subscribe OrganizationActivated
-    }
-  }
 
   concept Federation {
     state Draft
@@ -422,180 +646,52 @@ context FederationManagement {
     slice FederationMembershipDirectory
   }
 
-  slice RegisterComputeNode {
-    startsLifecycle
-
-    tags {
-      organizationId
-      nodeName = normalize(nodeName)
-    }
-
-    actor NodeOperator
-    ui NodeRegistrationScreen
-    reactsTo OrganizationActivated
-
-    command RegisterComputeNode {
-      nodeId: UUID id generated technical
-      organizationId: UUID
-      nodeName: String
-      nodeType: String
-      hardwareProfile: String
-      runtimeProfile: String
-      confidentialComputeSupported: Boolean
-    }
-
-    event ComputeNodeRegistered {
-      nodeId: UUID id technical
-      organizationId: UUID
-      nodeName: String
-      nodeType: String
-      hardwareProfile: String
-      runtimeProfile: String
-      confidentialComputeSupported: Boolean
-    }
-
-    state Registered
-  }
-
-  slice UpdateNodeCapability {
-    actor NodeOperator
-    ui NodeCapabilityScreen
-    reactsTo ComputeNodeRegistered
-
-    command UpdateNodeCapability {
-      nodeId: UUID id technical
-      gpuCount: Int
-      cpuCoreCount: Int
-      memoryGb: Int
-      storageGb: Int
-      supportedFrameworks: String[]
-      maxConcurrentJobs: Int
-    }
-
-    event NodeCapabilityUpdated {
-      nodeId: UUID id technical
-      gpuCount: Int
-      cpuCoreCount: Int
-      memoryGb: Int
-      storageGb: Int
-      supportedFrameworks: String[]
-      maxConcurrentJobs: Int
-    }
-
-    state CapabilityDeclared
-  }
-
-  slice TrustComputeNode {
-    actor SecurityReviewer
-    ui NodeTrustScreen
-    reactsTo NodeCapabilityUpdated
-
-    command TrustComputeNode {
-      nodeId: UUID id technical
-      trustLevel: String
-      attestationReportId: UUID
-      attestationExpiresAt: DateTime
-    }
-
-    event ComputeNodeTrusted {
-      nodeId: UUID id technical
-      trustLevel: String
-      attestationReportId: UUID
-      attestationExpiresAt: DateTime
-    }
-
-    state Trusted
-  }
-
-  slice SuspendComputeNode {
-    actor SecurityReviewer
-    ui NodeTrustScreen
-    reactsTo RuntimeHeartbeatRecorded
-
-    command SuspendComputeNode {
-      nodeId: UUID id technical
-      suspensionReason: String
-    }
-
-    event ComputeNodeSuspended {
-      nodeId: UUID id technical
-      suspensionReason: String
-    }
-
-    state Suspended
-  }
-
-  slice ComputeNodeCatalog {
-    readmodel ComputeNodeCatalog[] {
-      nodeId: UUID id
-      organizationId: UUID
-      nodeName: String
-      nodeType: String
-      hardwareProfile: String
-      runtimeProfile: String
-      confidentialComputeSupported: Boolean
-      gpuCount: Int
-      cpuCoreCount: Int
-      memoryGb: Int
-      storageGb: Int
-      supportedFrameworks: String[]
-      maxConcurrentJobs: Int
-      trustLevel: String?
-      attestationExpiresAt: DateTime?
-      nodeStatus: String
-      suspensionReason: String?
-      subscribe ComputeNodeRegistered
-      subscribe NodeCapabilityUpdated
-      subscribe ComputeNodeTrusted
-      subscribe ComputeNodeSuspended
-    }
-  }
-
-  concept ComputeNode {
-    state Registered
-    state CapabilityDeclared
-    state Trusted
-    state Suspended
-
-    slice RegisterComputeNode
-    slice UpdateNodeCapability
-    slice TrustComputeNode
-    slice SuspendComputeNode
-    slice ComputeNodeCatalog
-  }
-
 }
 
 context DatasetGovernance {
-  note "Dataset governance separates schema, dataset assets, runtime access profiles, and train evaluation bundles."
+  note "Dataset governance separates schema, dataset assets, runtime access profiles, and train evaluation bundles. It stores opaque agent handles, while runtime agents resolve local paths and secrets inside participant infrastructure."
 
   risk "Datasets may be approved despite schema drift, privacy sensitivity, or non IID skew that invalidates training assumptions."
   risk "Runtime dataset access credentials can remain usable after policy revocation unless blocked explicitly."
   metric datasetContractValidationFailureRate
   metric runtimeDatasetAccessValidationLatency
 
-  integration DatasetAccessRuntime {
+  integration RuntimeAgentDatasetAccess {
     source DatasetAccessProfile
-    target DataConnector
+    target RuntimeAgent
     reactsTo DatasetAccessValidationRequested
-    emits CompleteRuntimeDatasetAccessValidation
+    emits ValidateAgentDatasetAccess
+  }
+
+  integration RuntimeAgentDataConnectorProbe {
+    source DataConnector
+    target RuntimeAgent
+    reactsTo DataConnectorRegistered
+    emits ProbeAgentDataConnectorAccess
   }
 
   slice DefineFeatureSchema {
     startsLifecycle
+
+    tags {
+      featureDomain
+      version
+    }
+
     actor DataSteward
     ui FeatureSchemaEditor
   
     command DefineFeatureSchema {
       featureSchemaId: UUID id generated technical
-      domain: String
+      featureDomain: String
+      // 版本怎么来，不能是用户填写 TODO
       version: Int
       features: FeatureDefinition[]
     }
   
-    event FeatureSchemaPublished {
+    event FeatureSchemaDefined {
       featureSchemaId: UUID id technical
-      domain: String
+      featureDomain: String
       version: Int
       featureCount: Int derived {
         from DefineFeatureSchema.features
@@ -611,16 +707,16 @@ context DatasetGovernance {
       """
   
       expression {
-        unique (FeatureSchema.domain, FeatureSchema.version)
+        unique (FeatureSchema.featureDomain, FeatureSchema.version)
       }
   
       scenario "Reject Duplicate Feature Schema Version" {
         given FeatureSchemaPublished {
-          domain = "CreditRisk"
+          featureDomain = "CreditRisk"
           version = 1
         }
         when DefineFeatureSchema {
-          domain = "CreditRisk"
+          featureDomain = "CreditRisk"
           version = 1
         }
         then reject "Feature Schema Version Already Exists"
@@ -631,18 +727,23 @@ context DatasetGovernance {
   slice PublishFeatureSchema {
     actor DataSteward
     ui FeatureSchemaEditor confirm
-    reactsTo FeatureSchemaPublished
+    reactsTo FeatureSchemaDefined
   
     command PublishFeatureSchema {
       featureSchemaId: UUID id technical
       publishNote: String?
     }
   
-    event FeatureSchemaPublishConfirmed {
+    event FeatureSchemaPublished {
       featureSchemaId: UUID id technical
-      domain: String
-      version: Int
-      publishedAt: DateTime
+      featureDomain: String derived {
+        from FeatureSchema.featureDomain
+        rule "Carry the schema domain from the defined feature schema."
+      }
+      version: Int derived {
+        from FeatureSchema.version
+        rule "Carry the schema version from the defined feature schema."
+      }
       publishNote: String?
     }
   
@@ -654,15 +755,15 @@ context DatasetGovernance {
       """
   
       scenario "Publish Draft Schema" {
-        given FeatureSchemaPublished {
+        given FeatureSchemaDefined {
           featureSchemaId = "schema-1"
-          domain = "CreditRisk"
+          featureDomain = "CreditRisk"
           version = 1
         }
         when PublishFeatureSchema {
           featureSchemaId = "schema-1"
         }
-        then FeatureSchemaPublishConfirmed
+        then FeatureSchemaPublished
       }
     }
   }
@@ -670,7 +771,7 @@ context DatasetGovernance {
   slice DeprecateFeatureSchema {
     actor DataSteward
     ui FeatureSchemaEditor confirm
-    reactsTo FeatureSchemaPublishConfirmed
+    reactsTo FeatureSchemaPublished
   
     command DeprecateFeatureSchema {
       featureSchemaId: UUID id technical
@@ -679,9 +780,6 @@ context DatasetGovernance {
   
     event FeatureSchemaDeprecated {
       featureSchemaId: UUID id technical
-      domain: String
-      version: Int
-      deprecatedAt: DateTime
       deprecationReason: String
     }
   
@@ -700,19 +798,17 @@ context DatasetGovernance {
   
     event FeatureSchemaRetired {
       featureSchemaId: UUID id technical
-      domain: String
-      version: Int
-      retiredAt: DateTime
       retirementReason: String
     }
   
     state Retired
   }
   
+  // 确认逻辑（升级版本？） TODO
   slice SupersedeFeatureSchemaVersion {
     actor DataSteward
     ui FeatureSchemaEditor confirm
-    reactsTo FeatureSchemaPublishConfirmed
+    reactsTo FeatureSchemaPublished
   
     command SupersedeFeatureSchemaVersion {
       featureSchemaId: UUID id technical
@@ -723,7 +819,7 @@ context DatasetGovernance {
     event FeatureSchemaVersionSuperseded {
       featureSchemaId: UUID id technical
       supersededByFeatureSchemaId: UUID
-      domain: String
+      featureDomain: String
       supersededVersion: Int
       supersessionReason: String?
       supersededAt: DateTime
@@ -735,14 +831,14 @@ context DatasetGovernance {
       """
   
       scenario "Supersede Older Version" {
-        given FeatureSchemaPublishConfirmed {
+        given FeatureSchemaDefined {
           featureSchemaId = "schema-1"
-          domain = "CreditRisk"
+          featureDomain = "CreditRisk"
           version = 1
         }
-        given FeatureSchemaPublishConfirmed {
+        given FeatureSchemaDefined {
           featureSchemaId = "schema-2"
-          domain = "CreditRisk"
+          featureDomain = "CreditRisk"
           version = 2
         }
         when SupersedeFeatureSchemaVersion {
@@ -757,18 +853,23 @@ context DatasetGovernance {
   slice MarkCurrentRecommendedFeatureSchemaVersion {
     actor DataSteward
     ui FeatureSchemaEditor confirm
-    reactsTo FeatureSchemaPublishConfirmed
+    reactsTo FeatureSchemaPublished
   
     command MarkCurrentRecommendedFeatureSchemaVersion {
       featureSchemaId: UUID id technical
-      domain: String
       recommendationNote: String?
     }
   
     event CurrentRecommendedFeatureSchemaVersionMarked {
       featureSchemaId: UUID id technical
-      domain: String
-      version: Int
+      featureDomain: String derived {
+        from FeatureSchema.featureDomain
+        rule "Use the schema domain as the recommendation boundary."
+      }
+      recommendedVersion: Int derived {
+        from FeatureSchema.version
+        rule "Expose the recommended schema version for catalog projection."
+      }
       recommendedAt: DateTime
       recommendationNote: String?
     }
@@ -779,14 +880,13 @@ context DatasetGovernance {
       """
   
       scenario "Mark New Recommended Version" {
-        given FeatureSchemaPublishConfirmed {
+        given FeatureSchemaDefined {
           featureSchemaId = "schema-2"
-          domain = "CreditRisk"
+          featureDomain = "CreditRisk"
           version = 2
         }
         when MarkCurrentRecommendedFeatureSchemaVersion {
           featureSchemaId = "schema-2"
-          domain = "CreditRisk"
         }
         then CurrentRecommendedFeatureSchemaVersionMarked
       }
@@ -795,25 +895,28 @@ context DatasetGovernance {
   
   slice CurrentRecommendedFeatureSchemaCatalog {
     readmodel CurrentRecommendedFeatureSchemaCatalog[] {
-      domain: String id
+      featureDomain: String id
       recommendedFeatureSchemaId: UUID
       recommendedVersion: Int
+      // TODO 统一处理时间与操作人
       recommendedAt: DateTime
       recommendationNote: String?
       subscribe CurrentRecommendedFeatureSchemaVersionMarked
     }
   }
+
+  // 缺少 FeatureShcema 详情查看 readmodel TODO
   slice FeatureSchemaCatalog {
     readmodel FeatureSchemaCatalog[] {
       featureSchemaId: UUID id
-      domain: String
+      featureDomain: String
       version: Int
       featureCount: Int
       schemaStatus: String
       supersededByFeatureSchemaId: UUID?
       recommendedForDomain: Boolean
+      subscribe FeatureSchemaDefined
       subscribe FeatureSchemaPublished
-      subscribe FeatureSchemaPublishConfirmed
       subscribe FeatureSchemaDeprecated
       subscribe FeatureSchemaRetired
       subscribe FeatureSchemaVersionSuperseded
@@ -839,22 +942,28 @@ context DatasetGovernance {
 
   slice RegisterDataset {
     startsLifecycle
+
     actor DataOwner
     ui DatasetRegistrationScreen
     reactsTo FeatureSchemaPublished
   
     command RegisterDataset {
       datasetId: UUID id generated technical
+      // 用户填写？数据拥有者添加本身即所属组织 TODO
       organizationId: UUID
+      // 一个数据集是否能对应多个 feature schema
       featureSchemaId: UUID
+      // 这是什么 TODO
       labelSchemaId: UUID
+      // 应该来自枚举 TODO
       datasetType: String
+      // 什么意思 TODO
       datasetUsage: String
       sampleCount: Int
       sensitivityLevel: String
+      // 是否要标识，有没有用 TODO
       containsPII: Boolean
       region: String
-      usagePolicyId: UUID
     }
   
     event DatasetRegistered {
@@ -868,7 +977,6 @@ context DatasetGovernance {
       sensitivityLevel: String
       containsPII: Boolean
       region: String
-      usagePolicyId: UUID
     }
   
     state Registered
@@ -878,6 +986,7 @@ context DatasetGovernance {
     reactsTo DatasetRegistered
   
     automation ValidateDatasetContractAutomatically {
+      // 条件不合适 TODO
       condition sampleCount > 0
       emits ValidateDatasetContract
     }
@@ -886,6 +995,7 @@ context DatasetGovernance {
       datasetId: UUID id technical
       featureSchemaId: UUID
       labelSchemaId: UUID
+      // 这怎么处理 TODO
       validationProfile: String
   
     }
@@ -901,6 +1011,7 @@ context DatasetGovernance {
         from Dataset.labelSchemaId, ValidateDatasetContract.labelSchemaId
         rule "Validate dataset label compatibility against the referenced label schema."
       }
+      // 数据质量（集成研究算法） TODO 与 feature schema 不吻合怎么处理能否用来训练
       qualityScore: Decimal derived {
         from Dataset.statistics, ValidationProfile
         rule "Score dataset quality against the validation profile."
@@ -945,9 +1056,13 @@ context DatasetGovernance {
     }
 
     event DatasetApprovedForTraining {
-      datasetId: UUID id technical from ApproveDatasetForTraining.datasetId
-      allowedFederatedUse: String from ApproveDatasetForTraining.allowedFederatedUse
-      expiresAt: DateTime from ApproveDatasetForTraining.expiresAt
+      datasetId: UUID id technical
+      organizationId: UUID derived {
+        from Dataset.organizationId
+        rule "Carry the owning organization for organization-level approved dataset counts."
+      }
+      allowedFederatedUse: String
+      expiresAt: DateTime
     }
 
     specification "Only Validated Quality Datasets Are Approved" {
@@ -979,6 +1094,7 @@ context DatasetGovernance {
     state Approved
   }
 
+  // 是否需要 TODO
   slice ExpireDatasetTrainingApproval {
     reactsTo DatasetApprovedForTraining
 
@@ -1055,16 +1171,12 @@ context DatasetGovernance {
     slice DatasetCapability
   }
 
-  slice RegisterDataConnector {
+  slice SyncDataConnectorRegistration {
     startsLifecycle
-    actor NodeOperator
-    ui DataConnectorScreen
-    reactsTo RuntimeAgentTrusted
+    reactsTo AgentDataConnectorRegistered
 
-    command RegisterDataConnector {
-      dataConnectorId: UUID id generated technical
-      organizationId: UUID
-      nodeId: UUID
+    command SyncDataConnectorRegistration {
+      dataConnectorId: UUID id technical
       runtimeAgentId: UUID
       connectorName: String
       connectorType: String
@@ -1073,13 +1185,19 @@ context DatasetGovernance {
       secretRefType: String
       storageLocationRef: String
       supportedDataFormats: String[]
-      localMountPath: String?
+      agentConnectorHandle: String?
     }
 
     event DataConnectorRegistered {
       dataConnectorId: UUID id technical
-      organizationId: UUID
-      nodeId: UUID
+      organizationId: UUID derived {
+        from RuntimeAgent.organizationId
+        rule "Bind the synced connector to the organization owned by the trusted runtime agent."
+      }
+      nodeId: UUID derived {
+        from RuntimeAgent.nodeId
+        rule "Bind the synced connector to the compute node owned by the trusted runtime agent."
+      }
       runtimeAgentId: UUID
       connectorName: String
       connectorType: String
@@ -1088,19 +1206,23 @@ context DatasetGovernance {
       secretRefType: String
       storageLocationRef: String
       supportedDataFormats: String[]
-      localMountPath: String?
+      agentConnectorHandle: String?
     }
 
     state Registered
   }
 
   slice VerifyDataConnectorAccess {
-    reactsTo DataConnectorRegistered
+    actor RuntimeAgent
+    reactsTo AgentDataConnectorAccessProbed
 
     command VerifyDataConnectorAccess {
       dataConnectorId: UUID id technical
       runtimeAgentId: UUID
-      validationMode: String
+      readable: Boolean
+      writable: Boolean
+      validationReportId: UUID
+      verifiedAt: DateTime
     }
 
     event DataConnectorAccessVerified {
@@ -1146,7 +1268,7 @@ context DatasetGovernance {
       secretRefType: String
       storageLocationRef: String
       supportedDataFormats: String[]
-      localMountPath: String?
+      agentConnectorHandle: String?
       readable: Boolean
       writable: Boolean
       connectorStatus: String
@@ -1162,7 +1284,7 @@ context DatasetGovernance {
     state Verified
     state Disabled
 
-    slice RegisterDataConnector
+    slice SyncDataConnectorRegistration
     slice VerifyDataConnectorAccess
     slice DisableDataConnector
     slice DataConnectorCatalog
@@ -1186,7 +1308,7 @@ context DatasetGovernance {
       credentialRef: String
       secretRefType: String
       storageLocationRef: String
-      localMountPath: String?
+      agentDataAccessHandle: String?
       dataFormat: String
       readerPlugin: String
       readMode: String
@@ -1206,7 +1328,7 @@ context DatasetGovernance {
       credentialRef: String
       secretRefType: String
       storageLocationRef: String
-      localMountPath: String?
+      agentDataAccessHandle: String?
       dataFormat: String
       readerPlugin: String
       readMode: String
@@ -1247,7 +1369,7 @@ context DatasetGovernance {
   }
 
   slice CompleteRuntimeDatasetAccessValidation {
-    reactsTo DatasetAccessValidationRequested
+    reactsTo AgentDatasetAccessValidated
 
     command CompleteRuntimeDatasetAccessValidation {
       accessProfileId: UUID id technical
@@ -1259,6 +1381,7 @@ context DatasetGovernance {
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
       validationReportId: UUID
+      validatedAt: DateTime
     }
 
     event RuntimeDatasetAccessValidated {
@@ -1271,6 +1394,7 @@ context DatasetGovernance {
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
       validationReportId: UUID
+      validatedAt: DateTime
     }
 
     state Validated
@@ -1334,11 +1458,12 @@ context DatasetGovernance {
       credentialRef: String
       secretRefType: String
       storageLocationRef: String
-      localMountPath: String?
+      agentDataAccessHandle: String?
       readerPlugin: String
       readMode: String
       materializationMode: String
       readable: Boolean
+      validatedAt: DateTime?
       subscribe DatasetAccessProfileConfigured
       subscribe RuntimeDatasetAccessValidated
       subscribe DatasetAccessBlocked
@@ -1416,7 +1541,9 @@ context DatasetGovernance {
   
   value FeatureDefinition {
     featureName: String
+    // 数据类型也不能由用户填写 TODO
     dataType: String
+    // TODO 这是什么
     shape: Int[]?
     nullable: Boolean
     description: String?
@@ -1456,12 +1583,11 @@ context TrainingOrchestration {
     emits CompleteSecureAggregation
   }
 
-  integration EdgeTrainingRuntime {
+  integration ParticipantRoundRuntime {
     source TrainingRound
-    target EdgeRuntime
+    target RuntimeAgent
     reactsTo GlobalModelDistributed
-    emits SubmitLocalModelUpdate
-    emits SubmitLocalModelEvaluation
+    emits StartAgentRoundContribution
   }
 
   integration AggregationNodeRuntime {
@@ -1480,6 +1606,7 @@ context TrainingOrchestration {
 
   slice RegisterRuntimeAgent {
     startsLifecycle
+
     actor NodeOperator
     ui RuntimeAgentRegistrationScreen
     reactsTo ComputeNodeTrusted
@@ -1491,8 +1618,7 @@ context TrainingOrchestration {
       agentName: String
       agentVersion: String
       agentEndpointRef: String
-      k3sClusterRef: String
-      k3sNamespace: String
+      runtimeEnvironmentRef: String?
       supportedRuntimeTypes: String[]
     }
 
@@ -1503,8 +1629,7 @@ context TrainingOrchestration {
       agentName: String
       agentVersion: String
       agentEndpointRef: String
-      k3sClusterRef: String
-      k3sNamespace: String
+      runtimeEnvironmentRef: String?
       supportedRuntimeTypes: String[]
     }
 
@@ -1512,7 +1637,7 @@ context TrainingOrchestration {
   }
 
   slice DeclareRuntimeAgentCapability {
-    actor NodeOperator
+    actor RuntimeAgent
     ui RuntimeAgentCapabilityScreen
     reactsTo RuntimeAgentRegistered
 
@@ -1569,8 +1694,7 @@ context TrainingOrchestration {
       agentName: String
       agentVersion: String
       agentEndpointRef: String
-      k3sClusterRef: String
-      k3sNamespace: String
+      runtimeEnvironmentRef: String?
       supportedRuntimeTypes: String[]
       maxConcurrentRuntimeJobs: Int
       supportedDataConnectorTypes: String[]
@@ -1600,6 +1724,7 @@ context TrainingOrchestration {
 
   slice DefineTrainingRunConfiguration {
     startsLifecycle
+
     actor MLOpsEngineer
     ui TrainingRunConfigurationScreen
     reactsTo TrainingEvaluationDatasetsDeclared
@@ -1609,6 +1734,7 @@ context TrainingOrchestration {
       federationId: UUID
       featureSchemaId: UUID
       strategyName: String
+      // 可选枚举 TODO
       aggregationAlgorithm: String
       maxRounds: Int
       minimumNodesPerRound: Int
@@ -1734,7 +1860,7 @@ context TrainingOrchestration {
 
     state Locked
   }
-
+  // 具体配置 TODO
   slice TrainingRunConfigurationCatalog {
     readmodel TrainingRunConfigurationCatalog[] {
       trainingRunConfigurationId: UUID id
@@ -1767,16 +1893,20 @@ context TrainingOrchestration {
 
   slice CreateTrainingJob {
     startsLifecycle
+
     actor ResearchLead
     ui TrainingJobCreationScreen
     reactsTo TrainingRunConfigurationValidated
 
+    // 哪些组织参与 TODO
     command CreateTrainingJob {
       trainingJobId: UUID id generated technical
       federationId: UUID
       featureSchemaId: UUID
       trainingRunConfigurationId: UUID
+      // 这是什么 TODO
       aggregatorDatasetBundleId: UUID
+      // 数据集 id 各 organization 不同，在创建任务时怎么选？ TODO
       aggregatorTrainingDatasetId: UUID
       aggregatorTrainingDatasetAccessProfileId: UUID
       aggregatorEvaluationDatasetId: UUID
@@ -1833,6 +1963,7 @@ context TrainingOrchestration {
     }
   }
 
+  // 信息全从 run configuration 来，这个策略的意义是什么 TODO
   slice ConfigureTrainingStrategy {
     actor MLOpsEngineer
     ui TrainingStrategyScreen
@@ -1929,7 +2060,13 @@ context TrainingOrchestration {
   }
 
   slice RequestNodeParticipation {
+    startsLifecycle
     reactsTo TrainingJobSubmitted
+
+    tags {
+      trainingJobId
+      nodeId
+    }
 
     policy RequestEligibleNodes {
       on TrainingJobSubmitted
@@ -1939,7 +2076,7 @@ context TrainingOrchestration {
     command RequestNodeParticipation {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       participantDatasetBundleId: UUID
       trainingDatasetAccessProfileId: UUID
       evaluationDatasetAccessProfileId: UUID
@@ -1948,13 +2085,13 @@ context TrainingOrchestration {
     event NodeParticipationRequested {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       participantDatasetBundleId: UUID
       trainingDatasetAccessProfileId: UUID
       evaluationDatasetAccessProfileId: UUID
     }
 
-    state RecruitingNodes
+    state ParticipationRequested
   }
 
   slice AcceptNodeParticipation {
@@ -1962,10 +2099,15 @@ context TrainingOrchestration {
     ui NodeParticipationScreen
     reactsTo NodeParticipationRequested
 
+    tags {
+      trainingJobId
+      nodeId
+    }
+
     command AcceptNodeParticipation {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       participantDatasetBundleId: UUID
       availableGpuCount: Int
     }
@@ -1973,14 +2115,21 @@ context TrainingOrchestration {
     event NodeReadyForTraining {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       participantDatasetBundleId: UUID
       availableGpuCount: Int
     }
+
+    state Ready
   }
 
   slice DispatchTrainingRuntime {
     reactsTo NodeReadyForTraining
+
+    tags {
+      trainingJobId
+      nodeId
+    }
 
     policy DispatchRuntimeWhenNodeReady {
       on NodeReadyForTraining
@@ -1990,7 +2139,7 @@ context TrainingOrchestration {
     command DispatchTrainingRuntime {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       runtimeAgentId: UUID
       participantDatasetBundleId: UUID
       trainingDatasetAccessProfileId: UUID
@@ -2003,7 +2152,7 @@ context TrainingOrchestration {
     event TrainingRuntimeDispatched {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       runtimeAgentId: UUID
       participantDatasetBundleId: UUID
       trainingDatasetAccessProfileId: UUID
@@ -2014,16 +2163,21 @@ context TrainingOrchestration {
       dispatchedAt: DateTime
     }
 
-    state RuntimeDispatched
+    state Dispatched
   }
-
+  
   slice RecordTrainingRuntimeCompletion {
     reactsTo AgentRuntimeJobCompleted
+
+    tags {
+      trainingJobId
+      nodeId
+    }
 
     command RecordTrainingRuntimeCompletion {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       runtimeAgentId: UUID
       runtimeJobId: UUID
       localUpdateArtifactRef: String?
@@ -2035,7 +2189,7 @@ context TrainingOrchestration {
     event TrainingRuntimeCompleted {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       runtimeAgentId: UUID
       runtimeJobId: UUID
       localUpdateArtifactRef: String?
@@ -2044,16 +2198,21 @@ context TrainingOrchestration {
       completedAt: DateTime
     }
 
-    state RuntimeCompleted
+    state Completed
   }
 
   slice RecordTrainingRuntimeFailure {
     reactsTo AgentRuntimeJobFailed
 
+    tags {
+      trainingJobId
+      nodeId
+    }
+
     command RecordTrainingRuntimeFailure {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       runtimeAgentId: UUID
       runtimeJobId: UUID?
       failureReason: String
@@ -2063,14 +2222,14 @@ context TrainingOrchestration {
     event TrainingRuntimeFailed {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID
+      nodeId: UUID id
       runtimeAgentId: UUID
       runtimeJobId: UUID?
       failureReason: String
       failedAt: DateTime
     }
 
-    state RuntimeFailed
+    state Failed
   }
 
   slice TrainingParticipantEligibility {
@@ -2125,15 +2284,17 @@ context TrainingOrchestration {
     readmodel TrainingRuntimeExecutionCatalog[] {
       trainingJobId: UUID id
       trainingRunConfigurationId: UUID
-      nodeId: UUID
-      runtimeAgentId: UUID
+      nodeId: UUID id
+      runtimeAgentId: UUID?
       runtimeJobId: UUID?
       participantDatasetBundleId: UUID
       trainingDatasetAccessProfileId: UUID
       evaluationDatasetAccessProfileId: UUID
-      gemiflRuntimeImage: String
-      runtimePayloadRef: String
-      artifactStoreRef: String
+      state: TrainingRuntimeExecution.State
+      availableGpuCount: Int?
+      gemiflRuntimeImage: String?
+      runtimePayloadRef: String?
+      artifactStoreRef: String?
       runtimeStatus: String
       localUpdateArtifactRef: String?
       metricsArtifactRef: String?
@@ -2141,6 +2302,8 @@ context TrainingOrchestration {
       dispatchedAt: DateTime?
       completedAt: DateTime?
       failedAt: DateTime?
+      subscribe NodeParticipationRequested
+      subscribe NodeReadyForTraining
       subscribe TrainingRuntimeDispatched
       subscribe TrainingRuntimeCompleted
       subscribe TrainingRuntimeFailed
@@ -2325,10 +2488,6 @@ context TrainingOrchestration {
     state Draft
     state StrategyConfigured
     state Submitted
-    state RecruitingNodes
-    state RuntimeDispatched
-    state RuntimeCompleted
-    state RuntimeFailed
     state Running
     state Paused
     state Canceled
@@ -2337,13 +2496,7 @@ context TrainingOrchestration {
     slice CreateTrainingJob
     slice ConfigureTrainingStrategy
     slice SubmitTrainingJob
-    slice RequestNodeParticipation
-    slice AcceptNodeParticipation
-    slice DispatchTrainingRuntime
-    slice RecordTrainingRuntimeCompletion
-    slice RecordTrainingRuntimeFailure
     slice TrainingParticipantEligibility
-    slice TrainingRuntimeExecutionCatalog
     slice TrackTrainingJobRunning
     slice PauseTrainingJob
     slice ResumeTrainingJob
@@ -2351,6 +2504,21 @@ context TrainingOrchestration {
     slice ScheduleNextTrainingRound
     slice CompleteTrainingJob
     slice TrainingJobDashboard
+  }
+
+  concept TrainingRuntimeExecution {
+    state ParticipationRequested
+    state Ready
+    state Dispatched
+    state Completed
+    state Failed
+
+    slice RequestNodeParticipation
+    slice AcceptNodeParticipation
+    slice DispatchTrainingRuntime
+    slice RecordTrainingRuntimeCompletion
+    slice RecordTrainingRuntimeFailure
+    slice TrainingRuntimeExecutionCatalog
   }
 
   slice StartTrainingRound {
@@ -2443,18 +2611,21 @@ context TrainingOrchestration {
   }
 
   slice SubmitLocalModelUpdate {
-    actor EdgeRuntime
-    reactsTo GlobalModelDistributed
+    actor RuntimeAgent
+    reactsTo AgentLocalModelUpdateSubmitted
 
     command SubmitLocalModelUpdate {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       roundId: UUID
       nodeId: UUID
+      runtimeAgentId: UUID
+      agentRoundContributionId: UUID?
       trainingDatasetAccessProfileId: UUID
       evaluationDatasetAccessProfileId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
+      localUpdateArtifactRef: String?
       trainingLoss: Decimal
     }
 
@@ -2463,10 +2634,13 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       roundId: UUID
       nodeId: UUID
+      runtimeAgentId: UUID
+      agentRoundContributionId: UUID?
       trainingDatasetAccessProfileId: UUID
       evaluationDatasetAccessProfileId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
+      localUpdateArtifactRef: String?
       trainingLoss: Decimal
     }
   }
@@ -2520,15 +2694,19 @@ context TrainingOrchestration {
   }
 
   slice SubmitLocalModelEvaluation {
-    reactsTo LocalModelUpdateSubmitted
+    actor RuntimeAgent
+    reactsTo AgentLocalModelEvaluationSubmitted
 
     command SubmitLocalModelEvaluation {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       roundId: UUID
       nodeId: UUID
+      runtimeAgentId: UUID
+      agentRoundContributionId: UUID?
       localModelVersionId: UUID
       evaluationDatasetAccessProfileId: UUID
+      metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
     }
@@ -2538,8 +2716,11 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       roundId: UUID
       nodeId: UUID
+      runtimeAgentId: UUID
+      agentRoundContributionId: UUID?
       localModelVersionId: UUID
       evaluationDatasetAccessProfileId: UUID
+      metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
     }
@@ -3067,23 +3248,32 @@ context RuntimeOperations {
 
   slice RecordRuntimeHeartbeat {
     startsLifecycle
-    actor EdgeRuntime
+    actor RuntimeAgent
     ui RuntimeMonitorScreen
+    reactsTo AgentRuntimeHeartbeatReported
 
     command RecordRuntimeHeartbeat {
       nodeId: UUID id technical
+      runtimeAgentId: UUID
       federationId: UUID
+      trainingJobId: UUID?
+      agentRuntimeJobId: UUID?
       cpuLoad: Decimal
       gpuLoad: Decimal
       memoryLoad: Decimal
+      reportedAt: DateTime
     }
 
     event RuntimeHeartbeatRecorded {
       nodeId: UUID id technical
+      runtimeAgentId: UUID
       federationId: UUID
+      trainingJobId: UUID?
+      agentRuntimeJobId: UUID?
       cpuLoad: Decimal
       gpuLoad: Decimal
       memoryLoad: Decimal
+      reportedAt: DateTime
     }
 
     state Healthy
@@ -3092,7 +3282,10 @@ context RuntimeOperations {
   slice RuntimeHealthDashboard {
     readmodel RuntimeHealthDashboard[] {
       nodeId: UUID id
+      runtimeAgentId: UUID
       federationId: UUID
+      trainingJobId: UUID?
+      agentRuntimeJobId: UUID?
       cpuLoad: Decimal
       gpuLoad: Decimal
       memoryLoad: Decimal
@@ -3997,6 +4190,14 @@ context RuntimeOperations {
       emits FailAgentRuntimeJob
     }
 
+    integration GemiFLRoundRuntime {
+      source AgentRoundContribution
+      target GemiFL
+      reactsTo AgentRoundContributionStarted
+      emits SubmitAgentLocalModelUpdate
+      emits SubmitAgentLocalModelEvaluation
+    }
+
     integration PlatformTrainingOrchestration {
       source AgentRuntimeJob
       target TrainingOrchestration
@@ -4011,9 +4212,416 @@ context RuntimeOperations {
       emits RecordTrainingRuntimeFailure
     }
 
-    slice AcceptAgentRuntimeJob {
-      startsLifecycle
-      reactsTo TrainingRuntimeDispatched
+    integration PlatformDataConnectorRegistrationSync {
+      source AgentDataConnector
+      target DatasetGovernance
+      reactsTo AgentDataConnectorRegistered
+      emits SyncDataConnectorRegistration
+    }
+
+    integration PlatformDataConnectorAccessReporting {
+      source AgentDataConnectorAccessProbe
+      target DatasetGovernance
+      reactsTo AgentDataConnectorAccessProbed
+      emits VerifyDataConnectorAccess
+    }
+
+    integration PlatformDatasetAccessValidationReporting {
+      source AgentDatasetAccessValidation
+      target DatasetGovernance
+      reactsTo AgentDatasetAccessValidated
+      emits CompleteRuntimeDatasetAccessValidation
+    }
+
+    integration PlatformRoundUpdateReporting {
+      source AgentRoundContribution
+      target TrainingOrchestration
+      reactsTo AgentLocalModelUpdateSubmitted
+      emits SubmitLocalModelUpdate
+    }
+
+    integration PlatformRoundEvaluationReporting {
+      source AgentRoundContribution
+      target TrainingOrchestration
+      reactsTo AgentLocalModelEvaluationSubmitted
+      emits SubmitLocalModelEvaluation
+    }
+
+    integration PlatformRuntimeHeartbeatReporting {
+      source AgentRuntimeHeartbeat
+      target RuntimeOperations
+      reactsTo AgentRuntimeHeartbeatReported
+      emits RecordRuntimeHeartbeat
+    }
+
+  slice RegisterAgentDataConnector {
+    startsLifecycle
+    actor RuntimeAgent
+    reactsTo RuntimeAgentTrusted
+
+    command RegisterAgentDataConnector {
+      dataConnectorId: UUID id generated technical
+      runtimeAgentId: UUID
+      connectorName: String
+      connectorType: String
+      connectorRef: String
+      credentialRef: String
+      secretRefType: String
+      storageLocationRef: String
+      supportedDataFormats: String[]
+      agentConnectorHandle: String
+      localConnectionConfigRef: String?
+      localCredentialRef: String?
+      localMountPath: String?
+    }
+
+    event AgentDataConnectorRegistered {
+      dataConnectorId: UUID id technical
+      runtimeAgentId: UUID
+      connectorName: String
+      connectorType: String
+      connectorRef: String
+      credentialRef: String
+      secretRefType: String
+      storageLocationRef: String
+      supportedDataFormats: String[]
+      agentConnectorHandle: String
+      localConnectionConfigRef: String?
+      localCredentialRef: String?
+      localMountPath: String?
+      registeredAt: DateTime
+    }
+
+    state Registered
+  }
+
+  slice AgentDataConnectorCatalog {
+    readmodel AgentDataConnectorCatalog[] {
+      dataConnectorId: UUID id
+      runtimeAgentId: UUID
+      connectorName: String
+      connectorType: String
+      connectorRef: String
+      credentialRef: String
+      secretRefType: String
+      storageLocationRef: String
+      supportedDataFormats: String[]
+      agentConnectorHandle: String
+      localConnectionConfigRef: String?
+      localCredentialRef: String?
+      localMountPath: String?
+      registeredAt: DateTime
+      subscribe AgentDataConnectorRegistered
+    }
+  }
+
+  concept AgentDataConnector {
+    state Registered
+
+    slice RegisterAgentDataConnector
+    slice AgentDataConnectorCatalog
+  }
+
+  slice ProbeAgentDataConnectorAccess {
+    startsLifecycle
+    reactsTo DataConnectorRegistered
+
+    command ProbeAgentDataConnectorAccess {
+      agentDataConnectorProbeId: UUID id generated technical
+      dataConnectorId: UUID
+      runtimeAgentId: UUID
+      validationMode: String
+    }
+
+    event AgentDataConnectorAccessProbed {
+      agentDataConnectorProbeId: UUID id technical
+      dataConnectorId: UUID
+      runtimeAgentId: UUID
+      readable: Boolean
+      writable: Boolean
+      validationReportId: UUID
+      verifiedAt: DateTime
+    }
+
+    state Probed
+  }
+
+  slice AgentDataConnectorAccessProbeCatalog {
+    readmodel AgentDataConnectorAccessProbeCatalog[] {
+      agentDataConnectorProbeId: UUID id
+      dataConnectorId: UUID
+      runtimeAgentId: UUID
+      readable: Boolean
+      writable: Boolean
+      validationReportId: UUID
+      verifiedAt: DateTime
+      subscribe AgentDataConnectorAccessProbed
+    }
+  }
+
+  concept AgentDataConnectorAccessProbe {
+    state Probed
+
+    slice ProbeAgentDataConnectorAccess
+    slice AgentDataConnectorAccessProbeCatalog
+  }
+
+  slice ValidateAgentDatasetAccess {
+    startsLifecycle
+    reactsTo DatasetAccessValidationRequested
+
+    command ValidateAgentDatasetAccess {
+      accessProfileId: UUID id technical
+      datasetId: UUID
+      runtimeId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      validationMode: String
+    }
+
+    event AgentDatasetAccessValidated {
+      accessProfileId: UUID id technical
+      datasetId: UUID
+      runtimeId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      readable: Boolean
+      schemaReadable: Boolean
+      sampleBatchReadable: Boolean
+      validationReportId: UUID
+      validatedAt: DateTime
+    }
+
+    state Validated
+  }
+
+  slice AgentDatasetAccessValidationCatalog {
+    readmodel AgentDatasetAccessValidationCatalog[] {
+      accessProfileId: UUID id
+      datasetId: UUID
+      runtimeId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      readable: Boolean
+      schemaReadable: Boolean
+      sampleBatchReadable: Boolean
+      validationReportId: UUID
+      validatedAt: DateTime
+      subscribe AgentDatasetAccessValidated
+    }
+  }
+
+  concept AgentDatasetAccessValidation {
+    state Validated
+
+    slice ValidateAgentDatasetAccess
+    slice AgentDatasetAccessValidationCatalog
+  }
+
+  slice StartAgentRoundContribution {
+    startsLifecycle
+    reactsTo GlobalModelDistributed
+
+    command StartAgentRoundContribution {
+      agentRoundContributionId: UUID id generated technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      runtimeAgentId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      globalModelVersionId: UUID
+      runtimePayloadRef: String?
+      artifactStoreRef: String?
+    }
+
+    event AgentRoundContributionStarted {
+      agentRoundContributionId: UUID id technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      runtimeAgentId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      globalModelVersionId: UUID
+      runtimePayloadRef: String?
+      artifactStoreRef: String?
+      startedAt: DateTime
+    }
+
+    state Running
+  }
+
+  slice SubmitAgentLocalModelUpdate {
+    reactsTo AgentRoundContributionStarted
+
+    command SubmitAgentLocalModelUpdate {
+      agentRoundContributionId: UUID id technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      runtimeAgentId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      localModelVersionId: UUID
+      updateArtifactId: UUID
+      localUpdateArtifactRef: String?
+      trainingLoss: Decimal
+    }
+
+    event AgentLocalModelUpdateSubmitted {
+      agentRoundContributionId: UUID id technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      runtimeAgentId: UUID
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      localModelVersionId: UUID
+      updateArtifactId: UUID
+      localUpdateArtifactRef: String?
+      trainingLoss: Decimal
+      submittedAt: DateTime
+    }
+
+    state UpdateSubmitted
+  }
+
+  slice SubmitAgentLocalModelEvaluation {
+    reactsTo AgentLocalModelUpdateSubmitted
+
+    command SubmitAgentLocalModelEvaluation {
+      agentRoundContributionId: UUID id technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      runtimeAgentId: UUID
+      localModelVersionId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      metricsArtifactRef: String?
+      localAccuracy: Decimal
+      localFairnessScore: Decimal
+    }
+
+    event AgentLocalModelEvaluationSubmitted {
+      agentRoundContributionId: UUID id technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      runtimeAgentId: UUID
+      localModelVersionId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      metricsArtifactRef: String?
+      localAccuracy: Decimal
+      localFairnessScore: Decimal
+      submittedAt: DateTime
+    }
+
+    state EvaluationSubmitted
+  }
+
+  slice AgentRoundContributionCatalog {
+    readmodel AgentRoundContributionCatalog[] {
+      agentRoundContributionId: UUID id
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      nodeId: UUID
+      runtimeAgentId: UUID
+      state: AgentRoundContribution.State
+      trainingDatasetAccessProfileId: UUID
+      evaluationDatasetAccessProfileId: UUID
+      globalModelVersionId: UUID?
+      localModelVersionId: UUID?
+      updateArtifactId: UUID?
+      localUpdateArtifactRef: String?
+      metricsArtifactRef: String?
+      trainingLoss: Decimal?
+      localAccuracy: Decimal?
+      localFairnessScore: Decimal?
+      startedAt: DateTime?
+      submittedAt: DateTime?
+      subscribe AgentRoundContributionStarted
+      subscribe AgentLocalModelUpdateSubmitted
+      subscribe AgentLocalModelEvaluationSubmitted
+    }
+  }
+
+  concept AgentRoundContribution {
+    state Running
+    state UpdateSubmitted
+    state EvaluationSubmitted
+
+    slice StartAgentRoundContribution
+    slice SubmitAgentLocalModelUpdate
+    slice SubmitAgentLocalModelEvaluation
+    slice AgentRoundContributionCatalog
+  }
+
+  slice ReportAgentRuntimeHeartbeat {
+    startsLifecycle
+
+    command ReportAgentRuntimeHeartbeat {
+      agentRuntimeHeartbeatId: UUID id generated technical
+      nodeId: UUID
+      runtimeAgentId: UUID
+      federationId: UUID
+      trainingJobId: UUID?
+      agentRuntimeJobId: UUID?
+      cpuLoad: Decimal
+      gpuLoad: Decimal
+      memoryLoad: Decimal
+      reportedAt: DateTime
+    }
+
+    event AgentRuntimeHeartbeatReported {
+      agentRuntimeHeartbeatId: UUID id technical
+      nodeId: UUID
+      runtimeAgentId: UUID
+      federationId: UUID
+      trainingJobId: UUID?
+      agentRuntimeJobId: UUID?
+      cpuLoad: Decimal
+      gpuLoad: Decimal
+      memoryLoad: Decimal
+      reportedAt: DateTime
+    }
+
+    state Reported
+  }
+
+  slice AgentRuntimeHeartbeatCatalog {
+    readmodel AgentRuntimeHeartbeatCatalog[] {
+      agentRuntimeHeartbeatId: UUID id
+      nodeId: UUID
+      runtimeAgentId: UUID
+      federationId: UUID
+      trainingJobId: UUID?
+      agentRuntimeJobId: UUID?
+      cpuLoad: Decimal
+      gpuLoad: Decimal
+      memoryLoad: Decimal
+      reportedAt: DateTime
+      subscribe AgentRuntimeHeartbeatReported
+    }
+  }
+
+  concept AgentRuntimeHeartbeat {
+    state Reported
+
+    slice ReportAgentRuntimeHeartbeat
+    slice AgentRuntimeHeartbeatCatalog
+  }
+
+  slice AcceptAgentRuntimeJob {
+    startsLifecycle
+    reactsTo TrainingRuntimeDispatched
 
       command AcceptAgentRuntimeJob {
         agentRuntimeJobId: UUID id generated technical
