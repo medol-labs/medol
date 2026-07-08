@@ -1,12 +1,12 @@
 domain FederationLearningPlatform {
-context FederationManagement {
+context OrganizationManagement {
   
-  note "Federation management owns organizations, federations, and trusted compute nodes."
+  note "Organization management owns organization lifecycle and runtime-discovered compute node availability."
 
-  risk "Inactive or unverified organizations joining a federation can compromise model governance and data sharing agreements."
-  risk "Trusted compute nodes with stale capability declarations can be selected for jobs they cannot safely execute."
-  metric participantApprovalLeadTime
-  metric trustedNodeCoverage
+  risk "Inactive organizations can be invited into federations if organization lifecycle state is not enforced."
+  risk "Disabled compute nodes can still be selected for training if runtime-discovered node availability is not enforced."
+  metric organizationActivationLeadTime
+  metric availableComputeNodeCoverage
 
   slice RegisterOrganization {
     startsLifecycle
@@ -21,7 +21,7 @@ context FederationManagement {
     command RegisterOrganization {
       organizationId: UUID id generated technical
       organizationName: String
-      organizationType: String
+      organizationType: String // HOSPITAL / RESEARCH_INSTITUTE / PUBLIC_HEALTH_AGENCY / LABORATORY / REHABILITATION_CENTER
       contactEmail: String
     }
 
@@ -55,54 +55,10 @@ context FederationManagement {
     }
   }
 
-  slice SubmitOrganizationIdentityEvidence {
-    actor OrganizationAdmin
-    ui OrganizationVerificationScreen
-    reactsTo OrganizationRegistered
-
-    command SubmitOrganizationIdentityEvidence {
-      organizationId: UUID id technical
-      legalEntityName: String
-      registrationNumber: String
-      identityEvidenceRef: String
-    }
-
-    event OrganizationIdentityEvidenceSubmitted {
-      organizationId: UUID id technical
-      legalEntityName: String
-      registrationNumber: String
-      identityEvidenceRef: String
-    }
-
-    state IdentityEvidenceSubmitted
-  }
-
-  slice VerifyOrganizationIdentity {
-    actor ComplianceOfficer
-    ui OrganizationVerificationScreen
-    reactsTo OrganizationIdentityEvidenceSubmitted
-
-    command VerifyOrganizationIdentity {
-      organizationId: UUID id technical
-      verificationProvider: String
-      identityEvidenceRef: String
-      verificationNote: String?
-    }
-
-    event OrganizationIdentityVerified {
-      organizationId: UUID id technical
-      verificationProvider: String
-      identityEvidenceRef: String
-      verificationNote: String?
-    }
-
-    state IdentityVerified
-  }
-
   slice ActivateOrganization {
     actor PlatformAdmin
     ui OrganizationAdminScreen
-    reactsTo OrganizationIdentityVerified
+    reactsTo OrganizationRegistered
 
     command ActivateOrganization {
       organizationId: UUID id technical
@@ -161,180 +117,154 @@ context FederationManagement {
       organizationName: String
       organizationType: String
       state: Organization.State
-      trustedNodeCount: Int
+      availableComputeNodeCount: Int
       approvedDatasetCount: Int
       subscribe OrganizationRegistered
-      subscribe OrganizationIdentityEvidenceSubmitted
-      subscribe OrganizationIdentityVerified
       subscribe OrganizationActivated
       subscribe OrganizationDeactivated
       subscribe OrganizationReactivated
-      subscribe ComputeNodeTrusted
+      subscribe ComputeNodeRegistered
+      subscribe ComputeNodeDisabled
+      subscribe ComputeNodeEnabled
       subscribe DatasetApprovedForTraining
     }
   }
 
   concept Organization {
     state Registered
-    state IdentityEvidenceSubmitted
-    state IdentityVerified
     state Active
     state Deactivated
 
     slice RegisterOrganization
-    slice SubmitOrganizationIdentityEvidence
-    slice VerifyOrganizationIdentity
     slice ActivateOrganization
     slice DeactivateOrganization
     slice ReactivateOrganization
     slice OrganizationDirectory
   }
 
-  slice RegisterComputeNode {
+  slice SyncComputeNodeRegistration {
     startsLifecycle
 
     tags {
+      nodeId
       organizationId
-      nodeName = normalize(nodeName)
+      runtimeAgentId
     }
 
-    actor NodeOperator
-    ui NodeRegistrationScreen
-    reactsTo OrganizationActivated
+    reactsTo RuntimeAgentRegistered
 
-    command RegisterComputeNode {
-      nodeId: UUID id generated technical
+    policy SyncNodeWhenRuntimeAgentRegistered {
+      // TODO 这个是 Runtime Agent 注册，应该更细粒度到节点
+      on RuntimeAgentRegistered
+      issue SyncComputeNodeRegistration
+    }
+
+    command SyncComputeNodeRegistration {
+      nodeId: UUID id technical
       organizationId: UUID
-      nodeName: String
-      nodeType: String
-      hardwareProfile: String
-      runtimeProfile: String
-      confidentialComputeSupported: Boolean
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String?
+      syncedAt: DateTime generated technical
     }
 
     event ComputeNodeRegistered {
       nodeId: UUID id technical
       organizationId: UUID
-      nodeName: String
-      nodeType: String
-      hardwareProfile: String
-      runtimeProfile: String
-      confidentialComputeSupported: Boolean
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String?
+      syncedAt: DateTime
     }
 
-    state Registered
-  }
-
-  slice UpdateNodeCapability {
-    actor RuntimeAgent
-    ui NodeCapabilityScreen
-    reactsTo ComputeNodeRegistered
-
-    command UpdateNodeCapability {
-      nodeId: UUID id technical
-      gpuCount: Int
-      cpuCoreCount: Int
-      memoryGb: Int
-      storageGb: Int
-      supportedFrameworks: String[]
-      maxConcurrentJobs: Int
-    }
-
-    event NodeCapabilityUpdated {
-      nodeId: UUID id technical
-      gpuCount: Int
-      cpuCoreCount: Int
-      memoryGb: Int
-      storageGb: Int
-      supportedFrameworks: String[]
-      maxConcurrentJobs: Int
-    }
-
-    state CapabilityDeclared
-  }
-
-  slice TrustComputeNode {
-    actor SecurityReviewer
-    ui NodeTrustScreen
-    reactsTo NodeAttestationReportVerified
-
-    command TrustComputeNode {
-      nodeId: UUID id technical
-      trustLevel: String
-      attestationReportId: UUID
-      attestationExpiresAt: DateTime
-    }
-
-    event ComputeNodeTrusted {
-      nodeId: UUID id technical
-      organizationId: UUID derived {
-        from ComputeNode.organizationId
-        rule "Carry the owning organization for organization-level node counts."
-      }
-      trustLevel: String
-      attestationReportId: UUID
-      attestationExpiresAt: DateTime
-    }
-
-    state Trusted
-  }
-
-  slice SuspendComputeNode {
-    actor SecurityReviewer
-    ui NodeTrustScreen
-    reactsTo TrainingAlertRaised
-
-    command SuspendComputeNode {
-      nodeId: UUID id technical
-      suspensionReason: String
-    }
-
-    event ComputeNodeSuspended {
-      nodeId: UUID id technical
-      suspensionReason: String
-    }
-
-    state Suspended
+    state Available
   }
 
   slice ComputeNodeCatalog {
     readmodel ComputeNodeCatalog[] {
       nodeId: UUID id
       organizationId: UUID
-      nodeName: String
-      nodeType: String
-      hardwareProfile: String
-      runtimeProfile: String
-      confidentialComputeSupported: Boolean
-      gpuCount: Int
-      cpuCoreCount: Int
-      memoryGb: Int
-      storageGb: Int
-      supportedFrameworks: String[]
-      maxConcurrentJobs: Int
-      trustLevel: String?
-      attestationExpiresAt: DateTime?
-      nodeStatus: String
-      suspensionReason: String?
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String?
+      availabilityStatus: String
+      disabledReason: String?
+      lastSyncedAt: DateTime
+      lastDisabledAt: DateTime?
+      lastEnabledAt: DateTime?
       subscribe ComputeNodeRegistered
-      subscribe NodeCapabilityUpdated
-      subscribe ComputeNodeTrusted
-      subscribe ComputeNodeSuspended
+      subscribe ComputeNodeDisabled
+      subscribe ComputeNodeEnabled
     }
   }
 
-  concept ComputeNode {
-    state Registered
-    state CapabilityDeclared
-    state Trusted
-    state Suspended
+  slice DisableComputeNode {
+    actor OrganizationAdmin
+    ui ComputeNodeCatalog confirm
+    reactsTo ComputeNodeRegistered
 
-    slice RegisterComputeNode
-    slice UpdateNodeCapability
-    slice TrustComputeNode
-    slice SuspendComputeNode
+    command DisableComputeNode {
+      nodeId: UUID id technical
+      disabledReason: String
+      disabledAt: DateTime generated technical
+    }
+
+    event ComputeNodeDisabled {
+      nodeId: UUID id technical
+      organizationId: UUID derived {
+        from ComputeNode.organizationId
+        rule "Carry the owning organization for organization-level node availability counts."
+      }
+      disabledReason: String
+      disabledAt: DateTime
+    }
+
+    state Disabled
+  }
+
+  slice EnableComputeNode {
+    actor OrganizationAdmin
+    ui ComputeNodeCatalog
+    reactsTo ComputeNodeDisabled
+
+    command EnableComputeNode {
+      nodeId: UUID id technical
+      enableReason: String
+      enabledAt: DateTime generated technical
+    }
+
+    event ComputeNodeEnabled {
+      nodeId: UUID id technical
+      organizationId: UUID derived {
+        from ComputeNode.organizationId
+        rule "Carry the owning organization for organization-level node availability counts."
+      }
+      enableReason: String
+      enabledAt: DateTime
+    }
+
+    state Available
+  }
+
+  concept ComputeNode {
+    state Available
+    state Disabled
+
+    slice SyncComputeNodeRegistration
+    slice DisableComputeNode
+    slice EnableComputeNode
     slice ComputeNodeCatalog
   }
+
+}
+
+context FederationManagement {
+  note "Federation management owns federations and federation membership governance."
+
+  risk "Inactive organizations joining a federation can compromise model governance and data sharing agreements."
+  risk "Federation training can proceed with too few available organization-owned compute nodes if eligibility is not enforced."
+  metric participantApprovalLeadTime
+  metric federationActivationLeadTime
 
   slice CreateFederation {
     startsLifecycle
@@ -350,18 +280,14 @@ context FederationManagement {
       federationId: UUID id generated technical
       federationName: String
       description: String
-      governancePolicyId: UUID
       minimumParticipantCount: Int
-      minimumTrustedNodeCount: Int
     }
 
     event FederationCreated {
       federationId: UUID id technical
       federationName: String
       description: String
-      governancePolicyId: UUID
       minimumParticipantCount: Int
-      minimumTrustedNodeCount: Int
     }
 
     state Draft
@@ -387,6 +313,60 @@ context FederationManagement {
     }
   }
 
+  slice ActivateFederation {
+    actor PlatformAdmin
+    ui FederationSetupScreen
+    reactsTo FederationCreated
+
+    command ActivateFederation {
+      federationId: UUID id technical
+      activationNote: String?
+    }
+
+    event FederationActivated {
+      federationId: UUID id technical
+      activationNote: String?
+    }
+
+    state Active
+  }
+
+  slice SuspendFederation {
+    actor PlatformAdmin
+    ui FederationSetupScreen confirm
+    reactsTo FederationActivated
+
+    command SuspendFederation {
+      federationId: UUID id technical
+      suspensionReason: String
+    }
+
+    event FederationSuspended {
+      federationId: UUID id technical
+      suspensionReason: String
+    }
+
+    state Suspended
+  }
+
+  slice ReactivateFederation {
+    actor PlatformAdmin
+    ui FederationSetupScreen
+    reactsTo FederationSuspended
+
+    command ReactivateFederation {
+      federationId: UUID id technical
+      reactivationReason: String
+    }
+
+    event FederationReactivated {
+      federationId: UUID id technical
+      reactivationReason: String
+    }
+
+    state Active
+  }
+
   slice FederationOverview {
     reactsTo ParticipantJoined
 
@@ -394,20 +374,25 @@ context FederationManagement {
       federationId: UUID id
       federationName: String
       state: Federation.State
+      minimumParticipantCount: Int
       activeMemberCount: Int
       // 计算逻辑 TODO
       pendingInvitationCount: Int
-      trustedNodeCount: Int
+      availableComputeNodeCount: Int
       activeTrainingJobCount: Int
       subscribe FederationCreated
+      subscribe FederationActivated
+      subscribe FederationSuspended
+      subscribe FederationReactivated
       subscribe ParticipantInvited
       subscribe ParticipantJoined
       subscribe ParticipantRejected
       subscribe ParticipantInvitationRevoked
       subscribe ParticipantSuspended
       subscribe ParticipantRemoved
-      subscribe ComputeNodeTrusted
-      subscribe ComputeNodeSuspended
+      subscribe ComputeNodeRegistered
+      subscribe ComputeNodeDisabled
+      subscribe ComputeNodeEnabled
       subscribe TrainingJobSubmitted
     }
   }
@@ -492,9 +477,6 @@ context FederationManagement {
       """
 
       scenario "Approve Invited Participant" {
-        given OrganizationActivated {
-          organizationId = "org-1"
-        }
         given ParticipantInvited {
           federationId = "fed-1"
           organizationId = "org-1"
@@ -626,6 +608,9 @@ context FederationManagement {
     state Suspended
 
     slice CreateFederation
+    slice ActivateFederation
+    slice SuspendFederation
+    slice ReactivateFederation
     slice FederationOverview
   }
 
@@ -646,6 +631,473 @@ context FederationManagement {
     slice FederationMembershipDirectory
   }
 
+}
+
+context RuntimeOnboarding {
+  note "Runtime onboarding owns organization-specific network endpoints, bootstrap configuration, runtime infrastructure connection, and access revocation. K3s is treated as one orchestrator implementation, not as a domain concept."
+
+  risk "Organizations can receive wrong platform endpoints and fail to connect runtime infrastructure."
+  risk "Leaked bootstrap tokens can allow unauthorized infrastructure to join the platform."
+  metric runtimeBootstrapSuccessRate
+  metric runtimeInfrastructureConnectionLatency
+
+  slice ConfigureOrganizationNetworkProfile {
+    startsLifecycle
+
+    actor PlatformAdmin
+    ui OrganizationNetworkProfileScreen
+    reactsTo OrganizationActivated
+
+    tags {
+      organizationId
+      profileName = normalize(profileName)
+    }
+
+    command ConfigureOrganizationNetworkProfile {
+      networkProfileId: UUID id generated technical
+      organizationId: UUID
+      profileName: String
+      connectivityMode: String        // PUBLIC_ENDPOINT / VPN / PRIVATE_LINK / BASTION / INTRANET_RELAY
+      platformApiEndpoint: String
+      runtimeControlEndpoint: String  // 对组织暴露的运行时控制入口，可映射到 k3s/k8s/其他
+      registryEndpoint: String
+      artifactStoreEndpoint: String?
+      caBundleRef: String
+      allowedCidrs: String[]
+      tlsSanNames: String[]
+    }
+
+    event OrganizationNetworkProfileConfigured {
+      networkProfileId: UUID id technical
+      organizationId: UUID
+      profileName: String
+      connectivityMode: String
+      platformApiEndpoint: String
+      runtimeControlEndpoint: String
+      registryEndpoint: String
+      artifactStoreEndpoint: String?
+      caBundleRef: String
+      allowedCidrs: String[]
+      tlsSanNames: String[]
+    }
+
+    state Configured
+  }
+
+  slice IssueRuntimeBootstrapToken {
+    startsLifecycle
+
+    actor PlatformAdmin
+    ui RuntimeBootstrapTokenScreen
+    reactsTo OrganizationNetworkProfileConfigured
+
+    tags {
+      organizationId
+      networkProfileId
+    }
+
+    command IssueRuntimeBootstrapToken {
+      bootstrapTokenId: UUID id generated technical
+      organizationId: UUID
+      networkProfileId: UUID
+      tokenName: String
+      tokenFingerprint: String generated technical
+      tokenHash: String generated technical
+      allowedCidrs: String[]
+      maxUseCount: Int
+      issuedAt: DateTime generated technical
+      expiresAt: DateTime
+    }
+
+    event RuntimeBootstrapTokenIssued {
+      bootstrapTokenId: UUID id technical
+      organizationId: UUID
+      networkProfileId: UUID
+      tokenName: String
+      tokenFingerprint: String
+      tokenHash: String
+      allowedCidrs: String[]
+      maxUseCount: Int
+      issuedAt: DateTime
+      expiresAt: DateTime
+    }
+
+    state Issued
+  }
+
+  slice RevokeRuntimeBootstrapToken {
+    actor SecurityReviewer
+    ui RuntimeBootstrapTokenScreen confirm
+    reactsTo RuntimeBootstrapTokenIssued
+
+    command RevokeRuntimeBootstrapToken {
+      bootstrapTokenId: UUID id technical
+      organizationId: UUID
+      revokeReason: String
+      revokedAt: DateTime generated technical
+    }
+
+    event RuntimeBootstrapTokenRevoked {
+      bootstrapTokenId: UUID id technical
+      organizationId: UUID
+      revokeReason: String
+      revokedAt: DateTime
+    }
+
+    state Revoked
+  }
+
+  slice RequestRuntimeBootstrapConfig {
+    startsLifecycle
+
+    actor RuntimeInstaller
+    reactsTo RuntimeBootstrapTokenIssued
+
+    tags {
+      organizationId
+      bootstrapTokenId
+    }
+
+    command RequestRuntimeBootstrapConfig {
+      bootstrapRequestId: UUID id generated technical
+      organizationId: UUID
+      bootstrapTokenId: UUID
+      requesterIp: String
+      machineFingerprint: String
+      hostname: String
+      architecture: String
+      osName: String
+      osVersion: String
+      cpuModel: String?
+      gpuModel: String?
+      requestedAt: DateTime generated technical
+    }
+
+    event RuntimeBootstrapConfigRequested {
+      bootstrapRequestId: UUID id technical
+      organizationId: UUID
+      bootstrapTokenId: UUID
+      requesterIp: String
+      machineFingerprint: String
+      hostname: String
+      architecture: String
+      osName: String
+      osVersion: String
+      cpuModel: String?
+      gpuModel: String?
+      requestedAt: DateTime
+    }
+
+    state Requested
+
+    specification "Bootstrap Request Must Match Network Policy" {
+      rule """
+        Runtime bootstrap configuration can be requested only when the requester IP is allowed by the organization's network profile and the bootstrap token is valid.
+      """
+
+      scenario "Reject Bootstrap From Disallowed Network" {
+        given OrganizationNetworkProfileConfigured {
+          organizationId = "org-1"
+          allowedCidrs = "10.20.0.0/16"
+        }
+        when RequestRuntimeBootstrapConfig {
+          organizationId = "org-1"
+          requesterIp = "172.16.1.9"
+        }
+        then reject "Requester Network Not Allowed"
+      }
+
+      scenario "Reject Revoked Bootstrap Token" {
+        given RuntimeBootstrapTokenRevoked {
+          bootstrapTokenId = "token-1"
+        }
+        when RequestRuntimeBootstrapConfig {
+          bootstrapTokenId = "token-1"
+        }
+        then reject "Bootstrap Token Revoked"
+      }
+    }
+  }
+
+  slice IssueRuntimeBootstrapConfig {
+    reactsTo RuntimeBootstrapConfigRequested
+
+    policy IssueConfigWhenBootstrapRequestAccepted {
+      on RuntimeBootstrapConfigRequested
+      issue IssueRuntimeBootstrapConfig
+    }
+
+    command IssueRuntimeBootstrapConfig {
+      bootstrapRequestId: UUID id technical
+      organizationId: UUID
+      bootstrapTokenId: UUID
+      networkProfileId: UUID
+      platformApiEndpoint: String
+      runtimeControlEndpoint: String
+      registryEndpoint: String
+      artifactStoreEndpoint: String?
+      caBundleRef: String
+      installProfile: String
+      orchestratorType: String      // K3S / KUBERNETES / DOCKER / VM / BARE_METAL
+      orchestratorVersion: String?
+      nodeLabels: String[]
+      joinCredentialRef: String?
+      issuedAt: DateTime generated technical
+    }
+
+    event RuntimeBootstrapConfigIssued {
+      bootstrapRequestId: UUID id technical
+      organizationId: UUID
+      bootstrapTokenId: UUID
+      networkProfileId: UUID
+      platformApiEndpoint: String
+      runtimeControlEndpoint: String
+      registryEndpoint: String
+      artifactStoreEndpoint: String?
+      caBundleRef: String
+      installProfile: String
+      orchestratorType: String
+      orchestratorVersion: String?
+      nodeLabels: String[]
+      joinCredentialRef: String?
+      issuedAt: DateTime
+    }
+
+    state ConfigIssued
+  }
+
+  slice RejectRuntimeBootstrapRequest {
+    actor SecurityReviewer
+    ui RuntimeBootstrapRequestScreen
+    reactsTo RuntimeBootstrapConfigRequested
+
+    command RejectRuntimeBootstrapRequest {
+      bootstrapRequestId: UUID id technical
+      organizationId: UUID
+      bootstrapTokenId: UUID
+      rejectionReason: String
+      rejectedAt: DateTime generated technical
+    }
+
+    event RuntimeBootstrapRequestRejected {
+      bootstrapRequestId: UUID id technical
+      organizationId: UUID
+      bootstrapTokenId: UUID
+      rejectionReason: String
+      rejectedAt: DateTime
+    }
+
+    state Rejected
+  }
+
+  slice RuntimeBootstrapTokenCatalog {
+    readmodel RuntimeBootstrapTokenCatalog[] {
+      bootstrapTokenId: UUID id
+      organizationId: UUID
+      networkProfileId: UUID
+      tokenName: String
+      tokenFingerprint: String
+      state: RuntimeBootstrapToken.State
+      allowedCidrs: String[]
+      maxUseCount: Int
+      requestCount: Int
+      issuedAt: DateTime
+      expiresAt: DateTime
+      revokedAt: DateTime?
+      revokeReason: String?
+      subscribe RuntimeBootstrapTokenIssued
+      subscribe RuntimeBootstrapTokenRevoked
+      subscribe RuntimeBootstrapConfigRequested
+    }
+  }
+
+  slice RuntimeBootstrapRequestCatalog {
+    readmodel RuntimeBootstrapRequestCatalog[] {
+      bootstrapRequestId: UUID id
+      organizationId: UUID
+      bootstrapTokenId: UUID
+      state: RuntimeBootstrapRequest.State
+      requesterIp: String
+      machineFingerprint: String
+      hostname: String
+      architecture: String
+      osName: String
+      osVersion: String
+      cpuModel: String?
+      gpuModel: String?
+      installProfile: String?
+      orchestratorType: String?
+      requestedAt: DateTime
+      issuedAt: DateTime?
+      rejectedAt: DateTime?
+      rejectionReason: String?
+      subscribe RuntimeBootstrapConfigRequested
+      subscribe RuntimeBootstrapConfigIssued
+      subscribe RuntimeBootstrapRequestRejected
+    }
+  }
+
+  slice RegisterRuntimeInfrastructure {
+    startsLifecycle
+
+    actor RuntimeInstaller
+    reactsTo RuntimeBootstrapConfigIssued
+
+    tags {
+      organizationId
+      runtimeInfrastructureId
+    }
+
+    command RegisterRuntimeInfrastructure {
+      runtimeInfrastructureId: UUID id generated technical
+      organizationId: UUID
+      networkProfileId: UUID
+      infrastructureName: String
+      infrastructureType: String       // cluster / single-node / vm / bare-metal
+      orchestratorType: String         // K3S 作为值，不作为概念
+      orchestratorVersion: String?
+      controlPlaneEndpointRef: String?
+      nodeCount: Int
+      architecture: String
+      installProfile: String
+    }
+
+    event RuntimeInfrastructureRegistered {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      networkProfileId: UUID
+      infrastructureName: String
+      infrastructureType: String
+      orchestratorType: String
+      orchestratorVersion: String?
+      controlPlaneEndpointRef: String?
+      nodeCount: Int
+      architecture: String
+      installProfile: String
+    }
+
+    state Registered
+  }
+
+  slice ReportRuntimeInfrastructureConnected {
+    actor RuntimeAgent
+    reactsTo RuntimeInfrastructureRegistered
+
+    command ReportRuntimeInfrastructureConnected {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      runtimeAgentId: UUID
+      connectedAt: DateTime
+      observedNodeCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+    }
+
+    event RuntimeInfrastructureConnected {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      runtimeAgentId: UUID
+      connectedAt: DateTime
+      observedNodeCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+    }
+
+    state Connected
+  }
+
+  slice RevokeRuntimeInfrastructureAccess {
+    actor SecurityReviewer
+    ui OrganizationNetworkProfileScreen confirm
+    reactsTo RuntimeInfrastructureConnected
+
+    command RevokeRuntimeInfrastructureAccess {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      revokeReason: String
+      revokedBy: String
+    }
+
+    event RuntimeInfrastructureAccessRevoked {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      revokeReason: String
+      revokedBy: String
+    }
+
+    state Revoked
+  }
+
+  slice RuntimeInfrastructureAccessView {
+    readmodel RuntimeInfrastructureAccessView[] {
+      runtimeInfrastructureId: UUID id
+      organizationId: UUID
+      networkProfileId: UUID
+      profileName: String
+      connectivityMode: String
+      platformApiEndpoint: String
+      runtimeControlEndpoint: String
+      registryEndpoint: String
+      orchestratorType: String
+      orchestratorVersion: String?
+      infrastructureType: String
+      nodeCount: Int
+      observedNodeCount: Int?
+      availableCpuCores: Int?
+      availableMemoryGb: Int?
+      availableGpuCount: Int?
+      lastConnectedAt: DateTime?
+      accessStatus: String
+      subscribe OrganizationNetworkProfileConfigured
+      subscribe RuntimeBootstrapTokenIssued
+      subscribe RuntimeBootstrapTokenRevoked
+      subscribe RuntimeBootstrapConfigRequested
+      subscribe RuntimeBootstrapConfigIssued
+      subscribe RuntimeBootstrapRequestRejected
+      subscribe RuntimeInfrastructureRegistered
+      subscribe RuntimeInfrastructureConnected
+      subscribe RuntimeInfrastructureAccessRevoked
+    }
+  }
+
+  concept OrganizationNetworkProfile {
+    state Configured
+
+    slice ConfigureOrganizationNetworkProfile
+  }
+
+  concept RuntimeBootstrapToken {
+    state Issued
+    state Revoked
+
+    slice IssueRuntimeBootstrapToken
+    slice RevokeRuntimeBootstrapToken
+    slice RuntimeBootstrapTokenCatalog
+  }
+
+  concept RuntimeBootstrapRequest {
+    state Requested
+    state ConfigIssued
+    state Rejected
+
+    slice RequestRuntimeBootstrapConfig
+    slice IssueRuntimeBootstrapConfig
+    slice RejectRuntimeBootstrapRequest
+    slice RuntimeBootstrapRequestCatalog
+  }
+
+  concept RuntimeInfrastructure {
+    state Registered
+    state Connected
+    state Revoked
+
+    slice RegisterRuntimeInfrastructure
+    slice ReportRuntimeInfrastructureConnected
+    slice RevokeRuntimeInfrastructureAccess
+    slice RuntimeInfrastructureAccessView
+  }
 }
 
 context DatasetGovernance {
@@ -1604,18 +2056,26 @@ context TrainingOrchestration {
     emits DispatchTrainingRuntime
   }
 
+  integration ComputeNodeRegistrationSync {
+    source RuntimeAgent
+    target OrganizationManagement
+    reactsTo RuntimeAgentRegistered
+    emits SyncComputeNodeRegistration
+  }
+
   slice RegisterRuntimeAgent {
     startsLifecycle
 
-    actor NodeOperator
-    ui RuntimeAgentRegistrationScreen
-    reactsTo ComputeNodeTrusted
+    actor RuntimeAgent
+    reactsTo RuntimeInfrastructureConnected
 
     command RegisterRuntimeAgent {
       runtimeAgentId: UUID id generated technical
       nodeId: UUID
       organizationId: UUID
+      runtimeInfrastructureId: UUID
       agentName: String
+      orchestratorNodeName: String?
       agentVersion: String
       agentEndpointRef: String
       runtimeEnvironmentRef: String?
@@ -1626,7 +2086,9 @@ context TrainingOrchestration {
       runtimeAgentId: UUID id technical
       nodeId: UUID
       organizationId: UUID
+      runtimeInfrastructureId: UUID
       agentName: String
+      orchestratorNodeName: String?
       agentVersion: String
       agentEndpointRef: String
       runtimeEnvironmentRef: String?
@@ -1691,7 +2153,9 @@ context TrainingOrchestration {
       runtimeAgentId: UUID id
       nodeId: UUID
       organizationId: UUID
+      runtimeInfrastructureId: UUID
       agentName: String
+      orchestratorNodeName: String?
       agentVersion: String
       agentEndpointRef: String
       runtimeEnvironmentRef: String?
@@ -2246,7 +2710,7 @@ context TrainingOrchestration {
       evaluationDatasetAccessProfileId: UUID
       participantStatus: String
       readinessStatus: String
-      trustedNode: Boolean
+      computeNodeAvailable: Boolean
       runtimeAgentTrusted: Boolean
       dataConnectorVerified: Boolean
       runtimeReadable: Boolean
@@ -2265,8 +2729,9 @@ context TrainingOrchestration {
       subscribe ParticipantJoined
       subscribe ParticipantSuspended
       subscribe ParticipantRemoved
-      subscribe ComputeNodeTrusted
-      subscribe ComputeNodeSuspended
+      subscribe ComputeNodeRegistered
+      subscribe ComputeNodeDisabled
+      subscribe ComputeNodeEnabled
       subscribe RuntimeAgentTrusted
       subscribe DataConnectorAccessVerified
       subscribe TrainingEvaluationDatasetsDeclared
@@ -3279,6 +3744,57 @@ context RuntimeOperations {
     state Healthy
   }
 
+  slice RecordRuntimeNodeResourceSnapshot {
+    startsLifecycle
+    actor RuntimeAgent
+    ui RuntimeMonitorScreen
+    reactsTo AgentRuntimeNodeResourceSnapshotReported
+
+    command RecordRuntimeNodeResourceSnapshot {
+      runtimeNodeResourceSnapshotId: UUID id technical
+      nodeId: UUID
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      orchestratorNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningPodCount: Int
+      podCapacity: Int
+      observedAt: DateTime
+    }
+
+    event RuntimeNodeResourceSnapshotRecorded {
+      runtimeNodeResourceSnapshotId: UUID id technical
+      nodeId: UUID
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      orchestratorNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningPodCount: Int
+      podCapacity: Int
+      observedAt: DateTime
+    }
+
+    state Recorded
+  }
+
   slice RuntimeHealthDashboard {
     readmodel RuntimeHealthDashboard[] {
       nodeId: UUID id
@@ -3289,9 +3805,17 @@ context RuntimeOperations {
       cpuLoad: Decimal
       gpuLoad: Decimal
       memoryLoad: Decimal
+      nodeReady: Boolean?
+      availableCpuCores: Int?
+      availableMemoryGb: Int?
+      availableGpuCount: Int?
+      runningPodCount: Int?
+      podCapacity: Int?
       healthStatus: String
       lastHeartbeatAt: DateTime
+      lastResourceSnapshotAt: DateTime?
       subscribe RuntimeHeartbeatRecorded
+      subscribe RuntimeNodeResourceSnapshotRecorded
       subscribe TrainingAlertRaised
     }
   }
@@ -3301,6 +3825,37 @@ context RuntimeOperations {
 
     slice RecordRuntimeHeartbeat
     slice RuntimeHealthDashboard
+  }
+
+  slice RuntimeNodeResourceSnapshotView {
+    readmodel RuntimeNodeResourceSnapshotView[] {
+      runtimeNodeResourceSnapshotId: UUID id
+      nodeId: UUID
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      orchestratorNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningPodCount: Int
+      podCapacity: Int
+      observedAt: DateTime
+      subscribe RuntimeNodeResourceSnapshotRecorded
+    }
+  }
+
+  concept RuntimeNodeResourceSnapshot {
+    state Recorded
+
+    slice RecordRuntimeNodeResourceSnapshot
+    slice RuntimeNodeResourceSnapshotView
   }
 
   slice RaiseTrainingAlert {
@@ -3359,6 +3914,21 @@ context RuntimeOperations {
       issue AppendAuditTrail
     }
 
+    policy AuditFederationActivated {
+      on FederationActivated
+      issue AppendAuditTrail
+    }
+
+    policy AuditFederationSuspended {
+      on FederationSuspended
+      issue AppendAuditTrail
+    }
+
+    policy AuditFederationReactivated {
+      on FederationReactivated
+      issue AppendAuditTrail
+    }
+
     policy AuditParticipantJoined {
       on ParticipantJoined
       issue AppendAuditTrail
@@ -3389,8 +3959,13 @@ context RuntimeOperations {
       issue AppendAuditTrail
     }
 
-    policy AuditNodeTrustChanged {
-      on ComputeNodeTrusted
+    policy AuditComputeNodeDisabled {
+      on ComputeNodeDisabled
+      issue AppendAuditTrail
+    }
+
+    policy AuditComputeNodeEnabled {
+      on ComputeNodeEnabled
       issue AppendAuditTrail
     }
 
@@ -3431,7 +4006,7 @@ context RuntimeOperations {
     slice AuditRecordLog
   }
 }
-  context KeyAndAttestationManagement {
+context KeyAndAttestationManagement {
     note "Key and attestation management owns node attestation reports, secure aggregation key material, and dataset access credentials, replacing ad hoc cryptography fields scattered across other contexts."
 
     risk "Expired attestation or revoked key material can allow an unsafe node to continue participating in training."
@@ -3443,7 +4018,7 @@ context RuntimeOperations {
     startsLifecycle
     actor SecurityReviewer
     ui NodeKeyManagementScreen
-    reactsTo ComputeNodeTrusted
+    reactsTo ComputeNodeRegistered
 
     command GenerateNodeKey {
       nodeKeyId: UUID id generated technical
@@ -4162,12 +4737,14 @@ context RuntimeOperations {
     
   }
   deployment FLPlatformBackend {
+    includes OrganizationManagement
     includes FederationManagement
     includes DatasetGovernance
     includes TrainingOrchestration
     includes ModelLifecycle
     includes RuntimeOperations
     includes KeyAndAttestationManagement
+    includes RuntimeOnboarding
   }
 
   deployment FLRuntimeAgent {
@@ -4252,6 +4829,13 @@ context RuntimeOperations {
       target RuntimeOperations
       reactsTo AgentRuntimeHeartbeatReported
       emits RecordRuntimeHeartbeat
+    }
+
+    integration PlatformRuntimeNodeResourceSnapshotReporting {
+      source AgentRuntimeNodeResourceSnapshot
+      target RuntimeOperations
+      reactsTo AgentRuntimeNodeResourceSnapshotReported
+      emits RecordRuntimeNodeResourceSnapshot
     }
 
   slice RegisterAgentDataConnector {
@@ -4617,6 +5201,85 @@ context RuntimeOperations {
 
     slice ReportAgentRuntimeHeartbeat
     slice AgentRuntimeHeartbeatCatalog
+  }
+
+  slice ReportAgentRuntimeNodeResourceSnapshot {
+    startsLifecycle
+
+    command ReportAgentRuntimeNodeResourceSnapshot {
+      runtimeNodeResourceSnapshotId: UUID id generated technical
+      nodeId: UUID
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      orchestratorNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningPodCount: Int
+      podCapacity: Int
+      observedAt: DateTime
+    }
+
+    event AgentRuntimeNodeResourceSnapshotReported {
+      runtimeNodeResourceSnapshotId: UUID id technical
+      nodeId: UUID
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      orchestratorNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningPodCount: Int
+      podCapacity: Int
+      observedAt: DateTime
+    }
+
+    state Reported
+  }
+
+  slice AgentRuntimeNodeResourceSnapshotCatalog {
+    readmodel AgentRuntimeNodeResourceSnapshotCatalog[] {
+      runtimeNodeResourceSnapshotId: UUID id
+      nodeId: UUID
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      orchestratorNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningPodCount: Int
+      podCapacity: Int
+      observedAt: DateTime
+      subscribe AgentRuntimeNodeResourceSnapshotReported
+    }
+  }
+
+  concept AgentRuntimeNodeResourceSnapshot {
+    state Reported
+
+    slice ReportAgentRuntimeNodeResourceSnapshot
+    slice AgentRuntimeNodeResourceSnapshotCatalog
   }
 
   slice AcceptAgentRuntimeJob {
