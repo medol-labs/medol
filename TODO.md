@@ -54,6 +54,8 @@
   - [ ] tags 逻辑丢失
   - [ ] 尽快稳定版本，实现 federation learning 代码细节
 - [ ] 网关轻量方案
+  - [ ] 集成 APISIX
+- [ ] 非核心冗余字段怎么处理， xxxName
 
 ##
 
