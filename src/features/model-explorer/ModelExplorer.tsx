@@ -1,5 +1,5 @@
 import { FileSearch } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { OverflowText } from '../../components/ui/overflow-text';
 import { agentSliceStatusValues, type AgentSliceStatus } from '../../contracts/agentSliceStatus';
 import type { EmAggregate, EmConcept, EmContext, EmDomain, EmModel, EmSlice } from '../../lib/model';
@@ -25,6 +25,7 @@ interface ModelExplorerProps {
     status: AgentSliceStatus
   ) => void;
   onLocateDocumentation: (sourceIds: string[]) => void;
+  onCollapse?: () => void;
 }
 
 export function ModelExplorer({
@@ -42,15 +43,43 @@ export function ModelExplorer({
   onSelectConcept,
   onSelectSlice,
   onChangeSliceAgentStatus,
-  onLocateDocumentation
+  onLocateDocumentation,
+  onCollapse
 }: ModelExplorerProps) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const domains = useMemo(() => getExplorerDomains(model), [model]);
+  const collapsibleIds = useMemo(() => collectCollapsibleIds(domains), [domains]);
+  const knownCollapsibleIdsRef = useRef<Set<string>>(new Set(collapsibleIds));
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(collapsibleIds));
   const treeRef = useRef<HTMLDivElement | null>(null);
-  const domains = model.domains.length > 0 ? model.domains : [{
-    id: 'default-domain',
-    name: 'Model',
-    contexts: model.contexts
-  }];
+
+  useEffect(() => {
+    const previousKnownIds = knownCollapsibleIdsRef.current;
+    const nextKnownIds = new Set(collapsibleIds);
+
+    setCollapsed((previous) => {
+      let changed = false;
+      const next = new Set<string>();
+
+      for (const id of previous) {
+        if (nextKnownIds.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      }
+
+      for (const id of nextKnownIds) {
+        if (!previousKnownIds.has(id)) {
+          next.add(id);
+          changed = true;
+        }
+      }
+
+      return changed ? next : previous;
+    });
+
+    knownCollapsibleIdsRef.current = nextKnownIds;
+  }, [collapsibleIds]);
 
   const toggle = (id: string) => {
     setCollapsed((previous) => {
@@ -101,8 +130,13 @@ export function ModelExplorer({
   return (
     <aside className="explorer-pane">
       <header className="pane-header">
-        <p className="eyebrow">Model</p>
-        <h2>Explorer</h2>
+        <div>
+          <p className="eyebrow">Model</p>
+          <h2>Explorer</h2>
+        </div>
+        {onCollapse && (
+          <button type="button" className="collapse-button" onClick={onCollapse}>Hide</button>
+        )}
       </header>
       <div className="explorer-tree" ref={treeRef}>
         {domains.map((domain) => {
@@ -355,6 +389,29 @@ const contextSourceIds = (context: EmContext): string[] => [
   ...context.slices.map((slice) => slice.id),
   ...context.concepts.map((concept) => concept.id)
 ];
+
+type ExplorerDomain = Pick<EmDomain, 'id' | 'name' | 'contexts'>;
+
+const getExplorerDomains = (model: EmModel): ExplorerDomain[] => (
+  model.domains.length > 0
+    ? model.domains
+    : [{
+      id: 'default-domain',
+      name: 'Model',
+      contexts: model.contexts
+    }]
+);
+
+const collectCollapsibleIds = (domains: ExplorerDomain[]): string[] => (
+  domains.flatMap((domain) => [
+    domain.id,
+    ...domain.contexts.flatMap((context) => [
+      context.id,
+      ...context.aggregates.map((aggregate) => aggregate.id),
+      ...context.concepts.map((concept) => concept.id)
+    ])
+  ])
+);
 
 function SliceAgentStatusSelect({
   value,

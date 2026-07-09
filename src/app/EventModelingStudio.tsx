@@ -140,7 +140,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [canvasShowFields, setCanvasShowFields] = useState(true);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
-  const [agentPanelOpen, setAgentPanelOpen] = useState(true);
+  const [explorerPanelOpen, setExplorerPanelOpen] = useState(false);
+  const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState<'ltr' | 'rtl'>('ltr');
   const [leftPanelWidth, setLeftPanelWidth] = useState(getInitialLeftPanelWidth);
@@ -462,6 +463,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     setDslFocusPosition(item.sourceRange?.start);
     setDslFocusVersion((version) => version + 1);
     if (!previewOnly) setLeftPanelOpen(true);
+    setExplorerPanelOpen(true);
     setPreviewMode(item.kind === 'domain' ? 'global' : 'canvas');
 
     setRecentSearchIds((current) => {
@@ -835,6 +837,14 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const resolvedPreviewGridColumn = previewOnly ? 1 : layoutDirection === 'ltr' ? 3 : 2;
   const inspectorGridColumn = layoutDirection === 'ltr' ? 4 : 1;
   const isRtlLayout = layoutDirection === 'rtl';
+  const explorerEditorGridTemplateColumns = explorerPanelOpen
+    ? 'var(--explorer-panel-width,240px) 6px minmax(0,1fr)'
+    : '42px 0 minmax(0,1fr)';
+  const editorOnlyGridTemplateColumns = `${
+    explorerPanelOpen ? 'var(--explorer-panel-width,240px) 6px' : '42px 0'
+  } minmax(360px,1fr) ${
+    agentPanelOpen ? 'minmax(320px,34vw)' : '42px'
+  }`;
 
   if (editorOnly) {
     return (
@@ -889,31 +899,50 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
             </div>
           </div>
         </header>
-        <div className="grid min-h-0 min-w-0 grid-cols-[var(--explorer-panel-width,240px)_6px_minmax(360px,1fr)_minmax(320px,34vw)] overflow-hidden">
-          <ModelExplorer
-            model={model}
-            activeDomainId={selectedDomainId}
-            activeContextId={selectedContextId}
-            activeAggregateId={selectedAggregateId}
-            activeConceptId={selectedConceptId}
-            activeSliceId={selectedSliceId}
-            sliceAgentStatuses={agentSliceStatuses}
-            documentSourceRefs={documentSourceRefs}
-            onSelectDomain={selectDomain}
-            onSelectContext={selectContext}
-            onSelectAggregate={selectAggregate}
-            onSelectConcept={selectConcept}
-            onSelectSlice={selectSlice}
-            onChangeSliceAgentStatus={updateSliceAgentStatus}
-            onLocateDocumentation={(sourceIds) => void locateDocumentation(sourceIds)}
-          />
-          <div
-            className="explorer-resize-handle explorer-resize-handle--vertical"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize explorer panel"
-            onPointerDown={resizeExplorerPanel}
-          />
+        <div
+          className="grid min-h-0 min-w-0 overflow-hidden"
+          style={{ gridTemplateColumns: editorOnlyGridTemplateColumns }}
+        >
+          {explorerPanelOpen ? (
+            <>
+              <ModelExplorer
+                model={model}
+                activeDomainId={selectedDomainId}
+                activeContextId={selectedContextId}
+                activeAggregateId={selectedAggregateId}
+                activeConceptId={selectedConceptId}
+                activeSliceId={selectedSliceId}
+                sliceAgentStatuses={agentSliceStatuses}
+                documentSourceRefs={documentSourceRefs}
+                onSelectDomain={selectDomain}
+                onSelectContext={selectContext}
+                onSelectAggregate={selectAggregate}
+                onSelectConcept={selectConcept}
+                onSelectSlice={selectSlice}
+                onChangeSliceAgentStatus={updateSliceAgentStatus}
+                onLocateDocumentation={(sourceIds) => void locateDocumentation(sourceIds)}
+                onCollapse={() => setExplorerPanelOpen(false)}
+              />
+              <div
+                className="explorer-resize-handle explorer-resize-handle--vertical"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize explorer panel"
+                onPointerDown={resizeExplorerPanel}
+              />
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="agent-panel-rail"
+                onClick={() => setExplorerPanelOpen(true)}
+              >
+                Explorer
+              </button>
+              <div aria-hidden="true" />
+            </>
+          )}
           <section className="left-section left-section--editor">
             <div className="left-section__title">
               <span>MEDOL</span>
@@ -932,27 +961,38 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
               onChange={updateDsl}
             />
           </section>
-          <section className="agent-panel">
-            <header className="pane-header pane-header--inline agent-panel__header">
-              <div>
-                <p className="eyebrow">Assistant</p>
-                <h2>AI Chat</h2>
-              </div>
-            </header>
-            {activeWorkspaceId && (
-              <AgentChatDock
-                key={activeWorkspaceId}
-                workspaceId={activeWorkspaceId}
-                dsl={dsl}
-                model={model}
-                selectedItem={selectedItem}
-                isParsingPending={isParsingPending}
-                onApplyDsl={applyAgentDsl}
-                onPreviewPatch={previewAgentPatch}
-                onClearPatchPreview={clearAgentPatchPreview}
-              />
-            )}
-          </section>
+          {agentPanelOpen ? (
+            <section className="agent-panel">
+              <header className="pane-header pane-header--inline agent-panel__header">
+                <div>
+                  <p className="eyebrow">Assistant</p>
+                  <h2>AI Chat</h2>
+                </div>
+                <button type="button" className="collapse-button" onClick={() => setAgentPanelOpen(false)}>Hide</button>
+              </header>
+              {activeWorkspaceId && (
+                <AgentChatDock
+                  key={activeWorkspaceId}
+                  workspaceId={activeWorkspaceId}
+                  dsl={dsl}
+                  model={model}
+                  selectedItem={selectedItem}
+                  isParsingPending={isParsingPending}
+                  onApplyDsl={applyAgentDsl}
+                  onPreviewPatch={previewAgentPatch}
+                  onClearPatchPreview={clearAgentPatchPreview}
+                />
+              )}
+            </section>
+          ) : (
+            <button
+              type="button"
+              className="agent-panel-rail"
+              onClick={() => setAgentPanelOpen(true)}
+            >
+              AI Chat
+            </button>
+          )}
         </div>
         {globalSearch}
       </main>
@@ -1006,31 +1046,50 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 : 'grid-rows-[minmax(0,1fr)_32px]'
             }`}
           >
-            <div className="grid min-h-0 min-w-0 grid-cols-[var(--explorer-panel-width,240px)_6px_minmax(0,1fr)] overflow-hidden">
-              <ModelExplorer
-                model={model}
-                activeDomainId={selectedDomainId}
-                activeContextId={selectedContextId}
-                activeAggregateId={selectedAggregateId}
-                activeConceptId={selectedConceptId}
-                activeSliceId={selectedSliceId}
-                sliceAgentStatuses={agentSliceStatuses}
-                documentSourceRefs={documentSourceRefs}
-                onSelectDomain={selectDomain}
-                onSelectContext={selectContext}
-                onSelectAggregate={selectAggregate}
-                onSelectConcept={selectConcept}
-                onSelectSlice={selectSlice}
-                onChangeSliceAgentStatus={updateSliceAgentStatus}
-                onLocateDocumentation={(sourceIds) => void locateDocumentation(sourceIds)}
-              />
-              <div
-                className="explorer-resize-handle explorer-resize-handle--vertical"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Resize explorer panel"
-                onPointerDown={resizeExplorerPanel}
-              />
+            <div
+              className="grid min-h-0 min-w-0 overflow-hidden"
+              style={{ gridTemplateColumns: explorerEditorGridTemplateColumns }}
+            >
+              {explorerPanelOpen ? (
+                <>
+                  <ModelExplorer
+                    model={model}
+                    activeDomainId={selectedDomainId}
+                    activeContextId={selectedContextId}
+                    activeAggregateId={selectedAggregateId}
+                    activeConceptId={selectedConceptId}
+                    activeSliceId={selectedSliceId}
+                    sliceAgentStatuses={agentSliceStatuses}
+                    documentSourceRefs={documentSourceRefs}
+                    onSelectDomain={selectDomain}
+                    onSelectContext={selectContext}
+                    onSelectAggregate={selectAggregate}
+                    onSelectConcept={selectConcept}
+                    onSelectSlice={selectSlice}
+                    onChangeSliceAgentStatus={updateSliceAgentStatus}
+                    onLocateDocumentation={(sourceIds) => void locateDocumentation(sourceIds)}
+                    onCollapse={() => setExplorerPanelOpen(false)}
+                  />
+                  <div
+                    className="explorer-resize-handle explorer-resize-handle--vertical"
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize explorer panel"
+                    onPointerDown={resizeExplorerPanel}
+                  />
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="agent-panel-rail"
+                    onClick={() => setExplorerPanelOpen(true)}
+                  >
+                    Explorer
+                  </button>
+                  <div aria-hidden="true" />
+                </>
+              )}
               <section className="left-section left-section--editor">
                 <div className="left-section__title">
                   <span>MEDOL</span>
