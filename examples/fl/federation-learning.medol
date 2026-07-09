@@ -2011,7 +2011,7 @@ context DatasetGovernance {
 context TrainingOrchestration {
   note "Training orchestration owns job intent, participant eligibility, runtime dispatch, and each round of distributed training and evaluation."
 
-  risk "Training can stall when ready nodes fall below quorum or when secure aggregation is requested before enough evaluated updates exist."
+  risk "Training can stall when started participant runtimes fall below quorum or when secure aggregation is requested before enough evaluated updates exist."
   risk "Poisoned local updates can degrade the global model if anomaly checks are not modeled as a first class decision."
   metric nodeDropoutRate
   metric roundCompletionLatency
@@ -2041,8 +2041,8 @@ context TrainingOrchestration {
   integration ParticipantRuntimeAgent {
     source TrainingJob
     target RuntimeAgent
-    reactsTo NodeReadyForTraining
-    emits DispatchTrainingRuntime
+    reactsTo TrainingRuntimeDispatched
+    emits AcceptAgentRuntimeJob
   }
 
   slice DefineTrainingRunConfiguration {
@@ -2124,7 +2124,7 @@ context TrainingOrchestration {
       validationReportId: UUID
       effectiveMinimumNodesPerRound: Int derived {
         from TrainingRunConfiguration.minimumNodesPerRound, TrainingRunConfiguration.failureToleranceRatio
-        rule "Derive the effective node quorum from the selected strategy and failure tolerance."
+        rule "Derive the effective runtime quorum from the selected strategy and failure tolerance."
       }
     }
 
@@ -2132,7 +2132,7 @@ context TrainingOrchestration {
 
     specification "Training Configuration Must Be Runnable" {
       rule """
-        A training run configuration must define a positive round budget, a feasible node quorum, and privacy parameters when differential privacy is enabled.
+        A training run configuration must define a positive round budget, a feasible runtime quorum, and privacy parameters when differential privacy is enabled.
       """
 
       scenario "Validate Runnable Configuration" {
@@ -2304,7 +2304,7 @@ context TrainingOrchestration {
       }
       minimumNodesPerRound: Int derived {
         from TrainingRunConfiguration.minimumNodesPerRound
-        rule "Snapshot the configured minimum node quorum when the training job is submitted."
+        rule "Snapshot the configured minimum runtime quorum when the training job is submitted."
       }
       roundTimeoutSeconds: Int derived {
         from TrainingRunConfiguration.roundTimeoutSeconds
@@ -2397,117 +2397,47 @@ context TrainingOrchestration {
     }
   }
 
-  slice ResolveTrainingNodeReadiness {
+  slice DispatchTrainingRuntime {
     startsLifecycle
     reactsTo TrainingJobSubmitted
 
     tags {
       trainingJobId
-      nodeId
+      organizationId
+      runtimeAgentId
     }
 
-    automation ResolveEligibleTrainingNodes {
+    automation DispatchRuntimeToEligibleParticipants {
       on TrainingJobSubmitted
       condition eligible == true
-      emits ResolveTrainingNodeReadiness
+      emits DispatchTrainingRuntime
     }
 
-    command ResolveTrainingNodeReadiness {
+    command DispatchTrainingRuntime {
       trainingJobId: UUID id technical from TrainingJobSubmitted.trainingJobId
       federationId: UUID from TrainingJobSubmitted.federationId
       trainingRunConfigurationId: UUID from TrainingJobSubmitted.trainingRunConfigurationId
       featureSchemaId: UUID from TrainingJobSubmitted.featureSchemaId
       organizationId: UUID derived {
-        from ComputeNode.organizationId
-        rule "Use the owning organization of the eligible compute node instead of asking the job submitter to choose organizations."
+        from TrainingParticipantEligibility.organizationId
+        rule "Dispatch to eligible federation participants, not to platform-selected compute nodes."
       }
-      nodeId: UUID id
       runtimeAgentId: UUID derived {
-        from ComputeNode.runtimeAgentId
-        rule "Dispatch to the runtime agent that reported and owns the compute node."
+        from TrainingParticipantEligibility.runtimeAgentId
+        rule "Route the training job to the participant runtime agent; the agent owns concrete node scheduling."
       }
       runtimeInfrastructureId: UUID derived {
-        from ComputeNode.runtimeInfrastructureId
-        rule "Keep the runtime infrastructure boundary for audit and dispatch routing."
+        from TrainingParticipantEligibility.runtimeInfrastructureId
+        rule "Carry the participant runtime infrastructure boundary for audit and routing."
       }
-      availableGpuCount: Int derived {
-        from RuntimeNodeResourceSnapshot.availableGpuCount
-        rule "Use the latest runtime-reported resource snapshot instead of manual operator input."
+      availableComputeNodeCount: Int derived {
+        from TrainingParticipantEligibility.availableComputeNodeCount
+        rule "Snapshot aggregate participant capacity without selecting a concrete node."
       }
-      readinessResolvedAt: DateTime generated technical
-    }
-
-    event NodeReadyForTraining {
-      trainingJobId: UUID id technical
-      federationId: UUID
-      trainingRunConfigurationId: UUID
-      featureSchemaId: UUID
-      organizationId: UUID
-      nodeId: UUID id
-      runtimeAgentId: UUID
-      runtimeInfrastructureId: UUID
-      availableGpuCount: Int
-      readinessResolvedAt: DateTime
-    }
-
-    state Ready
-
-    specification "Training Node Readiness Is Resolved Automatically" {
-      rule """
-        A node becomes ready for a training job only when its organization is an active federation participant, the compute node is enabled, runtime infrastructure is connected, the node is healthy, and the latest resource snapshot satisfies the job requirements. Runtime agents later match local datasets by feature schema.
-      """
-
-      scenario "Resolve Ready Node From Eligible Inputs" {
-        given TrainingJobSubmitted {
-          trainingJobId = "job-1"
-          federationId = "fed-1"
-          trainingRunConfigurationId = "config-1"
-          featureSchemaId = "schema-1"
-        }
-        when ResolveTrainingNodeReadiness {
-          trainingJobId = "job-1"
-          nodeId = "node-1"
-        }
-        then NodeReadyForTraining
+      availableGpuCount: Int? derived {
+        from TrainingParticipantEligibility.availableGpuCount
+        rule "Snapshot aggregate GPU capacity without selecting a concrete node."
       }
-
-      scenario "Reject Ineligible Compute Node" {
-        given TrainingJobSubmitted {
-          trainingJobId = "job-1"
-          federationId = "fed-1"
-          trainingRunConfigurationId = "config-1"
-          featureSchemaId = "schema-1"
-        }
-        when ResolveTrainingNodeReadiness {
-          trainingJobId = "job-1"
-          nodeId = "node-1"
-        }
-        then reject "Eligible Training Node Required"
-      }
-    }
-  }
-
-  slice DispatchTrainingRuntime {
-    reactsTo NodeReadyForTraining
-
-    tags {
-      trainingJobId
-      nodeId
-    }
-
-    automation DispatchRuntimeWhenNodeReady {
-      on NodeReadyForTraining
-      emits DispatchTrainingRuntime
-    }
-
-    command DispatchTrainingRuntime {
-      trainingJobId: UUID id technical from NodeReadyForTraining.trainingJobId
-      trainingRunConfigurationId: UUID from NodeReadyForTraining.trainingRunConfigurationId
-      featureSchemaId: UUID from NodeReadyForTraining.featureSchemaId
-      organizationId: UUID from NodeReadyForTraining.organizationId
-      nodeId: UUID id from NodeReadyForTraining.nodeId
-      runtimeAgentId: UUID from NodeReadyForTraining.runtimeAgentId
-      runtimeInfrastructureId: UUID from NodeReadyForTraining.runtimeInfrastructureId
       gemiflRuntimeImage: String
       runtimePayloadRef: String
       artifactStoreRef: String
@@ -2515,12 +2445,14 @@ context TrainingOrchestration {
 
     event TrainingRuntimeDispatched {
       trainingJobId: UUID id technical
+      federationId: UUID
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       organizationId: UUID
-      nodeId: UUID id
       runtimeAgentId: UUID
       runtimeInfrastructureId: UUID
+      availableComputeNodeCount: Int
+      availableGpuCount: Int?
       gemiflRuntimeImage: String
       runtimePayloadRef: String
       artifactStoreRef: String
@@ -2528,6 +2460,86 @@ context TrainingOrchestration {
     }
 
     state Dispatched
+
+    specification "Runtime Dispatch Does Not Select A Compute Node" {
+      rule """
+        The platform dispatches a training job to an eligible participant runtime agent. Concrete k3s node scheduling is owned by the runtime agent and is reported back as runtime execution evidence.
+      """
+
+      scenario "Dispatch Training Runtime To Eligible Participant" {
+        given TrainingJobSubmitted {
+          trainingJobId = "job-1"
+          federationId = "fed-1"
+          trainingRunConfigurationId = "config-1"
+          featureSchemaId = "schema-1"
+        }
+        when DispatchTrainingRuntime {
+          trainingJobId = "job-1"
+          runtimeAgentId = "agent-1"
+        }
+        then TrainingRuntimeDispatched
+      }
+
+      scenario "Reject Dispatch Without Eligible Participant" {
+        given TrainingJobSubmitted {
+          trainingJobId = "job-1"
+          federationId = "fed-1"
+          trainingRunConfigurationId = "config-1"
+          featureSchemaId = "schema-1"
+        }
+        when DispatchTrainingRuntime {
+          trainingJobId = "job-1"
+          runtimeAgentId = "agent-1"
+        }
+        then reject "Eligible Runtime Participant Required"
+      }
+    }
+  }
+
+  slice RecordTrainingRuntimeStart {
+    reactsTo AgentRuntimeJobStarted
+
+    tags {
+      trainingJobId
+      runtimeAgentId
+    }
+
+    automation RecordRuntimeStartWhenAgentStarted {
+      on AgentRuntimeJobStarted
+      emits RecordTrainingRuntimeStart
+    }
+
+    command RecordTrainingRuntimeStart {
+      trainingJobId: UUID id technical from AgentRuntimeJobStarted.trainingJobId
+      trainingRunConfigurationId: UUID from AgentRuntimeJobStarted.trainingRunConfigurationId
+      organizationId: UUID from AgentRuntimeJobStarted.organizationId
+      runtimeAgentId: UUID from AgentRuntimeJobStarted.runtimeAgentId
+      runtimeInfrastructureId: UUID from AgentRuntimeJobStarted.runtimeInfrastructureId
+      runtimeJobId: UUID from AgentRuntimeJobStarted.runtimeJobId
+      scheduledNodeId: UUID? from AgentRuntimeJobStarted.scheduledNodeId
+      orchestratorNodeName: String? from AgentRuntimeJobStarted.orchestratorNodeName
+      featureSchemaId: UUID from AgentRuntimeJobStarted.featureSchemaId
+      matchedTrainingDatasetHandle: String? from AgentRuntimeJobStarted.matchedTrainingDatasetHandle
+      matchedEvaluationDatasetHandle: String? from AgentRuntimeJobStarted.matchedEvaluationDatasetHandle
+      startedAt: DateTime from AgentRuntimeJobStarted.startedAt
+    }
+
+    event TrainingRuntimeStarted {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      organizationId: UUID
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID
+      runtimeJobId: UUID
+      scheduledNodeId: UUID?
+      orchestratorNodeName: String?
+      featureSchemaId: UUID
+      matchedTrainingDatasetHandle: String?
+      matchedEvaluationDatasetHandle: String?
+      startedAt: DateTime
+    }
+
+    state Running
   }
   
   slice RecordTrainingRuntimeCompletion {
@@ -2535,27 +2547,38 @@ context TrainingOrchestration {
 
     tags {
       trainingJobId
-      nodeId
+      runtimeAgentId
+    }
+
+    automation RecordRuntimeCompletionWhenAgentCompleted {
+      on AgentRuntimeJobCompleted
+      emits RecordTrainingRuntimeCompletion
     }
 
     command RecordTrainingRuntimeCompletion {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      nodeId: UUID id
-      runtimeAgentId: UUID
-      runtimeJobId: UUID
-      localUpdateArtifactRef: String?
-      metricsArtifactRef: String?
-      runtimeStatus: String
-      completedAt: DateTime
+      trainingJobId: UUID id technical from AgentRuntimeJobCompleted.trainingJobId
+      trainingRunConfigurationId: UUID from AgentRuntimeJobCompleted.trainingRunConfigurationId
+      organizationId: UUID from AgentRuntimeJobCompleted.organizationId
+      runtimeAgentId: UUID from AgentRuntimeJobCompleted.runtimeAgentId
+      runtimeInfrastructureId: UUID from AgentRuntimeJobCompleted.runtimeInfrastructureId
+      runtimeJobId: UUID from AgentRuntimeJobCompleted.runtimeJobId
+      scheduledNodeId: UUID? from AgentRuntimeJobCompleted.scheduledNodeId
+      orchestratorNodeName: String? from AgentRuntimeJobCompleted.orchestratorNodeName
+      localUpdateArtifactRef: String? from AgentRuntimeJobCompleted.localUpdateArtifactRef
+      metricsArtifactRef: String? from AgentRuntimeJobCompleted.metricsArtifactRef
+      runtimeStatus: String from AgentRuntimeJobCompleted.runtimeStatus
+      completedAt: DateTime from AgentRuntimeJobCompleted.completedAt
     }
 
     event TrainingRuntimeCompleted {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID id
+      organizationId: UUID
       runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID
       runtimeJobId: UUID
+      scheduledNodeId: UUID?
+      orchestratorNodeName: String?
       localUpdateArtifactRef: String?
       metricsArtifactRef: String?
       runtimeStatus: String
@@ -2570,25 +2593,36 @@ context TrainingOrchestration {
 
     tags {
       trainingJobId
-      nodeId
+      runtimeAgentId
+    }
+
+    automation RecordRuntimeFailureWhenAgentFailed {
+      on AgentRuntimeJobFailed
+      emits RecordTrainingRuntimeFailure
     }
 
     command RecordTrainingRuntimeFailure {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      nodeId: UUID id
-      runtimeAgentId: UUID
-      runtimeJobId: UUID?
-      failureReason: String
-      failedAt: DateTime
+      trainingJobId: UUID id technical from AgentRuntimeJobFailed.trainingJobId
+      trainingRunConfigurationId: UUID from AgentRuntimeJobFailed.trainingRunConfigurationId
+      organizationId: UUID from AgentRuntimeJobFailed.organizationId
+      runtimeAgentId: UUID from AgentRuntimeJobFailed.runtimeAgentId
+      runtimeInfrastructureId: UUID from AgentRuntimeJobFailed.runtimeInfrastructureId
+      runtimeJobId: UUID? from AgentRuntimeJobFailed.runtimeJobId
+      scheduledNodeId: UUID? from AgentRuntimeJobFailed.scheduledNodeId
+      orchestratorNodeName: String? from AgentRuntimeJobFailed.orchestratorNodeName
+      failureReason: String from AgentRuntimeJobFailed.failureReason
+      failedAt: DateTime from AgentRuntimeJobFailed.failedAt
     }
 
     event TrainingRuntimeFailed {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
-      nodeId: UUID id
+      organizationId: UUID
       runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID
       runtimeJobId: UUID?
+      scheduledNodeId: UUID?
+      orchestratorNodeName: String?
       failureReason: String
       failedAt: DateTime
     }
@@ -2603,25 +2637,25 @@ context TrainingOrchestration {
       trainingJobId: UUID id
       federationId: UUID
       organizationId: UUID
-      nodeId: UUID
       runtimeAgentId: UUID?
       runtimeInfrastructureId: UUID?
       featureSchemaId: UUID
       participantStatus: String
       readinessStatus: String
-      computeNodeAvailable: Boolean
+      availableComputeNodeCount: Int
+      healthyComputeNodeCount: Int
       runtimeInfrastructureConnected: Boolean
-      nodeHealthy: Boolean
+      runtimeHealthy: Boolean
       resourceSnapshotReady: Boolean
       availableGpuCount: Int?
       matchedDatasetMetadataReady: Boolean
       eligible: Boolean
       eligibilityReason: String?
       ineligibleReasons: String[]
-      nodeReadyForTraining: Boolean
-      canResolveReadiness: Boolean
+      canDispatchRuntime: Boolean
       canStartRoundContribution: Boolean
       runtimeDispatched: Boolean
+      runtimeStarted: Boolean
       runtimeCompleted: Boolean
       lastHeartbeatAt: DateTime?
       lastResourceSnapshotAt: DateTime?
@@ -2638,8 +2672,8 @@ context TrainingOrchestration {
       subscribe DatasetMetadataReported
       subscribe DatasetContractValidated
       subscribe DatasetApprovedForTraining
-      subscribe NodeReadyForTraining
       subscribe TrainingRuntimeDispatched
+      subscribe TrainingRuntimeStarted
       subscribe TrainingRuntimeCompleted
       subscribe TrainingRuntimeFailed
     }
@@ -2649,15 +2683,18 @@ context TrainingOrchestration {
     readmodel TrainingRuntimeExecutionCatalog[] {
       trainingJobId: UUID id
       trainingRunConfigurationId: UUID
-      organizationId: UUID?
-      nodeId: UUID id
-      runtimeAgentId: UUID?
+      organizationId: UUID id
+      runtimeAgentId: UUID id
       runtimeInfrastructureId: UUID?
       runtimeJobId: UUID?
       featureSchemaId: UUID
       state: TrainingRuntimeExecution.State
+      availableComputeNodeCount: Int?
       availableGpuCount: Int?
-      readinessResolvedAt: DateTime?
+      scheduledNodeId: UUID?
+      orchestratorNodeName: String?
+      matchedTrainingDatasetHandle: String?
+      matchedEvaluationDatasetHandle: String?
       gemiflRuntimeImage: String?
       runtimePayloadRef: String?
       artifactStoreRef: String?
@@ -2666,10 +2703,11 @@ context TrainingOrchestration {
       metricsArtifactRef: String?
       failureReason: String?
       dispatchedAt: DateTime?
+      startedAt: DateTime?
       completedAt: DateTime?
       failedAt: DateTime?
-      subscribe NodeReadyForTraining
       subscribe TrainingRuntimeDispatched
+      subscribe TrainingRuntimeStarted
       subscribe TrainingRuntimeCompleted
       subscribe TrainingRuntimeFailed
     }
@@ -2767,9 +2805,9 @@ context TrainingOrchestration {
   slice ScheduleNextTrainingRound {
     reactsTo TrainingRoundCompleted
 
-    automation StartNextRoundWhenGlobalMetricNotReached {
-      condition globalAccuracy < minimumAccuracy
-      emits StartTrainingRound
+    automation SelectNextRoundParticipantsWhenTrainingShouldContinue {
+      condition shouldStartNextRound == true
+      emits SelectTrainingRoundParticipants
     }
   }
 
@@ -2829,7 +2867,7 @@ context TrainingOrchestration {
       canCancel: Boolean
       canComplete: Boolean
       currentRoundNumber: Int
-      readyNodeCount: Int
+      startedRuntimeCount: Int
       minimumNodesPerRound: Int
       maxRounds: Int
       roundProgressPercent: Int
@@ -2838,7 +2876,8 @@ context TrainingOrchestration {
       stopReason: String?
       subscribe TrainingJobCreated
       subscribe TrainingJobSubmitted
-      subscribe NodeReadyForTraining
+      subscribe TrainingRuntimeDispatched
+      subscribe TrainingRuntimeStarted
       subscribe TrainingJobRunning
       subscribe TrainingJobPaused
       subscribe TrainingJobResumed
@@ -2870,34 +2909,117 @@ context TrainingOrchestration {
   }
 
   concept TrainingRuntimeExecution {
-    state Ready
     state Dispatched
+    state Running
     state Completed
     state Failed
 
-    slice ResolveTrainingNodeReadiness
     slice DispatchTrainingRuntime
+    slice RecordTrainingRuntimeStart
     slice RecordTrainingRuntimeCompletion
     slice RecordTrainingRuntimeFailure
     slice TrainingRuntimeExecutionCatalog
   }
 
-  slice StartTrainingRound {
+  slice SelectTrainingRoundParticipants {
     startsLifecycle
-    reactsTo NodeReadyForTraining
+    reactsTo TrainingRuntimeStarted
 
-    automation StartRoundWhenEnoughNodesReady {
-      condition readyNodeCount >= 3
-      emits StartTrainingRound
+    automation SelectInitialRoundParticipantsWhenRuntimePoolReady {
+      condition startedRuntimeCount >= minimumNodesPerRound
+      emits SelectTrainingRoundParticipants
     }
 
-    command StartTrainingRound {
+    command SelectTrainingRoundParticipants {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID generated technical
       roundNumber: Int
-      readyNodeCount: Int
+      minimumNodesPerRound: Int
+      startedRuntimeCount: Int
+      selectedRuntimeCount: Int
+      participantSelectionRef: String
+      selectionPolicy: String
+      selectedAt: DateTime generated technical
+    }
+
+    event TrainingRoundParticipantsSelected {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
+      roundNumber: Int
+      minimumNodesPerRound: Int
+      startedRuntimeCount: Int
+      selectedRuntimeCount: Int
+      participantSelectionRef: String
+      selectionPolicy: String
+      selectedAt: DateTime
+    }
+
+    state ParticipantsSelected
+
+    specification "Training Round Participants Are Snapshotted Per Round" {
+      rule """
+        Each training round starts from a participant snapshot. Runtimes that start after a round has begun cannot join that round, but they can be selected for a later round when the policy allows dynamic round snapshots.
+      """
+
+      scenario "Select Participants When Runtime Pool Reaches Quorum" {
+        given TrainingRuntimeStarted {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          runtimeAgentId = "agent-1"
+        }
+        when SelectTrainingRoundParticipants {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          roundNumber = 1
+          minimumNodesPerRound = 3
+          startedRuntimeCount = 4
+          selectedRuntimeCount = 3
+          selectionPolicy = "ROUND_SNAPSHOT"
+        }
+        then TrainingRoundParticipantsSelected
+      }
+
+      scenario "Reject Participant Snapshot Below Quorum" {
+        given TrainingRuntimeStarted {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          runtimeAgentId = "agent-1"
+        }
+        when SelectTrainingRoundParticipants {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          roundNumber = 1
+          minimumNodesPerRound = 3
+          startedRuntimeCount = 2
+          selectedRuntimeCount = 2
+          selectionPolicy = "ROUND_SNAPSHOT"
+        }
+        then reject "Round Participant Quorum Required"
+      }
+    }
+  }
+
+  slice StartTrainingRound {
+    reactsTo TrainingRoundParticipantsSelected
+
+    automation StartRoundWhenParticipantsSelected {
+      on TrainingRoundParticipantsSelected
+      condition selectedRuntimeCount >= minimumNodesPerRound
+      emits StartTrainingRound
+    }
+
+    command StartTrainingRound {
+      trainingJobId: UUID id technical from TrainingRoundParticipantsSelected.trainingJobId
+      trainingRunConfigurationId: UUID from TrainingRoundParticipantsSelected.trainingRunConfigurationId
+      featureSchemaId: UUID from TrainingRoundParticipantsSelected.featureSchemaId
+      roundId: UUID from TrainingRoundParticipantsSelected.roundId
+      roundNumber: Int from TrainingRoundParticipantsSelected.roundNumber
+      participantSelectionRef: String from TrainingRoundParticipantsSelected.participantSelectionRef
+      selectedRuntimeCount: Int from TrainingRoundParticipantsSelected.selectedRuntimeCount
     }
 
     event TrainingRoundStarted {
@@ -2906,42 +3028,49 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
-      readyNodeCount: Int
+      participantSelectionRef: String
+      selectedRuntimeCount: Int
     }
 
     state Running
 
-    specification "Training Round Requires Ready Node Quorum" {
+    specification "Training Round Requires Selected Runtime Quorum" {
       rule """
-        A training round can start only when the ready node count satisfies the configured minimum node quorum for the training job.
+        A training round can start only from a selected participant snapshot whose selected runtime count satisfies the configured runtime quorum.
       """
 
-      scenario "Start Round With Ready Node Quorum" {
-        given NodeReadyForTraining {
+      scenario "Start Round With Selected Runtime Quorum" {
+        given TrainingRoundParticipantsSelected {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
-          nodeId = "node-1"
+          roundId = "round-1"
+          selectedRuntimeCount = 3
+          minimumNodesPerRound = 3
         }
         when StartTrainingRound {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
-          readyNodeCount = 3
+          roundId = "round-1"
+          selectedRuntimeCount = 3
         }
         then TrainingRoundStarted
       }
 
       scenario "Reject Round Start Below Quorum" {
-        given NodeReadyForTraining {
+        given TrainingRoundParticipantsSelected {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
-          nodeId = "node-1"
+          roundId = "round-1"
+          selectedRuntimeCount = 2
+          minimumNodesPerRound = 3
         }
         when StartTrainingRound {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
-          readyNodeCount = 2
+          roundId = "round-1"
+          selectedRuntimeCount = 2
         }
-        then reject "Ready Node Quorum Required"
+        then reject "Selected Runtime Quorum Required"
       }
     }
   }
@@ -2959,8 +3088,9 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      participantSelectionRef: String
       modelVersionId: UUID
-      targetNodeCount: Int
+      targetRuntimeCount: Int
     }
 
     event GlobalModelDistributed {
@@ -2968,8 +3098,9 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      participantSelectionRef: String
       modelVersionId: UUID
-      targetNodeCount: Int
+      targetRuntimeCount: Int
     }
 
     state CollectingUpdates
@@ -3244,7 +3375,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
-      readyNodeCount: Int
+      selectedRuntimeCount: Int
       minimumNodesPerRound: Int
       failureReason: String
     }
@@ -3254,7 +3385,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID from FailTrainingRoundOnQuorumLoss.trainingRunConfigurationId
       featureSchemaId: UUID from FailTrainingRoundOnQuorumLoss.featureSchemaId
       roundId: UUID from FailTrainingRoundOnQuorumLoss.roundId
-      readyNodeCount: Int from FailTrainingRoundOnQuorumLoss.readyNodeCount
+      selectedRuntimeCount: Int from FailTrainingRoundOnQuorumLoss.selectedRuntimeCount
       minimumNodesPerRound: Int from FailTrainingRoundOnQuorumLoss.minimumNodesPerRound
       failureReason: String from FailTrainingRoundOnQuorumLoss.failureReason
     }
@@ -3270,8 +3401,10 @@ context TrainingOrchestration {
       roundId: UUID id
       roundNumber: Int
       state: TrainingRound.State
-      readyNodeCount: Int
-      targetNodeCount: Int
+      participantSelectionRef: String?
+      startedRuntimeCount: Int
+      selectedRuntimeCount: Int
+      targetRuntimeCount: Int
       submittedUpdateCount: Int
       rejectedUpdateCount: Int
       evaluatedUpdateCount: Int
@@ -3288,6 +3421,7 @@ context TrainingOrchestration {
       globalAccuracy: Decimal?
       globalFairnessScore: Decimal?
       failureReason: String?
+      subscribe TrainingRoundParticipantsSelected
       subscribe TrainingRoundStarted
       subscribe GlobalModelDistributed
       subscribe LocalModelUpdateSubmitted
@@ -3302,6 +3436,7 @@ context TrainingOrchestration {
   }
 
   concept TrainingRound {
+    state ParticipantsSelected
     state Running
     state CollectingUpdates
     state Aggregating
@@ -3309,6 +3444,7 @@ context TrainingOrchestration {
     state Completed
     state Failed
 
+    slice SelectTrainingRoundParticipants
     slice StartTrainingRound
     slice DistributeGlobalModel
     slice SubmitLocalModelUpdate
@@ -4661,6 +4797,8 @@ context KeyAndAttestationManagement {
     integration PlatformTrainingOrchestration {
       source AgentRuntimeJob
       target TrainingOrchestration
+      reactsTo AgentRuntimeJobStarted
+      emits RecordTrainingRuntimeStart
       reactsTo AgentRuntimeJobCompleted
       emits RecordTrainingRuntimeCompletion
     }
@@ -5422,28 +5560,30 @@ context KeyAndAttestationManagement {
     slice AgentRuntimeNodeResourceSnapshotCatalog
   }
 
-  slice AcceptAgentRuntimeJob {
+    slice AcceptAgentRuntimeJob {
     startsLifecycle
     reactsTo TrainingRuntimeDispatched
 
       command AcceptAgentRuntimeJob {
         agentRuntimeJobId: UUID id generated technical
-        trainingJobId: UUID
-        trainingRunConfigurationId: UUID
-        nodeId: UUID
-        runtimeAgentId: UUID
-        featureSchemaId: UUID
-        gemiflRuntimeImage: String
-        runtimePayloadRef: String
-        artifactStoreRef: String
+        trainingJobId: UUID from TrainingRuntimeDispatched.trainingJobId
+        trainingRunConfigurationId: UUID from TrainingRuntimeDispatched.trainingRunConfigurationId
+        organizationId: UUID from TrainingRuntimeDispatched.organizationId
+        runtimeAgentId: UUID from TrainingRuntimeDispatched.runtimeAgentId
+        runtimeInfrastructureId: UUID from TrainingRuntimeDispatched.runtimeInfrastructureId
+        featureSchemaId: UUID from TrainingRuntimeDispatched.featureSchemaId
+        gemiflRuntimeImage: String from TrainingRuntimeDispatched.gemiflRuntimeImage
+        runtimePayloadRef: String from TrainingRuntimeDispatched.runtimePayloadRef
+        artifactStoreRef: String from TrainingRuntimeDispatched.artifactStoreRef
       }
 
       event AgentRuntimeJobAccepted {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
         trainingRunConfigurationId: UUID
-        nodeId: UUID
+        organizationId: UUID
         runtimeAgentId: UUID
+        runtimeInfrastructureId: UUID
         featureSchemaId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
@@ -5464,8 +5604,14 @@ context KeyAndAttestationManagement {
       command StartAgentRuntimeJob {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
+        trainingRunConfigurationId: UUID
+        organizationId: UUID
         runtimeAgentId: UUID
+        runtimeInfrastructureId: UUID
         featureSchemaId: UUID
+        runtimeJobId: UUID generated technical
+        scheduledNodeId: UUID?
+        orchestratorNodeName: String?
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
@@ -5479,8 +5625,14 @@ context KeyAndAttestationManagement {
       event AgentRuntimeJobStarted {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
+        trainingRunConfigurationId: UUID
+        organizationId: UUID
         runtimeAgentId: UUID
+        runtimeInfrastructureId: UUID
         featureSchemaId: UUID
+        runtimeJobId: UUID
+        scheduledNodeId: UUID?
+        orchestratorNodeName: String?
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
@@ -5502,9 +5654,12 @@ context KeyAndAttestationManagement {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
         trainingRunConfigurationId: UUID
-        nodeId: UUID
+        organizationId: UUID
         runtimeAgentId: UUID
+        runtimeInfrastructureId: UUID
         runtimeJobId: UUID
+        scheduledNodeId: UUID?
+        orchestratorNodeName: String?
         localUpdateArtifactRef: String?
         metricsArtifactRef: String?
         runtimeStatus: String
@@ -5515,9 +5670,12 @@ context KeyAndAttestationManagement {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
         trainingRunConfigurationId: UUID
-        nodeId: UUID
+        organizationId: UUID
         runtimeAgentId: UUID
+        runtimeInfrastructureId: UUID
         runtimeJobId: UUID
+        scheduledNodeId: UUID?
+        orchestratorNodeName: String?
         localUpdateArtifactRef: String?
         metricsArtifactRef: String?
         runtimeStatus: String
@@ -5534,9 +5692,12 @@ context KeyAndAttestationManagement {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
         trainingRunConfigurationId: UUID
-        nodeId: UUID
+        organizationId: UUID
         runtimeAgentId: UUID
+        runtimeInfrastructureId: UUID
         runtimeJobId: UUID?
+        scheduledNodeId: UUID?
+        orchestratorNodeName: String?
         failureReason: String
         failedAt: DateTime
       }
@@ -5545,9 +5706,12 @@ context KeyAndAttestationManagement {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
         trainingRunConfigurationId: UUID
-        nodeId: UUID
+        organizationId: UUID
         runtimeAgentId: UUID
+        runtimeInfrastructureId: UUID
         runtimeJobId: UUID?
+        scheduledNodeId: UUID?
+        orchestratorNodeName: String?
         failureReason: String
         failedAt: DateTime
       }
@@ -5560,9 +5724,12 @@ context KeyAndAttestationManagement {
         agentRuntimeJobId: UUID id
         trainingJobId: UUID
         trainingRunConfigurationId: UUID
-        nodeId: UUID
+        organizationId: UUID
         runtimeAgentId: UUID
+        runtimeInfrastructureId: UUID
         runtimeJobId: UUID?
+        scheduledNodeId: UUID?
+        orchestratorNodeName: String?
         featureSchemaId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
