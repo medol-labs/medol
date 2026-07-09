@@ -1221,15 +1221,15 @@ context RuntimeOnboarding {
 }
 
 context DatasetGovernance {
-  note "Dataset governance separates feature schemas, organization-declared dataset governance records, runtime-agent-reported dataset metadata, runtime access profiles, and train evaluation bundles. It stores opaque agent handles, while runtime agents read local data and report quality metadata from inside participant infrastructure."
+  note "Dataset governance separates feature schemas, organization-declared dataset records, runtime-agent-reported dataset metadata, dataset access validation evidence, and train evaluation bundles. Runtime agents own data connectors, local access profiles, and credentials inside participant infrastructure."
 
   risk "Datasets may be approved despite schema drift, privacy sensitivity, or non IID skew that invalidates training assumptions."
-  risk "Runtime dataset access credentials can remain usable after policy revocation unless blocked explicitly."
+  risk "Validated dataset access can remain selectable after governance revocation unless blocked explicitly."
   metric datasetContractValidationFailureRate
   metric runtimeDatasetAccessValidationLatency
 
   integration RuntimeAgentDatasetAccess {
-    source DatasetAccessProfile
+    source Dataset
     target RuntimeAgent
     reactsTo DatasetAccessValidationRequested
     emits ValidateAgentDatasetAccess
@@ -1240,13 +1240,6 @@ context DatasetGovernance {
     target RuntimeAgent
     reactsTo DatasetProfilingRequested
     emits ProfileAgentDataset
-  }
-
-  integration RuntimeAgentDataConnectorProbe {
-    source DataConnector
-    target RuntimeAgent
-    reactsTo DataConnectorRegistered
-    emits ProbeAgentDataConnectorAccess
   }
 
   slice DefineFeatureSchema {
@@ -1531,7 +1524,6 @@ context DatasetGovernance {
       // 用户填写？数据拥有者添加本身即所属组织 TODO
       organizationId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       // 一个数据集是否能对应多个 feature schema
       featureSchemaId: UUID
       // 这是什么 TODO
@@ -1552,7 +1544,6 @@ context DatasetGovernance {
       datasetId: UUID id technical
       organizationId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       featureSchemaId: UUID
       labelSchemaId: UUID
       datasetName: String
@@ -1579,7 +1570,6 @@ context DatasetGovernance {
       datasetId: UUID id technical from DatasetRegistered.datasetId
       organizationId: UUID from DatasetRegistered.organizationId
       runtimeAgentId: UUID from DatasetRegistered.runtimeAgentId
-      dataConnectorId: UUID from DatasetRegistered.dataConnectorId
       featureSchemaId: UUID from DatasetRegistered.featureSchemaId
       labelSchemaId: UUID from DatasetRegistered.labelSchemaId
       agentDatasetHandle: String from DatasetRegistered.agentDatasetHandle
@@ -1591,7 +1581,6 @@ context DatasetGovernance {
       datasetId: UUID id technical
       organizationId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       featureSchemaId: UUID
       labelSchemaId: UUID
       agentDatasetHandle: String
@@ -1615,7 +1604,6 @@ context DatasetGovernance {
       datasetId: UUID from AgentDatasetMetadataReported.datasetId
       organizationId: UUID from AgentDatasetMetadataReported.organizationId
       runtimeAgentId: UUID from AgentDatasetMetadataReported.runtimeAgentId
-      dataConnectorId: UUID from AgentDatasetMetadataReported.dataConnectorId
       featureSchemaId: UUID from AgentDatasetMetadataReported.featureSchemaId
       labelSchemaId: UUID from AgentDatasetMetadataReported.labelSchemaId
       sampleCount: Int from AgentDatasetMetadataReported.sampleCount
@@ -1636,7 +1624,6 @@ context DatasetGovernance {
       datasetId: UUID
       organizationId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       featureSchemaId: UUID
       labelSchemaId: UUID
       sampleCount: Int
@@ -1800,7 +1787,6 @@ context DatasetGovernance {
       datasetId: UUID id
       organizationId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       featureSchemaId: UUID
       datasetName: String
       datasetUsage: String
@@ -1849,197 +1835,39 @@ context DatasetGovernance {
     slice DatasetCapability
   }
 
-  slice SyncDataConnectorRegistration {
+  slice RequestRuntimeDatasetAccessValidation {
     startsLifecycle
-    reactsTo AgentDataConnectorRegistered
-
-    command SyncDataConnectorRegistration {
-      dataConnectorId: UUID id technical
-      runtimeAgentId: UUID
-      connectorName: String
-      connectorType: String
-      connectorRef: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      supportedDataFormats: String[]
-      agentConnectorHandle: String?
-    }
-
-    event DataConnectorRegistered {
-      dataConnectorId: UUID id technical
-      organizationId: UUID derived {
-        from RuntimeAgent.organizationId
-        rule "Bind the synced connector to the organization owned by the trusted runtime agent."
-      }
-      runtimeAgentId: UUID
-      connectorName: String
-      connectorType: String
-      connectorRef: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      supportedDataFormats: String[]
-      agentConnectorHandle: String?
-    }
-
-    state Registered
-  }
-
-  slice VerifyDataConnectorAccess {
-    reactsTo AgentDataConnectorAccessProbed
-
-    automation VerifyDataConnectorAccessWhenAgentProbed {
-      on AgentDataConnectorAccessProbed
-      emits VerifyDataConnectorAccess
-    }
-
-    command VerifyDataConnectorAccess {
-      dataConnectorId: UUID id technical from AgentDataConnectorAccessProbed.dataConnectorId
-      runtimeAgentId: UUID from AgentDataConnectorAccessProbed.runtimeAgentId
-      readable: Boolean from AgentDataConnectorAccessProbed.readable
-      writable: Boolean from AgentDataConnectorAccessProbed.writable
-      validationReportId: UUID from AgentDataConnectorAccessProbed.validationReportId
-      verifiedAt: DateTime from AgentDataConnectorAccessProbed.verifiedAt
-    }
-
-    event DataConnectorAccessVerified {
-      dataConnectorId: UUID id technical
-      runtimeAgentId: UUID
-      readable: Boolean
-      writable: Boolean
-      validationReportId: UUID
-      verifiedAt: DateTime
-    }
-
-    state Verified
-  }
-
-  slice DisableDataConnector {
-    actor NodeOperator
-    ui DataConnectorScreen confirm
-    reactsTo DataConnectorAccessVerified
-
-    command DisableDataConnector {
-      dataConnectorId: UUID id technical
-      disableReason: String
-    }
-
-    event DataConnectorDisabled {
-      dataConnectorId: UUID id technical
-      disableReason: String
-    }
-
-    state Disabled
-  }
-
-  slice DataConnectorCatalog {
-    readmodel DataConnectorCatalog[] {
-      dataConnectorId: UUID id
-      organizationId: UUID
-      runtimeAgentId: UUID
-      connectorName: String
-      connectorType: String
-      connectorRef: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      supportedDataFormats: String[]
-      agentConnectorHandle: String?
-      readable: Boolean
-      writable: Boolean
-      connectorStatus: String
-      disableReason: String?
-      subscribe DataConnectorRegistered
-      subscribe DataConnectorAccessVerified
-      subscribe DataConnectorDisabled
-    }
-  }
-
-  concept DataConnector {
-    state Registered
-    state Verified
-    state Disabled
-
-    slice SyncDataConnectorRegistration
-    slice VerifyDataConnectorAccess
-    slice DisableDataConnector
-    slice DataConnectorCatalog
-  }
-
-  slice ConfigureDatasetAccessProfile {
-    startsLifecycle
-    actor NodeOperator
-    ui DatasetAccessProfileScreen
     reactsTo DatasetApprovedForTraining
 
-    command ConfigureDatasetAccessProfile {
-      accessProfileId: UUID id generated technical
-      datasetId: UUID
-      nodeId: UUID
-      runtimeId: UUID
-      runtimeAgentId: UUID
-      dataConnectorId: UUID
-      connectorType: String
-      connectionProfileRef: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      agentDataAccessHandle: String?
-      dataFormat: String
-      readerPlugin: String
-      readMode: String
-      materializationMode: String
-      featureMappingId: UUID?
-    }
-
-    event DatasetAccessProfileConfigured {
-      accessProfileId: UUID id technical
-      datasetId: UUID
-      nodeId: UUID
-      runtimeId: UUID
-      runtimeAgentId: UUID
-      dataConnectorId: UUID
-      connectorType: String
-      connectionProfileRef: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      agentDataAccessHandle: String?
-      dataFormat: String
-      readerPlugin: String
-      readMode: String
-      materializationMode: String
-      featureMappingId: UUID?
-    }
-
-    state Configured
-  }
-
-  slice RequestRuntimeDatasetAccessValidation {
-    reactsTo DatasetAccessProfileConfigured
-
-    automation ValidateDatasetAccessAfterProfileConfigured {
-      on DatasetAccessProfileConfigured
+    automation RequestDatasetAccessValidationWhenDatasetApproved {
+      on DatasetApprovedForTraining
       emits RequestRuntimeDatasetAccessValidation
     }
 
     command RequestRuntimeDatasetAccessValidation {
-      accessProfileId: UUID id technical
-      datasetId: UUID
-      runtimeId: UUID
-      runtimeAgentId: UUID
-      dataConnectorId: UUID
+      datasetAccessValidationId: UUID id generated technical
+      datasetId: UUID from DatasetApprovedForTraining.datasetId
+      organizationId: UUID from DatasetApprovedForTraining.organizationId
+      runtimeAgentId: UUID derived {
+        from Dataset.runtimeAgentId
+        rule "Route validation to the runtime agent that owns the dataset handle."
+      }
+      agentDatasetHandle: String derived {
+        from Dataset.agentDatasetHandle
+        rule "Use the opaque agent-side dataset handle without exposing connector configuration."
+      }
       validationMode: String
+      requestedAt: DateTime generated technical
     }
 
     event DatasetAccessValidationRequested {
-      accessProfileId: UUID id technical
+      datasetAccessValidationId: UUID id technical
       datasetId: UUID
-      runtimeId: UUID
+      organizationId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
+      agentDatasetHandle: String
       validationMode: String
+      requestedAt: DateTime
     }
 
     state ValidationRequested
@@ -2054,11 +1882,9 @@ context DatasetGovernance {
     }
 
     command CompleteRuntimeDatasetAccessValidation {
-      accessProfileId: UUID id technical from AgentDatasetAccessValidated.accessProfileId
+      datasetAccessValidationId: UUID id technical from AgentDatasetAccessValidated.datasetAccessValidationId
       datasetId: UUID from AgentDatasetAccessValidated.datasetId
-      runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
       runtimeAgentId: UUID from AgentDatasetAccessValidated.runtimeAgentId
-      dataConnectorId: UUID from AgentDatasetAccessValidated.dataConnectorId
       readable: Boolean from AgentDatasetAccessValidated.readable
       schemaReadable: Boolean from AgentDatasetAccessValidated.schemaReadable
       sampleBatchReadable: Boolean from AgentDatasetAccessValidated.sampleBatchReadable
@@ -2067,11 +1893,9 @@ context DatasetGovernance {
     }
 
     event RuntimeDatasetAccessValidated {
-      accessProfileId: UUID id technical
+      datasetAccessValidationId: UUID id technical
       datasetId: UUID
-      runtimeId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
@@ -2082,45 +1906,41 @@ context DatasetGovernance {
     state Validated
   }
 
-  slice BlockDatasetAccessOnPolicyViolation {
+  slice BlockRuntimeDatasetAccess {
     actor ComplianceOfficer
-    ui DatasetAccessProfileScreen confirm
+    ui DatasetAccessValidationScreen confirm
     reactsTo RuntimeDatasetAccessValidated
 
-    command BlockDatasetAccessOnPolicyViolation {
-      accessProfileId: UUID id technical
+    command BlockRuntimeDatasetAccess {
+      datasetAccessValidationId: UUID id technical
       datasetId: UUID
-      runtimeId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       violationReason: String
       blockedBy: String
     }
 
     event DatasetAccessBlocked {
-      accessProfileId: UUID id technical from BlockDatasetAccessOnPolicyViolation.accessProfileId
-      datasetId: UUID from BlockDatasetAccessOnPolicyViolation.datasetId
-      runtimeId: UUID from BlockDatasetAccessOnPolicyViolation.runtimeId
-      runtimeAgentId: UUID from BlockDatasetAccessOnPolicyViolation.runtimeAgentId
-      dataConnectorId: UUID from BlockDatasetAccessOnPolicyViolation.dataConnectorId
-      violationReason: String from BlockDatasetAccessOnPolicyViolation.violationReason
-      blockedBy: String from BlockDatasetAccessOnPolicyViolation.blockedBy
+      datasetAccessValidationId: UUID id technical from BlockRuntimeDatasetAccess.datasetAccessValidationId
+      datasetId: UUID from BlockRuntimeDatasetAccess.datasetId
+      runtimeAgentId: UUID from BlockRuntimeDatasetAccess.runtimeAgentId
+      violationReason: String from BlockRuntimeDatasetAccess.violationReason
+      blockedBy: String from BlockRuntimeDatasetAccess.blockedBy
     }
 
     state AccessBlocked
 
     specification "Blocked Dataset Access Cannot Be Used For Training" {
       rule """
-        A blocked dataset access profile must not be selected by any future training job or node participation request.
+        Blocked dataset access validation evidence must not be selected by any future training job or node participation request.
       """
 
-      scenario "Block Violating Access Profile" {
+      scenario "Block Violating Dataset Access" {
         given RuntimeDatasetAccessValidated {
-          accessProfileId = "access-1"
+          datasetAccessValidationId = "access-1"
           readable = true
         }
-        when BlockDatasetAccessOnPolicyViolation {
-          accessProfileId = "access-1"
+        when BlockRuntimeDatasetAccess {
+          datasetAccessValidationId = "access-1"
           violationReason = "Policy Revoked"
         }
         then DatasetAccessBlocked
@@ -2130,97 +1950,36 @@ context DatasetGovernance {
 
   slice DatasetRuntimeAccessCatalog {
     readmodel DatasetRuntimeAccessCatalog[] {
-      accessProfileId: UUID id
+      datasetAccessValidationId: UUID id
       datasetId: UUID
-      nodeId: UUID
-      runtimeId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
-      connectorType: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      agentDataAccessHandle: String?
-      readerPlugin: String
-      readMode: String
-      materializationMode: String
+      agentDatasetHandle: String
+      validationMode: String
       readable: Boolean
+      schemaReadable: Boolean
+      sampleBatchReadable: Boolean
+      validationReportId: UUID?
+      accessStatus: String
+      blockedReason: String?
+      requestedAt: DateTime
       validatedAt: DateTime?
-      subscribe DatasetAccessProfileConfigured
+      subscribe DatasetAccessValidationRequested
       subscribe RuntimeDatasetAccessValidated
       subscribe DatasetAccessBlocked
     }
   }
 
-  concept DatasetAccessProfile {
-    state Configured
+  concept RuntimeDatasetAccessValidation {
     state ValidationRequested
     state Validated
     state AccessBlocked
 
-    slice ConfigureDatasetAccessProfile
     slice RequestRuntimeDatasetAccessValidation
     slice CompleteRuntimeDatasetAccessValidation
-    slice BlockDatasetAccessOnPolicyViolation
+    slice BlockRuntimeDatasetAccess
     slice DatasetRuntimeAccessCatalog
   }
 
-  slice DeclareTrainingEvaluationDatasets {
-    startsLifecycle
-    actor DataOwner
-    ui DatasetBundleScreen
-    reactsTo RuntimeDatasetAccessValidated
-  
-    command DeclareTrainingEvaluationDatasets {
-      datasetBundleId: UUID id generated technical
-      organizationId: UUID
-      nodeId: UUID
-      ownerRole: String
-      trainingDatasetId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetId: UUID
-      evaluationDatasetAccessProfileId: UUID
-      featureSchemaId: UUID
-      labelSchemaId: UUID
-    }
-  
-    event TrainingEvaluationDatasetsDeclared {
-      datasetBundleId: UUID id technical
-      organizationId: UUID
-      nodeId: UUID
-      ownerRole: String
-      trainingDatasetId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetId: UUID
-      evaluationDatasetAccessProfileId: UUID
-      featureSchemaId: UUID
-      labelSchemaId: UUID
-    }
-  
-    state Declared
-  }
-
-  slice TrainingEvaluationDatasetCatalog {
-    readmodel TrainingEvaluationDatasetCatalog[] {
-      datasetBundleId: UUID id
-      organizationId: UUID
-      nodeId: UUID
-      ownerRole: String
-      trainingDatasetId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetId: UUID
-      evaluationDatasetAccessProfileId: UUID
-      subscribe TrainingEvaluationDatasetsDeclared
-    }
-  }
-
-  concept TrainingEvaluationDatasetBundle {
-    state Declared
-
-    slice DeclareTrainingEvaluationDatasets
-    slice TrainingEvaluationDatasetCatalog
-  }
-  
   value FeatureDefinition {
     featureName: String
     // 数据类型也不能由用户填写 TODO
@@ -2408,7 +2167,6 @@ context TrainingOrchestration {
 
     actor MLOpsEngineer
     ui TrainingRunConfigurationScreen
-    reactsTo TrainingEvaluationDatasetsDeclared
 
     command DefineTrainingRunConfiguration {
       trainingRunConfigurationId: UUID id generated technical
@@ -2585,13 +2343,6 @@ context TrainingOrchestration {
       federationId: UUID
       featureSchemaId: UUID
       trainingRunConfigurationId: UUID
-      // 这是什么 TODO
-      aggregatorDatasetBundleId: UUID
-      // 数据集 id 各 organization 不同，在创建任务时怎么选？ TODO
-      aggregatorTrainingDatasetId: UUID
-      aggregatorTrainingDatasetAccessProfileId: UUID
-      aggregatorEvaluationDatasetId: UUID
-      aggregatorEvaluationDatasetAccessProfileId: UUID
       objective: String
       targetMetric: String
     }
@@ -2601,11 +2352,6 @@ context TrainingOrchestration {
       federationId: UUID
       featureSchemaId: UUID
       trainingRunConfigurationId: UUID
-      aggregatorDatasetBundleId: UUID
-      aggregatorTrainingDatasetId: UUID
-      aggregatorTrainingDatasetAccessProfileId: UUID
-      aggregatorEvaluationDatasetId: UUID
-      aggregatorEvaluationDatasetAccessProfileId: UUID
       objective: String
       targetMetric: String
     }
@@ -2614,7 +2360,7 @@ context TrainingOrchestration {
 
     specification "Training Job Requires Validated Configuration And Runtime Access" {
       rule """
-        A training job can be created only from a validated training run configuration and runtime-readable aggregator training and evaluation dataset access profiles.
+        A training job can be created only from a validated training run configuration. Dataset access validation evidence is selected in the training dataset selection step.
       """
 
       scenario "Create Training Job With Validated Inputs" {
@@ -2624,22 +2370,72 @@ context TrainingOrchestration {
         when CreateTrainingJob {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
-          aggregatorTrainingDatasetAccessProfileId = "access-train-1"
-          aggregatorEvaluationDatasetAccessProfileId = "access-eval-1"
         }
         then TrainingJobCreated
       }
 
-      scenario "Reject Training Job Without Validated Runtime Access" {
-        given TrainingRunConfigurationValidated {
-          trainingRunConfigurationId = "config-1"
-        }
+      scenario "Reject Training Job Without Validated Configuration" {
         when CreateTrainingJob {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
-          aggregatorTrainingDatasetAccessProfileId = "access-train-1"
         }
-        then reject "Validated Runtime Dataset Access Required"
+        then reject "Validated Training Configuration Required"
+      }
+    }
+  }
+
+  slice SelectTrainingDatasets {
+    actor ResearchLead
+    ui TrainingDatasetSelectionScreen
+    reactsTo TrainingJobCreated
+
+    command SelectTrainingDatasets {
+      trainingDatasetSelectionId: UUID id generated technical
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      organizationId: UUID
+      runtimeAgentId: UUID
+      selectionRole: String       // AGGREGATOR / PARTICIPANT
+      trainingDatasetId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetId: UUID
+      evaluationDatasetAccessValidationId: UUID
+      selectedAt: DateTime generated technical
+    }
+
+    event TrainingDatasetsSelected {
+      trainingDatasetSelectionId: UUID id technical
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      organizationId: UUID
+      runtimeAgentId: UUID
+      selectionRole: String
+      trainingDatasetId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetId: UUID
+      evaluationDatasetAccessValidationId: UUID
+      selectedAt: DateTime
+    }
+
+    state DatasetsSelected
+
+    specification "Training Dataset Selection Requires Validated Access" {
+      rule """
+        Each selected training or evaluation dataset must have runtime-readable dataset access validation evidence and must not be blocked.
+      """
+
+      scenario "Select Training Datasets For Job" {
+        given TrainingJobCreated {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+        }
+        when SelectTrainingDatasets {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          trainingDatasetAccessValidationId = "access-train-1"
+          evaluationDatasetAccessValidationId = "access-eval-1"
+        }
+        then TrainingDatasetsSelected
       }
     }
   }
@@ -2648,7 +2444,7 @@ context TrainingOrchestration {
   slice ConfigureTrainingStrategy {
     actor MLOpsEngineer
     ui TrainingStrategyScreen
-    reactsTo TrainingJobCreated
+    reactsTo TrainingDatasetsSelected
 
     command ConfigureTrainingStrategy {
       trainingJobId: UUID id technical
@@ -2711,10 +2507,14 @@ context TrainingOrchestration {
 
     specification "Only Strategy Configured Training Jobs Can Be Submitted" {
       rule """
-        A training job can be submitted only after its training strategy has been configured.
+        A training job can be submitted only after datasets have been selected and its training strategy has been configured.
       """
 
       scenario "Submit Strategy Configured Training Job" {
+        given TrainingDatasetsSelected {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+        }
         given TrainingStrategyConfigured {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
@@ -2726,8 +2526,12 @@ context TrainingOrchestration {
         then TrainingJobSubmitted
       }
 
-      scenario "Reject Draft Training Job Submission" {
+      scenario "Reject Training Job Without Dataset Selection" {
         given TrainingJobCreated {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+        }
+        given TrainingStrategyConfigured {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
         }
@@ -2735,7 +2539,7 @@ context TrainingOrchestration {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
         }
-        then reject "Training Strategy Required"
+        then reject "Training Dataset Selection Required"
       }
     }
   }
@@ -2758,18 +2562,18 @@ context TrainingOrchestration {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       nodeId: UUID id
-      participantDatasetBundleId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetSelectionId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
     }
 
     event NodeParticipationRequested {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       nodeId: UUID id
-      participantDatasetBundleId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetSelectionId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
     }
 
     state ParticipationRequested
@@ -2789,7 +2593,7 @@ context TrainingOrchestration {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       nodeId: UUID id
-      participantDatasetBundleId: UUID
+      trainingDatasetSelectionId: UUID
       availableGpuCount: Int
     }
 
@@ -2797,7 +2601,7 @@ context TrainingOrchestration {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       nodeId: UUID id
-      participantDatasetBundleId: UUID
+      trainingDatasetSelectionId: UUID
       availableGpuCount: Int
     }
 
@@ -2822,9 +2626,9 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       nodeId: UUID id
       runtimeAgentId: UUID
-      participantDatasetBundleId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetSelectionId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       gemiflRuntimeImage: String
       runtimePayloadRef: String
       artifactStoreRef: String
@@ -2835,9 +2639,9 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       nodeId: UUID id
       runtimeAgentId: UUID
-      participantDatasetBundleId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetSelectionId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       gemiflRuntimeImage: String
       runtimePayloadRef: String
       artifactStoreRef: String
@@ -2922,14 +2726,14 @@ context TrainingOrchestration {
       organizationId: UUID
       nodeId: UUID
       runtimeAgentId: UUID?
-      participantDatasetBundleId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetSelectionId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       participantStatus: String
       readinessStatus: String
       computeNodeAvailable: Boolean
       runtimeAgentTrusted: Boolean
-      dataConnectorVerified: Boolean
+      datasetAccessValidated: Boolean
       runtimeReadable: Boolean
       nodeHealthy: Boolean
       eligible: Boolean
@@ -2950,8 +2754,7 @@ context TrainingOrchestration {
       subscribe ComputeNodeDisabled
       subscribe ComputeNodeEnabled
       subscribe RuntimeAgentTrusted
-      subscribe DataConnectorAccessVerified
-      subscribe TrainingEvaluationDatasetsDeclared
+      subscribe TrainingDatasetsSelected
       subscribe RuntimeDatasetAccessValidated
       subscribe RuntimeHeartbeatRecorded
       subscribe NodeParticipationRequested
@@ -2969,9 +2772,9 @@ context TrainingOrchestration {
       nodeId: UUID id
       runtimeAgentId: UUID?
       runtimeJobId: UUID?
-      participantDatasetBundleId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetSelectionId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       state: TrainingRuntimeExecution.State
       availableGpuCount: Int?
       gemiflRuntimeImage: String?
@@ -3136,6 +2939,7 @@ context TrainingOrchestration {
       nextAction: String?
       availableActions: String[]
       blockedReason: String?
+      canSelectDatasets: Boolean
       canConfigureStrategy: Boolean
       canSubmit: Boolean
       canStartRound: Boolean
@@ -3152,6 +2956,7 @@ context TrainingOrchestration {
       finalModelVersionId: UUID?
       stopReason: String?
       subscribe TrainingJobCreated
+      subscribe TrainingDatasetsSelected
       subscribe TrainingStrategyConfigured
       subscribe TrainingJobSubmitted
       subscribe NodeParticipationRequested
@@ -3168,6 +2973,7 @@ context TrainingOrchestration {
 
   concept TrainingJob {
     state Draft
+    state DatasetsSelected
     state StrategyConfigured
     state Submitted
     state Running
@@ -3176,6 +2982,7 @@ context TrainingOrchestration {
     state Completed
 
     slice CreateTrainingJob
+    slice SelectTrainingDatasets
     slice ConfigureTrainingStrategy
     slice SubmitTrainingJob
     slice TrainingParticipantEligibility
@@ -3303,8 +3110,8 @@ context TrainingOrchestration {
       nodeId: UUID
       runtimeAgentId: UUID
       agentRoundContributionId: UUID?
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
       localUpdateArtifactRef: String?
@@ -3318,8 +3125,8 @@ context TrainingOrchestration {
       nodeId: UUID
       runtimeAgentId: UUID
       agentRoundContributionId: UUID?
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
       localUpdateArtifactRef: String?
@@ -3387,7 +3194,7 @@ context TrainingOrchestration {
       runtimeAgentId: UUID
       agentRoundContributionId: UUID?
       localModelVersionId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      evaluationDatasetAccessValidationId: UUID
       metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
@@ -3401,7 +3208,7 @@ context TrainingOrchestration {
       runtimeAgentId: UUID
       agentRoundContributionId: UUID?
       localModelVersionId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      evaluationDatasetAccessValidationId: UUID
       metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
@@ -3465,7 +3272,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      aggregatorEvaluationDatasetAccessProfileId: UUID
+      aggregatorEvaluationDatasetAccessValidationId: UUID
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3475,7 +3282,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      aggregatorEvaluationDatasetAccessProfileId: UUID
+      aggregatorEvaluationDatasetAccessValidationId: UUID
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -4311,7 +4118,7 @@ context RuntimeOperations {
   }
 }
 context KeyAndAttestationManagement {
-    note "Key and attestation management owns node attestation reports, secure aggregation key material, and dataset access credentials, replacing ad hoc cryptography fields scattered across other contexts."
+    note "Key and attestation management owns node attestation reports and secure aggregation key material. Dataset access credentials remain inside runtime agent infrastructure."
 
     risk "Expired attestation or revoked key material can allow an unsafe node to continue participating in training."
     risk "Secure aggregation key compromise can expose participant updates or invalidate aggregation results."
@@ -4928,117 +4735,6 @@ context KeyAndAttestationManagement {
     slice RevokeSecureAggregationRound
     slice SecureAggregationRoundCatalog
   }
-  
-    slice IssueDatasetAccessCredential {
-      startsLifecycle
-      actor NodeOperator
-      ui DatasetAccessCredentialScreen
-      reactsTo DatasetAccessProfileConfigured
-
-      command IssueDatasetAccessCredential {
-        credentialId: UUID id generated technical
-        accessProfileId: UUID
-        datasetId: UUID
-        nodeId: UUID
-        runtimeId: UUID
-        credentialAlgorithm: String
-        keyMaterialRef: String
-        issuedAt: DateTime
-        expiresAt: DateTime
-      }
-
-      event DatasetAccessCredentialIssued {
-        credentialId: UUID id technical
-        accessProfileId: UUID
-        datasetId: UUID
-        nodeId: UUID
-        runtimeId: UUID
-        credentialAlgorithm: String
-        keyMaterialRef: String
-        issuedAt: DateTime
-        expiresAt: DateTime
-      }
-
-      state Issued
-    }
-
-    slice RotateDatasetAccessCredential {
-      actor NodeOperator
-      ui DatasetAccessCredentialScreen
-      reactsTo DatasetAccessCredentialIssued
-
-      command RotateDatasetAccessCredential {
-        credentialId: UUID id technical
-        accessProfileId: UUID
-        previousCredentialId: UUID
-        credentialAlgorithm: String
-        keyMaterialRef: String
-        issuedAt: DateTime
-        expiresAt: DateTime
-      }
-
-      event DatasetAccessCredentialRotated {
-        credentialId: UUID id technical
-        accessProfileId: UUID
-        previousCredentialId: UUID
-        credentialAlgorithm: String
-        keyMaterialRef: String
-        issuedAt: DateTime
-        expiresAt: DateTime
-      }
-
-      state Rotated
-    }
-
-    slice RevokeDatasetAccessCredential {
-      actor ComplianceOfficer
-      ui DatasetAccessCredentialScreen
-      reactsTo DatasetAccessCredentialIssued
-
-      command RevokeDatasetAccessCredential {
-        credentialId: UUID id technical
-        accessProfileId: UUID
-        revokeReason: String
-      }
-
-      event DatasetAccessCredentialRevoked {
-        credentialId: UUID id technical
-        accessProfileId: UUID
-        revokeReason: String
-      }
-
-      state Revoked
-    }
-
-    slice DatasetAccessCredentialCatalog {
-      readmodel DatasetAccessCredentialCatalog[] {
-        credentialId: UUID id
-        accessProfileId: UUID
-        datasetId: UUID
-        nodeId: UUID
-        runtimeId: UUID
-        credentialAlgorithm: String
-        state: DatasetAccessCredential.State
-        issuedAt: DateTime
-        expiresAt: DateTime
-        previousCredentialId: UUID?
-        subscribe DatasetAccessCredentialIssued
-        subscribe DatasetAccessCredentialRotated
-        subscribe DatasetAccessCredentialRevoked
-      }
-    }
-
-    concept DatasetAccessCredential {
-      state Issued
-      state Rotated
-      state Revoked
-
-      slice IssueDatasetAccessCredential
-      slice RotateDatasetAccessCredential
-      slice RevokeDatasetAccessCredential
-      slice DatasetAccessCredentialCatalog
-    }
-    
   }
   deployment FLPlatformBackend {
     includes OrganizationManagement
@@ -5091,20 +4787,6 @@ context KeyAndAttestationManagement {
       target TrainingOrchestration
       reactsTo AgentRuntimeJobFailed
       emits RecordTrainingRuntimeFailure
-    }
-
-    integration PlatformDataConnectorRegistrationSync {
-      source AgentDataConnector
-      target DatasetGovernance
-      reactsTo AgentDataConnectorRegistered
-      emits SyncDataConnectorRegistration
-    }
-
-    integration PlatformDataConnectorAccessReporting {
-      source AgentDataConnectorAccessProbe
-      target DatasetGovernance
-      reactsTo AgentDataConnectorAccessProbed
-      emits VerifyDataConnectorAccess
     }
 
     integration PlatformDatasetMetadataReporting {
@@ -5233,7 +4915,7 @@ context KeyAndAttestationManagement {
 
   slice ProbeAgentDataConnectorAccess {
     startsLifecycle
-    reactsTo DataConnectorRegistered
+    reactsTo AgentDataConnectorRegistered
 
     command ProbeAgentDataConnectorAccess {
       agentDataConnectorProbeId: UUID id generated technical
@@ -5275,6 +4957,76 @@ context KeyAndAttestationManagement {
     slice AgentDataConnectorAccessProbeCatalog
   }
 
+  slice ConfigureAgentDatasetAccessProfile {
+    startsLifecycle
+    actor NodeOperator
+    ui AgentDatasetAccessProfileScreen
+    reactsTo AgentDataConnectorRegistered
+
+    command ConfigureAgentDatasetAccessProfile {
+      agentDatasetAccessProfileId: UUID id generated technical
+      datasetId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      agentDatasetHandle: String
+      agentDataAccessHandle: String
+      localConnectionConfigRef: String?
+      localCredentialRef: String?
+      localMountPath: String?
+      dataFormat: String
+      readerPlugin: String
+      readMode: String
+      materializationMode: String
+      configuredAt: DateTime generated technical
+    }
+
+    event AgentDatasetAccessProfileConfigured {
+      agentDatasetAccessProfileId: UUID id technical
+      datasetId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      agentDatasetHandle: String
+      agentDataAccessHandle: String
+      localConnectionConfigRef: String?
+      localCredentialRef: String?
+      localMountPath: String?
+      dataFormat: String
+      readerPlugin: String
+      readMode: String
+      materializationMode: String
+      configuredAt: DateTime
+    }
+
+    state Configured
+  }
+
+  slice AgentDatasetAccessProfileCatalog {
+    readmodel AgentDatasetAccessProfileCatalog[] {
+      agentDatasetAccessProfileId: UUID id
+      datasetId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      agentDatasetHandle: String
+      agentDataAccessHandle: String
+      localConnectionConfigRef: String?
+      localCredentialRef: String?
+      localMountPath: String?
+      dataFormat: String
+      readerPlugin: String
+      readMode: String
+      materializationMode: String
+      configuredAt: DateTime
+      subscribe AgentDatasetAccessProfileConfigured
+    }
+  }
+
+  concept AgentDatasetAccessProfile {
+    state Configured
+
+    slice ConfigureAgentDatasetAccessProfile
+    slice AgentDatasetAccessProfileCatalog
+  }
+
   slice ProfileAgentDataset {
     startsLifecycle
     reactsTo DatasetProfilingRequested
@@ -5289,7 +5041,6 @@ context KeyAndAttestationManagement {
       datasetId: UUID from DatasetProfilingRequested.datasetId
       organizationId: UUID from DatasetProfilingRequested.organizationId
       runtimeAgentId: UUID from DatasetProfilingRequested.runtimeAgentId
-      dataConnectorId: UUID from DatasetProfilingRequested.dataConnectorId
       featureSchemaId: UUID from DatasetProfilingRequested.featureSchemaId
       labelSchemaId: UUID from DatasetProfilingRequested.labelSchemaId
       agentDatasetHandle: String from DatasetProfilingRequested.agentDatasetHandle
@@ -5301,7 +5052,6 @@ context KeyAndAttestationManagement {
       datasetId: UUID
       organizationId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       featureSchemaId: UUID
       labelSchemaId: UUID
       sampleCount: Int
@@ -5326,7 +5076,6 @@ context KeyAndAttestationManagement {
       datasetId: UUID
       organizationId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       featureSchemaId: UUID
       labelSchemaId: UUID
       sampleCount: Int
@@ -5356,20 +5105,17 @@ context KeyAndAttestationManagement {
     reactsTo DatasetAccessValidationRequested
 
     command ValidateAgentDatasetAccess {
-      accessProfileId: UUID id technical
-      datasetId: UUID
-      runtimeId: UUID
-      runtimeAgentId: UUID
-      dataConnectorId: UUID
-      validationMode: String
+      datasetAccessValidationId: UUID id technical from DatasetAccessValidationRequested.datasetAccessValidationId
+      datasetId: UUID from DatasetAccessValidationRequested.datasetId
+      runtimeAgentId: UUID from DatasetAccessValidationRequested.runtimeAgentId
+      agentDatasetHandle: String from DatasetAccessValidationRequested.agentDatasetHandle
+      validationMode: String from DatasetAccessValidationRequested.validationMode
     }
 
     event AgentDatasetAccessValidated {
-      accessProfileId: UUID id technical
+      datasetAccessValidationId: UUID id technical
       datasetId: UUID
-      runtimeId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
@@ -5382,11 +5128,9 @@ context KeyAndAttestationManagement {
 
   slice AgentDatasetAccessValidationCatalog {
     readmodel AgentDatasetAccessValidationCatalog[] {
-      accessProfileId: UUID id
+      datasetAccessValidationId: UUID id
       datasetId: UUID
-      runtimeId: UUID
       runtimeAgentId: UUID
-      dataConnectorId: UUID
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
@@ -5414,8 +5158,8 @@ context KeyAndAttestationManagement {
       roundId: UUID
       nodeId: UUID
       runtimeAgentId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       globalModelVersionId: UUID
       runtimePayloadRef: String?
       artifactStoreRef: String?
@@ -5428,8 +5172,8 @@ context KeyAndAttestationManagement {
       roundId: UUID
       nodeId: UUID
       runtimeAgentId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       globalModelVersionId: UUID
       runtimePayloadRef: String?
       artifactStoreRef: String?
@@ -5449,8 +5193,8 @@ context KeyAndAttestationManagement {
       roundId: UUID
       nodeId: UUID
       runtimeAgentId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
       localUpdateArtifactRef: String?
@@ -5464,8 +5208,8 @@ context KeyAndAttestationManagement {
       roundId: UUID
       nodeId: UUID
       runtimeAgentId: UUID
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
       localUpdateArtifactRef: String?
@@ -5487,7 +5231,7 @@ context KeyAndAttestationManagement {
       nodeId: UUID
       runtimeAgentId: UUID
       localModelVersionId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      evaluationDatasetAccessValidationId: UUID
       metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
@@ -5501,7 +5245,7 @@ context KeyAndAttestationManagement {
       nodeId: UUID
       runtimeAgentId: UUID
       localModelVersionId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      evaluationDatasetAccessValidationId: UUID
       metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
@@ -5520,8 +5264,8 @@ context KeyAndAttestationManagement {
       nodeId: UUID
       runtimeAgentId: UUID
       state: AgentRoundContribution.State
-      trainingDatasetAccessProfileId: UUID
-      evaluationDatasetAccessProfileId: UUID
+      trainingDatasetAccessValidationId: UUID
+      evaluationDatasetAccessValidationId: UUID
       globalModelVersionId: UUID?
       localModelVersionId: UUID?
       updateArtifactId: UUID?
@@ -5810,9 +5554,9 @@ context KeyAndAttestationManagement {
         trainingRunConfigurationId: UUID
         nodeId: UUID
         runtimeAgentId: UUID
-        participantDatasetBundleId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetAccessProfileId: UUID
+        trainingDatasetSelectionId: UUID
+        trainingDatasetAccessValidationId: UUID
+        evaluationDatasetAccessValidationId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
@@ -5824,9 +5568,9 @@ context KeyAndAttestationManagement {
         trainingRunConfigurationId: UUID
         nodeId: UUID
         runtimeAgentId: UUID
-        participantDatasetBundleId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetAccessProfileId: UUID
+        trainingDatasetSelectionId: UUID
+        trainingDatasetAccessValidationId: UUID
+        evaluationDatasetAccessValidationId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
@@ -5939,9 +5683,9 @@ context KeyAndAttestationManagement {
         nodeId: UUID
         runtimeAgentId: UUID
         runtimeJobId: UUID?
-        participantDatasetBundleId: UUID
-        trainingDatasetAccessProfileId: UUID
-        evaluationDatasetAccessProfileId: UUID
+        trainingDatasetSelectionId: UUID
+        trainingDatasetAccessValidationId: UUID
+        evaluationDatasetAccessValidationId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
