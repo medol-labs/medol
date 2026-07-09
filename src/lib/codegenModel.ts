@@ -506,7 +506,7 @@ const toCodegenSlice = (
   const events = slice.elements.filter((element) => element.kind === 'event');
   const screens = slice.elements.filter((element) => element.kind === 'screen');
   const readmodels = slice.elements.filter((element) => element.kind === 'readmodel');
-  const processors = slice.elements.filter((element) => element.kind === 'automation' || element.kind === 'policy');
+  const processors = slice.elements.filter((element) => element.kind === 'automation');
   const specifications = slice.elements.filter((element) => element.kind === 'gwt');
   const actors = slice.elements
     .filter((element) => element.kind === 'actor')
@@ -746,7 +746,6 @@ const toElementType = (kind: EmElement['kind']): string => {
     case 'readmodel':
       return 'READMODEL';
     case 'automation':
-    case 'policy':
       return 'PROCESSOR';
     case 'gwt':
       return 'SPECIFICATION';

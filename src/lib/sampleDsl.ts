@@ -796,9 +796,9 @@ context DatasetGovernance {
     slice RequestRuntimeDatasetAccessValidation {
       reactsTo DatasetAccessProfileConfigured
 
-      policy ValidateDatasetAccessAfterProfileConfigured {
+      automation ValidateDatasetAccessAfterProfileConfigured {
         on DatasetAccessProfileConfigured
-        issue RequestRuntimeDatasetAccessValidation
+        emits RequestRuntimeDatasetAccessValidation
       }
 
       command RequestRuntimeDatasetAccessValidation {
@@ -1051,9 +1051,9 @@ context TrainingOrchestration {
     slice LockTrainingRunConfiguration {
       reactsTo TrainingJobSubmitted
 
-      policy LockConfigurationWhenTrainingSubmitted {
+      automation LockConfigurationWhenTrainingSubmitted {
         on TrainingJobSubmitted
-        issue LockTrainingRunConfiguration
+        emits LockTrainingRunConfiguration
       }
 
       command LockTrainingRunConfiguration {
@@ -1216,9 +1216,9 @@ context TrainingOrchestration {
     slice RequestNodeParticipation {
       reactsTo TrainingJobSubmitted
 
-      policy RequestEligibleNodes {
+      automation RequestEligibleNodes {
         on TrainingJobSubmitted
-        issue RequestNodeParticipation
+        emits RequestNodeParticipation
       }
 
       command RequestNodeParticipation {
@@ -1295,9 +1295,9 @@ context TrainingOrchestration {
     slice TrackTrainingJobRunning {
       reactsTo TrainingRoundStarted
 
-      policy MarkTrainingJobRunningWhenRoundStarts {
+      automation MarkTrainingJobRunningWhenRoundStarts {
         on TrainingRoundStarted
-        issue MarkTrainingJobRunning
+        emits MarkTrainingJobRunning
       }
 
       command MarkTrainingJobRunning {
@@ -1542,9 +1542,9 @@ context TrainingOrchestration {
     slice DistributeGlobalModel {
       reactsTo TrainingRoundStarted
 
-      policy RequestDistributeGlobalModel {
+      automation RequestDistributeGlobalModel {
         on TrainingRoundStarted
-        issue DistributeGlobalModel
+        emits DistributeGlobalModel
       }
 
       command DistributeGlobalModel {
@@ -1692,9 +1692,9 @@ context TrainingOrchestration {
     slice CompleteTrainingRound {
       reactsTo GlobalModelEvaluationSubmitted
 
-      policy FinishRoundAfterGlobalModelEvaluated {
+      automation FinishRoundAfterGlobalModelEvaluated {
         on GlobalModelEvaluationSubmitted
-        issue CompleteTrainingRound
+        emits CompleteTrainingRound
       }
 
       command CompleteTrainingRound {
@@ -1792,9 +1792,9 @@ context ModelLifecycle {
       startsLifecycle
       reactsTo TrainingJobCompleted
 
-      policy RegisterFinalModelWhenTrainingJobCompleted {
+      automation RegisterFinalModelWhenTrainingJobCompleted {
         on TrainingJobCompleted
-        issue RegisterCandidateModel
+        emits RegisterCandidateModel
       }
 
       command RegisterCandidateModel {
@@ -2066,44 +2066,44 @@ context RuntimeOperations {
       startsLifecycle
       reactsTo TrainingAlertRaised
 
-      policy AuditCriticalTrainingEvents {
+      automation AuditCriticalTrainingEvents {
         on TrainingAlertRaised
-        issue AppendAuditTrail
+        emits AppendAuditTrail
       }
 
-      policy AuditParticipantJoined {
+      automation AuditParticipantJoined {
         on ParticipantJoined
-        issue AppendAuditTrail
+        emits AppendAuditTrail
       }
 
-      policy AuditParticipantSuspended {
+      automation AuditParticipantSuspended {
         on ParticipantSuspended
-        issue AppendAuditTrail
+        emits AppendAuditTrail
       }
 
-      policy AuditDatasetApproval {
+      automation AuditDatasetApproval {
         on DatasetApprovedForTraining
-        issue AppendAuditTrail
+        emits AppendAuditTrail
       }
 
-      policy AuditDatasetApprovalRevoked {
+      automation AuditDatasetApprovalRevoked {
         on DatasetTrainingApprovalRevoked
-        issue AppendAuditTrail
+        emits AppendAuditTrail
       }
 
-      policy AuditTrainingJobSubmitted {
+      automation AuditTrainingJobSubmitted {
         on TrainingJobSubmitted
-        issue AppendAuditTrail
+        emits AppendAuditTrail
       }
 
-      policy AuditModelPromotedToProduction {
+      automation AuditModelPromotedToProduction {
         on ModelPromotedToProduction
-        issue AppendAuditTrail
+        emits AppendAuditTrail
       }
 
-      policy AuditNodeTrustChanged {
+      automation AuditNodeTrustChanged {
         on ComputeNodeTrusted
-        issue AppendAuditTrail
+        emits AppendAuditTrail
       }
 
       command AppendAuditTrail {

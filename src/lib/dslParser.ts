@@ -3,6 +3,7 @@ import { MedolGeneratedModule, MedolGeneratedSharedModule } from '../language/ge
 import {
   isActorRef,
   isAutomation,
+  isAutomationTrigger,
   isBinaryExpr,
   isBooleanLiteral,
   isCommand,
@@ -20,7 +21,6 @@ import {
   isNote,
   isNullLiteral,
   isNumberLiteral,
-  isPolicy,
   isReadModel,
   isReactsTo,
   isRefExpr,
@@ -55,7 +55,6 @@ import type {
   FieldSource,
   Integration as AstIntegration,
   Model as AstModel,
-  Policy as AstPolicy,
   ReadModel as AstReadModel,
   Slice as AstSlice,
   Scenario as AstScenario,
@@ -354,7 +353,7 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
       context.metrics.push(element.name);
       continue;
     }
-    if (isIntegration(element) || isReadModel(element) || isPolicy(element)) {
+    if (isIntegration(element) || isReadModel(element) || isAutomation(element)) {
       const looseElement = parseElement(element, context.id);
       context.looseElements.push(looseElement);
       collectElementEdges(element, looseElement.id, edges);
@@ -505,7 +504,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[]): EmSlice =
       }
       continue;
     }
-    if (isCommand(element) || isEvent(element) || isReadModel(element) || isAutomation(element) || isPolicy(element) || isSpecification(element)) {
+    if (isCommand(element) || isEvent(element) || isReadModel(element) || isAutomation(element) || isSpecification(element)) {
       const parsed = parseElement(element, sliceId);
       slice.elements.push(parsed);
       collectElementEdges(element, parsed.id, edges);
@@ -628,7 +627,7 @@ const parseUi = (uiRef: AstUiRef): EmUi | undefined => {
 };
 
 const parseElement = (
-  node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
+  node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstSpecification | AstIntegration,
   scopeId: string
 ): EmElement => {
   const kind = isReadModel(node)
@@ -649,7 +648,7 @@ const parseElement = (
   };
 };
 
-const parseElementFields = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration): EmField[] => {
+const parseElementFields = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstSpecification | AstIntegration): EmField[] => {
   if (isCommand(node) || isEvent(node)) {
     return (node.fields ?? []).map(parseField);
   }
@@ -733,12 +732,16 @@ const parseFieldMapping = (field: AstField): EmFieldMapping | undefined => {
 
 const formatFieldSource = (source: FieldSource): string => source.parts.join('.');
 
-const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration): Record<string, string> => {
+const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstSpecification | AstIntegration): Record<string, string> => {
   const metadata: Record<string, string> = {};
 
-  if (isPolicy(node)) {
-    if (node.event?.$refText) metadata.on = node.event.$refText;
-    if (node.command?.$refText) metadata.issue = node.command.$refText;
+  if (isAutomation(node)) {
+    (node.elements ?? []).filter(isAutomationTrigger).forEach((trigger, index) => {
+      if (trigger.event?.$refText) metadata[index === 0 ? 'on' : `on${index + 1}`] = trigger.event.$refText;
+    });
+    (node.elements ?? []).filter((element) => element.$type === 'Emits').forEach((emits, index) => {
+      if (emits.command?.$refText) metadata[index === 0 ? 'emits' : `emits${index + 1}`] = emits.command.$refText;
+    });
   }
 
   if (isSpecification(node)) {
@@ -761,7 +764,7 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAu
 };
 
 const collectElementEdges = (
-  node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstPolicy | AstSpecification | AstIntegration,
+  node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstSpecification | AstIntegration,
   sourceId: string,
   edges: EmEdge[]
 ): void => {
@@ -772,14 +775,12 @@ const collectElementEdges = (
   }
 
   if (isAutomation(node)) {
+    for (const trigger of (node.elements ?? []).filter(isAutomationTrigger)) {
+      if (trigger.event?.$refText) edges.push(edge(`ref/event/${trigger.event.$refText}`, sourceId, 'triggers'));
+    }
     for (const emits of (node.elements ?? []).filter((element) => element.$type === 'Emits')) {
       if (emits.command?.$refText) edges.push(edge(sourceId, `ref/command/${emits.command.$refText}`, 'emits'));
     }
-  }
-
-  if (isPolicy(node)) {
-    if (node.event?.$refText) edges.push(edge(`ref/event/${node.event.$refText}`, sourceId, 'triggers'));
-    if (node.command?.$refText) edges.push(edge(sourceId, `ref/command/${node.command.$refText}`, 'issues'));
   }
 
   if (isSpecification(node)) {

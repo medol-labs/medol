@@ -213,7 +213,7 @@ const collectElementOwners = (model: EmModel): Map<string, ElementOwner> => {
 
 const overviewEdgeStyle = (label?: string): Edge['style'] => {
   if (label === 'updates') return { stroke: '#16a34a', strokeWidth: 2.2, strokeDasharray: '5 5' };
-  if (label === 'issues' || label === 'triggers' || label === 'reactsTo') return { stroke: '#be185d', strokeWidth: 2.1, strokeDasharray: '8 5' };
+  if (label === 'triggers' || label === 'reactsTo') return { stroke: '#be185d', strokeWidth: 2.1, strokeDasharray: '8 5' };
   if (label === 'emits') return { stroke: '#ea580c', strokeWidth: 2.2 };
   return { stroke: '#94a3b8', strokeWidth: 1.8 };
 };

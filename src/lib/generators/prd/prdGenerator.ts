@@ -91,9 +91,9 @@ const buildOverview = (model: EmModel, context: EmContext | undefined): string =
   const domainNames = model.domains.map((domain) => humanize(domain.name));
   const contextNames = model.contexts.map((item) => humanize(item.name));
   if (domainNames.length) {
-    return `${domainNames.join(', ')} describes ${contextNames.join(', ') || humanize(context?.name ?? 'the modeled context')} through event-modeled business capabilities, state changes, policies, read models, and integrations.`;
+    return `${domainNames.join(', ')} describes ${contextNames.join(', ') || humanize(context?.name ?? 'the modeled context')} through event-modeled business capabilities, state changes, automations, read models, and integrations.`;
   }
-  return `${contextNames.join(', ') || humanize(context?.name ?? 'the modeled context')} is described through event-modeled business capabilities, state changes, policies, read models, and integrations.`;
+  return `${contextNames.join(', ') || humanize(context?.name ?? 'the modeled context')} is described through event-modeled business capabilities, state changes, automations, read models, and integrations.`;
 };
 
 const toPrdSlice = (slice: EmSlice, aggregate: string, context: string): PrdSlice => {
@@ -122,7 +122,7 @@ const toPrdSlice = (slice: EmSlice, aggregate: string, context: string): PrdSlic
     specifications: specifications.map(toPrdSpecification),
     dependencies: slice.elements.flatMap((element) =>
       Object.entries(element.metadata ?? {})
-        .filter(([key]) => key === 'on' || key === 'issue' || key === 'when' || key === 'then' || /^given\d+$/.test(key))
+        .filter(([key]) => key === 'on' || key === 'emits' || key === 'when' || key === 'then' || /^given\d+$/.test(key))
         .map(([key, value]) => `${key}: ${value}`)
     ),
     hotspots: slice.hotspots,
@@ -227,7 +227,7 @@ const collectDataDictionary = (model: EmModel): PrdDataDictionaryItem[] =>
 
 const collectAutomations = (model: EmModel): PrdAutomation[] =>
   flattenElements(model)
-    .filter((element) => element.kind === 'automation' || element.kind === 'policy' || element.kind === 'integration')
+    .filter((element) => element.kind === 'automation' || element.kind === 'integration')
     .map((element) => ({
       id: element.id,
       name: element.name,

@@ -9,7 +9,6 @@ const sliceLaneOrder: EmElement['kind'][] = [
   'gwt',
   'readmodel',
   'automation',
-  'policy',
   'hotspot'
 ];
 
@@ -21,7 +20,6 @@ const laneLabels: Partial<Record<EmElement['kind'], string>> = {
   gwt: 'SPECIFICATION',
   readmodel: 'READ MODEL',
   automation: 'AUTOMATION',
-  policy: 'POLICY',
   hotspot: 'HOTSPOT',
   integration: 'INTEGRATION'
 };
@@ -53,10 +51,6 @@ const colors: Record<
   automation: {
     accent: '#475569',
     fill: '#f1f5f9'
-  },
-  policy: {
-    accent: '#be185d',
-    fill: '#fce7f3'
   },
   gwt: {
     accent: '#9333ea',
@@ -477,7 +471,7 @@ const toSliceSummaryNode = (slice: EmSlice, position: { x: number; y: number }, 
         events: elements.filter((element) => element.kind === 'event').length,
         rejects: elements.filter((element) => element.kind === 'gwt' && element.metadata?.thenReject).length,
         readmodels: elements.filter((element) => element.kind === 'readmodel').length,
-        policies: elements.filter((element) => element.kind === 'policy' || element.kind === 'automation' || element.kind === 'gwt').length,
+        automations: elements.filter((element) => element.kind === 'automation' || element.kind === 'gwt').length,
         hotspots: elements.filter((element) => element.kind === 'hotspot').length + slice.hotspots.length
       }
     },
@@ -506,7 +500,7 @@ const toEdgeVisual = (label?: string): {
   if (label === 'invokes') {
     return { stroke: '#2563eb', strokeWidth: 2, labelColor: '#1d4ed8' };
   }
-  if (label === 'triggers' || label === 'issues' || label === 'reactsTo') {
+  if (label === 'triggers' || label === 'reactsTo') {
     return { stroke: '#be185d', strokeWidth: 2, strokeDasharray: '8 5', labelColor: '#9d174d' };
   }
   if (label === 'given' || label === 'when' || label === 'then') {

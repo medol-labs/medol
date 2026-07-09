@@ -162,7 +162,7 @@ const selectRelevantDslKnowledge = (input: {
     addSkill(snippets, input.knowledge, 'refine-frontend', 'The request references Refine/React frontend implementation or UI semantics.');
   }
 
-  if (matches(intentText, ['slice', 'command', 'event', 'readmodel', 'automation', 'policy', 'state', '命令', '事件', '切片', '状态'])) {
+  if (matches(intentText, ['slice', 'command', 'event', 'readmodel', 'automation', 'state', '命令', '事件', '切片', '状态'])) {
     addSkill(snippets, input.knowledge, 'build-slice', 'The request references slice implementation or timeline behavior.');
   }
 
@@ -300,7 +300,6 @@ const getBlockCandidates = (selectedItem: SelectedModelItem) => {
     event: 'event',
     readmodel: 'readmodel',
     automation: 'automation',
-    policy: 'policy',
     integration: 'integration',
     hotspot: 'hotspot',
     gwt: selectedItem.element.metadata?.specification ? 'scenario' : 'specification'

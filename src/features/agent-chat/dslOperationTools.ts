@@ -127,14 +127,14 @@ const findTargetBlock = (dsl: string, target: string): TargetBlock | undefined =
 };
 
 const declarationKind = (content: string): string | undefined => {
-  const match = /^(domain|context|concept|slice|command|event|readmodel|projection|automation|policy|integration|specification|scenario)\b/i.exec(content.trimStart());
+  const match = /^(domain|context|concept|slice|command|event|readmodel|projection|automation|integration|specification|scenario)\b/i.exec(content.trimStart());
   if (!match) return undefined;
   return match[1].toLowerCase() === 'projection' ? 'readmodel' : match[1].toLowerCase();
 };
 
 const parseTarget = (target: string): { kind: string; name: string } | undefined => {
   const normalized = target.trim();
-  const match = /^(domain|context|concept|slice|command|event|readmodel|projection|automation|policy|integration|specification|scenario|hotspot)\s+(.+)$/i.exec(normalized);
+  const match = /^(domain|context|concept|slice|command|event|readmodel|projection|automation|integration|specification|scenario|hotspot)\s+(.+)$/i.exec(normalized);
   if (!match) return undefined;
   return {
     kind: match[1].toLowerCase() === 'projection' ? 'readmodel' : match[1].toLowerCase(),

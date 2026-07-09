@@ -37,7 +37,7 @@ ContextElement:
     | StructuredValueType
     | Slice
     | Concept
-    | Policy
+    | Automation
     | Integration
     | ReadModel
     | UserJourney
@@ -115,7 +115,6 @@ SliceElement:
     | Specification
     | ReadModel
     | Automation
-    | Policy
     | Hotspot
 ;
 
@@ -220,8 +219,13 @@ Automation:
 ;
 
 AutomationElement:
-      Condition
+      AutomationTrigger
+    | Condition
     | Emits
+;
+
+AutomationTrigger:
+    'on' event=[Event:ID]
 ;
 
 Condition:
@@ -230,13 +234,6 @@ Condition:
 
 Emits:
     'emits' command=[Command:ID]
-;
-
-Policy:
-    'policy' name=ID '{'
-        'on' event=[Event:ID]
-        'issue' command=[Command:ID]
-    '}'
 ;
 
 Specification:

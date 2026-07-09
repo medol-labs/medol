@@ -10,7 +10,7 @@ export const renderSoftwareDesignMarkdown = (bundle: DocumentationBundle): strin
   const lines = header(bundle, 'Software Design');
 
   section(lines, 'Architecture Overview');
-  lines.push('The system is organized around bounded contexts, event-driven aggregate workflows, read models, policies, automations, and external integrations.');
+  lines.push('The system is organized around bounded contexts, event-driven aggregate workflows, read models, automations, and external integrations.');
   lines.push('');
   appendDiagnostics(lines, bundle);
 

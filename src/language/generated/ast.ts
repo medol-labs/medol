@@ -68,7 +68,6 @@ export type MedolKeywordNames =
     | "includes"
     | "inline"
     | "integration"
-    | "issue"
     | "length"
     | "list"
     | "matches"
@@ -77,7 +76,6 @@ export type MedolKeywordNames =
     | "null"
     | "on"
     | "oneOf"
-    | "policy"
     | "projection"
     | "query"
     | "range"
@@ -164,7 +162,7 @@ export function isAssignment(item: unknown): item is Assignment {
 }
 
 export interface Automation extends langium.AstNode {
-    readonly $container: Slice;
+    readonly $container: Context | Slice;
     readonly $type: 'Automation';
     elements: Array<AutomationElement>;
     name: string;
@@ -180,7 +178,7 @@ export function isAutomation(item: unknown): item is Automation {
     return reflection.isInstance(item, Automation.$type);
 }
 
-export type AutomationElement = Condition | Emits;
+export type AutomationElement = AutomationTrigger | Condition | Emits;
 
 export const AutomationElement = {
     $type: 'AutomationElement'
@@ -188,6 +186,21 @@ export const AutomationElement = {
 
 export function isAutomationElement(item: unknown): item is AutomationElement {
     return reflection.isInstance(item, AutomationElement.$type);
+}
+
+export interface AutomationTrigger extends langium.AstNode {
+    readonly $container: Automation;
+    readonly $type: 'AutomationTrigger';
+    event: langium.Reference<Event>;
+}
+
+export const AutomationTrigger = {
+    $type: 'AutomationTrigger',
+    event: 'event'
+} as const;
+
+export function isAutomationTrigger(item: unknown): item is AutomationTrigger {
+    return reflection.isInstance(item, AutomationTrigger.$type);
 }
 
 export interface BinaryExpr extends langium.AstNode {
@@ -338,7 +351,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Concept | Decision | EnumType | Integration | Metric | Note | Policy | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
+export type ContextElement = Automation | Concept | Decision | EnumType | Integration | Metric | Note | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -791,25 +804,6 @@ export function isNumberLiteral(item: unknown): item is NumberLiteral {
     return reflection.isInstance(item, NumberLiteral.$type);
 }
 
-export interface Policy extends langium.AstNode {
-    readonly $container: Context | Slice;
-    readonly $type: 'Policy';
-    command: langium.Reference<Command>;
-    event: langium.Reference<Event>;
-    name: string;
-}
-
-export const Policy = {
-    $type: 'Policy',
-    command: 'command',
-    event: 'event',
-    name: 'name'
-} as const;
-
-export function isPolicy(item: unknown): item is Policy {
-    return reflection.isInstance(item, Policy.$type);
-}
-
 export type PrimaryExpr = Literal | RefExpr;
 
 export const PrimaryExpr = {
@@ -940,7 +934,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | Event | Hotspot | Policy | ReactsTo | ReadModel | SliceTags | Specification | StartsLifecycleMarker | State | UiRef;
+export type SliceElement = ActorRef | Automation | Command | Event | Hotspot | ReactsTo | ReadModel | SliceTags | Specification | StartsLifecycleMarker | State | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -1427,6 +1421,7 @@ export type MedolAstType = {
     Assignment: Assignment
     Automation: Automation
     AutomationElement: AutomationElement
+    AutomationTrigger: AutomationTrigger
     BinaryExpr: BinaryExpr
     BooleanLiteral: BooleanLiteral
     Command: Command
@@ -1465,7 +1460,6 @@ export type MedolAstType = {
     Note: Note
     NullLiteral: NullLiteral
     NumberLiteral: NumberLiteral
-    Policy: Policy
     PrimaryExpr: PrimaryExpr
     ReactsTo: ReactsTo
     ReadModel: ReadModel
@@ -1556,13 +1550,23 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: Automation.name
                 }
             },
-            superTypes: [SliceElement.$type]
+            superTypes: [ContextElement.$type, SliceElement.$type]
         },
         AutomationElement: {
             name: AutomationElement.$type,
             properties: {
             },
             superTypes: []
+        },
+        AutomationTrigger: {
+            name: AutomationTrigger.$type,
+            properties: {
+                event: {
+                    name: AutomationTrigger.event,
+                    referenceType: Event.$type
+                }
+            },
+            superTypes: [AutomationElement.$type]
         },
         BinaryExpr: {
             name: BinaryExpr.$type,
@@ -1978,23 +1982,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [Literal.$type]
-        },
-        Policy: {
-            name: Policy.$type,
-            properties: {
-                command: {
-                    name: Policy.command,
-                    referenceType: Command.$type
-                },
-                event: {
-                    name: Policy.event,
-                    referenceType: Event.$type
-                },
-                name: {
-                    name: Policy.name
-                }
-            },
-            superTypes: [ContextElement.$type, SliceElement.$type]
         },
         PrimaryExpr: {
             name: PrimaryExpr.$type,

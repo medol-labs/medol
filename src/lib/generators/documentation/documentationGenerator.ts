@@ -122,7 +122,7 @@ export const buildDocumentationBundle = (
           events: slice.elements.filter(isKind('event')).map(toDocumentationElement),
           readmodels: slice.elements.filter(isKind('readmodel')).map((element) => element.name),
           processors: slice.elements
-            .filter((element) => element.kind === 'automation' || element.kind === 'policy')
+            .filter((element) => element.kind === 'automation')
             .map((element) => element.name),
           specifications: slice.elements
             .filter(isKind('gwt'))

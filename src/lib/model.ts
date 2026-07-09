@@ -4,7 +4,6 @@ export type EmElementKind =
   | 'event'
   | 'readmodel'
   | 'automation'
-  | 'policy'
   | 'gwt'
   | 'aggregate'
   | 'actor'

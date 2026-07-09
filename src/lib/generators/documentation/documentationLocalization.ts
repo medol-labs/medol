@@ -61,8 +61,8 @@ export const localizeDocumentationMarkdown = (
 
   if (kind === 'software-design') {
     localized = localized.replace(
-      'The system is organized around bounded contexts, event-driven aggregate workflows, read models, policies, automations, and external integrations.',
-      '系统按照限界上下文组织，以事件驱动的聚合流程为写侧，以 Read Model 为读侧，并结合策略、自动化和外部集成。'
+      'The system is organized around bounded contexts, event-driven aggregate workflows, read models, automations, and external integrations.',
+      '系统按照限界上下文组织，以事件驱动的聚合流程为写侧，以 Read Model 为读侧，并结合自动化和外部集成。'
     );
   }
   if (kind === 'database-design') {

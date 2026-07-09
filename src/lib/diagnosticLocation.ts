@@ -55,7 +55,7 @@ const findDiagnosticNode = (nodes: AstNode[], message: string): AstNode | undefi
       slice: ['Slice'],
       state: ['State'],
       tag: ['SliceTag'],
-      element: ['Command', 'Event', 'ReadModel', 'Automation', 'Policy', 'Integration'],
+      element: ['Command', 'Event', 'ReadModel', 'Automation', 'Integration'],
       field: ['Field'],
       scenario: ['Scenario'],
       assignment: ['Assignment']
@@ -114,7 +114,7 @@ const findDiagnosticNode = (nodes: AstNode[], message: string): AstNode | undefi
     if (node) return node;
   }
 
-  const elementMatch = /^(command|event|readmodel|automation|policy|integration) ([A-Za-z_][\w]*)/.exec(message);
+  const elementMatch = /^(command|event|readmodel|automation|integration) ([A-Za-z_][\w]*)/.exec(message);
   if (elementMatch) {
     const type = elementMatch[1][0].toUpperCase() + elementMatch[1].slice(1);
     const node = findNamedNode(nodes, type, elementMatch[2], message);

@@ -151,12 +151,11 @@ context OrganizationManagement {
       runtimeAgentId
     }
 
-    reactsTo RuntimeAgentRegistered
+    reactsTo RuntimeNodeInventoryReported
 
-    policy SyncNodeWhenRuntimeAgentRegistered {
-      // TODO 这个是 Runtime Agent 注册，应该更细粒度到节点
-      on RuntimeAgentRegistered
-      issue SyncComputeNodeRegistration
+    automation SyncNodeWhenRuntimeNodeInventoryReported {
+      on RuntimeNodeInventoryReported
+      emits SyncComputeNodeRegistration
     }
 
     command SyncComputeNodeRegistration {
@@ -684,22 +683,76 @@ context RuntimeOnboarding {
     state Configured
   }
 
+  slice CreateRuntimeInstallationPlan {
+    startsLifecycle
+
+    actor PlatformAdmin
+    ui RuntimeInstallationPlanScreen
+    reactsTo OrganizationNetworkProfileConfigured
+
+    tags {
+      runtimeInstallationPlanId
+      organizationId
+      networkProfileId
+    }
+
+    command CreateRuntimeInstallationPlan {
+      runtimeInstallationPlanId: UUID id generated technical
+      organizationId: UUID
+      networkProfileId: UUID
+      infrastructureName: String
+      infrastructureType: String       // cluster / single-node / vm / bare-metal
+      orchestratorType: String         // K3S / KUBERNETES / DOCKER / VM / BARE_METAL
+      orchestratorVersion: String?
+      installProfile: String
+      architecture: String
+      expectedNodeCount: Int
+      expectedGpuNodeCount: Int?
+      expectedCpuCoreCount: Int?
+      expectedMemoryGb: Int?
+      nodeLabels: String[]
+      plannedAt: DateTime generated technical
+    }
+
+    event RuntimeInstallationPlanCreated {
+      runtimeInstallationPlanId: UUID id technical
+      organizationId: UUID
+      networkProfileId: UUID
+      infrastructureName: String
+      infrastructureType: String
+      orchestratorType: String
+      orchestratorVersion: String?
+      installProfile: String
+      architecture: String
+      expectedNodeCount: Int
+      expectedGpuNodeCount: Int?
+      expectedCpuCoreCount: Int?
+      expectedMemoryGb: Int?
+      nodeLabels: String[]
+      plannedAt: DateTime
+    }
+
+    state Planned
+  }
+
   slice IssueRuntimeBootstrapToken {
     startsLifecycle
 
     actor PlatformAdmin
     ui RuntimeBootstrapTokenScreen
-    reactsTo OrganizationNetworkProfileConfigured
+    reactsTo RuntimeInstallationPlanCreated
 
     tags {
       organizationId
       networkProfileId
+      runtimeInstallationPlanId
     }
 
     command IssueRuntimeBootstrapToken {
       bootstrapTokenId: UUID id generated technical
       organizationId: UUID
       networkProfileId: UUID
+      runtimeInstallationPlanId: UUID
       tokenName: String
       tokenFingerprint: String generated technical
       tokenHash: String generated technical
@@ -713,6 +766,7 @@ context RuntimeOnboarding {
       bootstrapTokenId: UUID id technical
       organizationId: UUID
       networkProfileId: UUID
+      runtimeInstallationPlanId: UUID
       tokenName: String
       tokenFingerprint: String
       tokenHash: String
@@ -756,12 +810,14 @@ context RuntimeOnboarding {
     tags {
       organizationId
       bootstrapTokenId
+      runtimeInstallationPlanId
     }
 
     command RequestRuntimeBootstrapConfig {
       bootstrapRequestId: UUID id generated technical
       organizationId: UUID
       bootstrapTokenId: UUID
+      runtimeInstallationPlanId: UUID
       requesterIp: String
       machineFingerprint: String
       hostname: String
@@ -777,6 +833,7 @@ context RuntimeOnboarding {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
       bootstrapTokenId: UUID
+      runtimeInstallationPlanId: UUID
       requesterIp: String
       machineFingerprint: String
       hostname: String
@@ -822,16 +879,20 @@ context RuntimeOnboarding {
   slice IssueRuntimeBootstrapConfig {
     reactsTo RuntimeBootstrapConfigRequested
 
-    policy IssueConfigWhenBootstrapRequestAccepted {
+    automation IssueConfigWhenBootstrapRequestAccepted {
       on RuntimeBootstrapConfigRequested
-      issue IssueRuntimeBootstrapConfig
+      emits IssueRuntimeBootstrapConfig
     }
 
     command IssueRuntimeBootstrapConfig {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
       bootstrapTokenId: UUID
+      runtimeInstallationPlanId: UUID
+      runtimeInfrastructureId: UUID generated technical
       networkProfileId: UUID
+      infrastructureName: String
+      infrastructureType: String
       platformApiEndpoint: String
       runtimeControlEndpoint: String
       registryEndpoint: String
@@ -840,6 +901,8 @@ context RuntimeOnboarding {
       installProfile: String
       orchestratorType: String      // K3S / KUBERNETES / DOCKER / VM / BARE_METAL
       orchestratorVersion: String?
+      expectedNodeCount: Int
+      architecture: String
       nodeLabels: String[]
       joinCredentialRef: String?
       issuedAt: DateTime generated technical
@@ -849,7 +912,11 @@ context RuntimeOnboarding {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
       bootstrapTokenId: UUID
+      runtimeInstallationPlanId: UUID
+      runtimeInfrastructureId: UUID
       networkProfileId: UUID
+      infrastructureName: String
+      infrastructureType: String
       platformApiEndpoint: String
       runtimeControlEndpoint: String
       registryEndpoint: String
@@ -858,6 +925,8 @@ context RuntimeOnboarding {
       installProfile: String
       orchestratorType: String
       orchestratorVersion: String?
+      expectedNodeCount: Int
+      architecture: String
       nodeLabels: String[]
       joinCredentialRef: String?
       issuedAt: DateTime
@@ -875,6 +944,7 @@ context RuntimeOnboarding {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
       bootstrapTokenId: UUID
+      runtimeInstallationPlanId: UUID
       rejectionReason: String
       rejectedAt: DateTime generated technical
     }
@@ -883,6 +953,7 @@ context RuntimeOnboarding {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
       bootstrapTokenId: UUID
+      runtimeInstallationPlanId: UUID
       rejectionReason: String
       rejectedAt: DateTime
     }
@@ -890,11 +961,41 @@ context RuntimeOnboarding {
     state Rejected
   }
 
+  slice RuntimeInstallationPlanCatalog {
+    readmodel RuntimeInstallationPlanCatalog[] {
+      runtimeInstallationPlanId: UUID id
+      organizationId: UUID
+      networkProfileId: UUID
+      infrastructureName: String
+      infrastructureType: String
+      orchestratorType: String
+      orchestratorVersion: String?
+      installProfile: String
+      architecture: String
+      expectedNodeCount: Int
+      expectedGpuNodeCount: Int?
+      expectedCpuCoreCount: Int?
+      expectedMemoryGb: Int?
+      nodeLabels: String[]
+      planStatus: String
+      bootstrapTokenId: UUID?
+      runtimeInfrastructureId: UUID?
+      observedNodeCount: Int?
+      plannedAt: DateTime
+      lastConnectedAt: DateTime?
+      subscribe RuntimeInstallationPlanCreated
+      subscribe RuntimeBootstrapTokenIssued
+      subscribe RuntimeInfrastructureRegistered
+      subscribe RuntimeInfrastructureConnected
+    }
+  }
+
   slice RuntimeBootstrapTokenCatalog {
     readmodel RuntimeBootstrapTokenCatalog[] {
       bootstrapTokenId: UUID id
       organizationId: UUID
       networkProfileId: UUID
+      runtimeInstallationPlanId: UUID
       tokenName: String
       tokenFingerprint: String
       state: RuntimeBootstrapToken.State
@@ -916,6 +1017,7 @@ context RuntimeOnboarding {
       bootstrapRequestId: UUID id
       organizationId: UUID
       bootstrapTokenId: UUID
+      runtimeInstallationPlanId: UUID
       state: RuntimeBootstrapRequest.State
       requesterIp: String
       machineFingerprint: String
@@ -927,6 +1029,7 @@ context RuntimeOnboarding {
       gpuModel: String?
       installProfile: String?
       orchestratorType: String?
+      expectedNodeCount: Int?
       requestedAt: DateTime
       issuedAt: DateTime?
       rejectedAt: DateTime?
@@ -940,38 +1043,45 @@ context RuntimeOnboarding {
   slice RegisterRuntimeInfrastructure {
     startsLifecycle
 
-    actor RuntimeInstaller
     reactsTo RuntimeBootstrapConfigIssued
+
+    automation RegisterInfrastructureWhenBootstrapConfigIssued {
+      condition expectedNodeCount > 0
+      emits RegisterRuntimeInfrastructure
+    }
 
     tags {
       organizationId
+      runtimeInstallationPlanId
       runtimeInfrastructureId
     }
 
     command RegisterRuntimeInfrastructure {
-      runtimeInfrastructureId: UUID id generated technical
-      organizationId: UUID
-      networkProfileId: UUID
-      infrastructureName: String
-      infrastructureType: String       // cluster / single-node / vm / bare-metal
-      orchestratorType: String         // K3S 作为值，不作为概念
-      orchestratorVersion: String?
+      runtimeInfrastructureId: UUID id technical from RuntimeBootstrapConfigIssued.runtimeInfrastructureId
+      organizationId: UUID from RuntimeBootstrapConfigIssued.organizationId
+      networkProfileId: UUID from RuntimeBootstrapConfigIssued.networkProfileId
+      runtimeInstallationPlanId: UUID from RuntimeBootstrapConfigIssued.runtimeInstallationPlanId
+      infrastructureName: String from RuntimeBootstrapConfigIssued.infrastructureName
+      infrastructureType: String from RuntimeBootstrapConfigIssued.infrastructureType       // cluster / single-node / vm / bare-metal
+      orchestratorType: String from RuntimeBootstrapConfigIssued.orchestratorType         // K3S 作为值，不作为概念
+      orchestratorVersion: String? from RuntimeBootstrapConfigIssued.orchestratorVersion
       controlPlaneEndpointRef: String?
-      nodeCount: Int
-      architecture: String
-      installProfile: String
+      expectedNodeCount: Int from RuntimeBootstrapConfigIssued.expectedNodeCount
+      architecture: String from RuntimeBootstrapConfigIssued.architecture
+      installProfile: String from RuntimeBootstrapConfigIssued.installProfile
     }
 
     event RuntimeInfrastructureRegistered {
       runtimeInfrastructureId: UUID id technical
       organizationId: UUID
       networkProfileId: UUID
+      runtimeInstallationPlanId: UUID
       infrastructureName: String
       infrastructureType: String
       orchestratorType: String
       orchestratorVersion: String?
       controlPlaneEndpointRef: String?
-      nodeCount: Int
+      expectedNodeCount: Int
       architecture: String
       installProfile: String
     }
@@ -980,23 +1090,24 @@ context RuntimeOnboarding {
   }
 
   slice ReportRuntimeInfrastructureConnected {
-    actor RuntimeAgent
-    reactsTo RuntimeInfrastructureRegistered
+    reactsTo AgentRuntimeInfrastructureConnectionReported
 
     command ReportRuntimeInfrastructureConnected {
-      runtimeInfrastructureId: UUID id technical
-      organizationId: UUID
-      runtimeAgentId: UUID
-      connectedAt: DateTime
-      observedNodeCount: Int
-      availableCpuCores: Int
-      availableMemoryGb: Int
-      availableGpuCount: Int
+      runtimeInfrastructureId: UUID id technical from AgentRuntimeInfrastructureConnectionReported.runtimeInfrastructureId
+      organizationId: UUID from AgentRuntimeInfrastructureConnectionReported.organizationId
+      runtimeInstallationPlanId: UUID from AgentRuntimeInfrastructureConnectionReported.runtimeInstallationPlanId
+      runtimeAgentId: UUID from AgentRuntimeInfrastructureConnectionReported.runtimeAgentId
+      connectedAt: DateTime from AgentRuntimeInfrastructureConnectionReported.connectedAt
+      observedNodeCount: Int from AgentRuntimeInfrastructureConnectionReported.observedNodeCount
+      availableCpuCores: Int from AgentRuntimeInfrastructureConnectionReported.availableCpuCores
+      availableMemoryGb: Int from AgentRuntimeInfrastructureConnectionReported.availableMemoryGb
+      availableGpuCount: Int from AgentRuntimeInfrastructureConnectionReported.availableGpuCount
     }
 
     event RuntimeInfrastructureConnected {
       runtimeInfrastructureId: UUID id technical
       organizationId: UUID
+      runtimeInstallationPlanId: UUID
       runtimeAgentId: UUID
       connectedAt: DateTime
       observedNodeCount: Int
@@ -1035,6 +1146,7 @@ context RuntimeOnboarding {
       runtimeInfrastructureId: UUID id
       organizationId: UUID
       networkProfileId: UUID
+      runtimeInstallationPlanId: UUID
       profileName: String
       connectivityMode: String
       platformApiEndpoint: String
@@ -1043,7 +1155,7 @@ context RuntimeOnboarding {
       orchestratorType: String
       orchestratorVersion: String?
       infrastructureType: String
-      nodeCount: Int
+      expectedNodeCount: Int
       observedNodeCount: Int?
       availableCpuCores: Int?
       availableMemoryGb: Int?
@@ -1051,6 +1163,7 @@ context RuntimeOnboarding {
       lastConnectedAt: DateTime?
       accessStatus: String
       subscribe OrganizationNetworkProfileConfigured
+      subscribe RuntimeInstallationPlanCreated
       subscribe RuntimeBootstrapTokenIssued
       subscribe RuntimeBootstrapTokenRevoked
       subscribe RuntimeBootstrapConfigRequested
@@ -1066,6 +1179,13 @@ context RuntimeOnboarding {
     state Configured
 
     slice ConfigureOrganizationNetworkProfile
+  }
+
+  concept RuntimeInstallationPlan {
+    state Planned
+
+    slice CreateRuntimeInstallationPlan
+    slice RuntimeInstallationPlanCatalog
   }
 
   concept RuntimeBootstrapToken {
@@ -1101,7 +1221,7 @@ context RuntimeOnboarding {
 }
 
 context DatasetGovernance {
-  note "Dataset governance separates schema, dataset assets, runtime access profiles, and train evaluation bundles. It stores opaque agent handles, while runtime agents resolve local paths and secrets inside participant infrastructure."
+  note "Dataset governance separates feature schemas, organization-declared dataset governance records, runtime-agent-reported dataset metadata, runtime access profiles, and train evaluation bundles. It stores opaque agent handles, while runtime agents read local data and report quality metadata from inside participant infrastructure."
 
   risk "Datasets may be approved despite schema drift, privacy sensitivity, or non IID skew that invalidates training assumptions."
   risk "Runtime dataset access credentials can remain usable after policy revocation unless blocked explicitly."
@@ -1113,6 +1233,13 @@ context DatasetGovernance {
     target RuntimeAgent
     reactsTo DatasetAccessValidationRequested
     emits ValidateAgentDatasetAccess
+  }
+
+  integration RuntimeAgentDatasetProfiling {
+    source Dataset
+    target RuntimeAgent
+    reactsTo DatasetProfilingRequested
+    emits ProfileAgentDataset
   }
 
   integration RuntimeAgentDataConnectorProbe {
@@ -1403,76 +1530,158 @@ context DatasetGovernance {
       datasetId: UUID id generated technical
       // 用户填写？数据拥有者添加本身即所属组织 TODO
       organizationId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
       // 一个数据集是否能对应多个 feature schema
       featureSchemaId: UUID
       // 这是什么 TODO
       labelSchemaId: UUID
+      datasetName: String
       // 应该来自枚举 TODO
       datasetType: String
       // 什么意思 TODO
       datasetUsage: String
-      sampleCount: Int
       sensitivityLevel: String
       // 是否要标识，有没有用 TODO
       containsPII: Boolean
       region: String
+      agentDatasetHandle: String
     }
   
     event DatasetRegistered {
       datasetId: UUID id technical
       organizationId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
       featureSchemaId: UUID
       labelSchemaId: UUID
+      datasetName: String
       datasetType: String
       datasetUsage: String
-      sampleCount: Int
       sensitivityLevel: String
       containsPII: Boolean
       region: String
+      agentDatasetHandle: String
     }
   
     state Registered
   }
 
-  slice ValidateDatasetContract {
+  slice RequestRuntimeDatasetProfiling {
     reactsTo DatasetRegistered
+
+    automation RequestDatasetProfilingWhenDatasetRegistered {
+      on DatasetRegistered
+      emits RequestRuntimeDatasetProfiling
+    }
+
+    command RequestRuntimeDatasetProfiling {
+      datasetId: UUID id technical from DatasetRegistered.datasetId
+      organizationId: UUID from DatasetRegistered.organizationId
+      runtimeAgentId: UUID from DatasetRegistered.runtimeAgentId
+      dataConnectorId: UUID from DatasetRegistered.dataConnectorId
+      featureSchemaId: UUID from DatasetRegistered.featureSchemaId
+      labelSchemaId: UUID from DatasetRegistered.labelSchemaId
+      agentDatasetHandle: String from DatasetRegistered.agentDatasetHandle
+      profilingProfile: String?
+      requestedAt: DateTime generated technical
+    }
+
+    event DatasetProfilingRequested {
+      datasetId: UUID id technical
+      organizationId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      featureSchemaId: UUID
+      labelSchemaId: UUID
+      agentDatasetHandle: String
+      profilingProfile: String?
+      requestedAt: DateTime
+    }
+
+    state ProfilingRequested
+  }
+
+  slice RecordRuntimeDatasetMetadata {
+    reactsTo AgentDatasetMetadataReported
+
+    automation RecordDatasetMetadataWhenAgentReported {
+      on AgentDatasetMetadataReported
+      emits RecordRuntimeDatasetMetadata
+    }
+
+    command RecordRuntimeDatasetMetadata {
+      metadataReportId: UUID id technical from AgentDatasetMetadataReported.metadataReportId
+      datasetId: UUID from AgentDatasetMetadataReported.datasetId
+      organizationId: UUID from AgentDatasetMetadataReported.organizationId
+      runtimeAgentId: UUID from AgentDatasetMetadataReported.runtimeAgentId
+      dataConnectorId: UUID from AgentDatasetMetadataReported.dataConnectorId
+      featureSchemaId: UUID from AgentDatasetMetadataReported.featureSchemaId
+      labelSchemaId: UUID from AgentDatasetMetadataReported.labelSchemaId
+      sampleCount: Int from AgentDatasetMetadataReported.sampleCount
+      featureCount: Int from AgentDatasetMetadataReported.featureCount
+      schemaCompatible: Boolean from AgentDatasetMetadataReported.schemaCompatible
+      labelCompatible: Boolean from AgentDatasetMetadataReported.labelCompatible
+      missingValueRate: Decimal from AgentDatasetMetadataReported.missingValueRate
+      duplicateRate: Decimal from AgentDatasetMetadataReported.duplicateRate
+      qualityScore: Decimal from AgentDatasetMetadataReported.qualityScore
+      nonIidScore: Decimal from AgentDatasetMetadataReported.nonIidScore
+      classBalanceScore: Decimal? from AgentDatasetMetadataReported.classBalanceScore
+      statisticsRef: String? from AgentDatasetMetadataReported.statisticsRef
+      profiledAt: DateTime from AgentDatasetMetadataReported.profiledAt
+    }
+
+    event DatasetMetadataReported {
+      metadataReportId: UUID id technical
+      datasetId: UUID
+      organizationId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      featureSchemaId: UUID
+      labelSchemaId: UUID
+      sampleCount: Int
+      featureCount: Int
+      schemaCompatible: Boolean
+      labelCompatible: Boolean
+      missingValueRate: Decimal
+      duplicateRate: Decimal
+      qualityScore: Decimal
+      nonIidScore: Decimal
+      classBalanceScore: Decimal?
+      statisticsRef: String?
+      profiledAt: DateTime
+    }
+
+    state MetadataReported
+  }
+
+  slice ValidateDatasetContract {
+    reactsTo DatasetMetadataReported
   
     automation ValidateDatasetContractAutomatically {
-      // 条件不合适 TODO
       condition sampleCount > 0
       emits ValidateDatasetContract
     }
   
     command ValidateDatasetContract {
-      datasetId: UUID id technical
-      featureSchemaId: UUID
-      labelSchemaId: UUID
-      // 这怎么处理 TODO
-      validationProfile: String
-  
+      datasetId: UUID id technical from DatasetMetadataReported.datasetId
+      metadataReportId: UUID from DatasetMetadataReported.metadataReportId
+      featureSchemaId: UUID from DatasetMetadataReported.featureSchemaId
+      labelSchemaId: UUID from DatasetMetadataReported.labelSchemaId
+      validationProfile: String?
+      validatedAt: DateTime generated technical
     }
+
     event DatasetContractValidated {
       datasetId: UUID id technical
       featureSchemaId: UUID
       labelSchemaId: UUID
-      schemaCompatible: Boolean derived {
-        from Dataset.featureSchemaId, ValidateDatasetContract.featureSchemaId
-        rule "Validate dataset feature schema compatibility."
-      }
-      labelCompatible: Boolean derived {
-        from Dataset.labelSchemaId, ValidateDatasetContract.labelSchemaId
-        rule "Validate dataset label compatibility against the referenced label schema."
-      }
-      // 数据质量（集成研究算法） TODO 与 feature schema 不吻合怎么处理能否用来训练
-      qualityScore: Decimal derived {
-        from Dataset.statistics, ValidationProfile
-        rule "Score dataset quality against the validation profile."
-        example "0.86"
-      }
-      nonIidScore: Decimal derived {
-        from Dataset.statistics, ValidationProfile
-        rule "Score dataset distribution skew for training selection."
-      }
+      metadataReportId: UUID
+      schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
+      labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
+      qualityScore: Decimal from DatasetMetadataReported.qualityScore
+      nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
+      validatedAt: DateTime
     }
   
     state ContractValidated
@@ -1590,14 +1799,27 @@ context DatasetGovernance {
     readmodel DatasetCapability[] {
       datasetId: UUID id
       organizationId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
       featureSchemaId: UUID
+      datasetName: String
       datasetUsage: String
-      sampleCount: Int
-      qualityScore: Decimal
+      sampleCount: Int?
+      featureCount: Int?
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
+      metadataReportId: UUID?
+      statisticsRef: String?
+      metadataStatus: String
       approvalStatus: String
       expiresAt: DateTime?
       approved: Boolean
+      lastProfiledAt: DateTime?
       subscribe DatasetRegistered
+      subscribe DatasetProfilingRequested
+      subscribe DatasetMetadataReported
       subscribe DatasetContractValidated
       subscribe DatasetRejectedForTraining
       subscribe DatasetApprovedForTraining
@@ -1608,6 +1830,8 @@ context DatasetGovernance {
 
   concept Dataset {
     state Registered
+    state ProfilingRequested
+    state MetadataReported
     state ContractValidated
     state Approved
     state Rejected
@@ -1615,6 +1839,8 @@ context DatasetGovernance {
     state ApprovalRevoked
 
     slice RegisterDataset
+    slice RequestRuntimeDatasetProfiling
+    slice RecordRuntimeDatasetMetadata
     slice ValidateDatasetContract
     slice RejectDatasetForTraining
     slice ApproveDatasetForTraining
@@ -1646,10 +1872,6 @@ context DatasetGovernance {
         from RuntimeAgent.organizationId
         rule "Bind the synced connector to the organization owned by the trusted runtime agent."
       }
-      nodeId: UUID derived {
-        from RuntimeAgent.nodeId
-        rule "Bind the synced connector to the compute node owned by the trusted runtime agent."
-      }
       runtimeAgentId: UUID
       connectorName: String
       connectorType: String
@@ -1665,16 +1887,20 @@ context DatasetGovernance {
   }
 
   slice VerifyDataConnectorAccess {
-    actor RuntimeAgent
     reactsTo AgentDataConnectorAccessProbed
 
+    automation VerifyDataConnectorAccessWhenAgentProbed {
+      on AgentDataConnectorAccessProbed
+      emits VerifyDataConnectorAccess
+    }
+
     command VerifyDataConnectorAccess {
-      dataConnectorId: UUID id technical
-      runtimeAgentId: UUID
-      readable: Boolean
-      writable: Boolean
-      validationReportId: UUID
-      verifiedAt: DateTime
+      dataConnectorId: UUID id technical from AgentDataConnectorAccessProbed.dataConnectorId
+      runtimeAgentId: UUID from AgentDataConnectorAccessProbed.runtimeAgentId
+      readable: Boolean from AgentDataConnectorAccessProbed.readable
+      writable: Boolean from AgentDataConnectorAccessProbed.writable
+      validationReportId: UUID from AgentDataConnectorAccessProbed.validationReportId
+      verifiedAt: DateTime from AgentDataConnectorAccessProbed.verifiedAt
     }
 
     event DataConnectorAccessVerified {
@@ -1711,7 +1937,6 @@ context DatasetGovernance {
     readmodel DataConnectorCatalog[] {
       dataConnectorId: UUID id
       organizationId: UUID
-      nodeId: UUID
       runtimeAgentId: UUID
       connectorName: String
       connectorType: String
@@ -1794,9 +2019,9 @@ context DatasetGovernance {
   slice RequestRuntimeDatasetAccessValidation {
     reactsTo DatasetAccessProfileConfigured
 
-    policy ValidateDatasetAccessAfterProfileConfigured {
+    automation ValidateDatasetAccessAfterProfileConfigured {
       on DatasetAccessProfileConfigured
-      issue RequestRuntimeDatasetAccessValidation
+      emits RequestRuntimeDatasetAccessValidation
     }
 
     command RequestRuntimeDatasetAccessValidation {
@@ -1823,17 +2048,22 @@ context DatasetGovernance {
   slice CompleteRuntimeDatasetAccessValidation {
     reactsTo AgentDatasetAccessValidated
 
+    automation CompleteDatasetAccessValidationWhenAgentValidated {
+      on AgentDatasetAccessValidated
+      emits CompleteRuntimeDatasetAccessValidation
+    }
+
     command CompleteRuntimeDatasetAccessValidation {
-      accessProfileId: UUID id technical
-      datasetId: UUID
-      runtimeId: UUID
-      runtimeAgentId: UUID
-      dataConnectorId: UUID
-      readable: Boolean
-      schemaReadable: Boolean
-      sampleBatchReadable: Boolean
-      validationReportId: UUID
-      validatedAt: DateTime
+      accessProfileId: UUID id technical from AgentDatasetAccessValidated.accessProfileId
+      datasetId: UUID from AgentDatasetAccessValidated.datasetId
+      runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
+      runtimeAgentId: UUID from AgentDatasetAccessValidated.runtimeAgentId
+      dataConnectorId: UUID from AgentDatasetAccessValidated.dataConnectorId
+      readable: Boolean from AgentDatasetAccessValidated.readable
+      schemaReadable: Boolean from AgentDatasetAccessValidated.schemaReadable
+      sampleBatchReadable: Boolean from AgentDatasetAccessValidated.sampleBatchReadable
+      validationReportId: UUID from AgentDatasetAccessValidated.validationReportId
+      validatedAt: DateTime from AgentDatasetAccessValidated.validatedAt
     }
 
     event RuntimeDatasetAccessValidated {
@@ -2056,13 +2286,6 @@ context TrainingOrchestration {
     emits DispatchTrainingRuntime
   }
 
-  integration ComputeNodeRegistrationSync {
-    source RuntimeAgent
-    target OrganizationManagement
-    reactsTo RuntimeAgentRegistered
-    emits SyncComputeNodeRegistration
-  }
-
   slice RegisterRuntimeAgent {
     startsLifecycle
 
@@ -2071,11 +2294,9 @@ context TrainingOrchestration {
 
     command RegisterRuntimeAgent {
       runtimeAgentId: UUID id generated technical
-      nodeId: UUID
       organizationId: UUID
       runtimeInfrastructureId: UUID
       agentName: String
-      orchestratorNodeName: String?
       agentVersion: String
       agentEndpointRef: String
       runtimeEnvironmentRef: String?
@@ -2084,11 +2305,9 @@ context TrainingOrchestration {
 
     event RuntimeAgentRegistered {
       runtimeAgentId: UUID id technical
-      nodeId: UUID
       organizationId: UUID
       runtimeInfrastructureId: UUID
       agentName: String
-      orchestratorNodeName: String?
       agentVersion: String
       agentEndpointRef: String
       runtimeEnvironmentRef: String?
@@ -2151,11 +2370,9 @@ context TrainingOrchestration {
   slice RuntimeAgentCatalog {
     readmodel RuntimeAgentCatalog[] {
       runtimeAgentId: UUID id
-      nodeId: UUID
       organizationId: UUID
       runtimeInfrastructureId: UUID
       agentName: String
-      orchestratorNodeName: String?
       agentVersion: String
       agentEndpointRef: String
       runtimeEnvironmentRef: String?
@@ -2305,9 +2522,9 @@ context TrainingOrchestration {
   slice LockTrainingRunConfiguration {
     reactsTo TrainingJobSubmitted
 
-    policy LockConfigurationWhenTrainingSubmitted {
+    automation LockConfigurationWhenTrainingSubmitted {
       on TrainingJobSubmitted
-      issue LockTrainingRunConfiguration
+      emits LockTrainingRunConfiguration
     }
 
     command LockTrainingRunConfiguration {
@@ -2532,9 +2749,9 @@ context TrainingOrchestration {
       nodeId
     }
 
-    policy RequestEligibleNodes {
+    automation RequestEligibleNodes {
       on TrainingJobSubmitted
-      issue RequestNodeParticipation
+      emits RequestNodeParticipation
     }
 
     command RequestNodeParticipation {
@@ -2595,9 +2812,9 @@ context TrainingOrchestration {
       nodeId
     }
 
-    policy DispatchRuntimeWhenNodeReady {
+    automation DispatchRuntimeWhenNodeReady {
       on NodeReadyForTraining
-      issue DispatchTrainingRuntime
+      emits DispatchTrainingRuntime
     }
 
     command DispatchTrainingRuntime {
@@ -2778,9 +2995,9 @@ context TrainingOrchestration {
   slice TrackTrainingJobRunning {
     reactsTo TrainingRoundStarted
 
-    policy MarkTrainingJobRunningWhenRoundStarts {
+    automation MarkTrainingJobRunningWhenRoundStarts {
       on TrainingRoundStarted
-      issue MarkTrainingJobRunning
+      emits MarkTrainingJobRunning
     }
 
     command MarkTrainingJobRunning {
@@ -3051,9 +3268,9 @@ context TrainingOrchestration {
   slice DistributeGlobalModel {
     reactsTo TrainingRoundStarted
 
-    policy RequestDistributeGlobalModel {
+    automation RequestDistributeGlobalModel {
       on TrainingRoundStarted
-      issue DistributeGlobalModel
+      emits DistributeGlobalModel
     }
 
     command DistributeGlobalModel {
@@ -3267,9 +3484,9 @@ context TrainingOrchestration {
   slice CompleteTrainingRound {
     reactsTo GlobalModelEvaluationSubmitted
 
-    policy FinishRoundAfterGlobalModelEvaluated {
+    automation FinishRoundAfterGlobalModelEvaluated {
       on GlobalModelEvaluationSubmitted
-      issue CompleteTrainingRound
+      emits CompleteTrainingRound
     }
 
     command CompleteTrainingRound {
@@ -3428,9 +3645,9 @@ context ModelLifecycle {
     startsLifecycle
     reactsTo TrainingJobCompleted
 
-    policy RegisterFinalModelWhenTrainingJobCompleted {
+    automation RegisterFinalModelWhenTrainingJobCompleted {
       on TrainingJobCompleted
-      issue RegisterCandidateModel
+      emits RegisterCandidateModel
     }
 
     command RegisterCandidateModel {
@@ -3704,12 +3921,19 @@ context ModelLifecycle {
 }
 
 context RuntimeOperations {
-  note "Runtime operations separates heartbeat monitoring, training alerts, and append only audit records."
+  note "Runtime operations separates node inventory, heartbeat monitoring, training alerts, and append only audit records."
 
   risk "Operational alerts without acknowledgement or resolution tracking can hide node degradation during training."
   risk "Audit records without payload hashes and source event classification weaken compliance evidence."
   metric runtimeAlertMeanTimeToAcknowledge
   metric auditTrailCompleteness
+
+  integration ComputeNodeRegistrationSync {
+    source RuntimeNodeInventory
+    target OrganizationManagement
+    reactsTo RuntimeNodeInventoryReported
+    emits SyncComputeNodeRegistration
+  }
 
   slice RecordRuntimeHeartbeat {
     startsLifecycle
@@ -3742,6 +3966,79 @@ context RuntimeOperations {
     }
 
     state Healthy
+  }
+
+  slice RecordRuntimeNodeInventory {
+    startsLifecycle
+    actor RuntimeAgent
+    ui RuntimeMonitorScreen
+    reactsTo AgentRuntimeNodeInventoryReported
+
+    tags {
+      nodeId
+      organizationId
+      runtimeInfrastructureId
+      runtimeAgentId
+    }
+
+    command RecordRuntimeNodeInventory {
+      nodeId: UUID id technical
+      runtimeNodeInventoryReportId: UUID
+      organizationId: UUID
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String
+      providerNodeId: String?
+      nodeRole: String              // CONTROL_PLANE / WORKER
+      nodeReady: Boolean
+      kubeletVersion: String?
+      containerRuntimeVersion: String?
+      operatingSystem: String?
+      architecture: String
+      discoveredAt: DateTime
+      recordedAt: DateTime generated technical
+    }
+
+    event RuntimeNodeInventoryReported {
+      nodeId: UUID id technical
+      runtimeNodeInventoryReportId: UUID
+      organizationId: UUID
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String
+      providerNodeId: String?
+      nodeRole: String
+      nodeReady: Boolean
+      kubeletVersion: String?
+      containerRuntimeVersion: String?
+      operatingSystem: String?
+      architecture: String
+      discoveredAt: DateTime
+      recordedAt: DateTime
+    }
+
+    state Reported
+  }
+
+  slice RuntimeNodeInventoryView {
+    readmodel RuntimeNodeInventoryView[] {
+      nodeId: UUID id
+      runtimeNodeInventoryReportId: UUID
+      organizationId: UUID
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String
+      providerNodeId: String?
+      nodeRole: String
+      nodeReady: Boolean
+      kubeletVersion: String?
+      containerRuntimeVersion: String?
+      operatingSystem: String?
+      architecture: String
+      discoveredAt: DateTime
+      recordedAt: DateTime
+      subscribe RuntimeNodeInventoryReported
+    }
   }
 
   slice RecordRuntimeNodeResourceSnapshot {
@@ -3827,6 +4124,13 @@ context RuntimeOperations {
     slice RuntimeHealthDashboard
   }
 
+  concept RuntimeNodeInventory {
+    state Reported
+
+    slice RecordRuntimeNodeInventory
+    slice RuntimeNodeInventoryView
+  }
+
   slice RuntimeNodeResourceSnapshotView {
     readmodel RuntimeNodeResourceSnapshotView[] {
       runtimeNodeResourceSnapshotId: UUID id
@@ -3909,64 +4213,64 @@ context RuntimeOperations {
     startsLifecycle
     reactsTo TrainingAlertRaised
 
-    policy AuditCriticalTrainingEvents {
+    automation AuditCriticalTrainingEvents {
       on TrainingAlertRaised
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditFederationActivated {
+    automation AuditFederationActivated {
       on FederationActivated
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditFederationSuspended {
+    automation AuditFederationSuspended {
       on FederationSuspended
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditFederationReactivated {
+    automation AuditFederationReactivated {
       on FederationReactivated
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditParticipantJoined {
+    automation AuditParticipantJoined {
       on ParticipantJoined
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditParticipantSuspended {
+    automation AuditParticipantSuspended {
       on ParticipantSuspended
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditDatasetApproval {
+    automation AuditDatasetApproval {
       on DatasetApprovedForTraining
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditDatasetApprovalRevoked {
+    automation AuditDatasetApprovalRevoked {
       on DatasetTrainingApprovalRevoked
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditTrainingJobSubmitted {
+    automation AuditTrainingJobSubmitted {
       on TrainingJobSubmitted
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditModelPromotedToProduction {
+    automation AuditModelPromotedToProduction {
       on ModelPromotedToProduction
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditComputeNodeDisabled {
+    automation AuditComputeNodeDisabled {
       on ComputeNodeDisabled
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
-    policy AuditComputeNodeEnabled {
+    automation AuditComputeNodeEnabled {
       on ComputeNodeEnabled
-      issue AppendAuditTrail
+      emits AppendAuditTrail
     }
 
     command AppendAuditTrail {
@@ -4044,9 +4348,9 @@ context KeyAndAttestationManagement {
   slice DistributeNodeKey {
     reactsTo NodeKeyGenerated
 
-    policy DistributeKeyWhenGenerated {
+    automation DistributeKeyWhenGenerated {
       on NodeKeyGenerated
-      issue DistributeNodeKey
+      emits DistributeNodeKey
     }
 
     command DistributeNodeKey {
@@ -4473,9 +4777,9 @@ context KeyAndAttestationManagement {
     startsLifecycle
     reactsTo SecureAggregationRequested
 
-    policy InitializeAggregationRoundWhenRequested {
+    automation InitializeAggregationRoundWhenRequested {
       on SecureAggregationRequested
-      issue InitializeSecureAggregationRound
+      emits InitializeSecureAggregationRound
     }
 
     command InitializeSecureAggregationRound {
@@ -4803,6 +5107,13 @@ context KeyAndAttestationManagement {
       emits VerifyDataConnectorAccess
     }
 
+    integration PlatformDatasetMetadataReporting {
+      source AgentDatasetMetadata
+      target DatasetGovernance
+      reactsTo AgentDatasetMetadataReported
+      emits RecordRuntimeDatasetMetadata
+    }
+
     integration PlatformDatasetAccessValidationReporting {
       source AgentDatasetAccessValidation
       target DatasetGovernance
@@ -4824,6 +5135,13 @@ context KeyAndAttestationManagement {
       emits SubmitLocalModelEvaluation
     }
 
+    integration PlatformRuntimeInfrastructureConnectionReporting {
+      source AgentRuntimeInfrastructureConnection
+      target RuntimeOnboarding
+      reactsTo AgentRuntimeInfrastructureConnectionReported
+      emits ReportRuntimeInfrastructureConnected
+    }
+
     integration PlatformRuntimeHeartbeatReporting {
       source AgentRuntimeHeartbeat
       target RuntimeOperations
@@ -4836,6 +5154,13 @@ context KeyAndAttestationManagement {
       target RuntimeOperations
       reactsTo AgentRuntimeNodeResourceSnapshotReported
       emits RecordRuntimeNodeResourceSnapshot
+    }
+
+    integration PlatformRuntimeNodeInventoryReporting {
+      source AgentRuntimeNodeInventory
+      target RuntimeOperations
+      reactsTo AgentRuntimeNodeInventoryReported
+      emits RecordRuntimeNodeInventory
     }
 
   slice RegisterAgentDataConnector {
@@ -4948,6 +5273,82 @@ context KeyAndAttestationManagement {
 
     slice ProbeAgentDataConnectorAccess
     slice AgentDataConnectorAccessProbeCatalog
+  }
+
+  slice ProfileAgentDataset {
+    startsLifecycle
+    reactsTo DatasetProfilingRequested
+
+    automation ProfileDatasetWhenRequested {
+      on DatasetProfilingRequested
+      emits ProfileAgentDataset
+    }
+
+    command ProfileAgentDataset {
+      metadataReportId: UUID id generated technical
+      datasetId: UUID from DatasetProfilingRequested.datasetId
+      organizationId: UUID from DatasetProfilingRequested.organizationId
+      runtimeAgentId: UUID from DatasetProfilingRequested.runtimeAgentId
+      dataConnectorId: UUID from DatasetProfilingRequested.dataConnectorId
+      featureSchemaId: UUID from DatasetProfilingRequested.featureSchemaId
+      labelSchemaId: UUID from DatasetProfilingRequested.labelSchemaId
+      agentDatasetHandle: String from DatasetProfilingRequested.agentDatasetHandle
+      profilingProfile: String? from DatasetProfilingRequested.profilingProfile
+    }
+
+    event AgentDatasetMetadataReported {
+      metadataReportId: UUID id technical
+      datasetId: UUID
+      organizationId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      featureSchemaId: UUID
+      labelSchemaId: UUID
+      sampleCount: Int
+      featureCount: Int
+      schemaCompatible: Boolean
+      labelCompatible: Boolean
+      missingValueRate: Decimal
+      duplicateRate: Decimal
+      qualityScore: Decimal
+      nonIidScore: Decimal
+      classBalanceScore: Decimal?
+      statisticsRef: String?
+      profiledAt: DateTime
+    }
+
+    state Reported
+  }
+
+  slice AgentDatasetMetadataCatalog {
+    readmodel AgentDatasetMetadataCatalog[] {
+      metadataReportId: UUID id
+      datasetId: UUID
+      organizationId: UUID
+      runtimeAgentId: UUID
+      dataConnectorId: UUID
+      featureSchemaId: UUID
+      labelSchemaId: UUID
+      sampleCount: Int
+      featureCount: Int
+      schemaCompatible: Boolean
+      labelCompatible: Boolean
+      missingValueRate: Decimal
+      duplicateRate: Decimal
+      qualityScore: Decimal
+      nonIidScore: Decimal
+      classBalanceScore: Decimal?
+      statisticsRef: String?
+      profiledAt: DateTime
+      subscribe AgentDatasetMetadataReported
+    }
+  }
+
+  concept AgentDatasetMetadata {
+    state Reported
+
+    slice ProfileAgentDataset
+    slice AgentDatasetMetadataCatalog
   }
 
   slice ValidateAgentDatasetAccess {
@@ -5148,6 +5549,59 @@ context KeyAndAttestationManagement {
     slice AgentRoundContributionCatalog
   }
 
+  slice ReportAgentRuntimeInfrastructureConnection {
+    startsLifecycle
+    reactsTo RuntimeInfrastructureRegistered
+
+    command ReportAgentRuntimeInfrastructureConnection {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      runtimeAgentId: UUID
+      connectedAt: DateTime
+      observedNodeCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+    }
+
+    event AgentRuntimeInfrastructureConnectionReported {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      runtimeAgentId: UUID
+      connectedAt: DateTime
+      observedNodeCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+    }
+
+    state Reported
+  }
+
+  slice AgentRuntimeInfrastructureConnectionCatalog {
+    readmodel AgentRuntimeInfrastructureConnectionCatalog[] {
+      runtimeInfrastructureId: UUID id
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      runtimeAgentId: UUID
+      connectedAt: DateTime
+      observedNodeCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      subscribe AgentRuntimeInfrastructureConnectionReported
+    }
+  }
+
+  concept AgentRuntimeInfrastructureConnection {
+    state Reported
+
+    slice ReportAgentRuntimeInfrastructureConnection
+    slice AgentRuntimeInfrastructureConnectionCatalog
+  }
+
   slice ReportAgentRuntimeHeartbeat {
     startsLifecycle
 
@@ -5201,6 +5655,70 @@ context KeyAndAttestationManagement {
 
     slice ReportAgentRuntimeHeartbeat
     slice AgentRuntimeHeartbeatCatalog
+  }
+
+  slice ReportAgentRuntimeNodeInventory {
+    startsLifecycle
+
+    command ReportAgentRuntimeNodeInventory {
+      runtimeNodeInventoryReportId: UUID id generated technical
+      organizationId: UUID
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String
+      providerNodeId: String?
+      nodeRole: String              // CONTROL_PLANE / WORKER
+      nodeReady: Boolean
+      kubeletVersion: String?
+      containerRuntimeVersion: String?
+      operatingSystem: String?
+      architecture: String
+      discoveredAt: DateTime
+    }
+
+    event AgentRuntimeNodeInventoryReported {
+      runtimeNodeInventoryReportId: UUID id technical
+      organizationId: UUID
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String
+      providerNodeId: String?
+      nodeRole: String
+      nodeReady: Boolean
+      kubeletVersion: String?
+      containerRuntimeVersion: String?
+      operatingSystem: String?
+      architecture: String
+      discoveredAt: DateTime
+    }
+
+    state Reported
+  }
+
+  slice AgentRuntimeNodeInventoryCatalog {
+    readmodel AgentRuntimeNodeInventoryCatalog[] {
+      runtimeNodeInventoryReportId: UUID id
+      organizationId: UUID
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      orchestratorNodeName: String
+      providerNodeId: String?
+      nodeRole: String
+      nodeReady: Boolean
+      kubeletVersion: String?
+      containerRuntimeVersion: String?
+      operatingSystem: String?
+      architecture: String
+      discoveredAt: DateTime
+      subscribe AgentRuntimeNodeInventoryReported
+    }
+  }
+
+  concept AgentRuntimeNodeInventory {
+    state Reported
+
+    slice ReportAgentRuntimeNodeInventory
+    slice AgentRuntimeNodeInventoryCatalog
   }
 
   slice ReportAgentRuntimeNodeResourceSnapshot {
@@ -5320,9 +5838,9 @@ context KeyAndAttestationManagement {
     slice StartAgentRuntimeJob {
       reactsTo AgentRuntimeJobAccepted
 
-      policy StartRuntimeJobAfterAccepted {
+      automation StartRuntimeJobAfterAccepted {
         on AgentRuntimeJobAccepted
-        issue StartAgentRuntimeJob
+        emits StartAgentRuntimeJob
       }
 
       command StartAgentRuntimeJob {

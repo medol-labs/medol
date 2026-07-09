@@ -96,7 +96,7 @@ export const renderPrdMarkdown = (
   lines.push('');
 
   lines.push('<!-- em:section id="prd.section.automations" -->');
-  heading(lines, 2, zh ? '自动化、策略与集成' : 'Automation, Policies, and Integrations');
+  heading(lines, 2, zh ? '自动化与集成' : 'Automation and Integrations');
   if (document.automations.length) {
     lines.push(zh ? '| 名称 | 类型 | 触发与规则 |' : '| Name | Type | Trigger and Rules |');
     lines.push('| --- | --- | --- |');
@@ -107,7 +107,7 @@ export const renderPrdMarkdown = (
       lines.push(`| ${cell(humanize(automation.name))} | ${cell(humanize(automation.kind))} | ${cell(metadata || '-')} |`);
     }
   } else {
-    lines.push(zh ? '当前未明确自动化、策略或集成。' : 'No automation, policies, or integrations are explicitly modeled.');
+    lines.push(zh ? '当前未明确自动化或集成。' : 'No automation or integrations are explicitly modeled.');
   }
   lines.push('');
 

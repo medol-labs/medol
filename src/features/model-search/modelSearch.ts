@@ -22,7 +22,6 @@ export type ModelSearchKind =
   | 'readmodel'
   | 'specification'
   | 'automation'
-  | 'policy'
   | 'integration'
   | 'screen'
   | 'type'
@@ -68,7 +67,6 @@ const aliases: Record<string, ModelSearchKind> = {
   specification: 'specification',
   auto: 'automation',
   automation: 'automation',
-  policy: 'policy',
   integration: 'integration',
   screen: 'screen',
   type: 'type',
@@ -268,7 +266,7 @@ const addItem = (
 
 const elementKind = (element: EmElement): ModelSearchKind | undefined => {
   if (element.kind === 'gwt') return 'specification';
-  if (['command', 'event', 'readmodel', 'automation', 'policy', 'integration', 'screen'].includes(element.kind)) {
+  if (['command', 'event', 'readmodel', 'automation', 'integration', 'screen'].includes(element.kind)) {
     return element.kind as ModelSearchKind;
   }
   return undefined;

@@ -21,7 +21,6 @@ const labels: Record<EmElementKind, string> = {
   event: 'Event',
   readmodel: 'Read Model',
   automation: 'Automation',
-  policy: 'Policy',
   gwt: 'GWT',
   aggregate: 'Aggregate',
   hotspot: 'Hotspot',

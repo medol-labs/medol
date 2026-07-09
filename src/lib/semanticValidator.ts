@@ -334,7 +334,7 @@ const validateElements = (symbols: ContextSymbols, diagnostics: string[]): void 
     const byKind = new Map<EmElement['kind'], number>();
     for (const element of elements) byKind.set(element.kind, (byKind.get(element.kind) ?? 0) + 1);
     for (const [kind, count] of byKind) {
-      if (count > 1 && ['command', 'event', 'readmodel', 'automation', 'policy'].includes(kind)) {
+      if (count > 1 && ['command', 'event', 'readmodel', 'automation'].includes(kind)) {
         diagnostics.push(`${scope}: duplicate ${kind} ${name}.`);
       }
     }
@@ -343,7 +343,7 @@ const validateElements = (symbols: ContextSymbols, diagnostics: string[]): void 
   for (const slice of allSlices(symbols.context)) {
     validateDuplicateNames(slice.tags.map((tag) => tag.name), 'tag', `Slice ${slice.name}`, diagnostics);
     const elementNames = slice.elements
-      .filter((element) => ['command', 'event', 'readmodel', 'automation', 'policy'].includes(element.kind))
+      .filter((element) => ['command', 'event', 'readmodel', 'automation'].includes(element.kind))
       .map((element) => element.name);
     validateDuplicateNames(elementNames, 'element', `Slice ${slice.name}`, diagnostics);
 

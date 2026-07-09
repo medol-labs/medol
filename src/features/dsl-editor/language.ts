@@ -45,7 +45,6 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
       'readmodel',
       'projection',
       'automation',
-      'policy',
       'hotspot',
       'integration',
       'given',
@@ -58,6 +57,7 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
       'rule',
       'example',
       'subscribes',
+      'on',
       'emits',
       'updates'
     ],
