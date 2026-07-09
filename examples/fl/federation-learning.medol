@@ -2009,7 +2009,7 @@ context DatasetGovernance {
 }
 
 context TrainingOrchestration {
-  note "Training orchestration owns job intent, trusted runtime agents, and each round of distributed training and evaluation."
+  note "Training orchestration owns job intent, participant eligibility, runtime dispatch, and each round of distributed training and evaluation."
 
   risk "Training can stall when ready nodes fall below quorum or when secure aggregation is requested before enough evaluated updates exist."
   risk "Poisoned local updates can degrade the global model if anomaly checks are not modeled as a first class decision."
@@ -2043,123 +2043,6 @@ context TrainingOrchestration {
     target RuntimeAgent
     reactsTo NodeReadyForTraining
     emits DispatchTrainingRuntime
-  }
-
-  slice RegisterRuntimeAgent {
-    startsLifecycle
-
-    actor RuntimeAgent
-    reactsTo RuntimeInfrastructureConnected
-
-    command RegisterRuntimeAgent {
-      runtimeAgentId: UUID id generated technical
-      organizationId: UUID
-      runtimeInfrastructureId: UUID
-      agentName: String
-      agentVersion: String
-      agentEndpointRef: String
-      runtimeEnvironmentRef: String?
-      supportedRuntimeTypes: String[]
-    }
-
-    event RuntimeAgentRegistered {
-      runtimeAgentId: UUID id technical
-      organizationId: UUID
-      runtimeInfrastructureId: UUID
-      agentName: String
-      agentVersion: String
-      agentEndpointRef: String
-      runtimeEnvironmentRef: String?
-      supportedRuntimeTypes: String[]
-    }
-
-    state Registered
-  }
-
-  slice DeclareRuntimeAgentCapability {
-    actor RuntimeAgent
-    ui RuntimeAgentCapabilityScreen
-    reactsTo RuntimeAgentRegistered
-
-    command DeclareRuntimeAgentCapability {
-      runtimeAgentId: UUID id technical
-      maxConcurrentRuntimeJobs: Int
-      supportedDataConnectorTypes: String[]
-      supportedSecretRefTypes: String[]
-      supportedArtifactStores: String[]
-      supportsGpuScheduling: Boolean
-    }
-
-    event RuntimeAgentCapabilityDeclared {
-      runtimeAgentId: UUID id technical
-      maxConcurrentRuntimeJobs: Int
-      supportedDataConnectorTypes: String[]
-      supportedSecretRefTypes: String[]
-      supportedArtifactStores: String[]
-      supportsGpuScheduling: Boolean
-    }
-
-    state CapabilityDeclared
-  }
-
-  slice TrustRuntimeAgent {
-    actor SecurityReviewer
-    ui RuntimeAgentTrustScreen
-    reactsTo RuntimeAgentCapabilityDeclared
-
-    command TrustRuntimeAgent {
-      runtimeAgentId: UUID id technical
-      trustLevel: String
-      agentCertificateFingerprint: String
-      attestationReportId: UUID?
-      trustExpiresAt: DateTime
-    }
-
-    event RuntimeAgentTrusted {
-      runtimeAgentId: UUID id technical
-      trustLevel: String
-      agentCertificateFingerprint: String
-      attestationReportId: UUID?
-      trustExpiresAt: DateTime
-    }
-
-    state Trusted
-  }
-
-  slice RuntimeAgentCatalog {
-    readmodel RuntimeAgentCatalog[] {
-      runtimeAgentId: UUID id
-      organizationId: UUID
-      runtimeInfrastructureId: UUID
-      agentName: String
-      agentVersion: String
-      agentEndpointRef: String
-      runtimeEnvironmentRef: String?
-      supportedRuntimeTypes: String[]
-      maxConcurrentRuntimeJobs: Int
-      supportedDataConnectorTypes: String[]
-      supportedSecretRefTypes: String[]
-      supportedArtifactStores: String[]
-      supportsGpuScheduling: Boolean
-      trustLevel: String?
-      agentCertificateFingerprint: String?
-      trustExpiresAt: DateTime?
-      agentStatus: String
-      subscribe RuntimeAgentRegistered
-      subscribe RuntimeAgentCapabilityDeclared
-      subscribe RuntimeAgentTrusted
-    }
-  }
-
-  concept RuntimeAgent {
-    state Registered
-    state CapabilityDeclared
-    state Trusted
-
-    slice RegisterRuntimeAgent
-    slice DeclareRuntimeAgentCapability
-    slice TrustRuntimeAgent
-    slice RuntimeAgentCatalog
   }
 
   slice DefineTrainingRunConfiguration {
@@ -2337,11 +2220,10 @@ context TrainingOrchestration {
     ui TrainingJobCreationScreen
     reactsTo TrainingRunConfigurationValidated
 
-    // 哪些组织参与 TODO
+    // Participating organizations are resolved from federation membership and runtime readiness.
     command CreateTrainingJob {
       trainingJobId: UUID id generated technical
       federationId: UUID
-      featureSchemaId: UUID
       trainingRunConfigurationId: UUID
       objective: String
       targetMetric: String
@@ -2350,7 +2232,10 @@ context TrainingOrchestration {
     event TrainingJobCreated {
       trainingJobId: UUID id technical
       federationId: UUID
-      featureSchemaId: UUID
+      featureSchemaId: UUID derived {
+        from TrainingRunConfiguration.featureSchemaId
+        rule "Use the feature schema selected in the validated training run configuration."
+      }
       trainingRunConfigurationId: UUID
       objective: String
       targetMetric: String
@@ -2360,7 +2245,7 @@ context TrainingOrchestration {
 
     specification "Training Job Requires Validated Configuration And Runtime Access" {
       rule """
-        A training job can be created only from a validated training run configuration. Dataset access validation evidence is selected in the training dataset selection step.
+        A training job can be created only from a validated training run configuration. Runtime agents match local datasets by the configuration's feature schema when work is dispatched.
       """
 
       scenario "Create Training Job With Validated Inputs" {
@@ -2384,102 +2269,10 @@ context TrainingOrchestration {
     }
   }
 
-  slice SelectTrainingDatasets {
-    actor ResearchLead
-    ui TrainingDatasetSelectionScreen
-    reactsTo TrainingJobCreated
-
-    command SelectTrainingDatasets {
-      trainingDatasetSelectionId: UUID id generated technical
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      organizationId: UUID
-      runtimeAgentId: UUID
-      selectionRole: String       // AGGREGATOR / PARTICIPANT
-      trainingDatasetId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetId: UUID
-      evaluationDatasetAccessValidationId: UUID
-      selectedAt: DateTime generated technical
-    }
-
-    event TrainingDatasetsSelected {
-      trainingDatasetSelectionId: UUID id technical
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      organizationId: UUID
-      runtimeAgentId: UUID
-      selectionRole: String
-      trainingDatasetId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetId: UUID
-      evaluationDatasetAccessValidationId: UUID
-      selectedAt: DateTime
-    }
-
-    state DatasetsSelected
-
-    specification "Training Dataset Selection Requires Validated Access" {
-      rule """
-        Each selected training or evaluation dataset must have runtime-readable dataset access validation evidence and must not be blocked.
-      """
-
-      scenario "Select Training Datasets For Job" {
-        given TrainingJobCreated {
-          trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-        }
-        when SelectTrainingDatasets {
-          trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-          trainingDatasetAccessValidationId = "access-train-1"
-          evaluationDatasetAccessValidationId = "access-eval-1"
-        }
-        then TrainingDatasetsSelected
-      }
-    }
-  }
-
-  // 信息全从 run configuration 来，这个策略的意义是什么 TODO
-  slice ConfigureTrainingStrategy {
-    actor MLOpsEngineer
-    ui TrainingStrategyScreen
-    reactsTo TrainingDatasetsSelected
-
-    command ConfigureTrainingStrategy {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      strategyName: String
-      maxRounds: Int derived {
-        from TrainingRunConfiguration.maxRounds
-        rule "Copy the locked training run configuration round budget onto the training job strategy."
-      }
-      minimumNodesPerRound: Int derived {
-        from TrainingRunConfiguration.minimumNodesPerRound
-        rule "Copy the configured minimum node quorum onto the training job strategy."
-      }
-      secureAggregationRequired: Boolean derived {
-        from TrainingRunConfiguration.secureAggregationRequired
-        rule "Copy the secure aggregation requirement onto the training job strategy."
-      }
-    }
-
-    event TrainingStrategyConfigured {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      strategyName: String
-      maxRounds: Int
-      minimumNodesPerRound: Int
-      secureAggregationRequired: Boolean
-    }
-
-    state StrategyConfigured
-  }
-
   slice SubmitTrainingJob {
     actor ResearchLead
     ui TrainingSubmissionScreen
-    reactsTo TrainingStrategyConfigured
+    reactsTo TrainingJobCreated
 
     command SubmitTrainingJob {
       trainingJobId: UUID id technical
@@ -2488,34 +2281,102 @@ context TrainingOrchestration {
 
     event TrainingJobSubmitted {
       trainingJobId: UUID id technical from SubmitTrainingJob.trainingJobId
+      federationId: UUID derived {
+        from TrainingJob.federationId
+        rule "Carry the federation boundary so eligible participants and compute nodes are resolved from federation membership at submission time."
+      }
       trainingRunConfigurationId: UUID from SubmitTrainingJob.trainingRunConfigurationId
-      minimumNodesPerRound: Int derived {
-        from TrainingJob.trainingStrategy
-        rule "Derive the minimum selected nodes from the configured training strategy."
+      featureSchemaId: UUID derived {
+        from TrainingJob.featureSchemaId
+        rule "Snapshot the feature schema so runtime agents can match their local datasets without platform-side dataset binding."
+      }
+      strategyName: String derived {
+        from TrainingRunConfiguration.strategyName
+        rule "Snapshot the validated training strategy name when the job is submitted."
+      }
+      aggregationAlgorithm: String derived {
+        from TrainingRunConfiguration.aggregationAlgorithm
+        rule "Snapshot the aggregation algorithm for runtime dispatch and audit."
       }
       maxRounds: Int derived {
         from TrainingRunConfiguration.maxRounds
         rule "Snapshot the configured round budget when the training job is submitted."
       }
+      minimumNodesPerRound: Int derived {
+        from TrainingRunConfiguration.minimumNodesPerRound
+        rule "Snapshot the configured minimum node quorum when the training job is submitted."
+      }
+      roundTimeoutSeconds: Int derived {
+        from TrainingRunConfiguration.roundTimeoutSeconds
+        rule "Snapshot the round timeout for reproducible orchestration."
+      }
+      nodeResponseTimeoutSeconds: Int derived {
+        from TrainingRunConfiguration.nodeResponseTimeoutSeconds
+        rule "Snapshot the node response timeout for runtime scheduling."
+      }
+      localEpochs: Int derived {
+        from TrainingRunConfiguration.localEpochs
+        rule "Snapshot local training epochs for runtime payload construction."
+      }
+      batchSize: Int derived {
+        from TrainingRunConfiguration.batchSize
+        rule "Snapshot batch size for runtime payload construction."
+      }
+      learningRate: Decimal derived {
+        from TrainingRunConfiguration.learningRate
+        rule "Snapshot learning rate for runtime payload construction."
+      }
+      optimizer: String derived {
+        from TrainingRunConfiguration.optimizer
+        rule "Snapshot optimizer for runtime payload construction."
+      }
+      lossFunction: String derived {
+        from TrainingRunConfiguration.lossFunction
+        rule "Snapshot loss function for runtime payload construction."
+      }
+      gradientClippingNorm: Decimal? derived {
+        from TrainingRunConfiguration.gradientClippingNorm
+        rule "Snapshot optional gradient clipping for runtime payload construction."
+      }
+      secureAggregationRequired: Boolean derived {
+        from TrainingRunConfiguration.secureAggregationRequired
+        rule "Snapshot the secure aggregation requirement for round orchestration."
+      }
+      differentialPrivacyEnabled: Boolean derived {
+        from TrainingRunConfiguration.differentialPrivacyEnabled
+        rule "Snapshot the differential privacy toggle for runtime payload construction."
+      }
+      dpNoiseMultiplier: Decimal? derived {
+        from TrainingRunConfiguration.dpNoiseMultiplier
+        rule "Snapshot optional DP noise multiplier for runtime payload construction."
+      }
+      dpClipNorm: Decimal? derived {
+        from TrainingRunConfiguration.dpClipNorm
+        rule "Snapshot optional DP clip norm for runtime payload construction."
+      }
       minimumAccuracy: Decimal derived {
         from TrainingRunConfiguration.minimumAccuracy
         rule "Snapshot the configured target accuracy when the training job is submitted."
+      }
+      minimumFairnessScore: Decimal? derived {
+        from TrainingRunConfiguration.minimumFairnessScore
+        rule "Snapshot optional minimum fairness target for evaluation."
+      }
+      failureToleranceRatio: Decimal derived {
+        from TrainingRunConfiguration.failureToleranceRatio
+        rule "Snapshot failure tolerance for quorum and retry decisions."
       }
     }
 
     state Submitted
 
-    specification "Only Strategy Configured Training Jobs Can Be Submitted" {
+    specification "Only Created Training Jobs Can Be Submitted" {
       rule """
-        A training job can be submitted only after datasets have been selected and its training strategy has been configured.
+        A training job can be submitted after it is created from a validated training run configuration. Dataset matching is delegated to each runtime agent using the selected feature schema.
       """
 
-      scenario "Submit Strategy Configured Training Job" {
-        given TrainingDatasetsSelected {
-          trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-        }
-        given TrainingStrategyConfigured {
+      scenario "Submit Created Training Job" {
+        given TrainingJobCreated {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
         }
@@ -2526,25 +2387,17 @@ context TrainingOrchestration {
         then TrainingJobSubmitted
       }
 
-      scenario "Reject Training Job Without Dataset Selection" {
-        given TrainingJobCreated {
-          trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-        }
-        given TrainingStrategyConfigured {
-          trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-        }
+      scenario "Reject Unknown Training Job" {
         when SubmitTrainingJob {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
         }
-        then reject "Training Dataset Selection Required"
+        then reject "Training Job Required"
       }
     }
   }
 
-  slice RequestNodeParticipation {
+  slice ResolveTrainingNodeReadiness {
     startsLifecycle
     reactsTo TrainingJobSubmitted
 
@@ -2553,59 +2406,85 @@ context TrainingOrchestration {
       nodeId
     }
 
-    automation RequestEligibleNodes {
+    automation ResolveEligibleTrainingNodes {
       on TrainingJobSubmitted
-      emits RequestNodeParticipation
+      condition eligible == true
+      emits ResolveTrainingNodeReadiness
     }
 
-    command RequestNodeParticipation {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
+    command ResolveTrainingNodeReadiness {
+      trainingJobId: UUID id technical from TrainingJobSubmitted.trainingJobId
+      federationId: UUID from TrainingJobSubmitted.federationId
+      trainingRunConfigurationId: UUID from TrainingJobSubmitted.trainingRunConfigurationId
+      featureSchemaId: UUID from TrainingJobSubmitted.featureSchemaId
+      organizationId: UUID derived {
+        from ComputeNode.organizationId
+        rule "Use the owning organization of the eligible compute node instead of asking the job submitter to choose organizations."
+      }
       nodeId: UUID id
-      trainingDatasetSelectionId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
-    }
-
-    event NodeParticipationRequested {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      nodeId: UUID id
-      trainingDatasetSelectionId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
-    }
-
-    state ParticipationRequested
-  }
-
-  slice AcceptNodeParticipation {
-    actor NodeOperator
-    ui NodeParticipationScreen
-    reactsTo NodeParticipationRequested
-
-    tags {
-      trainingJobId
-      nodeId
-    }
-
-    command AcceptNodeParticipation {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      nodeId: UUID id
-      trainingDatasetSelectionId: UUID
-      availableGpuCount: Int
+      runtimeAgentId: UUID derived {
+        from ComputeNode.runtimeAgentId
+        rule "Dispatch to the runtime agent that reported and owns the compute node."
+      }
+      runtimeInfrastructureId: UUID derived {
+        from ComputeNode.runtimeInfrastructureId
+        rule "Keep the runtime infrastructure boundary for audit and dispatch routing."
+      }
+      availableGpuCount: Int derived {
+        from RuntimeNodeResourceSnapshot.availableGpuCount
+        rule "Use the latest runtime-reported resource snapshot instead of manual operator input."
+      }
+      readinessResolvedAt: DateTime generated technical
     }
 
     event NodeReadyForTraining {
       trainingJobId: UUID id technical
+      federationId: UUID
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      organizationId: UUID
       nodeId: UUID id
-      trainingDatasetSelectionId: UUID
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID
       availableGpuCount: Int
+      readinessResolvedAt: DateTime
     }
 
     state Ready
+
+    specification "Training Node Readiness Is Resolved Automatically" {
+      rule """
+        A node becomes ready for a training job only when its organization is an active federation participant, the compute node is enabled, runtime infrastructure is connected, the node is healthy, and the latest resource snapshot satisfies the job requirements. Runtime agents later match local datasets by feature schema.
+      """
+
+      scenario "Resolve Ready Node From Eligible Inputs" {
+        given TrainingJobSubmitted {
+          trainingJobId = "job-1"
+          federationId = "fed-1"
+          trainingRunConfigurationId = "config-1"
+          featureSchemaId = "schema-1"
+        }
+        when ResolveTrainingNodeReadiness {
+          trainingJobId = "job-1"
+          nodeId = "node-1"
+        }
+        then NodeReadyForTraining
+      }
+
+      scenario "Reject Ineligible Compute Node" {
+        given TrainingJobSubmitted {
+          trainingJobId = "job-1"
+          federationId = "fed-1"
+          trainingRunConfigurationId = "config-1"
+          featureSchemaId = "schema-1"
+        }
+        when ResolveTrainingNodeReadiness {
+          trainingJobId = "job-1"
+          nodeId = "node-1"
+        }
+        then reject "Eligible Training Node Required"
+      }
+    }
   }
 
   slice DispatchTrainingRuntime {
@@ -2622,13 +2501,13 @@ context TrainingOrchestration {
     }
 
     command DispatchTrainingRuntime {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      nodeId: UUID id
-      runtimeAgentId: UUID
-      trainingDatasetSelectionId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      trainingJobId: UUID id technical from NodeReadyForTraining.trainingJobId
+      trainingRunConfigurationId: UUID from NodeReadyForTraining.trainingRunConfigurationId
+      featureSchemaId: UUID from NodeReadyForTraining.featureSchemaId
+      organizationId: UUID from NodeReadyForTraining.organizationId
+      nodeId: UUID id from NodeReadyForTraining.nodeId
+      runtimeAgentId: UUID from NodeReadyForTraining.runtimeAgentId
+      runtimeInfrastructureId: UUID from NodeReadyForTraining.runtimeInfrastructureId
       gemiflRuntimeImage: String
       runtimePayloadRef: String
       artifactStoreRef: String
@@ -2637,11 +2516,11 @@ context TrainingOrchestration {
     event TrainingRuntimeDispatched {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      organizationId: UUID
       nodeId: UUID id
       runtimeAgentId: UUID
-      trainingDatasetSelectionId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      runtimeInfrastructureId: UUID
       gemiflRuntimeImage: String
       runtimePayloadRef: String
       artifactStoreRef: String
@@ -2726,26 +2605,26 @@ context TrainingOrchestration {
       organizationId: UUID
       nodeId: UUID
       runtimeAgentId: UUID?
-      trainingDatasetSelectionId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      runtimeInfrastructureId: UUID?
+      featureSchemaId: UUID
       participantStatus: String
       readinessStatus: String
       computeNodeAvailable: Boolean
-      runtimeAgentTrusted: Boolean
-      datasetAccessValidated: Boolean
-      runtimeReadable: Boolean
+      runtimeInfrastructureConnected: Boolean
       nodeHealthy: Boolean
+      resourceSnapshotReady: Boolean
+      availableGpuCount: Int?
+      matchedDatasetMetadataReady: Boolean
       eligible: Boolean
       eligibilityReason: String?
       ineligibleReasons: String[]
-      hasAcceptedParticipation: Boolean
-      canRequestParticipation: Boolean
+      nodeReadyForTraining: Boolean
+      canResolveReadiness: Boolean
       canStartRoundContribution: Boolean
       runtimeDispatched: Boolean
       runtimeCompleted: Boolean
       lastHeartbeatAt: DateTime?
-      lastDatasetAccessValidationAt: DateTime?
+      lastResourceSnapshotAt: DateTime?
       subscribe TrainingJobSubmitted
       subscribe ParticipantJoined
       subscribe ParticipantSuspended
@@ -2753,11 +2632,12 @@ context TrainingOrchestration {
       subscribe ComputeNodeRegistered
       subscribe ComputeNodeDisabled
       subscribe ComputeNodeEnabled
-      subscribe RuntimeAgentTrusted
-      subscribe TrainingDatasetsSelected
-      subscribe RuntimeDatasetAccessValidated
+      subscribe RuntimeInfrastructureConnected
       subscribe RuntimeHeartbeatRecorded
-      subscribe NodeParticipationRequested
+      subscribe RuntimeNodeResourceSnapshotRecorded
+      subscribe DatasetMetadataReported
+      subscribe DatasetContractValidated
+      subscribe DatasetApprovedForTraining
       subscribe NodeReadyForTraining
       subscribe TrainingRuntimeDispatched
       subscribe TrainingRuntimeCompleted
@@ -2769,14 +2649,15 @@ context TrainingOrchestration {
     readmodel TrainingRuntimeExecutionCatalog[] {
       trainingJobId: UUID id
       trainingRunConfigurationId: UUID
+      organizationId: UUID?
       nodeId: UUID id
       runtimeAgentId: UUID?
+      runtimeInfrastructureId: UUID?
       runtimeJobId: UUID?
-      trainingDatasetSelectionId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       state: TrainingRuntimeExecution.State
       availableGpuCount: Int?
+      readinessResolvedAt: DateTime?
       gemiflRuntimeImage: String?
       runtimePayloadRef: String?
       artifactStoreRef: String?
@@ -2787,7 +2668,6 @@ context TrainingOrchestration {
       dispatchedAt: DateTime?
       completedAt: DateTime?
       failedAt: DateTime?
-      subscribe NodeParticipationRequested
       subscribe NodeReadyForTraining
       subscribe TrainingRuntimeDispatched
       subscribe TrainingRuntimeCompleted
@@ -2933,14 +2813,15 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       objective: String
       targetMetric: String
+      strategyName: String?
+      aggregationAlgorithm: String?
+      secureAggregationRequired: Boolean?
       state: TrainingJob.State
       workflowStage: String
       workflowStep: Int
       nextAction: String?
       availableActions: String[]
       blockedReason: String?
-      canSelectDatasets: Boolean
-      canConfigureStrategy: Boolean
       canSubmit: Boolean
       canStartRound: Boolean
       canPause: Boolean
@@ -2956,10 +2837,7 @@ context TrainingOrchestration {
       finalModelVersionId: UUID?
       stopReason: String?
       subscribe TrainingJobCreated
-      subscribe TrainingDatasetsSelected
-      subscribe TrainingStrategyConfigured
       subscribe TrainingJobSubmitted
-      subscribe NodeParticipationRequested
       subscribe NodeReadyForTraining
       subscribe TrainingJobRunning
       subscribe TrainingJobPaused
@@ -2973,8 +2851,6 @@ context TrainingOrchestration {
 
   concept TrainingJob {
     state Draft
-    state DatasetsSelected
-    state StrategyConfigured
     state Submitted
     state Running
     state Paused
@@ -2982,8 +2858,6 @@ context TrainingOrchestration {
     state Completed
 
     slice CreateTrainingJob
-    slice SelectTrainingDatasets
-    slice ConfigureTrainingStrategy
     slice SubmitTrainingJob
     slice TrainingParticipantEligibility
     slice TrackTrainingJobRunning
@@ -2996,14 +2870,12 @@ context TrainingOrchestration {
   }
 
   concept TrainingRuntimeExecution {
-    state ParticipationRequested
     state Ready
     state Dispatched
     state Completed
     state Failed
 
-    slice RequestNodeParticipation
-    slice AcceptNodeParticipation
+    slice ResolveTrainingNodeReadiness
     slice DispatchTrainingRuntime
     slice RecordTrainingRuntimeCompletion
     slice RecordTrainingRuntimeFailure
@@ -3022,6 +2894,7 @@ context TrainingOrchestration {
     command StartTrainingRound {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID generated technical
       roundNumber: Int
       readyNodeCount: Int
@@ -3030,6 +2903,7 @@ context TrainingOrchestration {
     event TrainingRoundStarted {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
       readyNodeCount: Int
@@ -3083,6 +2957,7 @@ context TrainingOrchestration {
     command DistributeGlobalModel {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       modelVersionId: UUID
       targetNodeCount: Int
@@ -3091,6 +2966,7 @@ context TrainingOrchestration {
     event GlobalModelDistributed {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       modelVersionId: UUID
       targetNodeCount: Int
@@ -3110,8 +2986,7 @@ context TrainingOrchestration {
       nodeId: UUID
       runtimeAgentId: UUID
       agentRoundContributionId: UUID?
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
       localUpdateArtifactRef: String?
@@ -3125,8 +3000,7 @@ context TrainingOrchestration {
       nodeId: UUID
       runtimeAgentId: UUID
       agentRoundContributionId: UUID?
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
       localUpdateArtifactRef: String?
@@ -3194,7 +3068,7 @@ context TrainingOrchestration {
       runtimeAgentId: UUID
       agentRoundContributionId: UUID?
       localModelVersionId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
@@ -3208,7 +3082,7 @@ context TrainingOrchestration {
       runtimeAgentId: UUID
       agentRoundContributionId: UUID?
       localModelVersionId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
@@ -3226,6 +3100,7 @@ context TrainingOrchestration {
     command RequestSecureAggregation {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       evaluatedUpdateCount: Int
       aggregationProvider: String
@@ -3234,6 +3109,7 @@ context TrainingOrchestration {
     event SecureAggregationRequested {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       evaluatedUpdateCount: Int
       aggregationProvider: String
@@ -3248,6 +3124,7 @@ context TrainingOrchestration {
     command CompleteSecureAggregation {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       requestId: UUID
       aggregatedModelVersionId: UUID
@@ -3256,6 +3133,7 @@ context TrainingOrchestration {
     event GlobalModelUpdated {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       requestId: UUID
       aggregatedModelVersionId: UUID
@@ -3270,9 +3148,9 @@ context TrainingOrchestration {
     command SubmitGlobalModelEvaluation {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      aggregatorEvaluationDatasetAccessValidationId: UUID
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3280,9 +3158,9 @@ context TrainingOrchestration {
     event GlobalModelEvaluationSubmitted {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      aggregatorEvaluationDatasetAccessValidationId: UUID
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3299,6 +3177,7 @@ context TrainingOrchestration {
     command CompleteTrainingRound {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
       globalAccuracy: Decimal
@@ -3307,6 +3186,7 @@ context TrainingOrchestration {
     event TrainingRoundCompleted {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
       globalAccuracy: Decimal
@@ -3362,6 +3242,7 @@ context TrainingOrchestration {
     command FailTrainingRoundOnQuorumLoss {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       readyNodeCount: Int
       minimumNodesPerRound: Int
@@ -3371,6 +3252,7 @@ context TrainingOrchestration {
     event TrainingRoundFailed {
       trainingJobId: UUID id technical from FailTrainingRoundOnQuorumLoss.trainingJobId
       trainingRunConfigurationId: UUID from FailTrainingRoundOnQuorumLoss.trainingRunConfigurationId
+      featureSchemaId: UUID from FailTrainingRoundOnQuorumLoss.featureSchemaId
       roundId: UUID from FailTrainingRoundOnQuorumLoss.roundId
       readyNodeCount: Int from FailTrainingRoundOnQuorumLoss.readyNodeCount
       minimumNodesPerRound: Int from FailTrainingRoundOnQuorumLoss.minimumNodesPerRound
@@ -3384,6 +3266,7 @@ context TrainingOrchestration {
     readmodel TrainingRoundProgress[] {
       trainingJobId: UUID id
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID id
       roundNumber: Int
       state: TrainingRound.State
@@ -4848,7 +4731,7 @@ context KeyAndAttestationManagement {
   slice RegisterAgentDataConnector {
     startsLifecycle
     actor RuntimeAgent
-    reactsTo RuntimeAgentTrusted
+    reactsTo RuntimeInfrastructureConnected
 
     command RegisterAgentDataConnector {
       dataConnectorId: UUID id generated technical
@@ -5158,8 +5041,7 @@ context KeyAndAttestationManagement {
       roundId: UUID
       nodeId: UUID
       runtimeAgentId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       globalModelVersionId: UUID
       runtimePayloadRef: String?
       artifactStoreRef: String?
@@ -5172,8 +5054,7 @@ context KeyAndAttestationManagement {
       roundId: UUID
       nodeId: UUID
       runtimeAgentId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       globalModelVersionId: UUID
       runtimePayloadRef: String?
       artifactStoreRef: String?
@@ -5193,8 +5074,7 @@ context KeyAndAttestationManagement {
       roundId: UUID
       nodeId: UUID
       runtimeAgentId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
       localUpdateArtifactRef: String?
@@ -5208,8 +5088,7 @@ context KeyAndAttestationManagement {
       roundId: UUID
       nodeId: UUID
       runtimeAgentId: UUID
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       localModelVersionId: UUID
       updateArtifactId: UUID
       localUpdateArtifactRef: String?
@@ -5231,7 +5110,7 @@ context KeyAndAttestationManagement {
       nodeId: UUID
       runtimeAgentId: UUID
       localModelVersionId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
@@ -5245,7 +5124,7 @@ context KeyAndAttestationManagement {
       nodeId: UUID
       runtimeAgentId: UUID
       localModelVersionId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       metricsArtifactRef: String?
       localAccuracy: Decimal
       localFairnessScore: Decimal
@@ -5264,8 +5143,7 @@ context KeyAndAttestationManagement {
       nodeId: UUID
       runtimeAgentId: UUID
       state: AgentRoundContribution.State
-      trainingDatasetAccessValidationId: UUID
-      evaluationDatasetAccessValidationId: UUID
+      featureSchemaId: UUID
       globalModelVersionId: UUID?
       localModelVersionId: UUID?
       updateArtifactId: UUID?
@@ -5554,9 +5432,7 @@ context KeyAndAttestationManagement {
         trainingRunConfigurationId: UUID
         nodeId: UUID
         runtimeAgentId: UUID
-        trainingDatasetSelectionId: UUID
-        trainingDatasetAccessValidationId: UUID
-        evaluationDatasetAccessValidationId: UUID
+        featureSchemaId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
@@ -5568,9 +5444,7 @@ context KeyAndAttestationManagement {
         trainingRunConfigurationId: UUID
         nodeId: UUID
         runtimeAgentId: UUID
-        trainingDatasetSelectionId: UUID
-        trainingDatasetAccessValidationId: UUID
-        evaluationDatasetAccessValidationId: UUID
+        featureSchemaId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
@@ -5591,9 +5465,12 @@ context KeyAndAttestationManagement {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
         runtimeAgentId: UUID
+        featureSchemaId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
+        matchedTrainingDatasetHandle: String?
+        matchedEvaluationDatasetHandle: String?
         localSecretRef: String
         localSecretRefType: String
         localDataMountPath: String?
@@ -5603,9 +5480,12 @@ context KeyAndAttestationManagement {
         agentRuntimeJobId: UUID id technical
         trainingJobId: UUID
         runtimeAgentId: UUID
+        featureSchemaId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
+        matchedTrainingDatasetHandle: String?
+        matchedEvaluationDatasetHandle: String?
         localSecretRef: String
         localSecretRefType: String
         localDataMountPath: String?
@@ -5683,12 +5563,12 @@ context KeyAndAttestationManagement {
         nodeId: UUID
         runtimeAgentId: UUID
         runtimeJobId: UUID?
-        trainingDatasetSelectionId: UUID
-        trainingDatasetAccessValidationId: UUID
-        evaluationDatasetAccessValidationId: UUID
+        featureSchemaId: UUID
         gemiflRuntimeImage: String
         runtimePayloadRef: String
         artifactStoreRef: String
+        matchedTrainingDatasetHandle: String?
+        matchedEvaluationDatasetHandle: String?
         localSecretRefType: String?
         localDataMountPath: String?
         runtimeStatus: String
