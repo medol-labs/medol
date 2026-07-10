@@ -2008,6 +2008,94 @@ context DatasetGovernance {
   }
 }
 
+context ModelRepository {
+  note "Model repository owns pullable model artifact references used by training orchestration and runtime agents."
+
+  risk "Runtime agents can pull stale or tampered models if artifact hashes and repository references are not snapshotted with the training run."
+  risk "Aggregated round models can lose lineage if their producing training job and round are not recorded."
+  metric modelArtifactRegistrationLatency
+  metric modelArtifactPullFailureRate
+
+  slice RegisterModelArtifact {
+    startsLifecycle
+
+    actor MLOpsEngineer
+    ui ModelRepositoryScreen
+
+    command RegisterModelArtifact {
+      modelVersionId: UUID id generated technical
+      modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
+      modelSizeBytes: Int?
+      sourceType: String
+      registeredBy: String
+      registeredAt: DateTime generated technical
+    }
+
+    event ModelArtifactRegistered {
+      modelVersionId: UUID id technical
+      modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
+      modelSizeBytes: Int?
+      sourceType: String
+      registeredBy: String
+      registeredAt: DateTime
+    }
+
+    state Registered
+
+    specification "Model Artifact Must Be Pullable And Verifiable" {
+      rule """
+        A model artifact registered for training must include a repository reference, an artifact reference, a model format, and a content hash so runtime agents can pull and verify it.
+      """
+
+      scenario "Register Pullable Model Artifact" {
+        when RegisterModelArtifact {
+          modelVersionId = "model-1"
+          modelRepositoryRef = "model-repo"
+          modelArtifactRef = "models/model-1"
+          modelFormat = "ONNX"
+          modelHash = "sha256:abc"
+          sourceType = "INITIAL"
+        }
+        then ModelArtifactRegistered
+      }
+    }
+  }
+
+  slice ModelArtifactCatalog {
+    readmodel ModelArtifactCatalog[] {
+      modelVersionId: UUID id
+      modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
+      modelSizeBytes: Int?
+      sourceType: String?
+      trainingJobId: UUID?
+      roundId: UUID?
+      state: ModelArtifact.State
+      registeredAt: DateTime?
+      subscribe ModelArtifactRegistered
+      subscribe GlobalModelUpdated
+    }
+  }
+
+  concept ModelArtifact {
+    state Registered
+
+    slice RegisterModelArtifact
+    slice ModelArtifactCatalog
+  }
+}
+
 context TrainingOrchestration {
   note "Training orchestration owns job intent, participant eligibility, runtime dispatch, and each round of distributed training and evaluation."
 
@@ -2027,8 +2115,8 @@ context TrainingOrchestration {
   integration ParticipantRoundRuntime {
     source TrainingRound
     target RuntimeAgent
-    reactsTo GlobalModelDistributed
-    emits StartAgentRoundContribution
+    reactsTo AgentRoundContributionRequested
+    emits PullRoundGlobalModel
   }
 
   integration AggregationNodeRuntime {
@@ -2055,6 +2143,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id generated technical
       federationId: UUID
       featureSchemaId: UUID
+      initialModelVersionId: UUID
       strategyName: String
       // 可选枚举 TODO
       aggregationAlgorithm: String
@@ -2081,6 +2170,27 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id technical
       federationId: UUID
       featureSchemaId: UUID
+      initialModelVersionId: UUID
+      initialModelArtifactRef: String derived {
+        from ModelArtifact.modelArtifactRef
+        rule "Snapshot the initial model artifact pull reference selected from the model repository."
+      }
+      initialModelRepositoryRef: String derived {
+        from ModelArtifact.modelRepositoryRef
+        rule "Snapshot the model repository reference so runtime agents can pull the initial global model."
+      }
+      initialModelFormat: String derived {
+        from ModelArtifact.modelFormat
+        rule "Snapshot the model format needed by the runtime engine."
+      }
+      initialModelHash: String derived {
+        from ModelArtifact.modelHash
+        rule "Snapshot the content hash used by runtime agents to verify the pulled model."
+      }
+      initialModelSignatureRef: String? derived {
+        from ModelArtifact.modelSignatureRef
+        rule "Snapshot the optional signature used to verify model provenance."
+      }
       strategyName: String
       aggregationAlgorithm: String
       maxRounds: Int
@@ -2188,6 +2298,12 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id
       federationId: UUID
       featureSchemaId: UUID
+      initialModelVersionId: UUID
+      initialModelArtifactRef: String
+      initialModelRepositoryRef: String
+      initialModelFormat: String
+      initialModelHash: String
+      initialModelSignatureRef: String?
       strategyName: String
       aggregationAlgorithm: String
       maxRounds: Int
@@ -2289,6 +2405,30 @@ context TrainingOrchestration {
       featureSchemaId: UUID derived {
         from TrainingJob.featureSchemaId
         rule "Snapshot the feature schema so runtime agents can match their local datasets without platform-side dataset binding."
+      }
+      initialModelVersionId: UUID derived {
+        from TrainingRunConfiguration.initialModelVersionId
+        rule "Snapshot the initial model version selected by the training run configuration."
+      }
+      initialModelArtifactRef: String derived {
+        from TrainingRunConfiguration.initialModelArtifactRef
+        rule "Snapshot the initial model artifact pull reference for reproducible round one execution."
+      }
+      initialModelRepositoryRef: String derived {
+        from TrainingRunConfiguration.initialModelRepositoryRef
+        rule "Snapshot the model repository reference used by runtime agents to pull the initial model."
+      }
+      initialModelFormat: String derived {
+        from TrainingRunConfiguration.initialModelFormat
+        rule "Snapshot the initial model format used by runtime engines."
+      }
+      initialModelHash: String derived {
+        from TrainingRunConfiguration.initialModelHash
+        rule "Snapshot the initial model hash used by runtime agents to verify downloads."
+      }
+      initialModelSignatureRef: String? derived {
+        from TrainingRunConfiguration.initialModelSignatureRef
+        rule "Snapshot the optional initial model signature reference."
       }
       strategyName: String derived {
         from TrainingRunConfiguration.strategyName
@@ -2438,7 +2578,7 @@ context TrainingOrchestration {
         from TrainingParticipantEligibility.availableGpuCount
         rule "Snapshot aggregate GPU capacity without selecting a concrete node."
       }
-      gemiflRuntimeImage: String
+      runtimeImageRef: String
       runtimePayloadRef: String
       artifactStoreRef: String
     }
@@ -2453,7 +2593,7 @@ context TrainingOrchestration {
       runtimeInfrastructureId: UUID
       availableComputeNodeCount: Int
       availableGpuCount: Int?
-      gemiflRuntimeImage: String
+      runtimeImageRef: String
       runtimePayloadRef: String
       artifactStoreRef: String
       dispatchedAt: DateTime
@@ -2695,7 +2835,7 @@ context TrainingOrchestration {
       orchestratorNodeName: String?
       matchedTrainingDatasetHandle: String?
       matchedEvaluationDatasetHandle: String?
-      gemiflRuntimeImage: String?
+      runtimeImageRef: String?
       runtimePayloadRef: String?
       artifactStoreRef: String?
       runtimeStatus: String
@@ -3075,35 +3215,121 @@ context TrainingOrchestration {
     }
   }
 
-  slice DistributeGlobalModel {
+  slice PublishRoundGlobalModel {
     reactsTo TrainingRoundStarted
 
-    automation RequestDistributeGlobalModel {
+    automation PublishRoundGlobalModelWhenRoundStarts {
       on TrainingRoundStarted
-      emits DistributeGlobalModel
+      emits PublishRoundGlobalModel
     }
 
-    command DistributeGlobalModel {
+    command PublishRoundGlobalModel {
+      trainingJobId: UUID id technical from TrainingRoundStarted.trainingJobId
+      trainingRunConfigurationId: UUID from TrainingRoundStarted.trainingRunConfigurationId
+      featureSchemaId: UUID from TrainingRoundStarted.featureSchemaId
+      roundId: UUID from TrainingRoundStarted.roundId
+      roundNumber: Int from TrainingRoundStarted.roundNumber
+      participantSelectionRef: String from TrainingRoundStarted.participantSelectionRef
+      sourceModelVersionId: UUID derived {
+        from TrainingJobSubmitted.initialModelVersionId, TrainingRoundCompleted.aggregatedModelVersionId
+        rule "Round one uses the initial model snapshot from the submitted training job; later rounds use the aggregated model from the previous completed round."
+      }
+      sourceModelArtifactRef: String derived {
+        from TrainingJobSubmitted.initialModelArtifactRef, TrainingRoundCompleted.modelArtifactRef
+        rule "Publish the artifact reference that selected runtime agents can pull for this round."
+      }
+      modelRepositoryRef: String derived {
+        from TrainingJobSubmitted.initialModelRepositoryRef, TrainingRoundCompleted.modelRepositoryRef
+        rule "Publish the model repository reference used by runtime agents for pulling the round model."
+      }
+      modelFormat: String derived {
+        from TrainingJobSubmitted.initialModelFormat, TrainingRoundCompleted.modelFormat
+        rule "Publish the model format expected by the runtime engine."
+      }
+      modelHash: String derived {
+        from TrainingJobSubmitted.initialModelHash, TrainingRoundCompleted.modelHash
+        rule "Publish the content hash that runtime agents must verify after pulling the model."
+      }
+      modelSignatureRef: String? derived {
+        from TrainingJobSubmitted.initialModelSignatureRef, TrainingRoundCompleted.modelSignatureRef
+        rule "Publish the optional model signature reference for provenance verification."
+      }
+      targetRuntimeCount: Int from TrainingRoundStarted.selectedRuntimeCount
+    }
+
+    event RoundGlobalModelPublished {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int
       participantSelectionRef: String
-      modelVersionId: UUID
-      targetRuntimeCount: Int
-    }
-
-    event GlobalModelDistributed {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      featureSchemaId: UUID
-      roundId: UUID
-      participantSelectionRef: String
-      modelVersionId: UUID
+      sourceModelVersionId: UUID
+      sourceModelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
       targetRuntimeCount: Int
     }
 
     state CollectingUpdates
+  }
+
+  slice RequestAgentRoundContribution {
+    reactsTo RoundGlobalModelPublished
+
+    automation RequestSelectedAgentRoundContribution {
+      on RoundGlobalModelPublished
+      condition runtimeAgentSelected == true
+      emits RequestAgentRoundContribution
+    }
+
+    command RequestAgentRoundContribution {
+      roundContributionRequestId: UUID id generated technical
+      trainingJobId: UUID from RoundGlobalModelPublished.trainingJobId
+      trainingRunConfigurationId: UUID from RoundGlobalModelPublished.trainingRunConfigurationId
+      featureSchemaId: UUID from RoundGlobalModelPublished.featureSchemaId
+      roundId: UUID from RoundGlobalModelPublished.roundId
+      roundNumber: Int from RoundGlobalModelPublished.roundNumber
+      runtimeAgentId: UUID derived {
+        from TrainingRoundParticipantsSelected.participantSelectionRef
+        rule "Fan out the round request to each runtime agent contained in the selected participant snapshot."
+      }
+      organizationId: UUID derived {
+        from TrainingRoundParticipantsSelected.participantSelectionRef
+        rule "Carry the participant organization for audit without selecting a concrete compute node."
+      }
+      globalModelVersionId: UUID from RoundGlobalModelPublished.sourceModelVersionId
+      globalModelArtifactRef: String from RoundGlobalModelPublished.sourceModelArtifactRef
+      modelRepositoryRef: String from RoundGlobalModelPublished.modelRepositoryRef
+      modelFormat: String from RoundGlobalModelPublished.modelFormat
+      modelHash: String from RoundGlobalModelPublished.modelHash
+      modelSignatureRef: String? from RoundGlobalModelPublished.modelSignatureRef
+      runtimePayloadRef: String?
+      artifactStoreRef: String?
+      requestedAt: DateTime generated technical
+    }
+
+    event AgentRoundContributionRequested {
+      roundContributionRequestId: UUID id technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
+      roundNumber: Int
+      runtimeAgentId: UUID
+      organizationId: UUID
+      globalModelVersionId: UUID
+      globalModelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
+      runtimePayloadRef: String?
+      artifactStoreRef: String?
+      requestedAt: DateTime
+    }
   }
 
   slice SubmitLocalModelUpdate {
@@ -3259,6 +3485,11 @@ context TrainingOrchestration {
       roundId: UUID
       requestId: UUID
       aggregatedModelVersionId: UUID
+      modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
     }
 
     event GlobalModelUpdated {
@@ -3268,6 +3499,11 @@ context TrainingOrchestration {
       roundId: UUID
       requestId: UUID
       aggregatedModelVersionId: UUID
+      modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
     }
 
     state EvaluatingGlobalModel
@@ -3282,6 +3518,11 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
+      modelArtifactRef: String from GlobalModelUpdated.modelArtifactRef
+      modelRepositoryRef: String from GlobalModelUpdated.modelRepositoryRef
+      modelFormat: String from GlobalModelUpdated.modelFormat
+      modelHash: String from GlobalModelUpdated.modelHash
+      modelSignatureRef: String? from GlobalModelUpdated.modelSignatureRef
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3292,6 +3533,11 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
+      modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3311,6 +3557,11 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
+      modelArtifactRef: String from GlobalModelEvaluationSubmitted.modelArtifactRef
+      modelRepositoryRef: String from GlobalModelEvaluationSubmitted.modelRepositoryRef
+      modelFormat: String from GlobalModelEvaluationSubmitted.modelFormat
+      modelHash: String from GlobalModelEvaluationSubmitted.modelHash
+      modelSignatureRef: String? from GlobalModelEvaluationSubmitted.modelSignatureRef
       globalAccuracy: Decimal
     }
 
@@ -3320,6 +3571,11 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
+      modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
       globalAccuracy: Decimal
     }
 
@@ -3417,13 +3673,18 @@ context TrainingOrchestration {
       nextAction: String?
       blockedReason: String?
       aggregationProvider: String?
+      sourceModelVersionId: UUID?
+      sourceModelArtifactRef: String?
+      modelRepositoryRef: String?
+      modelHash: String?
       aggregatedModelVersionId: UUID?
       globalAccuracy: Decimal?
       globalFairnessScore: Decimal?
       failureReason: String?
       subscribe TrainingRoundParticipantsSelected
       subscribe TrainingRoundStarted
-      subscribe GlobalModelDistributed
+      subscribe RoundGlobalModelPublished
+      subscribe AgentRoundContributionRequested
       subscribe LocalModelUpdateSubmitted
       subscribe LocalModelEvaluationSubmitted
       subscribe LocalModelUpdateRejected
@@ -3446,7 +3707,8 @@ context TrainingOrchestration {
 
     slice SelectTrainingRoundParticipants
     slice StartTrainingRound
-    slice DistributeGlobalModel
+    slice PublishRoundGlobalModel
+    slice RequestAgentRoundContribution
     slice SubmitLocalModelUpdate
     slice RejectPoisonedLocalUpdate
     slice SubmitLocalModelEvaluation
@@ -4759,6 +5021,7 @@ context KeyAndAttestationManagement {
     includes OrganizationManagement
     includes FederationManagement
     includes DatasetGovernance
+    includes ModelRepository
     includes TrainingOrchestration
     includes ModelLifecycle
     includes RuntimeOperations
@@ -4774,21 +5037,21 @@ context KeyAndAttestationManagement {
     note "Runtime agent operations is a separate deployable that runs inside participant infrastructure and executes dispatched training jobs with local data and local secrets."
 
     risk "Agent jobs can leak local credentials if secret references are materialized outside the participant boundary."
-    risk "GemiFL runtime jobs can remain running after platform cancellation unless local job lifecycle is tracked explicitly."
+    risk "Runtime engine jobs can remain running after platform cancellation unless local job lifecycle is tracked explicitly."
     metric agentRuntimeJobFailureRate
     metric agentRuntimeJobStartupLatency
 
-    integration GemiFLRuntime {
+    integration TrainingRuntimeEngine {
       source AgentRuntimeJob
-      target GemiFL
+      target RuntimeEngine
       reactsTo AgentRuntimeJobStarted
       emits CompleteAgentRuntimeJob
       emits FailAgentRuntimeJob
     }
 
-    integration GemiFLRoundRuntime {
+    integration RoundRuntimeEngine {
       source AgentRoundContribution
-      target GemiFL
+      target RuntimeEngine
       reactsTo AgentRoundContributionStarted
       emits SubmitAgentLocalModelUpdate
       emits SubmitAgentLocalModelEvaluation
@@ -5168,34 +5431,108 @@ context KeyAndAttestationManagement {
     slice AgentDatasetAccessValidationCatalog
   }
 
-  slice StartAgentRoundContribution {
+  slice PullRoundGlobalModel {
     startsLifecycle
-    reactsTo GlobalModelDistributed
+    reactsTo AgentRoundContributionRequested
 
-    command StartAgentRoundContribution {
+    command PullRoundGlobalModel {
       agentRoundContributionId: UUID id generated technical
+      roundContributionRequestId: UUID from AgentRoundContributionRequested.roundContributionRequestId
+      trainingJobId: UUID from AgentRoundContributionRequested.trainingJobId
+      trainingRunConfigurationId: UUID from AgentRoundContributionRequested.trainingRunConfigurationId
+      roundId: UUID from AgentRoundContributionRequested.roundId
+      roundNumber: Int from AgentRoundContributionRequested.roundNumber
+      organizationId: UUID from AgentRoundContributionRequested.organizationId
+      runtimeAgentId: UUID from AgentRoundContributionRequested.runtimeAgentId
+      featureSchemaId: UUID from AgentRoundContributionRequested.featureSchemaId
+      globalModelVersionId: UUID from AgentRoundContributionRequested.globalModelVersionId
+      globalModelArtifactRef: String from AgentRoundContributionRequested.globalModelArtifactRef
+      modelRepositoryRef: String from AgentRoundContributionRequested.modelRepositoryRef
+      modelFormat: String from AgentRoundContributionRequested.modelFormat
+      modelHash: String from AgentRoundContributionRequested.modelHash
+      modelSignatureRef: String? from AgentRoundContributionRequested.modelSignatureRef
+      runtimePayloadRef: String? from AgentRoundContributionRequested.runtimePayloadRef
+      artifactStoreRef: String? from AgentRoundContributionRequested.artifactStoreRef
+      localModelCacheRef: String?
+    }
+
+    event AgentRoundGlobalModelPulled {
+      agentRoundContributionId: UUID id technical
+      roundContributionRequestId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
-      nodeId: UUID
+      roundNumber: Int
+      organizationId: UUID
       runtimeAgentId: UUID
       featureSchemaId: UUID
       globalModelVersionId: UUID
+      globalModelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
       runtimePayloadRef: String?
       artifactStoreRef: String?
+      localModelCacheRef: String?
+      pulledAt: DateTime
+    }
+
+    state ModelPulled
+  }
+
+  slice StartAgentRoundContribution {
+    reactsTo AgentRoundGlobalModelPulled
+
+    automation StartRoundContributionAfterModelPulled {
+      on AgentRoundGlobalModelPulled
+      emits StartAgentRoundContribution
+    }
+
+    command StartAgentRoundContribution {
+      agentRoundContributionId: UUID id technical from AgentRoundGlobalModelPulled.agentRoundContributionId
+      roundContributionRequestId: UUID from AgentRoundGlobalModelPulled.roundContributionRequestId
+      trainingJobId: UUID from AgentRoundGlobalModelPulled.trainingJobId
+      trainingRunConfigurationId: UUID from AgentRoundGlobalModelPulled.trainingRunConfigurationId
+      roundId: UUID from AgentRoundGlobalModelPulled.roundId
+      roundNumber: Int from AgentRoundGlobalModelPulled.roundNumber
+      organizationId: UUID from AgentRoundGlobalModelPulled.organizationId
+      nodeId: UUID
+      orchestratorNodeName: String?
+      runtimeAgentId: UUID from AgentRoundGlobalModelPulled.runtimeAgentId
+      featureSchemaId: UUID from AgentRoundGlobalModelPulled.featureSchemaId
+      globalModelVersionId: UUID from AgentRoundGlobalModelPulled.globalModelVersionId
+      globalModelArtifactRef: String from AgentRoundGlobalModelPulled.globalModelArtifactRef
+      modelRepositoryRef: String from AgentRoundGlobalModelPulled.modelRepositoryRef
+      modelFormat: String from AgentRoundGlobalModelPulled.modelFormat
+      modelHash: String from AgentRoundGlobalModelPulled.modelHash
+      modelSignatureRef: String? from AgentRoundGlobalModelPulled.modelSignatureRef
+      runtimePayloadRef: String? from AgentRoundGlobalModelPulled.runtimePayloadRef
+      artifactStoreRef: String? from AgentRoundGlobalModelPulled.artifactStoreRef
+      localModelCacheRef: String? from AgentRoundGlobalModelPulled.localModelCacheRef
     }
 
     event AgentRoundContributionStarted {
       agentRoundContributionId: UUID id technical
+      roundContributionRequestId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
+      roundNumber: Int
+      organizationId: UUID
       nodeId: UUID
+      orchestratorNodeName: String?
       runtimeAgentId: UUID
       featureSchemaId: UUID
       globalModelVersionId: UUID
+      globalModelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
+      modelHash: String
+      modelSignatureRef: String?
       runtimePayloadRef: String?
       artifactStoreRef: String?
+      localModelCacheRef: String?
       startedAt: DateTime
     }
 
@@ -5275,14 +5612,24 @@ context KeyAndAttestationManagement {
   slice AgentRoundContributionCatalog {
     readmodel AgentRoundContributionCatalog[] {
       agentRoundContributionId: UUID id
+      roundContributionRequestId: UUID?
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
-      nodeId: UUID
+      roundNumber: Int?
+      organizationId: UUID?
+      nodeId: UUID?
+      orchestratorNodeName: String?
       runtimeAgentId: UUID
       state: AgentRoundContribution.State
       featureSchemaId: UUID
       globalModelVersionId: UUID?
+      globalModelArtifactRef: String?
+      modelRepositoryRef: String?
+      modelFormat: String?
+      modelHash: String?
+      modelSignatureRef: String?
+      localModelCacheRef: String?
       localModelVersionId: UUID?
       updateArtifactId: UUID?
       localUpdateArtifactRef: String?
@@ -5290,8 +5637,10 @@ context KeyAndAttestationManagement {
       trainingLoss: Decimal?
       localAccuracy: Decimal?
       localFairnessScore: Decimal?
+      pulledAt: DateTime?
       startedAt: DateTime?
       submittedAt: DateTime?
+      subscribe AgentRoundGlobalModelPulled
       subscribe AgentRoundContributionStarted
       subscribe AgentLocalModelUpdateSubmitted
       subscribe AgentLocalModelEvaluationSubmitted
@@ -5299,10 +5648,12 @@ context KeyAndAttestationManagement {
   }
 
   concept AgentRoundContribution {
+    state ModelPulled
     state Running
     state UpdateSubmitted
     state EvaluationSubmitted
 
+    slice PullRoundGlobalModel
     slice StartAgentRoundContribution
     slice SubmitAgentLocalModelUpdate
     slice SubmitAgentLocalModelEvaluation
@@ -5572,7 +5923,7 @@ context KeyAndAttestationManagement {
         runtimeAgentId: UUID from TrainingRuntimeDispatched.runtimeAgentId
         runtimeInfrastructureId: UUID from TrainingRuntimeDispatched.runtimeInfrastructureId
         featureSchemaId: UUID from TrainingRuntimeDispatched.featureSchemaId
-        gemiflRuntimeImage: String from TrainingRuntimeDispatched.gemiflRuntimeImage
+        runtimeImageRef: String from TrainingRuntimeDispatched.runtimeImageRef
         runtimePayloadRef: String from TrainingRuntimeDispatched.runtimePayloadRef
         artifactStoreRef: String from TrainingRuntimeDispatched.artifactStoreRef
       }
@@ -5585,7 +5936,7 @@ context KeyAndAttestationManagement {
         runtimeAgentId: UUID
         runtimeInfrastructureId: UUID
         featureSchemaId: UUID
-        gemiflRuntimeImage: String
+        runtimeImageRef: String
         runtimePayloadRef: String
         artifactStoreRef: String
       }
@@ -5612,7 +5963,7 @@ context KeyAndAttestationManagement {
         runtimeJobId: UUID generated technical
         scheduledNodeId: UUID?
         orchestratorNodeName: String?
-        gemiflRuntimeImage: String
+        runtimeImageRef: String
         runtimePayloadRef: String
         artifactStoreRef: String
         matchedTrainingDatasetHandle: String?
@@ -5633,7 +5984,7 @@ context KeyAndAttestationManagement {
         runtimeJobId: UUID
         scheduledNodeId: UUID?
         orchestratorNodeName: String?
-        gemiflRuntimeImage: String
+        runtimeImageRef: String
         runtimePayloadRef: String
         artifactStoreRef: String
         matchedTrainingDatasetHandle: String?
@@ -5731,7 +6082,7 @@ context KeyAndAttestationManagement {
         scheduledNodeId: UUID?
         orchestratorNodeName: String?
         featureSchemaId: UUID
-        gemiflRuntimeImage: String
+        runtimeImageRef: String
         runtimePayloadRef: String
         artifactStoreRef: String
         matchedTrainingDatasetHandle: String?
