@@ -683,6 +683,24 @@ context RuntimeOnboarding {
     state Configured
   }
 
+  slice OrganizationNetworkProfileCatalog {
+    readmodel OrganizationNetworkProfileCatalog[] {
+      networkProfileId: UUID id
+      organizationId: UUID
+      profileName: String
+      connectivityMode: String
+      platformApiEndpoint: String
+      runtimeControlEndpoint: String
+      registryEndpoint: String
+      artifactStoreEndpoint: String?
+      caBundleRef: String
+      allowedCidrs: String[]
+      tlsSanNames: String[]
+      state: OrganizationNetworkProfile.State
+      subscribe OrganizationNetworkProfileConfigured
+    }
+  }
+
   slice CreateRuntimeInstallationPlan {
     startsLifecycle
 
@@ -1147,8 +1165,6 @@ context RuntimeOnboarding {
       organizationId: UUID
       networkProfileId: UUID
       runtimeInstallationPlanId: UUID
-      profileName: String
-      connectivityMode: String
       platformApiEndpoint: String
       runtimeControlEndpoint: String
       registryEndpoint: String
@@ -1160,15 +1176,9 @@ context RuntimeOnboarding {
       availableCpuCores: Int?
       availableMemoryGb: Int?
       availableGpuCount: Int?
-      lastConnectedAt: DateTime?
-      accessStatus: String
-      subscribe OrganizationNetworkProfileConfigured
-      subscribe RuntimeInstallationPlanCreated
-      subscribe RuntimeBootstrapTokenIssued
-      subscribe RuntimeBootstrapTokenRevoked
-      subscribe RuntimeBootstrapConfigRequested
+      connectedAt: DateTime?
+      state: RuntimeInfrastructure.State
       subscribe RuntimeBootstrapConfigIssued
-      subscribe RuntimeBootstrapRequestRejected
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeInfrastructureConnected
       subscribe RuntimeInfrastructureAccessRevoked
@@ -1179,6 +1189,7 @@ context RuntimeOnboarding {
     state Configured
 
     slice ConfigureOrganizationNetworkProfile
+    slice OrganizationNetworkProfileCatalog
   }
 
   concept RuntimeInstallationPlan {
