@@ -2807,8 +2807,10 @@ context TrainingOrchestration {
       subscribe ComputeNodeDisabled
       subscribe ComputeNodeEnabled
       subscribe RuntimeInfrastructureConnected
-      subscribe RuntimeHeartbeatRecorded
-      subscribe RuntimeNodeResourceSnapshotRecorded
+      subscribe RuntimeAgentOfflineDetected
+      subscribe RuntimeAgentRecovered
+      subscribe RuntimeNodeResourcePressureDetected
+      subscribe RuntimeNodeCapacityChanged
       subscribe DatasetMetadataReported
       subscribe DatasetContractValidated
       subscribe DatasetApprovedForTraining
@@ -4009,7 +4011,7 @@ context ModelLifecycle {
 }
 
 context RuntimeOperations {
-  note "Runtime operations separates node inventory, heartbeat monitoring, training alerts, and append only audit records."
+  note "Runtime operations separates low-frequency runtime state changes, node inventory changes, latest telemetry views, training alerts, and append only audit records. High-frequency heartbeat and resource samples are telemetry, not event-sourced domain events."
 
   risk "Operational alerts without acknowledgement or resolution tracking can hide node degradation during training."
   risk "Audit records without payload hashes and source event classification weaken compliance evidence."
@@ -4023,44 +4025,112 @@ context RuntimeOperations {
     emits SyncComputeNodeRegistration
   }
 
-  slice RecordRuntimeHeartbeat {
-    startsLifecycle
-    actor RuntimeAgent
-    ui RuntimeMonitorScreen
-    reactsTo AgentRuntimeHeartbeatReported
-
-    command RecordRuntimeHeartbeat {
-      nodeId: UUID id technical
+  slice RuntimeTelemetryLatest {
+    readmodel RuntimeTelemetryLatest[] {
+      nodeId: UUID id
       runtimeAgentId: UUID
-      federationId: UUID
+      federationId: UUID?
       trainingJobId: UUID?
       agentRuntimeJobId: UUID?
-      cpuLoad: Decimal
-      gpuLoad: Decimal
-      memoryLoad: Decimal
-      reportedAt: DateTime
+      cpuLoad: Decimal?
+      gpuLoad: Decimal?
+      memoryLoad: Decimal?
+      lastHeartbeatAt: DateTime?
+      telemetryRetentionPolicy: String
+    }
+  }
+
+  slice DetectRuntimeAgentOffline {
+    startsLifecycle
+
+    automation DetectOfflineRuntimeAgentFromTelemetry {
+      condition heartbeatMissingBeyondThreshold == true
+      emits DetectRuntimeAgentOffline
     }
 
-    event RuntimeHeartbeatRecorded {
+    command DetectRuntimeAgentOffline {
       nodeId: UUID id technical
       runtimeAgentId: UUID
-      federationId: UUID
-      trainingJobId: UUID?
-      agentRuntimeJobId: UUID?
-      cpuLoad: Decimal
-      gpuLoad: Decimal
-      memoryLoad: Decimal
-      reportedAt: DateTime
+      lastHeartbeatAt: DateTime
+      offlineDetectedAt: DateTime generated technical
+      offlineReason: String
+    }
+
+    event RuntimeAgentOfflineDetected {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      lastHeartbeatAt: DateTime
+      offlineDetectedAt: DateTime
+      offlineReason: String
+    }
+
+    state Offline
+  }
+
+  slice MarkRuntimeAgentRecovered {
+    reactsTo RuntimeAgentOfflineDetected
+
+    automation MarkRecoveredRuntimeAgentFromTelemetry {
+      condition heartbeatObservedAfterOffline == true
+      emits MarkRuntimeAgentRecovered
+    }
+
+    command MarkRuntimeAgentRecovered {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      recoveredAt: DateTime generated technical
+      recoveryReason: String?
+    }
+
+    event RuntimeAgentRecovered {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      recoveredAt: DateTime
+      recoveryReason: String?
     }
 
     state Healthy
   }
 
+  slice DetectRuntimeNodeResourcePressure {
+    startsLifecycle
+
+    automation DetectResourcePressureFromTelemetry {
+      condition latestGpuLoad > 95
+      emits DetectRuntimeNodeResourcePressure
+    }
+
+    command DetectRuntimeNodeResourcePressure {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      trainingJobId: UUID?
+      pressureType: String
+      observedValue: Decimal
+      thresholdValue: Decimal
+      detectedAt: DateTime generated technical
+    }
+
+    event RuntimeNodeResourcePressureDetected {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      trainingJobId: UUID?
+      pressureType: String
+      observedValue: Decimal
+      thresholdValue: Decimal
+      detectedAt: DateTime
+    }
+
+    state PressureDetected
+  }
+
   slice RecordRuntimeNodeInventory {
     startsLifecycle
-    actor RuntimeAgent
-    ui RuntimeMonitorScreen
     reactsTo AgentRuntimeNodeInventoryReported
+
+    automation RecordRuntimeNodeInventoryWhenAgentReported {
+      on AgentRuntimeNodeInventoryReported
+      emits RecordRuntimeNodeInventory
+    }
 
     tags {
       nodeId
@@ -4083,6 +4153,7 @@ context RuntimeOperations {
       containerRuntimeVersion: String?
       operatingSystem: String?
       architecture: String
+      inventoryHash: String
       discoveredAt: DateTime
       recordedAt: DateTime generated technical
     }
@@ -4101,6 +4172,7 @@ context RuntimeOperations {
       containerRuntimeVersion: String?
       operatingSystem: String?
       architecture: String
+      inventoryHash: String
       discoveredAt: DateTime
       recordedAt: DateTime
     }
@@ -4123,61 +4195,67 @@ context RuntimeOperations {
       containerRuntimeVersion: String?
       operatingSystem: String?
       architecture: String
+      inventoryHash: String
       discoveredAt: DateTime
       recordedAt: DateTime
       subscribe RuntimeNodeInventoryReported
     }
   }
 
-  slice RecordRuntimeNodeResourceSnapshot {
+  slice RuntimeNodeResourceLatest {
+    readmodel RuntimeNodeResourceLatest[] {
+      nodeId: UUID id
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      orchestratorNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningPodCount: Int
+      podCapacity: Int
+      observedAt: DateTime
+      telemetryRetentionPolicy: String
+    }
+  }
+
+  slice DetectRuntimeNodeCapacityChange {
     startsLifecycle
-    actor RuntimeAgent
-    ui RuntimeMonitorScreen
-    reactsTo AgentRuntimeNodeResourceSnapshotReported
 
-    command RecordRuntimeNodeResourceSnapshot {
-      runtimeNodeResourceSnapshotId: UUID id technical
-      nodeId: UUID
+    automation DetectCapacityChangeFromResourceTelemetry {
+      condition allocatableCapacityChanged == true
+      emits DetectRuntimeNodeCapacityChange
+    }
+
+    command DetectRuntimeNodeCapacityChange {
+      nodeId: UUID id technical
       runtimeAgentId: UUID
-      runtimeInfrastructureId: UUID?
-      orchestratorNodeName: String?
-      nodeReady: Boolean
+      previousCapacityHash: String?
+      currentCapacityHash: String
       allocatableCpuCores: Int
       allocatableMemoryGb: Int
       allocatableGpuCount: Int
-      allocatedCpuCores: Int
-      allocatedMemoryGb: Int
-      allocatedGpuCount: Int
-      availableCpuCores: Int
-      availableMemoryGb: Int
-      availableGpuCount: Int
-      runningPodCount: Int
-      podCapacity: Int
-      observedAt: DateTime
+      changedAt: DateTime generated technical
     }
 
-    event RuntimeNodeResourceSnapshotRecorded {
-      runtimeNodeResourceSnapshotId: UUID id technical
-      nodeId: UUID
+    event RuntimeNodeCapacityChanged {
+      nodeId: UUID id technical
       runtimeAgentId: UUID
-      runtimeInfrastructureId: UUID?
-      orchestratorNodeName: String?
-      nodeReady: Boolean
+      previousCapacityHash: String?
+      currentCapacityHash: String
       allocatableCpuCores: Int
       allocatableMemoryGb: Int
       allocatableGpuCount: Int
-      allocatedCpuCores: Int
-      allocatedMemoryGb: Int
-      allocatedGpuCount: Int
-      availableCpuCores: Int
-      availableMemoryGb: Int
-      availableGpuCount: Int
-      runningPodCount: Int
-      podCapacity: Int
-      observedAt: DateTime
+      changedAt: DateTime
     }
 
-    state Recorded
+    state CapacityChanged
   }
 
   slice RuntimeHealthDashboard {
@@ -4199,17 +4277,35 @@ context RuntimeOperations {
       healthStatus: String
       lastHeartbeatAt: DateTime
       lastResourceSnapshotAt: DateTime?
-      subscribe RuntimeHeartbeatRecorded
-      subscribe RuntimeNodeResourceSnapshotRecorded
+      subscribe RuntimeAgentOfflineDetected
+      subscribe RuntimeAgentRecovered
+      subscribe RuntimeNodeResourcePressureDetected
+      subscribe RuntimeNodeCapacityChanged
+      subscribe RuntimeNodeInventoryReported
       subscribe TrainingAlertRaised
     }
   }
 
   concept NodeRuntimeHealth {
     state Healthy
+    state Offline
 
-    slice RecordRuntimeHeartbeat
+    slice RuntimeTelemetryLatest
+    slice DetectRuntimeAgentOffline
+    slice MarkRuntimeAgentRecovered
     slice RuntimeHealthDashboard
+  }
+
+  concept RuntimeNodeResourcePressure {
+    state PressureDetected
+
+    slice DetectRuntimeNodeResourcePressure
+  }
+
+  concept RuntimeNodeCapacity {
+    state CapacityChanged
+
+    slice DetectRuntimeNodeCapacityChange
   }
 
   concept RuntimeNodeInventory {
@@ -4219,50 +4315,23 @@ context RuntimeOperations {
     slice RuntimeNodeInventoryView
   }
 
-  slice RuntimeNodeResourceSnapshotView {
-    readmodel RuntimeNodeResourceSnapshotView[] {
-      runtimeNodeResourceSnapshotId: UUID id
-      nodeId: UUID
-      runtimeAgentId: UUID
-      runtimeInfrastructureId: UUID?
-      orchestratorNodeName: String?
-      nodeReady: Boolean
-      allocatableCpuCores: Int
-      allocatableMemoryGb: Int
-      allocatableGpuCount: Int
-      allocatedCpuCores: Int
-      allocatedMemoryGb: Int
-      allocatedGpuCount: Int
-      availableCpuCores: Int
-      availableMemoryGb: Int
-      availableGpuCount: Int
-      runningPodCount: Int
-      podCapacity: Int
-      observedAt: DateTime
-      subscribe RuntimeNodeResourceSnapshotRecorded
-    }
-  }
-
-  concept RuntimeNodeResourceSnapshot {
-    state Recorded
-
-    slice RecordRuntimeNodeResourceSnapshot
-    slice RuntimeNodeResourceSnapshotView
+  concept RuntimeNodeResourceTelemetry {
+    slice RuntimeNodeResourceLatest
   }
 
   slice RaiseTrainingAlert {
     startsLifecycle
-    reactsTo RuntimeHeartbeatRecorded
+    reactsTo RuntimeNodeResourcePressureDetected
 
     automation RaiseAlertOnNodeResourcePressure {
-      condition gpuLoad > 95
+      on RuntimeNodeResourcePressureDetected
       emits RaiseTrainingAlert
     }
 
     command RaiseTrainingAlert {
       alertId: UUID id generated technical
-      nodeId: UUID
-      trainingJobId: UUID?
+      nodeId: UUID from RuntimeNodeResourcePressureDetected.nodeId
+      trainingJobId: UUID? from RuntimeNodeResourcePressureDetected.trainingJobId
       severity: String
       message: String
     }
@@ -5108,20 +5177,6 @@ context KeyAndAttestationManagement {
       emits ReportRuntimeInfrastructureConnected
     }
 
-    integration PlatformRuntimeHeartbeatReporting {
-      source AgentRuntimeHeartbeat
-      target RuntimeOperations
-      reactsTo AgentRuntimeHeartbeatReported
-      emits RecordRuntimeHeartbeat
-    }
-
-    integration PlatformRuntimeNodeResourceSnapshotReporting {
-      source AgentRuntimeNodeResourceSnapshot
-      target RuntimeOperations
-      reactsTo AgentRuntimeNodeResourceSnapshotReported
-      emits RecordRuntimeNodeResourceSnapshot
-    }
-
     integration PlatformRuntimeNodeInventoryReporting {
       source AgentRuntimeNodeInventory
       target RuntimeOperations
@@ -5133,6 +5188,11 @@ context KeyAndAttestationManagement {
     startsLifecycle
     actor RuntimeAgent
     reactsTo RuntimeInfrastructureConnected
+
+    automation RegisterConnectorWhenRuntimeConnected {
+      on RuntimeInfrastructureConnected
+      emits RegisterAgentDataConnector
+    }
 
     command RegisterAgentDataConnector {
       dataConnectorId: UUID id generated technical
@@ -5200,6 +5260,11 @@ context KeyAndAttestationManagement {
   slice ProbeAgentDataConnectorAccess {
     startsLifecycle
     reactsTo AgentDataConnectorRegistered
+
+    automation ProbeConnectorAccessAfterRegistration {
+      on AgentDataConnectorRegistered
+      emits ProbeAgentDataConnectorAccess
+    }
 
     command ProbeAgentDataConnectorAccess {
       agentDataConnectorProbeId: UUID id generated technical
@@ -5388,6 +5453,11 @@ context KeyAndAttestationManagement {
     startsLifecycle
     reactsTo DatasetAccessValidationRequested
 
+    automation ValidateDatasetAccessWhenRequested {
+      on DatasetAccessValidationRequested
+      emits ValidateAgentDatasetAccess
+    }
+
     command ValidateAgentDatasetAccess {
       datasetAccessValidationId: UUID id technical from DatasetAccessValidationRequested.datasetAccessValidationId
       datasetId: UUID from DatasetAccessValidationRequested.datasetId
@@ -5434,6 +5504,11 @@ context KeyAndAttestationManagement {
   slice PullRoundGlobalModel {
     startsLifecycle
     reactsTo AgentRoundContributionRequested
+
+    automation PullRoundGlobalModelWhenContributionRequested {
+      on AgentRoundContributionRequested
+      emits PullRoundGlobalModel
+    }
 
     command PullRoundGlobalModel {
       agentRoundContributionId: UUID id generated technical
@@ -5664,6 +5739,12 @@ context KeyAndAttestationManagement {
     startsLifecycle
     reactsTo RuntimeInfrastructureRegistered
 
+    automation ReportInfrastructureConnectionAfterSelfCheck {
+      on RuntimeInfrastructureRegistered
+      condition runtimeSelfCheckPassed == true
+      emits ReportAgentRuntimeInfrastructureConnection
+    }
+
     command ReportAgentRuntimeInfrastructureConnection {
       runtimeInfrastructureId: UUID id technical
       organizationId: UUID
@@ -5713,63 +5794,32 @@ context KeyAndAttestationManagement {
     slice AgentRuntimeInfrastructureConnectionCatalog
   }
 
-  slice ReportAgentRuntimeHeartbeat {
-    startsLifecycle
-
-    command ReportAgentRuntimeHeartbeat {
-      agentRuntimeHeartbeatId: UUID id generated technical
-      nodeId: UUID
+  slice AgentRuntimeTelemetryLatest {
+    readmodel AgentRuntimeTelemetryLatest[] {
+      nodeId: UUID id
       runtimeAgentId: UUID
-      federationId: UUID
+      federationId: UUID?
       trainingJobId: UUID?
       agentRuntimeJobId: UUID?
-      cpuLoad: Decimal
-      gpuLoad: Decimal
-      memoryLoad: Decimal
-      reportedAt: DateTime
-    }
-
-    event AgentRuntimeHeartbeatReported {
-      agentRuntimeHeartbeatId: UUID id technical
-      nodeId: UUID
-      runtimeAgentId: UUID
-      federationId: UUID
-      trainingJobId: UUID?
-      agentRuntimeJobId: UUID?
-      cpuLoad: Decimal
-      gpuLoad: Decimal
-      memoryLoad: Decimal
-      reportedAt: DateTime
-    }
-
-    state Reported
-  }
-
-  slice AgentRuntimeHeartbeatCatalog {
-    readmodel AgentRuntimeHeartbeatCatalog[] {
-      agentRuntimeHeartbeatId: UUID id
-      nodeId: UUID
-      runtimeAgentId: UUID
-      federationId: UUID
-      trainingJobId: UUID?
-      agentRuntimeJobId: UUID?
-      cpuLoad: Decimal
-      gpuLoad: Decimal
-      memoryLoad: Decimal
-      reportedAt: DateTime
-      subscribe AgentRuntimeHeartbeatReported
+      cpuLoad: Decimal?
+      gpuLoad: Decimal?
+      memoryLoad: Decimal?
+      lastHeartbeatAt: DateTime?
+      telemetryRetentionPolicy: String
     }
   }
 
-  concept AgentRuntimeHeartbeat {
-    state Reported
-
-    slice ReportAgentRuntimeHeartbeat
-    slice AgentRuntimeHeartbeatCatalog
+  concept AgentRuntimeTelemetry {
+    slice AgentRuntimeTelemetryLatest
   }
 
   slice ReportAgentRuntimeNodeInventory {
     startsLifecycle
+
+    automation ReportNodeInventoryWhenInventoryChanged {
+      condition runtimeNodeInventoryChanged == true
+      emits ReportAgentRuntimeNodeInventory
+    }
 
     command ReportAgentRuntimeNodeInventory {
       runtimeNodeInventoryReportId: UUID id generated technical
@@ -5784,6 +5834,7 @@ context KeyAndAttestationManagement {
       containerRuntimeVersion: String?
       operatingSystem: String?
       architecture: String
+      inventoryHash: String
       discoveredAt: DateTime
     }
 
@@ -5800,6 +5851,7 @@ context KeyAndAttestationManagement {
       containerRuntimeVersion: String?
       operatingSystem: String?
       architecture: String
+      inventoryHash: String
       discoveredAt: DateTime
     }
 
@@ -5820,6 +5872,7 @@ context KeyAndAttestationManagement {
       containerRuntimeVersion: String?
       operatingSystem: String?
       architecture: String
+      inventoryHash: String
       discoveredAt: DateTime
       subscribe AgentRuntimeNodeInventoryReported
     }
@@ -5832,12 +5885,9 @@ context KeyAndAttestationManagement {
     slice AgentRuntimeNodeInventoryCatalog
   }
 
-  slice ReportAgentRuntimeNodeResourceSnapshot {
-    startsLifecycle
-
-    command ReportAgentRuntimeNodeResourceSnapshot {
-      runtimeNodeResourceSnapshotId: UUID id generated technical
-      nodeId: UUID
+  slice AgentRuntimeNodeResourceLatest {
+    readmodel AgentRuntimeNodeResourceLatest[] {
+      nodeId: UUID id
       runtimeAgentId: UUID
       runtimeInfrastructureId: UUID?
       orchestratorNodeName: String?
@@ -5854,66 +5904,23 @@ context KeyAndAttestationManagement {
       runningPodCount: Int
       podCapacity: Int
       observedAt: DateTime
-    }
-
-    event AgentRuntimeNodeResourceSnapshotReported {
-      runtimeNodeResourceSnapshotId: UUID id technical
-      nodeId: UUID
-      runtimeAgentId: UUID
-      runtimeInfrastructureId: UUID?
-      orchestratorNodeName: String?
-      nodeReady: Boolean
-      allocatableCpuCores: Int
-      allocatableMemoryGb: Int
-      allocatableGpuCount: Int
-      allocatedCpuCores: Int
-      allocatedMemoryGb: Int
-      allocatedGpuCount: Int
-      availableCpuCores: Int
-      availableMemoryGb: Int
-      availableGpuCount: Int
-      runningPodCount: Int
-      podCapacity: Int
-      observedAt: DateTime
-    }
-
-    state Reported
-  }
-
-  slice AgentRuntimeNodeResourceSnapshotCatalog {
-    readmodel AgentRuntimeNodeResourceSnapshotCatalog[] {
-      runtimeNodeResourceSnapshotId: UUID id
-      nodeId: UUID
-      runtimeAgentId: UUID
-      runtimeInfrastructureId: UUID?
-      orchestratorNodeName: String?
-      nodeReady: Boolean
-      allocatableCpuCores: Int
-      allocatableMemoryGb: Int
-      allocatableGpuCount: Int
-      allocatedCpuCores: Int
-      allocatedMemoryGb: Int
-      allocatedGpuCount: Int
-      availableCpuCores: Int
-      availableMemoryGb: Int
-      availableGpuCount: Int
-      runningPodCount: Int
-      podCapacity: Int
-      observedAt: DateTime
-      subscribe AgentRuntimeNodeResourceSnapshotReported
+      telemetryRetentionPolicy: String
     }
   }
 
-  concept AgentRuntimeNodeResourceSnapshot {
-    state Reported
-
-    slice ReportAgentRuntimeNodeResourceSnapshot
-    slice AgentRuntimeNodeResourceSnapshotCatalog
+  concept AgentRuntimeNodeResourceTelemetry {
+    slice AgentRuntimeNodeResourceLatest
   }
 
     slice AcceptAgentRuntimeJob {
-    startsLifecycle
-    reactsTo TrainingRuntimeDispatched
+      startsLifecycle
+      reactsTo TrainingRuntimeDispatched
+
+      automation AcceptRuntimeJobWhenDispatched {
+        on TrainingRuntimeDispatched
+        condition canAcceptRuntimeJob == true
+        emits AcceptAgentRuntimeJob
+      }
 
       command AcceptAgentRuntimeJob {
         agentRuntimeJobId: UUID id generated technical
