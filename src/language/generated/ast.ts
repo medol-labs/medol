@@ -49,6 +49,7 @@ export type MedolKeywordNames =
     | "derived"
     | "detail"
     | "dialog"
+    | "dictionary"
     | "domain"
     | "drawer"
     | "emits"
@@ -537,6 +538,7 @@ export interface Field extends langium.AstNode {
     attributes: Array<FieldAttribute>;
     cardinality?: Cardinality;
     details?: FieldDetails;
+    dictionary?: string;
     mapping?: FieldMapping;
     name: FieldName;
     type: QualifiedType;
@@ -547,6 +549,7 @@ export const Field = {
     attributes: 'attributes',
     cardinality: 'cardinality',
     details: 'details',
+    dictionary: 'dictionary',
     mapping: 'mapping',
     name: 'name',
     type: 'type'
@@ -1807,6 +1810,9 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 details: {
                     name: Field.details
+                },
+                dictionary: {
+                    name: Field.dictionary
                 },
                 mapping: {
                     name: Field.mapping

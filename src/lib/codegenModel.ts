@@ -151,6 +151,7 @@ export interface CodegenField {
   name: string;
   type: string;
   example?: string;
+  dictionary?: string;
   cardinality: 'Single' | 'Multiple';
   optional: boolean;
   idAttribute: boolean;
@@ -676,6 +677,7 @@ const toCodegenField = (field: EmField): CodegenField => ({
   name: field.name,
   type: field.type,
   ...(field.example ? { example: field.example } : {}),
+  ...(field.dictionary ? { dictionary: field.dictionary } : {}),
   cardinality: field.cardinality === 'List' || field.cardinality === 'OptionalList' ? 'Multiple' : 'Single',
   optional: field.cardinality === 'Optional' || field.cardinality === 'OptionalList',
   idAttribute: field.attributes.includes('id'),

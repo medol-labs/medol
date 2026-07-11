@@ -26,22 +26,22 @@
 - [x] Training Round 缺少调用 EdgeRuntime 训练 slice
 - [x] Training Round 多轮？
 - [x] 数据集应包含训练集与评估集
-- [X] 语法校验
+- [x] 语法校验
 - [ ] 字段完整性校验
 - [ ] 版本管理
-- [X] 导出图片
+- [x] 导出图片
 - [ ] 条件表达式，找已有的表达式
 - [x] 生成器统一归类叫 Generators
-- [X] Word Generator 产品
+- [x] Word Generator 产品
 - [ ] Agentic
-  - [X] medol
+  - [x] medol
   - code generator
 - [ ] 支持按 Context 拆分成多个文件，index 文件引用
-- [X] ReadModel 添加 list 标识
+- [x] ReadModel 添加 list 标识
 - [ ] 转 config.json 时删除不需要的 context
 - [ ] 汉化？设计时只能使用英文？，生成代码等等时 AI 翻译添加国际化，统一做一次国际化，后续各种生成用同一术语，支持人工调整
-- [X] 前端布局预览，不关系具体字段，能展示布局与命令
-- [X] Canvas 现在对 context 展示应放在 Domain Map 中，调整 canvas 交互，设计时应聚焦整个 context 
+- [x] 前端布局预览，不关系具体字段，能展示布局与命令
+- [x] Canvas 现在对 context 展示应放在 Domain Map 中，调整 canvas 交互，设计时应聚焦整个 context
 - [ ] 页面查询条件怎么表达
   - [ ] 仿照 jhipster 支持多字段查询
   - [ ] supabase 支持？
@@ -62,8 +62,7 @@
 - [ ] 代码生成时，对 automation 前端不需要生成命令入口
 - [ ] 前端页面菜单优化，菜单名称长时无法看清具体菜单，交互有问题
 - [ ] Axon Framework 5 的生成没有 slice 选择了
-- [ ] Axon 接入 MetaData 注入，并在 readmodel 中统自动生成命令执行人，执行时间
-
+- [ ] Axon5 接入 MetaData 注入，并在 readmodel 中统自动生成命令执行人，执行时间
 
 ##
 

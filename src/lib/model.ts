@@ -17,6 +17,7 @@ export interface EmField {
   attributes: string[];
   sourceRange?: MedolSourceRange;
   example?: string;
+  dictionary?: string;
   mapping?: EmFieldMapping;
 }
 

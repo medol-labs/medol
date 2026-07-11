@@ -314,7 +314,7 @@ Assignment:
 ;
 
 Field:
-    name=FieldName ':' type=QualifiedType cardinality=Cardinality? attributes+=FieldAttribute* mapping=FieldMapping? details=FieldDetails?
+    name=FieldName ':' type=QualifiedType cardinality=Cardinality? attributes+=FieldAttribute* ('dictionary' dictionary=STRING)? mapping=FieldMapping? details=FieldDetails?
 ;
 
 QualifiedType returns string:

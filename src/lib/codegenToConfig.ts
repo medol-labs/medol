@@ -16,6 +16,7 @@ interface ConfigField {
   name: string;
   type: string;
   example?: string;
+  dictionary?: string;
   cardinality: 'Single' | 'Multiple';
   optional: boolean;
   idAttribute: boolean;
@@ -286,6 +287,7 @@ const toConfigField = (field: CodegenField): ConfigField => ({
   name: field.name,
   type: field.type,
   ...(field.example ? { example: field.example } : {}),
+  ...(field.dictionary ? { dictionary: field.dictionary } : {}),
   cardinality: field.cardinality,
   optional: field.optional,
   idAttribute: field.idAttribute,

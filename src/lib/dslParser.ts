@@ -685,6 +685,7 @@ const parseField = (field: AstField): EmField => {
           : 'Single',
     attributes: [...(field.attributes ?? [])],
     ...(field.details?.example ? { example: field.details.example } : {}),
+    ...(field.dictionary ? { dictionary: field.dictionary } : {}),
     ...(mapping ? { mapping } : {})
   };
 };

@@ -473,6 +473,7 @@ fieldName: Type[]
 fieldName: Type[]?
 currentStatus: TrainingJob.State
 fieldName: Type id generated technical query
+fieldName: String dictionary "RUNTIME_ORCHESTRATOR_VERSION"
 fieldName: Type { example "A readable sample value." }
 copiedName: Type from UpstreamElement.sourceName
 computedName: Type derived
@@ -481,6 +482,8 @@ computedName: Type derived { from Concept.state, Command.input rule "Explain the
 ```
 
 Fields without `?` are required. `type` defines constrained scalar values, `enum` defines a closed business vocabulary, and `value` defines a structured value object without identity. Reusable value types carry intrinsic field validity; specifications carry business invariants that depend on domain meaning, state, or other instances.
+
+Use `enum` or scalar `oneOf` when the allowed values are a stable, closed part of the domain model. Use `dictionary "CODE"` when the values are operational data that users maintain at runtime. A dictionary-backed field stores the selected dictionary item's `valueCode`; UI generators can resolve labels by querying a standard `DictionaryValueCatalog` filtered by `dictionaryCode`.
 
 A concept that declares lifecycle states also exposes a generated enum type named `Owner.State`. For example, `currentStatus: TrainingJob.State` stores one of the states declared by `TrainingJob`. The codegen model keeps the qualified field type while the owning concept supplies the enum values through its `states` declaration.
 

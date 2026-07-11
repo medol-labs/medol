@@ -6,6 +6,7 @@ interface ConfigField {
   name?: string;
   type?: string;
   example?: string;
+  dictionary?: string;
   cardinality?: string;
   optional?: boolean;
   idAttribute?: boolean;
@@ -456,14 +457,15 @@ const formatField = (field: ConfigField): string => {
     field.query ? 'query' : ''
   ].filter(Boolean);
   const prefix = `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;
+  const dictionary = field.dictionary ? ` dictionary ${quote(field.dictionary)}` : '';
   const mapping = formatMapping(field);
   if (field.example && !mapping.details) {
-    return `${prefix}${mapping.inline} { example ${quote(field.example)} }`;
+    return `${prefix}${dictionary}${mapping.inline} { example ${quote(field.example)} }`;
   }
   if (field.example && mapping.details) {
-    return `${prefix}${mapping.inline} { ${mapping.details} example ${quote(field.example)} }`;
+    return `${prefix}${dictionary}${mapping.inline} { ${mapping.details} example ${quote(field.example)} }`;
   }
-  return `${prefix}${mapping.inline}${mapping.details ? ` { ${mapping.details} }` : ''}`;
+  return `${prefix}${dictionary}${mapping.inline}${mapping.details ? ` { ${mapping.details} }` : ''}`;
 };
 
 const toDslType = (value: string | undefined): string => {

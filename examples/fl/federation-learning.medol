@@ -185,12 +185,22 @@ context OrganizationManagement {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the compute node catalog."
+      }
+      infrastructureName: String? derived {
+        from RuntimeInfrastructureRegistered.infrastructureName
+        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the compute node catalog."
+      }
       orchestratorNodeName: String?
       availabilityStatus: String
       disabledReason: String?
       lastSyncedAt: DateTime
       lastDisabledAt: DateTime?
       lastEnabledAt: DateTime?
+      subscribe OrganizationRegistered
+      subscribe RuntimeInfrastructureRegistered
       subscribe ComputeNodeRegistered
       subscribe ComputeNodeDisabled
       subscribe ComputeNodeEnabled
@@ -431,11 +441,18 @@ context FederationManagement {
     readmodel FederationMembershipDirectory[] {
       federationId: UUID id
       organizationId: UUID id
-      // 这个值怎么来 TODO
-      organizationName: String
+      federationName: String? derived {
+        from FederationCreated.federationName
+        rule "Lookup by federationId and denormalize the federation display name into the membership directory."
+      }
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the membership directory."
+      }
       membershipStatus: String
       invitationNote: String?
       approvalNote: String?
+      subscribe FederationCreated
       subscribe ParticipantInvited
       subscribe ParticipantJoined
       subscribe ParticipantRejected
@@ -632,6 +649,317 @@ context FederationManagement {
 
 }
 
+context DictionaryMaintenance {
+  note "Dictionary maintenance owns dynamic option dictionaries used by platform contexts. Business contexts store valueCode and query DictionaryValueCatalog by dictionaryCode for display and selection."
+
+  risk "Runtime option changes can invalidate pending installation plans if dictionary values are removed instead of disabled."
+  risk "Duplicate dictionary value codes can cause inconsistent command payloads across deployables."
+  metric dictionaryValueActivationLatency
+
+  type DictionaryCode = String
+  type DictionaryValueCode = String
+  type DisplayOrder = Int {
+    range 0..999999
+  }
+
+  slice RegisterDictionary {
+    startsLifecycle
+
+    actor PlatformAdmin
+    ui DictionaryCatalogScreen
+
+    tags {
+      dictionaryId
+      dictionaryCode
+    }
+
+    command RegisterDictionary {
+      dictionaryId: UUID id generated technical
+      dictionaryCode: DictionaryCode
+      dictionaryName: String
+      ownerContext: String
+      description: String?
+      multiTenant: Boolean
+      registeredAt: DateTime generated technical
+    }
+
+    event DictionaryRegistered {
+      dictionaryId: UUID id technical
+      dictionaryCode: DictionaryCode
+      dictionaryName: String
+      ownerContext: String
+      description: String?
+      multiTenant: Boolean
+      registeredAt: DateTime
+    }
+
+    state Registered
+  }
+
+  slice UpdateDictionary {
+    actor PlatformAdmin
+    ui DictionaryCatalogScreen
+    reactsTo DictionaryRegistered
+
+    tags {
+      dictionaryId
+      dictionaryCode
+    }
+
+    command UpdateDictionary {
+      dictionaryId: UUID id technical
+      dictionaryCode: DictionaryCode
+      dictionaryName: String
+      ownerContext: String
+      description: String?
+      multiTenant: Boolean
+      updatedAt: DateTime generated technical
+    }
+
+    event DictionaryUpdated {
+      dictionaryId: UUID id technical
+      dictionaryCode: DictionaryCode
+      dictionaryName: String
+      ownerContext: String
+      description: String?
+      multiTenant: Boolean
+      updatedAt: DateTime
+    }
+  }
+
+  slice ArchiveDictionary {
+    actor PlatformAdmin
+    ui DictionaryCatalogScreen confirm
+    reactsTo DictionaryRegistered
+
+    tags {
+      dictionaryId
+      dictionaryCode
+    }
+
+    command ArchiveDictionary {
+      dictionaryId: UUID id technical
+      dictionaryCode: DictionaryCode
+      archiveReason: String
+      archivedAt: DateTime generated technical
+    }
+
+    event DictionaryArchived {
+      dictionaryId: UUID id technical
+      dictionaryCode: DictionaryCode
+      archiveReason: String
+      archivedAt: DateTime
+    }
+
+    state Archived
+  }
+
+  slice DictionaryCatalog {
+    readmodel DictionaryCatalog[] {
+      dictionaryId: UUID id
+      dictionaryCode: DictionaryCode query
+      dictionaryName: String
+      ownerContext: String
+      description: String?
+      multiTenant: Boolean
+      state: Dictionary.State
+      registeredAt: DateTime
+      updatedAt: DateTime?
+      archivedAt: DateTime?
+      archiveReason: String?
+      subscribe DictionaryRegistered
+      subscribe DictionaryUpdated
+      subscribe DictionaryArchived
+    }
+  }
+
+  slice AddDictionaryValue {
+    startsLifecycle
+
+    actor PlatformAdmin
+    ui DictionaryValueCatalogScreen
+    reactsTo DictionaryRegistered
+
+    tags {
+      dictionaryValueId
+      dictionaryCode
+      valueCode
+    }
+
+    command AddDictionaryValue {
+      dictionaryValueId: UUID id generated technical
+      dictionaryId: UUID
+      dictionaryCode: DictionaryCode
+      valueCode: DictionaryValueCode
+      displayName: String
+      displayOrder: DisplayOrder?
+      description: String?
+      active: Boolean
+      effectiveFrom: DateTime?
+      effectiveUntil: DateTime?
+      addedAt: DateTime generated technical
+    }
+
+    event DictionaryValueAdded {
+      dictionaryValueId: UUID id technical
+      dictionaryId: UUID
+      dictionaryCode: DictionaryCode
+      valueCode: DictionaryValueCode
+      displayName: String
+      displayOrder: DisplayOrder?
+      description: String?
+      active: Boolean
+      effectiveFrom: DateTime?
+      effectiveUntil: DateTime?
+      addedAt: DateTime
+    }
+
+    state Active
+  }
+
+  slice UpdateDictionaryValue {
+    actor PlatformAdmin
+    ui DictionaryValueCatalogScreen
+    reactsTo DictionaryValueAdded
+
+    tags {
+      dictionaryValueId
+      dictionaryCode
+      valueCode
+    }
+
+    command UpdateDictionaryValue {
+      dictionaryValueId: UUID id technical
+      dictionaryCode: DictionaryCode
+      valueCode: DictionaryValueCode
+      displayName: String
+      displayOrder: DisplayOrder?
+      description: String?
+      active: Boolean
+      effectiveFrom: DateTime?
+      effectiveUntil: DateTime?
+      updatedAt: DateTime generated technical
+    }
+
+    event DictionaryValueUpdated {
+      dictionaryValueId: UUID id technical
+      dictionaryCode: DictionaryCode
+      valueCode: DictionaryValueCode
+      displayName: String
+      displayOrder: DisplayOrder?
+      description: String?
+      active: Boolean
+      effectiveFrom: DateTime?
+      effectiveUntil: DateTime?
+      updatedAt: DateTime
+    }
+  }
+
+  slice DisableDictionaryValue {
+    actor PlatformAdmin
+    ui DictionaryValueCatalogScreen confirm
+    reactsTo DictionaryValueAdded
+
+    tags {
+      dictionaryValueId
+      dictionaryCode
+      valueCode
+    }
+
+    command DisableDictionaryValue {
+      dictionaryValueId: UUID id technical
+      dictionaryCode: DictionaryCode
+      valueCode: DictionaryValueCode
+      disabledReason: String
+      disabledAt: DateTime generated technical
+    }
+
+    event DictionaryValueDisabled {
+      dictionaryValueId: UUID id technical
+      dictionaryCode: DictionaryCode
+      valueCode: DictionaryValueCode
+      disabledReason: String
+      disabledAt: DateTime
+    }
+
+    state Disabled
+  }
+
+  slice EnableDictionaryValue {
+    actor PlatformAdmin
+    ui DictionaryValueCatalogScreen
+    reactsTo DictionaryValueDisabled
+
+    tags {
+      dictionaryValueId
+      dictionaryCode
+      valueCode
+    }
+
+    command EnableDictionaryValue {
+      dictionaryValueId: UUID id technical
+      dictionaryCode: DictionaryCode
+      valueCode: DictionaryValueCode
+      enabledAt: DateTime generated technical
+    }
+
+    event DictionaryValueEnabled {
+      dictionaryValueId: UUID id technical
+      dictionaryCode: DictionaryCode
+      valueCode: DictionaryValueCode
+      enabledAt: DateTime
+    }
+
+    state Active
+  }
+
+  slice DictionaryValueCatalog {
+    readmodel DictionaryValueCatalog[] {
+      dictionaryValueId: UUID id
+      dictionaryId: UUID
+      dictionaryCode: DictionaryCode query
+      valueCode: DictionaryValueCode
+      displayName: String
+      displayOrder: DisplayOrder?
+      description: String?
+      active: Boolean query
+      effectiveFrom: DateTime?
+      effectiveUntil: DateTime?
+      state: DictionaryValue.State
+      addedAt: DateTime
+      updatedAt: DateTime?
+      disabledAt: DateTime?
+      disabledReason: String?
+      enabledAt: DateTime?
+      subscribe DictionaryValueAdded
+      subscribe DictionaryValueUpdated
+      subscribe DictionaryValueDisabled
+      subscribe DictionaryValueEnabled
+    }
+  }
+
+  concept Dictionary {
+    state Registered
+    state Archived
+
+    slice RegisterDictionary
+    slice UpdateDictionary
+    slice ArchiveDictionary
+    slice DictionaryCatalog
+  }
+
+  concept DictionaryValue {
+    state Active
+    state Disabled
+
+    slice AddDictionaryValue
+    slice UpdateDictionaryValue
+    slice DisableDictionaryValue
+    slice EnableDictionaryValue
+    slice DictionaryValueCatalog
+  }
+}
+
 context RuntimeOnboarding {
   note "Runtime onboarding owns organization-specific network endpoints, bootstrap configuration, runtime infrastructure connection, and access revocation. K3s is treated as one orchestrator implementation, not as a domain concept."
 
@@ -656,7 +984,7 @@ context RuntimeOnboarding {
       networkProfileId: UUID id generated technical
       organizationId: UUID
       profileName: String
-      connectivityMode: String        // PUBLIC_ENDPOINT / VPN / PRIVATE_LINK / BASTION / INTRANET_RELAY
+      connectivityMode: String dictionary "RUNTIME_CONNECTIVITY_MODE"
       platformApiEndpoint: String
       runtimeControlEndpoint: String  // 对组织暴露的运行时控制入口，可映射到 k3s/k8s/其他
       registryEndpoint: String
@@ -670,7 +998,7 @@ context RuntimeOnboarding {
       networkProfileId: UUID id technical
       organizationId: UUID
       profileName: String
-      connectivityMode: String
+      connectivityMode: String dictionary "RUNTIME_CONNECTIVITY_MODE"
       platformApiEndpoint: String
       runtimeControlEndpoint: String
       registryEndpoint: String
@@ -687,8 +1015,12 @@ context RuntimeOnboarding {
     readmodel OrganizationNetworkProfileCatalog[] {
       networkProfileId: UUID id
       organizationId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the network profile catalog."
+      }
       profileName: String
-      connectivityMode: String
+      connectivityMode: String dictionary "RUNTIME_CONNECTIVITY_MODE"
       platformApiEndpoint: String
       runtimeControlEndpoint: String
       registryEndpoint: String
@@ -697,6 +1029,7 @@ context RuntimeOnboarding {
       allowedCidrs: String[]
       tlsSanNames: String[]
       state: OrganizationNetworkProfile.State
+      subscribe OrganizationRegistered
       subscribe OrganizationNetworkProfileConfigured
     }
   }
@@ -719,10 +1052,10 @@ context RuntimeOnboarding {
       organizationId: UUID
       networkProfileId: UUID
       infrastructureName: String
-      infrastructureType: String       // cluster / single-node / vm / bare-metal
-      orchestratorType: String         // K3S / KUBERNETES / DOCKER / VM / BARE_METAL
-      orchestratorVersion: String?
-      installProfile: String
+      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
+      orchestratorType: String dictionary "RUNTIME_ORCHESTRATOR_TYPE"
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION"
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       architecture: String
       expectedNodeCount: Int
       expectedGpuNodeCount: Int?
@@ -737,10 +1070,10 @@ context RuntimeOnboarding {
       organizationId: UUID
       networkProfileId: UUID
       infrastructureName: String
-      infrastructureType: String
-      orchestratorType: String
-      orchestratorVersion: String?
-      installProfile: String
+      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
+      orchestratorType: String dictionary "RUNTIME_ORCHESTRATOR_TYPE"
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION"
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       architecture: String
       expectedNodeCount: Int
       expectedGpuNodeCount: Int?
@@ -910,15 +1243,15 @@ context RuntimeOnboarding {
       runtimeInfrastructureId: UUID generated technical
       networkProfileId: UUID
       infrastructureName: String
-      infrastructureType: String
+      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
       platformApiEndpoint: String
       runtimeControlEndpoint: String
       registryEndpoint: String
       artifactStoreEndpoint: String?
       caBundleRef: String
-      installProfile: String
-      orchestratorType: String      // K3S / KUBERNETES / DOCKER / VM / BARE_METAL
-      orchestratorVersion: String?
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
+      orchestratorType: String dictionary "RUNTIME_ORCHESTRATOR_TYPE"
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION"
       expectedNodeCount: Int
       architecture: String
       nodeLabels: String[]
@@ -934,15 +1267,15 @@ context RuntimeOnboarding {
       runtimeInfrastructureId: UUID
       networkProfileId: UUID
       infrastructureName: String
-      infrastructureType: String
+      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
       platformApiEndpoint: String
       runtimeControlEndpoint: String
       registryEndpoint: String
       artifactStoreEndpoint: String?
       caBundleRef: String
-      installProfile: String
-      orchestratorType: String
-      orchestratorVersion: String?
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
+      orchestratorType: String dictionary "RUNTIME_ORCHESTRATOR_TYPE"
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION"
       expectedNodeCount: Int
       architecture: String
       nodeLabels: String[]
@@ -984,11 +1317,19 @@ context RuntimeOnboarding {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
       networkProfileId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the runtime installation plan catalog."
+      }
+      networkProfileName: String? derived {
+        from OrganizationNetworkProfileConfigured.profileName
+        rule "Lookup by networkProfileId and denormalize the network profile display name into the runtime installation plan catalog."
+      }
       infrastructureName: String
-      infrastructureType: String
-      orchestratorType: String
-      orchestratorVersion: String?
-      installProfile: String
+      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
+      orchestratorType: String dictionary "RUNTIME_ORCHESTRATOR_TYPE"
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION"
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       architecture: String
       expectedNodeCount: Int
       expectedGpuNodeCount: Int?
@@ -1001,6 +1342,8 @@ context RuntimeOnboarding {
       observedNodeCount: Int?
       plannedAt: DateTime
       lastConnectedAt: DateTime?
+      subscribe OrganizationRegistered
+      subscribe OrganizationNetworkProfileConfigured
       subscribe RuntimeInstallationPlanCreated
       subscribe RuntimeBootstrapTokenIssued
       subscribe RuntimeInfrastructureRegistered
@@ -1014,6 +1357,18 @@ context RuntimeOnboarding {
       organizationId: UUID
       networkProfileId: UUID
       runtimeInstallationPlanId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the bootstrap token catalog."
+      }
+      networkProfileName: String? derived {
+        from OrganizationNetworkProfileConfigured.profileName
+        rule "Lookup by networkProfileId and denormalize the network profile display name into the bootstrap token catalog."
+      }
+      infrastructureName: String? derived {
+        from RuntimeInstallationPlanCreated.infrastructureName
+        rule "Lookup by runtimeInstallationPlanId and denormalize the planned infrastructure display name into the bootstrap token catalog."
+      }
       tokenName: String
       tokenFingerprint: String
       state: RuntimeBootstrapToken.State
@@ -1024,6 +1379,9 @@ context RuntimeOnboarding {
       expiresAt: DateTime
       revokedAt: DateTime?
       revokeReason: String?
+      subscribe OrganizationRegistered
+      subscribe OrganizationNetworkProfileConfigured
+      subscribe RuntimeInstallationPlanCreated
       subscribe RuntimeBootstrapTokenIssued
       subscribe RuntimeBootstrapTokenRevoked
       subscribe RuntimeBootstrapConfigRequested
@@ -1036,6 +1394,18 @@ context RuntimeOnboarding {
       organizationId: UUID
       bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the bootstrap request catalog."
+      }
+      bootstrapTokenName: String? derived {
+        from RuntimeBootstrapTokenIssued.tokenName
+        rule "Lookup by bootstrapTokenId and denormalize the bootstrap token display name into the bootstrap request catalog."
+      }
+      infrastructureName: String? derived {
+        from RuntimeInstallationPlanCreated.infrastructureName
+        rule "Lookup by runtimeInstallationPlanId and denormalize the planned infrastructure display name into the bootstrap request catalog."
+      }
       state: RuntimeBootstrapRequest.State
       requesterIp: String
       machineFingerprint: String
@@ -1045,13 +1415,16 @@ context RuntimeOnboarding {
       osVersion: String
       cpuModel: String?
       gpuModel: String?
-      installProfile: String?
-      orchestratorType: String?
+      installProfile: String? dictionary "RUNTIME_INSTALL_PROFILE"
+      orchestratorType: String? dictionary "RUNTIME_ORCHESTRATOR_TYPE"
       expectedNodeCount: Int?
       requestedAt: DateTime
       issuedAt: DateTime?
       rejectedAt: DateTime?
       rejectionReason: String?
+      subscribe OrganizationRegistered
+      subscribe RuntimeInstallationPlanCreated
+      subscribe RuntimeBootstrapTokenIssued
       subscribe RuntimeBootstrapConfigRequested
       subscribe RuntimeBootstrapConfigIssued
       subscribe RuntimeBootstrapRequestRejected
@@ -1080,13 +1453,13 @@ context RuntimeOnboarding {
       networkProfileId: UUID from RuntimeBootstrapConfigIssued.networkProfileId
       runtimeInstallationPlanId: UUID from RuntimeBootstrapConfigIssued.runtimeInstallationPlanId
       infrastructureName: String from RuntimeBootstrapConfigIssued.infrastructureName
-      infrastructureType: String from RuntimeBootstrapConfigIssued.infrastructureType       // cluster / single-node / vm / bare-metal
-      orchestratorType: String from RuntimeBootstrapConfigIssued.orchestratorType         // K3S 作为值，不作为概念
-      orchestratorVersion: String? from RuntimeBootstrapConfigIssued.orchestratorVersion
+      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE" from RuntimeBootstrapConfigIssued.infrastructureType
+      orchestratorType: String dictionary "RUNTIME_ORCHESTRATOR_TYPE" from RuntimeBootstrapConfigIssued.orchestratorType
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION" from RuntimeBootstrapConfigIssued.orchestratorVersion
       controlPlaneEndpointRef: String?
       expectedNodeCount: Int from RuntimeBootstrapConfigIssued.expectedNodeCount
       architecture: String from RuntimeBootstrapConfigIssued.architecture
-      installProfile: String from RuntimeBootstrapConfigIssued.installProfile
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE" from RuntimeBootstrapConfigIssued.installProfile
     }
 
     event RuntimeInfrastructureRegistered {
@@ -1095,13 +1468,13 @@ context RuntimeOnboarding {
       networkProfileId: UUID
       runtimeInstallationPlanId: UUID
       infrastructureName: String
-      infrastructureType: String
-      orchestratorType: String
-      orchestratorVersion: String?
+      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
+      orchestratorType: String dictionary "RUNTIME_ORCHESTRATOR_TYPE"
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION"
       controlPlaneEndpointRef: String?
       expectedNodeCount: Int
       architecture: String
-      installProfile: String
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
     }
 
     state Registered
@@ -1165,12 +1538,24 @@ context RuntimeOnboarding {
       organizationId: UUID
       networkProfileId: UUID
       runtimeInstallationPlanId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the runtime infrastructure access view."
+      }
+      networkProfileName: String? derived {
+        from OrganizationNetworkProfileConfigured.profileName
+        rule "Lookup by networkProfileId and denormalize the network profile display name into the runtime infrastructure access view."
+      }
+      infrastructureName: String? derived {
+        from RuntimeInfrastructureRegistered.infrastructureName
+        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the access view."
+      }
       platformApiEndpoint: String
       runtimeControlEndpoint: String
       registryEndpoint: String
-      orchestratorType: String
-      orchestratorVersion: String?
-      infrastructureType: String
+      orchestratorType: String dictionary "RUNTIME_ORCHESTRATOR_TYPE"
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION"
+      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
       expectedNodeCount: Int
       observedNodeCount: Int?
       availableCpuCores: Int?
@@ -1178,6 +1563,8 @@ context RuntimeOnboarding {
       availableGpuCount: Int?
       connectedAt: DateTime?
       state: RuntimeInfrastructure.State
+      subscribe OrganizationRegistered
+      subscribe OrganizationNetworkProfileConfigured
       subscribe RuntimeBootstrapConfigIssued
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeInfrastructureConnected
@@ -1799,6 +2186,18 @@ context DatasetGovernance {
       organizationId: UUID
       runtimeAgentId: UUID
       featureSchemaId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the dataset capability catalog."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset capability catalog."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset capability catalog."
+      }
       datasetName: String
       datasetUsage: String
       sampleCount: Int?
@@ -1814,6 +2213,8 @@ context DatasetGovernance {
       expiresAt: DateTime?
       approved: Boolean
       lastProfiledAt: DateTime?
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
       subscribe DatasetRegistered
       subscribe DatasetProfilingRequested
       subscribe DatasetMetadataReported
@@ -1964,6 +2365,10 @@ context DatasetGovernance {
       datasetAccessValidationId: UUID id
       datasetId: UUID
       runtimeAgentId: UUID
+      datasetName: String? derived {
+        from DatasetRegistered.datasetName
+        rule "Lookup by datasetId and denormalize the dataset display name into the runtime access catalog."
+      }
       agentDatasetHandle: String
       validationMode: String
       readable: Boolean
@@ -1974,6 +2379,7 @@ context DatasetGovernance {
       blockedReason: String?
       requestedAt: DateTime
       validatedAt: DateTime?
+      subscribe DatasetRegistered
       subscribe DatasetAccessValidationRequested
       subscribe RuntimeDatasetAccessValidated
       subscribe DatasetAccessBlocked
@@ -2092,8 +2498,13 @@ context ModelRepository {
       sourceType: String?
       trainingJobId: UUID?
       roundId: UUID?
+      trainingJobObjective: String? derived {
+        from TrainingJobCreated.objective
+        rule "Lookup by trainingJobId and denormalize the training job objective into the model artifact catalog."
+      }
       state: ModelArtifact.State
       registeredAt: DateTime?
+      subscribe TrainingJobCreated
       subscribe ModelArtifactRegistered
       subscribe GlobalModelUpdated
     }
@@ -2310,6 +2721,18 @@ context TrainingOrchestration {
       federationId: UUID
       featureSchemaId: UUID
       initialModelVersionId: UUID
+      federationName: String? derived {
+        from FederationCreated.federationName
+        rule "Lookup by federationId and denormalize the federation display name into the training run configuration catalog."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training run configuration catalog."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the training run configuration catalog."
+      }
       initialModelArtifactRef: String
       initialModelRepositoryRef: String
       initialModelFormat: String
@@ -2323,6 +2746,8 @@ context TrainingOrchestration {
       differentialPrivacyEnabled: Boolean
       minimumAccuracy: Decimal
       state: TrainingRunConfiguration.State
+      subscribe FederationCreated
+      subscribe FeatureSchemaDefined
       subscribe TrainingRunConfigurationDefined
       subscribe TrainingRunConfigurationValidated
       subscribe TrainingRunConfigurationLocked
@@ -2791,6 +3216,22 @@ context TrainingOrchestration {
       runtimeAgentId: UUID?
       runtimeInfrastructureId: UUID?
       featureSchemaId: UUID
+      federationName: String? derived {
+        from FederationCreated.federationName
+        rule "Lookup by federationId and denormalize the federation display name into participant eligibility."
+      }
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into participant eligibility."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into participant eligibility."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into participant eligibility."
+      }
       participantStatus: String
       readinessStatus: String
       availableComputeNodeCount: Int
@@ -2810,6 +3251,9 @@ context TrainingOrchestration {
       runtimeCompleted: Boolean
       lastHeartbeatAt: DateTime?
       lastResourceSnapshotAt: DateTime?
+      subscribe FederationCreated
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
       subscribe TrainingJobSubmitted
       subscribe ParticipantJoined
       subscribe ParticipantSuspended
@@ -2841,6 +3285,22 @@ context TrainingOrchestration {
       runtimeInfrastructureId: UUID?
       runtimeJobId: UUID?
       featureSchemaId: UUID
+      trainingJobObjective: String? derived {
+        from TrainingJobCreated.objective
+        rule "Lookup by trainingJobId and denormalize the training job objective into the runtime execution catalog."
+      }
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the runtime execution catalog."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the runtime execution catalog."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the runtime execution catalog."
+      }
       state: TrainingRuntimeExecution.State
       availableComputeNodeCount: Int?
       availableGpuCount: Int?
@@ -2859,6 +3319,9 @@ context TrainingOrchestration {
       startedAt: DateTime?
       completedAt: DateTime?
       failedAt: DateTime?
+      subscribe TrainingJobCreated
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
       subscribe TrainingRuntimeDispatched
       subscribe TrainingRuntimeStarted
       subscribe TrainingRuntimeCompleted
@@ -3002,6 +3465,18 @@ context TrainingOrchestration {
       federationId: UUID
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
+      federationName: String? derived {
+        from FederationCreated.federationName
+        rule "Lookup by federationId and denormalize the federation display name into the training job dashboard."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training job dashboard."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the training job dashboard."
+      }
       objective: String
       targetMetric: String
       strategyName: String?
@@ -3027,6 +3502,8 @@ context TrainingOrchestration {
       globalAccuracy: Decimal?
       finalModelVersionId: UUID?
       stopReason: String?
+      subscribe FederationCreated
+      subscribe FeatureSchemaDefined
       subscribe TrainingJobCreated
       subscribe TrainingJobSubmitted
       subscribe TrainingRuntimeDispatched
@@ -3668,6 +4145,18 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID id
+      trainingJobObjective: String? derived {
+        from TrainingJobCreated.objective
+        rule "Lookup by trainingJobId and denormalize the training job objective into round progress."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into round progress."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into round progress."
+      }
       roundNumber: Int
       state: TrainingRound.State
       participantSelectionRef: String?
@@ -3694,6 +4183,8 @@ context TrainingOrchestration {
       globalAccuracy: Decimal?
       globalFairnessScore: Decimal?
       failureReason: String?
+      subscribe TrainingJobCreated
+      subscribe FeatureSchemaDefined
       subscribe TrainingRoundParticipantsSelected
       subscribe TrainingRoundStarted
       subscribe RoundGlobalModelPublished
@@ -3971,6 +4462,10 @@ context ModelLifecycle {
       trainingJobId: UUID
       finalRoundId: UUID
       modelArtifactId: UUID
+      trainingJobObjective: String? derived {
+        from TrainingJobCreated.objective
+        rule "Lookup by trainingJobId and denormalize the training job objective into the model version catalog."
+      }
       modelHash: String
       evaluationReportId: UUID
       lineageRef: String
@@ -3994,6 +4489,7 @@ context ModelLifecycle {
       canRollback: Boolean
       canRetire: Boolean
       blockedReason: String?
+      subscribe TrainingJobCreated
       subscribe ModelCandidateRegistered
       subscribe ModelEvaluationPackageRecorded
       subscribe ModelApproved
@@ -4198,6 +4694,14 @@ context RuntimeOperations {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the runtime node inventory view."
+      }
+      infrastructureName: String? derived {
+        from RuntimeInfrastructureRegistered.infrastructureName
+        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the runtime node inventory view."
+      }
       orchestratorNodeName: String
       providerNodeId: String?
       nodeRole: String
@@ -4209,6 +4713,8 @@ context RuntimeOperations {
       inventoryHash: String
       discoveredAt: DateTime
       recordedAt: DateTime
+      subscribe OrganizationRegistered
+      subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeNodeInventoryReported
     }
   }
@@ -4276,6 +4782,14 @@ context RuntimeOperations {
       federationId: UUID
       trainingJobId: UUID?
       agentRuntimeJobId: UUID?
+      federationName: String? derived {
+        from FederationCreated.federationName
+        rule "Lookup by federationId and denormalize the federation display name into the runtime health dashboard."
+      }
+      trainingJobObjective: String? derived {
+        from TrainingJobCreated.objective
+        rule "Lookup by trainingJobId and denormalize the training job objective into the runtime health dashboard."
+      }
       cpuLoad: Decimal
       gpuLoad: Decimal
       memoryLoad: Decimal
@@ -4288,6 +4802,8 @@ context RuntimeOperations {
       healthStatus: String
       lastHeartbeatAt: DateTime
       lastResourceSnapshotAt: DateTime?
+      subscribe FederationCreated
+      subscribe TrainingJobCreated
       subscribe RuntimeAgentOfflineDetected
       subscribe RuntimeAgentRecovered
       subscribe RuntimeNodeResourcePressureDetected
@@ -4363,9 +4879,19 @@ context RuntimeOperations {
       alertId: UUID id
       nodeId: UUID
       trainingJobId: UUID?
+      orchestratorNodeName: String? derived {
+        from RuntimeNodeInventoryReported.orchestratorNodeName
+        rule "Lookup by nodeId and denormalize the runtime node display name into the training alert catalog."
+      }
+      trainingJobObjective: String? derived {
+        from TrainingJobCreated.objective
+        rule "Lookup by trainingJobId and denormalize the training job objective into the training alert catalog."
+      }
       severity: String
       message: String
       state: TrainingAlert.State
+      subscribe RuntimeNodeInventoryReported
+      subscribe TrainingJobCreated
       subscribe TrainingAlertRaised
     }
   }
@@ -4605,6 +5131,10 @@ context KeyAndAttestationManagement {
     readmodel NodeKeyCatalog[] {
       nodeKeyId: UUID id
       nodeId: UUID
+      orchestratorNodeName: String? derived {
+        from ComputeNodeRegistered.orchestratorNodeName
+        rule "Lookup by nodeId and denormalize the compute node display name into the node key catalog."
+      }
       keyAlgorithm: String
       keyPurpose: String
       publicKeyRef: String
@@ -4612,6 +5142,7 @@ context KeyAndAttestationManagement {
       state: NodeEncryptionKey.State
       revokedReason: String?
       expiredAt: DateTime?
+      subscribe ComputeNodeRegistered
       subscribe NodeKeyGenerated
       subscribe NodeKeyDistributed
       subscribe NodeKeyActivated
@@ -4776,12 +5307,17 @@ context KeyAndAttestationManagement {
       readmodel NodeAttestationCatalog[] {
         attestationReportId: UUID id
         nodeId: UUID
+        orchestratorNodeName: String? derived {
+          from ComputeNodeRegistered.orchestratorNodeName
+          rule "Lookup by nodeId and denormalize the compute node display name into the node attestation catalog."
+        }
         attestationType: String
         verificationOutcome: String?
         verifiedAt: DateTime?
         submittedAt: DateTime
         expiresAt: DateTime
         state: NodeAttestationReport.State
+        subscribe ComputeNodeRegistered
         subscribe NodeAttestationReportSubmitted
         subscribe NodeAttestationReportVerified
         subscribe NodeAttestationReportExpired
@@ -4914,6 +5450,14 @@ context KeyAndAttestationManagement {
         aggregationKeyId: UUID id
         trainingJobId: UUID
         trainingRunConfigurationId: UUID
+        trainingJobObjective: String? derived {
+          from TrainingJobCreated.objective
+          rule "Lookup by trainingJobId and denormalize the training job objective into the secure aggregation key catalog."
+        }
+        trainingStrategyName: String? derived {
+          from TrainingRunConfigurationDefined.strategyName
+          rule "Lookup by trainingRunConfigurationId and denormalize the strategy name into the secure aggregation key catalog."
+        }
         aggregationAlgorithm: String
         keyAlgorithm: String
         shareCount: Int
@@ -4921,6 +5465,8 @@ context KeyAndAttestationManagement {
         state: SecureAggregationKey.State
         generatedAt: DateTime
         expiresAt: DateTime
+        subscribe TrainingJobCreated
+        subscribe TrainingRunConfigurationDefined
         subscribe SecureAggregationKeyGenerated
         subscribe SecureAggregationKeyShareDistributed
         subscribe SecureAggregationKeyUsed
@@ -5068,12 +5614,22 @@ context KeyAndAttestationManagement {
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
+      trainingJobObjective: String? derived {
+        from TrainingJobCreated.objective
+        rule "Lookup by trainingJobId and denormalize the training job objective into the secure aggregation round catalog."
+      }
+      trainingStrategyName: String? derived {
+        from TrainingRunConfigurationDefined.strategyName
+        rule "Lookup by trainingRunConfigurationId and denormalize the strategy name into the secure aggregation round catalog."
+      }
       aggregationProvider: String
       shareAlgorithm: String
       collectedNodeCount: Int
       aggregatedModelVersionId: UUID?
       state: SecureAggregationRound.State
       revocationReason: String?
+      subscribe TrainingJobCreated
+      subscribe TrainingRunConfigurationDefined
       subscribe SecureAggregationRoundInitialized
       subscribe AggregationMaskShareDistributed
       subscribe AggregationMaskSharesCollected
@@ -5097,6 +5653,10 @@ context KeyAndAttestationManagement {
     slice SecureAggregationRoundCatalog
   }
   }
+  deployment FLDictionaryBackend {
+    includes DictionaryMaintenance
+  }
+
   deployment FLPlatformBackend {
     includes OrganizationManagement
     includes FederationManagement
@@ -5302,10 +5862,15 @@ context KeyAndAttestationManagement {
       agentDataConnectorProbeId: UUID id
       dataConnectorId: UUID
       runtimeAgentId: UUID
+      connectorName: String? derived {
+        from AgentDataConnectorRegistered.connectorName
+        rule "Lookup by dataConnectorId and denormalize the data connector display name into the access probe catalog."
+      }
       readable: Boolean
       writable: Boolean
       validationReportId: UUID
       verifiedAt: DateTime
+      subscribe AgentDataConnectorRegistered
       subscribe AgentDataConnectorAccessProbed
     }
   }
@@ -5366,6 +5931,14 @@ context KeyAndAttestationManagement {
       datasetId: UUID
       runtimeAgentId: UUID
       dataConnectorId: UUID
+      datasetName: String? derived {
+        from DatasetRegistered.datasetName
+        rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset access profile catalog."
+      }
+      connectorName: String? derived {
+        from AgentDataConnectorRegistered.connectorName
+        rule "Lookup by dataConnectorId and denormalize the data connector display name into the agent dataset access profile catalog."
+      }
       agentDatasetHandle: String
       agentDataAccessHandle: String
       localConnectionConfigRef: String?
@@ -5376,6 +5949,8 @@ context KeyAndAttestationManagement {
       readMode: String
       materializationMode: String
       configuredAt: DateTime
+      subscribe DatasetRegistered
+      subscribe AgentDataConnectorRegistered
       subscribe AgentDatasetAccessProfileConfigured
     }
   }
@@ -5438,6 +6013,22 @@ context KeyAndAttestationManagement {
       runtimeAgentId: UUID
       featureSchemaId: UUID
       labelSchemaId: UUID
+      datasetName: String? derived {
+        from DatasetRegistered.datasetName
+        rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset metadata catalog."
+      }
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the agent dataset metadata catalog."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the agent dataset metadata catalog."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the agent dataset metadata catalog."
+      }
       sampleCount: Int
       featureCount: Int
       schemaCompatible: Boolean
@@ -5449,6 +6040,9 @@ context KeyAndAttestationManagement {
       classBalanceScore: Decimal?
       statisticsRef: String?
       profiledAt: DateTime
+      subscribe DatasetRegistered
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
       subscribe AgentDatasetMetadataReported
     }
   }
@@ -5496,11 +6090,16 @@ context KeyAndAttestationManagement {
       datasetAccessValidationId: UUID id
       datasetId: UUID
       runtimeAgentId: UUID
+      datasetName: String? derived {
+        from DatasetRegistered.datasetName
+        rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset access validation catalog."
+      }
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
       validationReportId: UUID
       validatedAt: DateTime
+      subscribe DatasetRegistered
       subscribe AgentDatasetAccessValidated
     }
   }
@@ -5709,6 +6308,22 @@ context KeyAndAttestationManagement {
       runtimeAgentId: UUID
       state: AgentRoundContribution.State
       featureSchemaId: UUID
+      trainingJobObjective: String? derived {
+        from TrainingJobCreated.objective
+        rule "Lookup by trainingJobId and denormalize the training job objective into the agent round contribution catalog."
+      }
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the agent round contribution catalog."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the agent round contribution catalog."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the agent round contribution catalog."
+      }
       globalModelVersionId: UUID?
       globalModelArtifactRef: String?
       modelRepositoryRef: String?
@@ -5726,6 +6341,9 @@ context KeyAndAttestationManagement {
       pulledAt: DateTime?
       startedAt: DateTime?
       submittedAt: DateTime?
+      subscribe TrainingJobCreated
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
       subscribe AgentRoundGlobalModelPulled
       subscribe AgentRoundContributionStarted
       subscribe AgentLocalModelUpdateSubmitted
@@ -5789,11 +6407,21 @@ context KeyAndAttestationManagement {
       organizationId: UUID
       runtimeInstallationPlanId: UUID
       runtimeAgentId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the agent runtime infrastructure connection catalog."
+      }
+      infrastructureName: String? derived {
+        from RuntimeInfrastructureRegistered.infrastructureName
+        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the agent runtime infrastructure connection catalog."
+      }
       connectedAt: DateTime
       observedNodeCount: Int
       availableCpuCores: Int
       availableMemoryGb: Int
       availableGpuCount: Int
+      subscribe OrganizationRegistered
+      subscribe RuntimeInfrastructureRegistered
       subscribe AgentRuntimeInfrastructureConnectionReported
     }
   }
@@ -5875,6 +6503,14 @@ context KeyAndAttestationManagement {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the agent runtime node inventory catalog."
+      }
+      infrastructureName: String? derived {
+        from RuntimeInfrastructureRegistered.infrastructureName
+        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the agent runtime node inventory catalog."
+      }
       orchestratorNodeName: String
       providerNodeId: String?
       nodeRole: String
@@ -5885,6 +6521,8 @@ context KeyAndAttestationManagement {
       architecture: String
       inventoryHash: String
       discoveredAt: DateTime
+      subscribe OrganizationRegistered
+      subscribe RuntimeInfrastructureRegistered
       subscribe AgentRuntimeNodeInventoryReported
     }
   }
@@ -6100,6 +6738,22 @@ context KeyAndAttestationManagement {
         scheduledNodeId: UUID?
         orchestratorNodeName: String?
         featureSchemaId: UUID
+        trainingJobObjective: String? derived {
+          from TrainingJobCreated.objective
+          rule "Lookup by trainingJobId and denormalize the training job objective into the agent runtime job catalog."
+        }
+        organizationName: String? derived {
+          from OrganizationRegistered.organizationName
+          rule "Lookup by organizationId and denormalize the organization display name into the agent runtime job catalog."
+        }
+        featureDomain: String? derived {
+          from FeatureSchemaDefined.featureDomain
+          rule "Lookup by featureSchemaId and denormalize the feature schema domain into the agent runtime job catalog."
+        }
+        featureSchemaVersion: Int? derived {
+          from FeatureSchemaDefined.version
+          rule "Lookup by featureSchemaId and denormalize the feature schema version into the agent runtime job catalog."
+        }
         runtimeImageRef: String
         runtimePayloadRef: String
         artifactStoreRef: String
@@ -6114,6 +6768,9 @@ context KeyAndAttestationManagement {
         startedAt: DateTime?
         completedAt: DateTime?
         failedAt: DateTime?
+        subscribe TrainingJobCreated
+        subscribe OrganizationRegistered
+        subscribe FeatureSchemaDefined
         subscribe AgentRuntimeJobAccepted
         subscribe AgentRuntimeJobStarted
         subscribe AgentRuntimeJobCompleted
