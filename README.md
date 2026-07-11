@@ -184,9 +184,12 @@ POST   /workspaces
 GET    /workspaces/:workspaceId
 PUT    /workspaces/:workspaceId
 DELETE /workspaces/:workspaceId
+GET    /codegen-model?workspaceId=:workspaceId
 ```
 
 Workspace is the persistence boundary. A workspace owns one MEDOL document and its assistant conversation; the MEDOL document may declare multiple `domain` blocks.
+
+When `workspaceId` is omitted, `/api/modeling/codegen-model` exports the latest updated workspace. Pass `locale` or `language` to include stored CodegenModel translations.
 
 ## Build
 

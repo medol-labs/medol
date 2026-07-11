@@ -17,6 +17,7 @@ import { Route as ApiModelingTranslationsRouteImport } from './routes/api/modeli
 import { Route as ApiModelingDocumentsRouteImport } from './routes/api/modeling/documents'
 import { Route as ApiModelingDocumentRecordsRouteImport } from './routes/api/modeling/document-records'
 import { Route as ApiModelingDocumentExportRouteImport } from './routes/api/modeling/document-export'
+import { Route as ApiModelingCodegenModelRouteImport } from './routes/api/modeling/codegen-model'
 import { Route as ApiAgentSliceStatusesRouteImport } from './routes/api/agent/slice-statuses'
 import { Route as ApiAgentHistoryRouteImport } from './routes/api/agent/history'
 import { Route as ApiAgentChatRouteImport } from './routes/api/agent/chat'
@@ -65,6 +66,11 @@ const ApiModelingDocumentExportRoute =
     path: '/api/modeling/document-export',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiModelingCodegenModelRoute = ApiModelingCodegenModelRouteImport.update({
+  id: '/api/modeling/codegen-model',
+  path: '/api/modeling/codegen-model',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAgentSliceStatusesRoute = ApiAgentSliceStatusesRouteImport.update({
   id: '/api/agent/slice-statuses',
   path: '/api/agent/slice-statuses',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
   '/api/agent/slice-statuses': typeof ApiAgentSliceStatusesRoute
+  '/api/modeling/codegen-model': typeof ApiModelingCodegenModelRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
   '/api/agent/slice-statuses': typeof ApiAgentSliceStatusesRoute
+  '/api/modeling/codegen-model': typeof ApiModelingCodegenModelRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/api/agent/chat': typeof ApiAgentChatRoute
   '/api/agent/history': typeof ApiAgentHistoryRoute
   '/api/agent/slice-statuses': typeof ApiAgentSliceStatusesRoute
+  '/api/modeling/codegen-model': typeof ApiModelingCodegenModelRoute
   '/api/modeling/document-export': typeof ApiModelingDocumentExportRoute
   '/api/modeling/document-records': typeof ApiModelingDocumentRecordsRouteWithChildren
   '/api/modeling/documents': typeof ApiModelingDocumentsRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/api/agent/chat'
     | '/api/agent/history'
     | '/api/agent/slice-statuses'
+    | '/api/modeling/codegen-model'
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/api/agent/chat'
     | '/api/agent/history'
     | '/api/agent/slice-statuses'
+    | '/api/modeling/codegen-model'
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/api/agent/chat'
     | '/api/agent/history'
     | '/api/agent/slice-statuses'
+    | '/api/modeling/codegen-model'
     | '/api/modeling/document-export'
     | '/api/modeling/document-records'
     | '/api/modeling/documents'
@@ -194,6 +206,7 @@ export interface RootRouteChildren {
   ApiAgentChatRoute: typeof ApiAgentChatRoute
   ApiAgentHistoryRoute: typeof ApiAgentHistoryRoute
   ApiAgentSliceStatusesRoute: typeof ApiAgentSliceStatusesRoute
+  ApiModelingCodegenModelRoute: typeof ApiModelingCodegenModelRoute
   ApiModelingDocumentExportRoute: typeof ApiModelingDocumentExportRoute
   ApiModelingDocumentRecordsRoute: typeof ApiModelingDocumentRecordsRouteWithChildren
   ApiModelingDocumentsRoute: typeof ApiModelingDocumentsRoute
@@ -257,6 +270,13 @@ declare module '@tanstack/react-router' {
       path: '/api/modeling/document-export'
       fullPath: '/api/modeling/document-export'
       preLoaderRoute: typeof ApiModelingDocumentExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/modeling/codegen-model': {
+      id: '/api/modeling/codegen-model'
+      path: '/api/modeling/codegen-model'
+      fullPath: '/api/modeling/codegen-model'
+      preLoaderRoute: typeof ApiModelingCodegenModelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/agent/slice-statuses': {
@@ -332,6 +352,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentChatRoute: ApiAgentChatRoute,
   ApiAgentHistoryRoute: ApiAgentHistoryRoute,
   ApiAgentSliceStatusesRoute: ApiAgentSliceStatusesRoute,
+  ApiModelingCodegenModelRoute: ApiModelingCodegenModelRoute,
   ApiModelingDocumentExportRoute: ApiModelingDocumentExportRoute,
   ApiModelingDocumentRecordsRoute: ApiModelingDocumentRecordsRouteWithChildren,
   ApiModelingDocumentsRoute: ApiModelingDocumentsRoute,
