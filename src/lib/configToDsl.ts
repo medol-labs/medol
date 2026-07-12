@@ -21,6 +21,17 @@ interface ConfigFieldMapping {
   type?: 'DIRECT' | 'DERIVED';
   from?: string[];
   rule?: string;
+  lookup?: ConfigDerivedLookup;
+}
+
+interface ConfigDerivedLookup {
+  key?: string;
+  sourceEvent?: string;
+  sourceField?: string;
+  targetField?: string;
+  cacheProjection?: string;
+  cacheStrategy?: string;
+  missingValuePolicy?: string;
 }
 
 interface ConfigElement {
@@ -31,6 +42,17 @@ interface ConfigElement {
   fields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
   ui?: ConfigUi;
+  dictionaryProvider?: ConfigDictionaryProvider;
+}
+
+interface ConfigDictionaryProvider {
+  name?: string;
+  code?: string;
+  value?: string;
+  label?: string;
+  active?: string;
+  state?: string;
+  order?: string;
 }
 
 interface ConfigUi {
@@ -436,11 +458,24 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   const pad = ' '.repeat(indent);
   const listMarker = kind === 'readmodel' && element.listElement ? '[]' : '';
   lines.push(`${pad}${kind} ${toDslId(element.title, kind)}${listMarker} {`);
+  if (kind === 'readmodel' && element.dictionaryProvider) {
+    appendDictionaryProvider(lines, element.dictionaryProvider, indent + 2);
+  }
   for (const field of element.fields ?? []) {
     lines.push(`${pad}  ${formatField(field)}`);
   }
   for (const extraLine of extraLines) {
     lines.push(`${pad}  ${extraLine}`);
+  }
+  lines.push(`${pad}}`);
+};
+
+const appendDictionaryProvider = (lines: string[], provider: ConfigDictionaryProvider, indent: number): void => {
+  const pad = ' '.repeat(indent);
+  lines.push(`${pad}dictionaryProvider ${toDslId(provider.name, 'DictionaryProvider')} {`);
+  for (const key of ['code', 'value', 'label', 'active', 'state', 'order'] as const) {
+    const field = provider[key];
+    if (field) lines.push(`${pad}  ${key} ${toDslId(field, 'field')}`);
   }
   lines.push(`${pad}}`);
 };
@@ -487,14 +522,32 @@ const formatMapping = (field: ConfigField): { inline: string; details?: string }
   if (mapping.type !== 'DERIVED') {
     return { inline: sources.length ? ` from ${formatSources(sources)}` : '' };
   }
-  if (!mapping.rule) {
+  if (!mapping.rule && !mapping.lookup) {
     return { inline: sources.length ? ` derived from ${formatSources(sources)}` : ' derived' };
   }
 
+  const lookupDetails = formatLookupDetails(mapping.lookup);
   return {
     inline: ' derived',
-    details: `${sources.length ? `from ${formatSources(sources)} ` : ''}rule ${quote(mapping.rule)}`
+    details: [
+      sources.length ? `from ${formatSources(sources)}` : '',
+      lookupDetails,
+      mapping.rule ? `rule ${quote(mapping.rule)}` : ''
+    ].filter(Boolean).join(' ')
   };
+};
+
+const formatLookupDetails = (lookup?: ConfigDerivedLookup): string => {
+  if (!lookup) return '';
+  return [
+    lookup.key ? `lookup key ${formatSources([lookup.key])}` : '',
+    lookup.sourceEvent ? `source event ${toDslId(lookup.sourceEvent, 'Event')}` : '',
+    lookup.sourceField ? `source field ${formatSources([lookup.sourceField])}` : '',
+    lookup.targetField ? `target field ${formatSources([lookup.targetField])}` : '',
+    lookup.cacheProjection ? `cache projection ${toDslId(lookup.cacheProjection, 'Projection')}` : '',
+    lookup.cacheStrategy ? `cache strategy ${toDslId(lookup.cacheStrategy, 'Strategy')}` : '',
+    lookup.missingValuePolicy ? `missing policy ${toDslId(lookup.missingValuePolicy, 'policy')}` : ''
+  ].filter(Boolean).join(' ');
 };
 
 const formatSources = (sources: string[]): string =>

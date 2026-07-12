@@ -35,10 +35,13 @@ export type MedolKeywordNames =
     | "?"
     | "[]"
     | "[]?"
+    | "active"
     | "actor"
     | "assert"
     | "automation"
     | "background"
+    | "cache"
+    | "code"
     | "command"
     | "concept"
     | "condition"
@@ -50,6 +53,7 @@ export type MedolKeywordNames =
     | "detail"
     | "dialog"
     | "dictionary"
+    | "dictionaryProvider"
     | "domain"
     | "drawer"
     | "emits"
@@ -58,6 +62,7 @@ export type MedolKeywordNames =
     | "example"
     | "expression"
     | "false"
+    | "field"
     | "form"
     | "format"
     | "from"
@@ -69,14 +74,20 @@ export type MedolKeywordNames =
     | "includes"
     | "inline"
     | "integration"
+    | "key"
+    | "label"
     | "length"
     | "list"
+    | "lookup"
     | "matches"
     | "metric"
+    | "missing"
     | "note"
     | "null"
     | "on"
     | "oneOf"
+    | "order"
+    | "policy"
     | "projection"
     | "query"
     | "range"
@@ -92,6 +103,7 @@ export type MedolKeywordNames =
     | "startsLifecycle"
     | "state"
     | "steps"
+    | "strategy"
     | "subscribe"
     | "tags"
     | "target"
@@ -409,6 +421,46 @@ export function isDeploymentContext(item: unknown): item is DeploymentContext {
     return reflection.isInstance(item, DeploymentContext.$type);
 }
 
+export interface DictionaryProvider extends langium.AstNode {
+    readonly $container: ReadModel;
+    readonly $type: 'DictionaryProvider';
+    mappings: Array<DictionaryProviderMapping>;
+    name: string;
+}
+
+export const DictionaryProvider = {
+    $type: 'DictionaryProvider',
+    mappings: 'mappings',
+    name: 'name'
+} as const;
+
+export function isDictionaryProvider(item: unknown): item is DictionaryProvider {
+    return reflection.isInstance(item, DictionaryProvider.$type);
+}
+
+export interface DictionaryProviderMapping extends langium.AstNode {
+    readonly $container: DictionaryProvider;
+    readonly $type: 'DictionaryProviderMapping';
+    field: FieldName;
+    kind: DictionaryProviderMappingKind;
+}
+
+export const DictionaryProviderMapping = {
+    $type: 'DictionaryProviderMapping',
+    field: 'field',
+    kind: 'kind'
+} as const;
+
+export function isDictionaryProviderMapping(item: unknown): item is DictionaryProviderMapping {
+    return reflection.isInstance(item, DictionaryProviderMapping.$type);
+}
+
+export type DictionaryProviderMappingKind = 'active' | 'code' | 'label' | 'order' | 'state' | 'value';
+
+export function isDictionaryProviderMappingKind(item: unknown): item is DictionaryProviderMappingKind {
+    return item === 'code' || item === 'value' || item === 'label' || item === 'active' || item === 'state' || item === 'order';
+}
+
 export interface Domain extends langium.AstNode {
     readonly $container: Model;
     readonly $type: 'Domain';
@@ -583,16 +635,30 @@ export function isFieldDerivation(item: unknown): item is FieldDerivation {
 export interface FieldDetails extends langium.AstNode {
     readonly $container: Field;
     readonly $type: 'FieldDetails';
+    cacheProjection?: string;
+    cacheStrategy?: string;
     example?: string;
+    lookupKey?: FieldSource;
+    missingValuePolicy?: string;
     rule?: string;
+    sourceEvent?: string;
+    sourceField?: FieldSource;
     sources: Array<FieldSource>;
+    targetField?: FieldSource;
 }
 
 export const FieldDetails = {
     $type: 'FieldDetails',
+    cacheProjection: 'cacheProjection',
+    cacheStrategy: 'cacheStrategy',
     example: 'example',
+    lookupKey: 'lookupKey',
+    missingValuePolicy: 'missingValuePolicy',
     rule: 'rule',
-    sources: 'sources'
+    sourceEvent: 'sourceEvent',
+    sourceField: 'sourceField',
+    sources: 'sources',
+    targetField: 'targetField'
 } as const;
 
 export function isFieldDetails(item: unknown): item is FieldDetails {
@@ -609,10 +675,10 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export type FieldName = 'domain' | 'event' | 'state' | 'value' | string;
+export type FieldName = 'active' | 'code' | 'domain' | 'event' | 'label' | 'order' | 'state' | 'value' | string;
 
 export function isFieldName(item: unknown): item is FieldName {
-    return item === 'domain' || item === 'event' || item === 'state' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'active' || item === 'code' || item === 'domain' || item === 'event' || item === 'label' || item === 'order' || item === 'state' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface FieldSource extends langium.AstNode {
@@ -857,7 +923,7 @@ export function isReadModel(item: unknown): item is ReadModel {
     return reflection.isInstance(item, ReadModel.$type);
 }
 
-export type ReadModelElement = Field | Subscription;
+export type ReadModelElement = DictionaryProvider | Field | Subscription;
 
 export const ReadModelElement = {
     $type: 'ReadModelElement'
@@ -1438,6 +1504,8 @@ export type MedolAstType = {
     Decision: Decision
     Deployment: Deployment
     DeploymentContext: DeploymentContext
+    DictionaryProvider: DictionaryProvider
+    DictionaryProviderMapping: DictionaryProviderMapping
     Domain: Domain
     Emits: Emits
     EnumType: EnumType
@@ -1710,6 +1778,31 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: []
         },
+        DictionaryProvider: {
+            name: DictionaryProvider.$type,
+            properties: {
+                mappings: {
+                    name: DictionaryProvider.mappings,
+                    defaultValue: []
+                },
+                name: {
+                    name: DictionaryProvider.name
+                }
+            },
+            superTypes: [ReadModelElement.$type]
+        },
+        DictionaryProviderMapping: {
+            name: DictionaryProviderMapping.$type,
+            properties: {
+                field: {
+                    name: DictionaryProviderMapping.field
+                },
+                kind: {
+                    name: DictionaryProviderMapping.kind
+                }
+            },
+            superTypes: []
+        },
         Domain: {
             name: Domain.$type,
             properties: {
@@ -1839,15 +1932,36 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         FieldDetails: {
             name: FieldDetails.$type,
             properties: {
+                cacheProjection: {
+                    name: FieldDetails.cacheProjection
+                },
+                cacheStrategy: {
+                    name: FieldDetails.cacheStrategy
+                },
                 example: {
                     name: FieldDetails.example
+                },
+                lookupKey: {
+                    name: FieldDetails.lookupKey
+                },
+                missingValuePolicy: {
+                    name: FieldDetails.missingValuePolicy
                 },
                 rule: {
                     name: FieldDetails.rule
                 },
+                sourceEvent: {
+                    name: FieldDetails.sourceEvent
+                },
+                sourceField: {
+                    name: FieldDetails.sourceField
+                },
                 sources: {
                     name: FieldDetails.sources,
                     defaultValue: []
+                },
+                targetField: {
+                    name: FieldDetails.targetField
                 }
             },
             superTypes: []

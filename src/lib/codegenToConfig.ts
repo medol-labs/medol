@@ -31,6 +31,7 @@ interface ConfigFieldMapping {
   type: 'DIRECT' | 'DERIVED';
   from: string[];
   rule?: string;
+  lookup?: CodegenFieldSource['lookup'];
 }
 
 interface ConfigElement {
@@ -55,6 +56,7 @@ interface ConfigElement {
   }>;
   createsAggregate?: boolean;
   ui?: CodegenUi;
+  dictionaryProvider?: CodegenElement['dictionaryProvider'];
   triggers?: [];
   sketched?: boolean;
   prototype?: { activeByDefault: boolean };
@@ -227,6 +229,7 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   dependencies: element.dependencies.map(toConfigDependency),
   createsAggregate: element.startsLifecycle ?? false,
   ...(element.ui ? { ui: element.ui } : {}),
+  ...(element.dictionaryProvider ? { dictionaryProvider: element.dictionaryProvider } : {}),
   triggers: [],
   sketched: false,
   prototype: {
@@ -301,5 +304,6 @@ const toConfigField = (field: CodegenField): ConfigField => ({
 const toConfigFieldMapping = (source: CodegenFieldSource): ConfigFieldMapping => ({
   type: source.kind === 'derived' ? 'DERIVED' : 'DIRECT',
   from: source.from,
-  ...(source.rule ? { rule: source.rule } : {})
+  ...(source.rule ? { rule: source.rule } : {}),
+  ...(source.lookup ? { lookup: source.lookup } : {})
 });

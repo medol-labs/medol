@@ -7,6 +7,7 @@ import {
   isBinaryExpr,
   isBooleanLiteral,
   isCommand,
+  isDictionaryProvider,
   isStartsLifecycleMarker,
   isConcept,
   isEvent,
@@ -68,7 +69,7 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type MedolDiagnostic, type MedolSourceRange } from './model';
+import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmDerivedLookup, type EmDictionaryProvider, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 
@@ -644,7 +645,8 @@ const parseElement = (
     ...withSourceRange(node),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
-    metadata: parseElementMetadata(node)
+    metadata: parseElementMetadata(node),
+    ...(isReadModel(node) ? parseReadModelDictionaryProvider(node) : {})
   };
 };
 
@@ -710,21 +712,24 @@ const withSourceRange = (node: AstNode): { sourceRange?: MedolSourceRange } => {
 const parseFieldMapping = (field: AstField): EmFieldMapping | undefined => {
   const detailSources = field.details?.sources?.map(formatFieldSource) ?? [];
   const rule = field.details?.rule;
+  const lookup = parseDerivedLookup(field);
 
   if (field.mapping) {
     const mappingSources = (field.mapping.sources ?? []).map(formatFieldSource);
     return {
       kind: isFieldDerivation(field.mapping) ? 'derived' : 'from',
       sources: detailSources.length > 0 ? detailSources : mappingSources,
-      ...(rule ? { rule } : {})
+      ...(rule ? { rule } : {}),
+      ...(lookup ? { lookup } : {})
     };
   }
 
-  if (detailSources.length > 0 || rule) {
+  if (detailSources.length > 0 || rule || lookup) {
     return {
-      kind: rule ? 'derived' : 'from',
+      kind: rule || lookup ? 'derived' : 'from',
       sources: detailSources,
-      ...(rule ? { rule } : {})
+      ...(rule ? { rule } : {}),
+      ...(lookup ? { lookup } : {})
     };
   }
 
@@ -732,6 +737,37 @@ const parseFieldMapping = (field: AstField): EmFieldMapping | undefined => {
 };
 
 const formatFieldSource = (source: FieldSource): string => source.parts.join('.');
+
+const parseReadModelDictionaryProvider = (node: AstReadModel): { dictionaryProvider?: EmDictionaryProvider } => {
+  const provider = node.elements.find(isDictionaryProvider);
+  if (!provider) return {};
+
+  const mapping = Object.fromEntries(
+    provider.mappings.map((item) => [item.kind, item.field])
+  ) as Omit<EmDictionaryProvider, 'name'>;
+  return {
+    dictionaryProvider: {
+      name: safeName(provider.name, 'DictionaryProvider'),
+      ...mapping
+    }
+  };
+};
+
+const parseDerivedLookup = (field: AstField): EmDerivedLookup | undefined => {
+  const details = field.details;
+  if (!details) return undefined;
+
+  const lookup: EmDerivedLookup = {
+    ...(details.lookupKey ? { key: formatFieldSource(details.lookupKey) } : {}),
+    ...(details.sourceEvent ? { sourceEvent: details.sourceEvent } : {}),
+    ...(details.sourceField ? { sourceField: formatFieldSource(details.sourceField) } : {}),
+    ...(details.targetField ? { targetField: formatFieldSource(details.targetField) } : {}),
+    ...(details.cacheProjection ? { cacheProjection: details.cacheProjection } : {}),
+    ...(details.cacheStrategy ? { cacheStrategy: details.cacheStrategy } : {}),
+    ...(details.missingValuePolicy ? { missingValuePolicy: details.missingValuePolicy } : {})
+  };
+  return Object.keys(lookup).length > 0 ? lookup : undefined;
+};
 
 const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstSpecification | AstIntegration): Record<string, string> => {
   const metadata: Record<string, string> = {};

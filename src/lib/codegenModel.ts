@@ -1,4 +1,4 @@
-import type { EmElement, EmField, EmModel, EmSlice } from './model';
+import type { EmDictionaryProvider, EmElement, EmField, EmModel, EmSlice } from './model';
 import { allContextSlices } from './dslParser';
 import { humanize } from './name';
 import { coveredSpecificationExpressions } from './specificationCoverage';
@@ -143,6 +143,7 @@ export interface CodegenElement {
   startsLifecycle?: boolean;
   listElement?: boolean;
   ui?: CodegenUi;
+  dictionaryProvider?: CodegenDictionaryProvider;
 }
 
 export type CodegenElementType = 'COMMAND' | 'EVENT' | 'SCREEN' | 'READMODEL' | 'PROCESSOR' | 'SPECIFICATION';
@@ -165,6 +166,27 @@ export interface CodegenFieldSource {
   kind: 'direct' | 'derived';
   from: string[];
   rule?: string;
+  lookup?: CodegenDerivedLookup;
+}
+
+export interface CodegenDerivedLookup {
+  key?: string;
+  sourceEvent?: string;
+  sourceField?: string;
+  targetField?: string;
+  cacheProjection?: string;
+  cacheStrategy?: string;
+  missingValuePolicy?: string;
+}
+
+export interface CodegenDictionaryProvider {
+  name: string;
+  code?: string;
+  value?: string;
+  label?: string;
+  active?: string;
+  state?: string;
+  order?: string;
 }
 
 export interface CodegenUi {
@@ -571,7 +593,8 @@ const toCodegenElement = (
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   ...(startsLifecycle ? { startsLifecycle } : {}),
   ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
-  ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {})
+  ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {}),
+  ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {})
 });
 
 const toCodegenSliceRef = (slice: EmSlice): { id: string; name: string; title: string } => ({
@@ -690,7 +713,18 @@ const toCodegenField = (field: EmField): CodegenField => ({
 const toCodegenFieldSource = (mapping: NonNullable<EmField['mapping']>): CodegenFieldSource => ({
   kind: mapping.kind === 'derived' ? 'derived' : 'direct',
   from: mapping.sources,
-  ...(mapping.rule ? { rule: mapping.rule } : {})
+  ...(mapping.rule ? { rule: mapping.rule } : {}),
+  ...(mapping.lookup ? { lookup: mapping.lookup } : {})
+});
+
+const toCodegenDictionaryProvider = (provider: EmDictionaryProvider): CodegenDictionaryProvider => ({
+  name: provider.name,
+  ...(provider.code ? { code: provider.code } : {}),
+  ...(provider.value ? { value: provider.value } : {}),
+  ...(provider.label ? { label: provider.label } : {}),
+  ...(provider.active ? { active: provider.active } : {}),
+  ...(provider.state ? { state: provider.state } : {}),
+  ...(provider.order ? { order: provider.order } : {})
 });
 
 const buildDependencies = (model: EmModel, elementsById: Map<string, EmElement>): Map<string, CodegenDependency[]> => {

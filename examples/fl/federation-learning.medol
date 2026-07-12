@@ -187,10 +187,22 @@ context OrganizationManagement {
       runtimeAgentId: UUID
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
+        lookup key organizationId
+        source event OrganizationRegistered
+        source field organizationName
+        target field organizationName
+        cache projection OrganizationDirectory
+        missing policy keep
         rule "Lookup by organizationId and denormalize the organization display name into the compute node catalog."
       }
       infrastructureName: String? derived {
         from RuntimeInfrastructureRegistered.infrastructureName
+        lookup key runtimeInfrastructureId
+        source event RuntimeInfrastructureRegistered
+        source field infrastructureName
+        target field infrastructureName
+        cache projection RuntimeInfrastructureCatalog
+        missing policy keep
         rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the compute node catalog."
       }
       orchestratorNodeName: String?
@@ -443,10 +455,22 @@ context FederationManagement {
       organizationId: UUID id
       federationName: String? derived {
         from FederationCreated.federationName
+        lookup key federationId
+        source event FederationCreated
+        source field federationName
+        target field federationName
+        cache projection FederationOverview
+        missing policy keep
         rule "Lookup by federationId and denormalize the federation display name into the membership directory."
       }
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
+        lookup key organizationId
+        source event OrganizationRegistered
+        source field organizationName
+        target field organizationName
+        cache projection OrganizationDirectory
+        missing policy keep
         rule "Lookup by organizationId and denormalize the organization display name into the membership directory."
       }
       membershipStatus: String
@@ -915,6 +939,14 @@ context DictionaryMaintenance {
 
   slice DictionaryValueCatalog {
     readmodel DictionaryValueCatalog[] {
+      dictionaryProvider DictionaryValueCatalog {
+        code dictionaryCode
+        value valueCode
+        label displayName
+        active active
+        state state
+        order displayOrder
+      }
       dictionaryValueId: UUID id
       dictionaryId: UUID
       dictionaryCode: DictionaryCode query
@@ -1017,6 +1049,12 @@ context RuntimeOnboarding {
       organizationId: UUID
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
+        lookup key organizationId
+        source event OrganizationRegistered
+        source field organizationName
+        target field organizationName
+        cache projection OrganizationDirectory
+        missing policy keep
         rule "Lookup by organizationId and denormalize the organization display name into the network profile catalog."
       }
       profileName: String

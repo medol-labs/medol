@@ -25,6 +25,17 @@ export interface EmFieldMapping {
   kind: 'from' | 'derived';
   sources: string[];
   rule?: string;
+  lookup?: EmDerivedLookup;
+}
+
+export interface EmDerivedLookup {
+  key?: string;
+  sourceEvent?: string;
+  sourceField?: string;
+  targetField?: string;
+  cacheProjection?: string;
+  cacheStrategy?: string;
+  missingValuePolicy?: string;
 }
 
 export interface EmElement {
@@ -38,6 +49,17 @@ export interface EmElement {
   sourceRange?: MedolSourceRange;
   metadata?: Record<string, string>;
   ui?: EmUi;
+  dictionaryProvider?: EmDictionaryProvider;
+}
+
+export interface EmDictionaryProvider {
+  name: string;
+  code?: string;
+  value?: string;
+  label?: string;
+  active?: string;
+  state?: string;
+  order?: string;
 }
 
 export type EmUiType =

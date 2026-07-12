@@ -206,10 +206,30 @@ ReadModel:
 ReadModelElement:
       Field
     | Subscription
+    | DictionaryProvider
 ;
 
 Subscription:
     'subscribe' event=[Event:ID]
+;
+
+DictionaryProvider:
+    'dictionaryProvider' name=ID '{'
+        mappings+=DictionaryProviderMapping*
+    '}'
+;
+
+DictionaryProviderMapping:
+    kind=DictionaryProviderMappingKind field=FieldName
+;
+
+DictionaryProviderMappingKind returns string:
+      'code'
+    | 'value'
+    | 'label'
+    | 'active'
+    | 'state'
+    | 'order'
 ;
 
 Automation:
@@ -323,8 +343,12 @@ QualifiedType returns string:
 
 FieldName returns string:
       ID
+    | 'active'
+    | 'code'
     | 'domain'
     | 'event'
+    | 'label'
+    | 'order'
     | 'state'
     | 'value'
 ;
@@ -358,6 +382,12 @@ FieldDerivation:
 FieldDetails:
     '{'
         ('from' sources+=FieldSource (',' sources+=FieldSource)*)?
+        ('lookup' 'key' lookupKey=FieldSource)?
+        ('source' 'event' sourceEvent=ID)?
+        ('source' 'field' sourceField=FieldSource)?
+        ('target' 'field' targetField=FieldSource)?
+        ('cache' ('projection' cacheProjection=ID | 'strategy' cacheStrategy=ID))?
+        ('missing' ('value' | 'policy')? missingValuePolicy=ID)?
         ('rule' rule=STRING)?
         ('example' example=STRING)?
     '}'
