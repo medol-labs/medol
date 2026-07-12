@@ -1,120 +1,42 @@
-import { getViewportForBounds } from '@xyflow/react';
 import { useEffect, useMemo, useState, type CSSProperties, type PointerEvent } from 'react';
-import { Search } from 'lucide-react';
 import { DslEditor } from '../features/dsl-editor/DslEditor';
 import { findDslLine, type DslLocationTarget } from '../features/dsl-editor/dslLocation';
 import { AgentChatDock } from '../features/agent-chat/AgentChatDock';
 import { GlobalMap } from '../features/global-map/GlobalMap';
 import { InspectorPanel } from '../features/inspector/InspectorPanel';
 import { LayoutPreview } from '../components/LayoutPreview';
-import { OverflowText } from '../components/ui/overflow-text';
 import { ModelExplorer } from '../features/model-explorer/ModelExplorer';
 import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
-import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
-import { WorkspaceVersionPanel } from '../features/workspace/WorkspaceVersionPanel';
 import { GlobalSearchDialog } from '../features/model-search/GlobalSearchDialog';
-import { buildModelSearchIndex, type ModelSearchItem } from '../features/model-search/modelSearch';
+import { buildModelSearchIndex } from '../features/model-search/modelSearch';
 import { useModelingWorkspace } from '../features/workspace/useModelingWorkspace';
-import { generateModelingDocument } from '../features/documentation/documentationClient';
 import { DocumentWorkspace } from '../features/documentation/DocumentWorkspace';
 import { hashMedolSource } from '../features/documentation/documentReferences';
 import { useModelingDocuments } from '../features/documentation/useModelingDocuments';
-import {
-  generateModelTranslations,
-  readStoredModelTranslations
-} from '../features/model-i18n/modelTranslationClient';
-import {
-  agentSliceStatusClient,
-  toAgentSliceStatusMap,
-  type AgentSliceStatusMap
-} from '../features/agent-slices/agentSliceStatusClient';
 import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
 import { parseMedol } from '../lib/dslParser';
 import { emModelToJson } from '../lib/emModelExport';
-import { exportFlowViewportToPng, exportFlowViewportToSvg } from '../lib/exportFlowImage';
 import { toReactFlow } from '../lib/flow';
 import { toLayoutPreviewModel } from '../lib/layoutPreview';
-import { aggregateIdFromOverviewNodeId, conceptIdFromOverviewNodeId, contextIdFromOverviewNodeId, toOverviewFlow } from '../lib/overviewFlow';
+import { toOverviewFlow } from '../lib/overviewFlow';
 import { sampleDsl } from '../lib/sampleDsl';
-import { getFlowBounds } from './flowBounds';
-import { findModelItem, resolveActiveAggregate, resolveActiveConcept, resolveActiveContext } from './modelSelection';
+import { EditorPaneHeader, EditorToolbar } from './EditorToolbar';
+import { PreviewToolbar } from './PreviewToolbar';
+import {
+  formatPersistenceStatus,
+  getInitialEditorPanelHeight,
+  getInitialExplorerPanelWidth,
+  getInitialLeftPanelWidth,
+  type MedolStudioProps,
+  type PreviewMode
+} from './studioTypes';
+import { useAgentSliceStatuses } from './useAgentSliceStatuses';
 import { useDebouncedValue } from './useDebouncedValue';
-import type { EmAggregate, EmConcept, EmContext, EmDomain, EmSlice } from '../lib/model';
+import { useModelSearchDialog } from './useModelSearchDialog';
+import { usePreviewSync } from './usePreviewSync';
+import { useStudioSelection } from './useStudioSelection';
+import { useToolbarActions } from './useToolbarActions';
 import type { AgentDslPatch } from '../features/agent-chat/agentTypes';
-import type { AgentSliceStatus } from '../contracts/agentSliceStatus';
-import type {
-  DocumentationKind,
-  DocumentationLanguage
-} from '../lib/generators/documentation';
-
-type ToolbarAction =
-  | 'em-model'
-  | 'codegen-model'
-  | 'config'
-  | 'png'
-  | 'svg'
-  | 'prd-ai'
-  | 'software-design-ai'
-  | 'database-design-ai'
-  | 'process-ai'
-  | 'model-translations'
-  | 'download-translations'
-  | 'reset';
-type PreviewMode = 'canvas' | 'global' | 'layout' | 'documents';
-
-interface MedolStudioProps {
-  previewOnly?: boolean;
-  editorOnly?: boolean;
-}
-
-const getInitialLeftPanelWidth = () => {
-  if (typeof window === 'undefined') return 820;
-  const availableWidth = Math.max(360, window.innerWidth - 42 - 220 - 6);
-  return Math.min(880, availableWidth, Math.max(360, Math.floor(window.innerWidth * 0.58)));
-};
-
-const getInitialEditorPanelHeight = () => {
-  if (typeof window === 'undefined') return 420;
-  return Math.floor((window.innerHeight - 120) / 2);
-};
-
-const getInitialExplorerPanelWidth = () => 240;
-
-const formatPersistenceStatus = (status: 'loading' | 'saving' | 'saved' | 'offline'): string => {
-  if (status === 'loading') return 'Loading';
-  if (status === 'saving') return 'Saving';
-  if (status === 'offline') return 'Offline';
-  return 'Saved';
-};
-
-const isDocumentationAction = (
-  action: ToolbarAction
-): action is 'prd-ai' | 'software-design-ai' | 'database-design-ai' | 'process-ai' => {
-  return action.endsWith('-ai');
-};
-
-const documentationKindFromAction = (
-  action: 'prd-ai' | 'software-design-ai' | 'database-design-ai' | 'process-ai'
-): DocumentationKind => {
-  return action.slice(0, -3) as DocumentationKind;
-};
-
-const previewSyncChannelName = 'medol-preview-sync:v1';
-const recentSearchStoragePrefix = 'medol:recent-search:v1';
-const syncedPreviewModes = new Set<PreviewMode>(['canvas', 'global', 'layout', 'documents']);
-
-interface PreviewSyncMessage {
-  type: 'studio-state';
-  workspaceId?: string;
-  dsl?: string;
-  previewMode?: PreviewMode;
-  selectedDomainId?: string;
-  selectedContextId?: string;
-  selectedAggregateId?: string;
-  selectedConceptId?: string;
-  selectedSliceId?: string;
-  selectedNodeId?: string;
-}
 
 export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolStudioProps = {}) {
   const {
@@ -135,15 +57,6 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     restoreVersion
   } = useModelingWorkspace(sampleDsl);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
-  const [toolbarAction, setToolbarAction] = useState<ToolbarAction | ''>('');
-  const [toolbarActionPending, setToolbarActionPending] = useState(false);
-  const [documentationLanguage, setDocumentationLanguage] = useState<DocumentationLanguage>('en');
-  const [selectedDomainId, setSelectedDomainId] = useState<string | undefined>();
-  const [selectedContextId, setSelectedContextId] = useState<string | undefined>();
-  const [selectedAggregateId, setSelectedAggregateId] = useState<string | undefined>();
-  const [selectedConceptId, setSelectedConceptId] = useState<string | undefined>();
-  const [selectedSliceId, setSelectedSliceId] = useState<string | undefined>();
-  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [canvasShowFields, setCanvasShowFields] = useState(true);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [explorerPanelOpen, setExplorerPanelOpen] = useState(false);
@@ -153,19 +66,12 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const [leftPanelWidth, setLeftPanelWidth] = useState(getInitialLeftPanelWidth);
   const [editorPanelHeight, setEditorPanelHeight] = useState(getInitialEditorPanelHeight);
   const [explorerPanelWidth, setExplorerPanelWidth] = useState(getInitialExplorerPanelWidth);
-  const [dslFocusTarget, setDslFocusTarget] = useState<DslLocationTarget | undefined>();
-  const [dslFocusPosition, setDslFocusPosition] = useState<{ line: number; column: number }>();
-  const [dslFocusVersion, setDslFocusVersion] = useState(0);
   const [dslEditorVersion, setDslEditorVersion] = useState(0);
   const [previewPatch, setPreviewPatch] = useState<AgentDslPatch | undefined>();
   const [documentFocusSourceId, setDocumentFocusSourceId] = useState<string>();
   const [documentFocusVersion, setDocumentFocusVersion] = useState(0);
   const [documentNavigationMessage, setDocumentNavigationMessage] = useState<string>();
   const [documentNavigationTone, setDocumentNavigationTone] = useState<'info' | 'warning'>('warning');
-  const [modelTranslationMessage, setModelTranslationMessage] = useState<string>();
-  const [agentSliceStatuses, setAgentSliceStatuses] = useState<AgentSliceStatusMap>({});
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [recentSearchIds, setRecentSearchIds] = useState<string[]>([]);
   const debouncedDsl = useDebouncedValue(dsl, 800);
   const {
     documents,
@@ -177,18 +83,59 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     saveDocument,
     deleteDocument
   } = useModelingDocuments(activeWorkspaceId);
+  const {
+    agentSliceStatuses,
+    updateSliceAgentStatus
+  } = useAgentSliceStatuses(activeWorkspaceId);
 
   const model = useMemo(() => parseMedol(debouncedDsl), [debouncedDsl]);
-  const activeDomain = model.domains.find((domain) => domain.id === selectedDomainId) ?? model.domains[0];
-  const activeContext = resolveActiveContext(model, selectedContextId);
-  const activeAggregate = resolveActiveAggregate(activeContext, selectedAggregateId);
-  const activeConcept = resolveActiveConcept(activeContext, selectedConceptId);
-  const displayContext = selectedContextId ? activeContext : undefined;
-  const contextDesignMode = previewMode === 'canvas'
-    && Boolean(selectedContextId)
-    && !selectedAggregateId
-    && !selectedConceptId
-    && !selectedSliceId;
+  const {
+    selectedDomainId,
+    selectedContextId,
+    selectedAggregateId,
+    selectedConceptId,
+    selectedSliceId,
+    selectedNodeId,
+    activeDomain,
+    activeContext,
+    activeAggregate,
+    activeConcept,
+    displayContext,
+    contextDesignMode,
+    selectedItem,
+    dslFocusTarget,
+    dslFocusPosition,
+    dslFocusVersion,
+    setSelectedNodeId,
+    resetSelection,
+    applySyncedSelection,
+    focusDslTarget,
+    focusDslPosition,
+    selectDomain,
+    selectContext,
+    selectAggregate,
+    selectConcept,
+    selectSlice,
+    selectSearchItem,
+    selectOverviewGroup,
+    locateMedolSource
+  } = useStudioSelection({
+    model,
+    previewMode,
+    onPreviewModeChange: setPreviewMode
+  });
+  const {
+    searchOpen,
+    setSearchOpen,
+    recentSearchIds,
+    navigateToSearchItem
+  } = useModelSearchDialog({
+    activeWorkspaceId,
+    previewOnly,
+    onSelectItem: selectSearchItem,
+    onOpenLeftPanel: () => setLeftPanelOpen(true),
+    onOpenExplorerPanel: () => setExplorerPanelOpen(true)
+  });
   const flow = useMemo(() => toReactFlow(model, {
     contextId: activeContext?.id,
     aggregateId: selectedAggregateId ? activeAggregate?.id : undefined,
@@ -207,14 +154,6 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const codegenModel = useMemo(() => modelToCodegenModel(model), [model]);
   const layoutPreview = useMemo(() => toLayoutPreviewModel(codegenModel), [codegenModel]);
   const overviewFlow = useMemo(() => toOverviewFlow(model), [model]);
-  const selectedItem = useMemo(() => findModelItem(model, {
-    domainId: selectedDomainId,
-    contextId: selectedContextId,
-    aggregateId: selectedAggregateId,
-    conceptId: selectedConceptId,
-    sliceId: selectedSliceId,
-    nodeId: selectedNodeId
-  }), [model, selectedDomainId, selectedContextId, selectedAggregateId, selectedConceptId, selectedSliceId, selectedNodeId]);
   const modelSearchIndex = useMemo(() => buildModelSearchIndex(model), [model]);
   const emModelJson = useMemo(() => emModelToJson(model), [model]);
   const codegenModelJson = useMemo(() => JSON.stringify(codegenModel, null, 2), [codegenModel]);
@@ -224,9 +163,52 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     () => new Set(documents.flatMap((document) => document.sourceRefs)),
     [documents]
   );
+  const {
+    toolbarAction,
+    setToolbarAction,
+    toolbarActionPending,
+    documentationLanguage,
+    setDocumentationLanguage,
+    modelTranslationMessage,
+    runToolbarAction
+  } = useToolbarActions({
+    activeWorkspaceId,
+    dsl,
+    emModelJson,
+    codegenModelJson,
+    configJson,
+    medolSourceHash,
+    flowNodes: flow.nodes,
+    createDocument,
+    onPreviewModeChange: setPreviewMode,
+    onDocumentFocusSourceIdChange: setDocumentFocusSourceId,
+    onDocumentNavigationMessageChange: setDocumentNavigationMessage,
+    onDocumentNavigationToneChange: setDocumentNavigationTone,
+    onResetModel: () => {
+      setPreviewPatch(undefined);
+      updateDsl(sampleDsl);
+      setDslEditorVersion((version) => version + 1);
+    }
+  });
   const dslFocusLine = dslFocusPosition?.line
     ?? findDslLine(dsl, dslFocusTarget);
   const dslFocusColumn = dslFocusPosition?.column;
+  const { publishPreviewState } = usePreviewSync({
+    previewOnly,
+    activeWorkspaceId,
+    dsl,
+    previewMode,
+    selectedDomainId,
+    selectedContextId,
+    selectedAggregateId,
+    selectedConceptId,
+    selectedSliceId,
+    selectedNodeId,
+    switchWorkspace,
+    updateDsl,
+    onPreviewModeChange: setPreviewMode,
+    onApplySelection: applySyncedSelection
+  });
   const isParsingPending = dsl !== debouncedDsl;
   const modelStatus = previewPatch
     ? 'Patch preview'
@@ -237,248 +219,16 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
         : `${model.diagnostics.length} warnings`;
 
   useEffect(() => {
-    if (!activeWorkspaceId) {
-      setAgentSliceStatuses({});
-      return;
-    }
-
-    const controller = new AbortController();
-    void agentSliceStatusClient.list({ workspaceId: activeWorkspaceId }, controller.signal)
-      .then((records) => {
-        if (!controller.signal.aborted) setAgentSliceStatuses(toAgentSliceStatusMap(records));
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        console.warn('Failed to load agent slice statuses', error);
-        setAgentSliceStatuses({});
-      });
-
-    return () => controller.abort();
-  }, [activeWorkspaceId]);
-
-  const updateSliceAgentStatus = (
-    context: EmContext,
-    aggregate: EmAggregate | undefined,
-    slice: EmSlice,
-    status: AgentSliceStatus
-  ) => {
-    if (!activeWorkspaceId) return;
-
-    const previousStatus = agentSliceStatuses[slice.id] ?? 'unplanned';
-    setAgentSliceStatuses((current) => {
-      const next = { ...current };
-      if (status === 'unplanned') {
-        delete next[slice.id];
-      } else {
-        next[slice.id] = status;
-      }
-      return next;
-    });
-
-    void agentSliceStatusClient.update({
-      workspaceId: activeWorkspaceId,
-      sliceId: slice.id,
-      contextName: context.name,
-      ...(aggregate ? { aggregateName: aggregate.name } : {}),
-      sliceName: slice.name,
-      status
-    }).catch((error: unknown) => {
-      console.warn('Failed to update agent slice status', error);
-      setAgentSliceStatuses((current) => {
-        const next = { ...current };
-        if (previousStatus === 'unplanned') {
-          delete next[slice.id];
-        } else {
-          next[slice.id] = previousStatus;
-        }
-        return next;
-      });
-    });
-  };
-
-  const previewSyncMessage = useMemo<PreviewSyncMessage>(() => ({
-    type: 'studio-state',
-    ...(activeWorkspaceId ? { workspaceId: activeWorkspaceId } : {}),
-    dsl,
-    previewMode,
-    ...(selectedDomainId ? { selectedDomainId } : {}),
-    ...(selectedContextId ? { selectedContextId } : {}),
-    ...(selectedAggregateId ? { selectedAggregateId } : {}),
-    ...(selectedConceptId ? { selectedConceptId } : {}),
-    ...(selectedSliceId ? { selectedSliceId } : {}),
-    ...(selectedNodeId ? { selectedNodeId } : {})
-  }), [
-    activeWorkspaceId,
-    dsl,
-    previewMode,
-    selectedDomainId,
-    selectedContextId,
-    selectedAggregateId,
-    selectedConceptId,
-    selectedSliceId,
-    selectedNodeId
-  ]);
-
-  useEffect(() => {
-    if (previewOnly || typeof BroadcastChannel === 'undefined') return;
-    const channel = new BroadcastChannel(previewSyncChannelName);
-    channel.postMessage(previewSyncMessage);
-    channel.close();
-  }, [previewOnly, previewSyncMessage]);
-
-  useEffect(() => {
-    if (!previewOnly || typeof BroadcastChannel === 'undefined') return;
-    const channel = new BroadcastChannel(previewSyncChannelName);
-    const handleMessage = (event: MessageEvent) => {
-      const message = event.data as Partial<PreviewSyncMessage>;
-      if (message.type !== 'studio-state') return;
-      if (typeof message.workspaceId === 'string' && message.workspaceId !== activeWorkspaceId) {
-        void switchWorkspace(message.workspaceId);
-      }
-      if (typeof message.dsl === 'string' && message.dsl !== dsl) updateDsl(message.dsl);
-      if (message.previewMode && syncedPreviewModes.has(message.previewMode)) {
-        setPreviewMode(message.previewMode);
-      }
-      setSelectedDomainId(message.selectedDomainId);
-      setSelectedContextId(message.selectedContextId);
-      setSelectedAggregateId(message.selectedAggregateId);
-      setSelectedConceptId(message.selectedConceptId);
-      setSelectedSliceId(message.selectedSliceId);
-      setSelectedNodeId(message.selectedNodeId);
-    };
-
-    channel.addEventListener('message', handleMessage);
-    return () => {
-      channel.removeEventListener('message', handleMessage);
-      channel.close();
-    };
-  }, [activeWorkspaceId, dsl, previewOnly, switchWorkspace, updateDsl]);
-
-  useEffect(() => {
-    setSelectedDomainId(undefined);
-    setSelectedContextId(undefined);
-    setSelectedAggregateId(undefined);
-    setSelectedConceptId(undefined);
-    setSelectedSliceId(undefined);
-    setSelectedNodeId(undefined);
+    resetSelection();
     setDocumentFocusSourceId(undefined);
     setDocumentNavigationMessage(undefined);
     setDocumentNavigationTone('warning');
   }, [activeWorkspaceId]);
 
-  useEffect(() => {
-    if (!activeWorkspaceId || typeof window === 'undefined') {
-      setRecentSearchIds([]);
-      return;
-    }
-    try {
-      const stored = window.localStorage.getItem(`${recentSearchStoragePrefix}:${activeWorkspaceId}`);
-      const parsed = stored ? JSON.parse(stored) : [];
-      setRecentSearchIds(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string').slice(0, 10) : []);
-    } catch {
-      setRecentSearchIds([]);
-    }
-  }, [activeWorkspaceId]);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setSearchOpen((current) => !current);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, []);
-
-  const selectDomain = (domain: EmDomain) => {
-    setSelectedDomainId(domain.id);
-    setSelectedContextId(undefined);
-    setSelectedAggregateId(undefined);
-    setSelectedConceptId(undefined);
-    setSelectedSliceId(undefined);
-    setSelectedNodeId(undefined);
-    setPreviewMode('global');
-    setDslFocusPosition(undefined);
-    setDslFocusTarget({ kind: 'domain', name: domain.name });
-    setDslFocusVersion((version) => version + 1);
-  };
-
-  const selectContext = (context: EmContext) => {
-    setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
-    setSelectedContextId(context.id);
-    setSelectedAggregateId(undefined);
-    setSelectedConceptId(undefined);
-    setSelectedSliceId(undefined);
-    setSelectedNodeId(undefined);
-    setPreviewMode('canvas');
-    setDslFocusPosition(undefined);
-    setDslFocusTarget({ kind: 'context', name: context.name });
-    setDslFocusVersion((version) => version + 1);
-  };
-
-  const selectAggregate = (context: EmContext, aggregate: EmAggregate) => {
-    setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
-    setSelectedContextId(context.id);
-    setSelectedAggregateId(aggregate.id);
-    setSelectedConceptId(undefined);
-    setSelectedSliceId(undefined);
-    setSelectedNodeId(undefined);
-    setPreviewMode('canvas');
-    setDslFocusPosition(undefined);
-    setDslFocusTarget(undefined);
-    setDslFocusVersion((version) => version + 1);
-  };
-
-  const selectConcept = (context: EmContext, concept: EmConcept) => {
-    setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
-    setSelectedContextId(context.id);
-    setSelectedAggregateId(undefined);
-    setSelectedConceptId(concept.id);
-    setSelectedSliceId(undefined);
-    setSelectedNodeId(undefined);
-    setPreviewMode('canvas');
-    setDslFocusPosition(undefined);
-    setDslFocusTarget({ kind: 'concept', name: concept.name });
-    setDslFocusVersion((version) => version + 1);
-  };
-
-  const selectSlice = (context: EmContext, aggregate: EmAggregate | undefined, slice: EmSlice) => {
-    setSelectedDomainId(model.domains.find((domain) => domain.contexts.some((candidate) => candidate.id === context.id))?.id);
-    setSelectedContextId(context.id);
-    setSelectedAggregateId(aggregate?.id);
-    setSelectedConceptId(aggregate
-      ? undefined
-      : context.concepts.find((concept) => concept.sliceIds.includes(slice.id))?.id);
-    setSelectedSliceId(slice.id);
-    setSelectedNodeId(undefined);
-    setPreviewMode('canvas');
-    setDslFocusPosition(undefined);
-    setDslFocusTarget({ kind: 'slice', name: slice.name });
-    setDslFocusVersion((version) => version + 1);
-  };
-
-  const navigateToSearchItem = (item: ModelSearchItem) => {
-    setSelectedDomainId(item.domainId);
-    setSelectedContextId(item.contextId);
-    setSelectedAggregateId(item.aggregateId);
-    setSelectedConceptId(item.conceptId);
-    setSelectedSliceId(item.sliceId);
-    setSelectedNodeId(item.nodeId);
-    setDslFocusTarget(undefined);
-    setDslFocusPosition(item.sourceRange?.start);
-    setDslFocusVersion((version) => version + 1);
-    if (!previewOnly) setLeftPanelOpen(true);
-    setExplorerPanelOpen(true);
-    setPreviewMode(item.kind === 'domain' ? 'global' : 'canvas');
-
-    setRecentSearchIds((current) => {
-      const next = [item.id, ...current.filter((id) => id !== item.id)].slice(0, 10);
-      if (activeWorkspaceId && typeof window !== 'undefined') {
-        window.localStorage.setItem(`${recentSearchStoragePrefix}:${activeWorkspaceId}`, JSON.stringify(next));
-      }
-      return next;
-    });
+  const selectWorkspace = (workspaceId: string) => {
+    setPreviewPatch(undefined);
+    resetSelection();
+    void switchWorkspace(workspaceId);
   };
 
   const globalSearch = (
@@ -490,36 +240,6 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
       onSelect={navigateToSearchItem}
     />
   );
-
-  const selectOverviewGroup = (nodeId: string) => {
-    const contextId = contextIdFromOverviewNodeId(nodeId);
-    if (contextId) {
-      const context = model.contexts.find((candidate) => candidate.id === contextId);
-      if (context) selectContext(context);
-      return;
-    }
-
-    const aggregateId = aggregateIdFromOverviewNodeId(nodeId);
-    if (aggregateId) {
-      for (const context of model.contexts) {
-        const aggregate = context.aggregates.find((candidate) => candidate.id === aggregateId);
-        if (!aggregate) continue;
-        selectAggregate(context, aggregate);
-        setPreviewMode('canvas');
-        return;
-      }
-    }
-
-    const conceptId = conceptIdFromOverviewNodeId(nodeId);
-    if (conceptId) {
-      for (const context of model.contexts) {
-        const concept = context.concepts.find((candidate) => candidate.id === conceptId);
-        if (!concept) continue;
-        selectConcept(context, concept);
-        return;
-      }
-    }
-  };
 
   const locateDocumentation = async (sourceIds: string[]) => {
     const sourceId = sourceIds.find((candidate) =>
@@ -549,103 +269,10 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     }
   };
 
-  const locateMedolSource = (sourceId: string) => {
-    for (const domain of model.domains) {
-      if (domain.id === sourceId) {
-        selectDomain(domain);
-        return;
-      }
-      for (const context of domain.contexts) {
-        if (context.id === sourceId) {
-          selectContext(context);
-          return;
-        }
-        for (const concept of context.concepts) {
-          if (concept.id === sourceId) {
-            selectConcept(context, concept);
-            return;
-          }
-        }
-        for (const aggregate of context.aggregates) {
-          if (aggregate.id === sourceId) {
-            selectAggregate(context, aggregate);
-            setPreviewMode('canvas');
-            return;
-          }
-          for (const slice of aggregate.slices) {
-            if (slice.id === sourceId) {
-              selectSlice(context, aggregate, slice);
-              setPreviewMode('canvas');
-              return;
-            }
-            const element = slice.elements.find((candidate) => candidate.id === sourceId);
-            if (element) {
-              selectSlice(context, aggregate, slice);
-              setSelectedNodeId(element.id);
-              setPreviewMode('canvas');
-              return;
-            }
-          }
-        }
-        for (const slice of context.slices) {
-          if (slice.id === sourceId) {
-            selectSlice(context, undefined, slice);
-            setPreviewMode('canvas');
-            return;
-          }
-          const element = slice.elements.find((candidate) => candidate.id === sourceId);
-          if (element) {
-            selectSlice(context, undefined, slice);
-            setSelectedNodeId(element.id);
-            setPreviewMode('canvas');
-            return;
-          }
-        }
-      }
-    }
-  };
-
-  const downloadJson = (filename: string, content: string) => {
-    const blob = new Blob([content], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const getImageExportOptions = (filename: string) => {
-    const bounds = getFlowBounds(flow.nodes);
-    const padding = 180;
-    const imageWidth = Math.max(1280, Math.ceil(bounds.width + padding * 2));
-    const imageHeight = Math.max(720, Math.ceil(bounds.height + padding * 2));
-    const paddedBounds = {
-      x: bounds.x - padding,
-      y: bounds.y - padding,
-      width: bounds.width + padding * 2,
-      height: bounds.height + padding * 2
-    };
-    const viewport = getViewportForBounds(paddedBounds, imageWidth, imageHeight, 0.1, 1.5, 1);
-
-    return {
-      filename,
-      width: imageWidth,
-      height: imageHeight,
-      transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-      backgroundColor: '#f4f7fb'
-    };
-  };
-
   const openPreviewPage = () => {
     if (typeof window === 'undefined') return;
     window.open('/preview', '_blank', 'noopener,noreferrer');
-    if (typeof BroadcastChannel === 'undefined') return;
-    const channel = new BroadcastChannel(previewSyncChannelName);
-    window.setTimeout(() => {
-      channel.postMessage(previewSyncMessage);
-      channel.close();
-    }, 500);
+    publishPreviewState(500);
   };
 
   const openEditorPage = () => {
@@ -653,102 +280,18 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     window.open('/editor', '_blank', 'noopener,noreferrer');
   };
 
-  const runToolbarAction = async () => {
-    if (!toolbarAction || toolbarActionPending) return;
-    setToolbarActionPending(true);
-    if (toolbarAction === 'model-translations' || toolbarAction === 'download-translations') {
-      setModelTranslationMessage(undefined);
-    }
-    try {
-      if (toolbarAction === 'em-model') {
-        downloadJson('em-model.json', emModelJson);
-      } else if (toolbarAction === 'codegen-model') {
-        downloadJson('codegen-model.json', codegenModelJson);
-      } else if (toolbarAction === 'config') {
-        downloadJson('config.json', configJson);
-      } else if (toolbarAction === 'png' && flow.nodes.length > 0) {
-        await exportFlowViewportToPng({
-          ...getImageExportOptions('medol-model.png'),
-          pixelRatio: 2
-        });
-      } else if (toolbarAction === 'svg' && flow.nodes.length > 0) {
-        exportFlowViewportToSvg(getImageExportOptions('medol-model.svg'));
-      } else if (isDocumentationAction(toolbarAction)) {
-        const kind = documentationKindFromAction(toolbarAction);
-        const document = await generateModelingDocument({
-          dsl,
-          kind,
-          language: documentationLanguage,
-          enhanceWithAi: true
-        });
-        if (document.warning) console.warn(document.warning);
-        const savedDocument = await createDocument({
-          title: document.title,
-          kind,
-          language: documentationLanguage,
-          markdown: document.markdown,
-          sourceHash: medolSourceHash
-        });
-        const merge = savedDocument.mergeSummary;
-        setDocumentNavigationMessage(merge
-          ? merge.created
-            ? `Created document with ${merge.added} generated sections.`
-            : `Incremental update: ${merge.updated} updated, ${merge.added} added, ${merge.removed} removed, ${merge.preserved} manually edited sections preserved.`
-          : undefined);
-        setDocumentNavigationTone(merge?.preserved ? 'warning' : 'info');
-        setDocumentFocusSourceId(undefined);
-        setPreviewMode('documents');
-      } else if (toolbarAction === 'model-translations') {
-        const result = await generateModelTranslations({
-          dsl,
-          locale: documentationLanguage,
-          workspaceId: activeWorkspaceId
-        });
-        setModelTranslationMessage(
-          result.warning
-            ? result.warning
-            : `Translations ${result.locale}: ${result.translated}/${result.total} stored`
-        );
-      } else if (toolbarAction === 'download-translations') {
-        const result = await readStoredModelTranslations({
-          locale: documentationLanguage,
-          sourceHash: medolSourceHash,
-          workspaceId: activeWorkspaceId
-        });
-        downloadJson(`model-translations.${result.locale}.json`, JSON.stringify(result.codegen, null, 2));
-        setModelTranslationMessage(`Translations ${result.locale}: ${result.translated} downloaded`);
-      } else if (toolbarAction === 'reset') {
-        setPreviewPatch(undefined);
-        updateDsl(sampleDsl);
-        setDslEditorVersion((version) => version + 1);
-      }
-    } catch (error) {
-      console.error(error);
-      if (toolbarAction === 'model-translations' || toolbarAction === 'download-translations') {
-        setModelTranslationMessage(error instanceof Error ? error.message : 'Model translation failed');
-      }
-    } finally {
-      setToolbarActionPending(false);
-      setToolbarAction('');
-    }
-  };
-
   const applyAgentDsl = (nextDsl: string, focusTarget?: DslLocationTarget) => {
     setPreviewPatch(undefined);
     updateDsl(nextDsl);
     if (focusTarget) {
-      setDslFocusPosition(undefined);
-      setDslFocusTarget(focusTarget);
-      setDslFocusVersion((version) => version + 1);
+      focusDslTarget(focusTarget);
     }
     setDslEditorVersion((version) => version + 1);
   };
 
   const previewAgentPatch = (patch: AgentDslPatch) => {
     setPreviewPatch(patch);
-    setDslFocusPosition(undefined);
-    setDslFocusTarget(patch.focusTarget);
-    setDslFocusVersion((version) => version + 1);
+    focusDslTarget(patch.focusTarget);
   };
 
   const clearAgentPatchPreview = (patchId?: string) => {
@@ -851,6 +394,20 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   } minmax(360px,1fr) ${
     agentPanelOpen ? 'minmax(320px,34vw)' : '42px'
   }`;
+  const workspaceHeaderProps = {
+    workspaces,
+    activeWorkspaceId,
+    activeWorkspace,
+    versions,
+    persistenceStatus: dslPersistenceStatus,
+    versionStatus,
+    onSelect: selectWorkspace,
+    onCreate: (name: string) => void createWorkspace(name),
+    onRename: (name: string) => void renameWorkspace(name),
+    onDelete: () => void deleteWorkspace(),
+    onCreateVersion: createVersion,
+    onRestoreVersion: restoreVersion
+  };
 
   if (editorOnly) {
     return (
@@ -861,58 +418,11 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           '--explorer-panel-width': `${explorerPanelWidth}px`
         } as CSSProperties}
       >
-        <header className="studio-toolbar">
-          <div className="workspace-header">
-            <p className="eyebrow">Workspace</p>
-            <WorkspaceSwitcher
-              workspaces={workspaces}
-              activeWorkspaceId={activeWorkspaceId}
-              status={dslPersistenceStatus}
-              onSelect={(workspaceId) => {
-                setPreviewPatch(undefined);
-                setSelectedDomainId(undefined);
-                setSelectedContextId(undefined);
-                setSelectedAggregateId(undefined);
-                setSelectedConceptId(undefined);
-                setSelectedSliceId(undefined);
-                setSelectedNodeId(undefined);
-                void switchWorkspace(workspaceId);
-              }}
-              onCreate={(name) => void createWorkspace(name)}
-              onRename={(name) => void renameWorkspace(name)}
-              onDelete={() => void deleteWorkspace()}
-            />
-            <WorkspaceVersionPanel
-              activeWorkspaceId={activeWorkspaceId}
-              activeHeadVersionId={activeWorkspace?.headVersionId}
-              versions={versions}
-              status={versionStatus}
-              onCreateVersion={createVersion}
-              onRestoreVersion={restoreVersion}
-            />
-          </div>
-          <div className="toolbar-actions">
-            <div className="toolbar-view-controls">
-              <button
-                type="button"
-                className="direction-toggle"
-                onClick={() => setSearchOpen(true)}
-                title="Search model (Cmd/Ctrl+K)"
-              >
-                <Search size={14} />
-                Search
-              </button>
-              <button
-                type="button"
-                className="direction-toggle"
-                onClick={openPreviewPage}
-                title="Open preview in a separate page"
-              >
-                Preview
-              </button>
-            </div>
-          </div>
-        </header>
+        <EditorToolbar
+          {...workspaceHeaderProps}
+          onSearch={() => setSearchOpen(true)}
+          onOpenPreviewPage={openPreviewPage}
+        />
         <div
           className="grid min-h-0 min-w-0 overflow-hidden"
           style={{ gridTemplateColumns: editorOnlyGridTemplateColumns }}
@@ -1029,38 +539,10 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           className={`grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white ${isRtlLayout ? 'border-l border-slate-300' : 'border-r border-slate-300'}`}
           style={{ gridColumn: editorGridColumn, gridRow: 1 }}
         >
-          <header className="pane-header pane-header--inline">
-            <div className="workspace-header">
-              <p className="eyebrow">Workspace</p>
-              <WorkspaceSwitcher
-                workspaces={workspaces}
-                activeWorkspaceId={activeWorkspaceId}
-                status={dslPersistenceStatus}
-                onSelect={(workspaceId) => {
-                  setPreviewPatch(undefined);
-                  setSelectedDomainId(undefined);
-                  setSelectedContextId(undefined);
-                  setSelectedAggregateId(undefined);
-                  setSelectedConceptId(undefined);
-                  setSelectedSliceId(undefined);
-                  setSelectedNodeId(undefined);
-                  void switchWorkspace(workspaceId);
-                }}
-                onCreate={(name) => void createWorkspace(name)}
-                onRename={(name) => void renameWorkspace(name)}
-                onDelete={() => void deleteWorkspace()}
-              />
-              <WorkspaceVersionPanel
-                activeWorkspaceId={activeWorkspaceId}
-                activeHeadVersionId={activeWorkspace?.headVersionId}
-                versions={versions}
-                status={versionStatus}
-                onCreateVersion={createVersion}
-                onRestoreVersion={restoreVersion}
-              />
-            </div>
-            <button type="button" className="collapse-button" onClick={() => setLeftPanelOpen(false)}>Hide</button>
-          </header>
+          <EditorPaneHeader
+            {...workspaceHeaderProps}
+            onCollapse={() => setLeftPanelOpen(false)}
+          />
           <div
             className={`grid min-h-0 min-w-0 overflow-hidden ${
               agentPanelOpen
@@ -1198,132 +680,24 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
         className="preview-panel grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[#f4f7fb]"
         style={{ gridColumn: resolvedPreviewGridColumn, gridRow: 1 }}
       >
-        <header className="studio-toolbar">
-          <div>
-            <OverflowText
-              as="p"
-              className="eyebrow"
-              text={displayContext?.name ?? activeDomain?.name ?? 'Event Modeling'}
-            />
-            <OverflowText
-              as="h1"
-              text={activeAggregate?.name ?? activeConcept?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}
-            />
-          </div>
-          <div className="toolbar-actions">
-            <div className="toolbar-view-controls">
-              <button
-                type="button"
-                className="direction-toggle"
-                onClick={() => setSearchOpen(true)}
-                title="Search model (Cmd/Ctrl+K)"
-              >
-                <Search size={14} />
-                Search
-              </button>
-              <select
-                className="preview-mode-select"
-                value={previewMode}
-                onChange={(event) => setPreviewMode(event.target.value as PreviewMode)}
-                aria-label="Preview mode"
-              >
-                <option value="canvas">Model Canvas</option>
-                <option value="global">Domain Map</option>
-                <option value="layout">UI Preview</option>
-                <option value="documents">Documents</option>
-              </select>
-            </div>
-            <div className="toolbar-utility-controls">
-              {!previewOnly && (
-                <button
-                  type="button"
-                  className="direction-toggle"
-                  onClick={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}
-                  title="Toggle layout direction"
-                >
-                  {layoutDirection.toUpperCase()}
-                </button>
-              )}
-              {!previewOnly && (
-                <button
-                  type="button"
-                  className="direction-toggle"
-                  onClick={openPreviewPage}
-                  title="Open preview in a separate page"
-                >
-                  Preview
-                </button>
-              )}
-              <button
-                type="button"
-                className="direction-toggle"
-                onClick={openEditorPage}
-                title="Open editor in a separate page"
-              >
-                Editor
-              </button>
-            </div>
-            {!previewOnly && (
-            <div className="toolbar-command-controls">
-              <select
-                className="toolbar-action-select"
-                value={toolbarAction}
-                onChange={(event) => setToolbarAction(event.target.value as ToolbarAction | '')}
-                aria-label="Toolkit action"
-                title={toolbarAction
-                  ? {
-                      'em-model': 'Export EmModel',
-                      'codegen-model': 'Export CodegenModel',
-                      config: 'Export config',
-                      png: 'Export PNG',
-                      svg: 'Export SVG',
-                      'prd-ai': 'Generate PRD',
-                      'software-design-ai': 'Generate software design',
-                      'database-design-ai': 'Generate database design',
-                      'process-ai': 'Generate process document',
-                      'model-translations': 'Generate model translations',
-                      'download-translations': 'Download model translations',
-                      reset: 'Reset MEDOL'
-                    }[toolbarAction]
-                  : 'Choose toolkit action'}
-              >
-                <option value="" disabled>Choose action</option>
-                <option value="em-model">EmModel JSON</option>
-                <option value="codegen-model">Codegen JSON</option>
-                <option value="config">Config JSON</option>
-                <option value="png">Export PNG</option>
-                <option value="svg">Export SVG</option>
-                <option value="prd-ai">PRD</option>
-                <option value="software-design-ai">Software design</option>
-                <option value="database-design-ai">Database design</option>
-                <option value="process-ai">Process doc</option>
-                <option value="model-translations">Translate model</option>
-                <option value="download-translations">Download i18n</option>
-                <option value="reset">Reset MEDOL</option>
-              </select>
-              <select
-                className="toolbar-language-select"
-                value={documentationLanguage}
-                onChange={(event) => setDocumentationLanguage(event.target.value as DocumentationLanguage)}
-                aria-label="Document language"
-                title="Document language"
-              >
-                <option value="en">EN</option>
-                <option value="zh-CN">中文</option>
-              </select>
-              <button
-                type="button"
-                className="toolbar-confirm"
-                aria-label="Confirm action"
-                onClick={runToolbarAction}
-                disabled={!toolbarAction || toolbarActionPending}
-              >
-                {toolbarActionPending ? 'Working' : 'Run'}
-              </button>
-            </div>
-            )}
-          </div>
-        </header>
+        <PreviewToolbar
+          previewOnly={previewOnly}
+          eyebrow={displayContext?.name ?? activeDomain?.name ?? 'Event Modeling'}
+          title={activeAggregate?.name ?? activeConcept?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}
+          previewMode={previewMode}
+          toolbarAction={toolbarAction}
+          toolbarActionPending={toolbarActionPending}
+          documentationLanguage={documentationLanguage}
+          layoutDirection={layoutDirection}
+          onSearch={() => setSearchOpen(true)}
+          onPreviewModeChange={setPreviewMode}
+          onToolbarActionChange={setToolbarAction}
+          onDocumentationLanguageChange={setDocumentationLanguage}
+          onToggleLayoutDirection={() => setLayoutDirection((current) => current === 'ltr' ? 'rtl' : 'ltr')}
+          onOpenPreviewPage={openPreviewPage}
+          onOpenEditorPage={openEditorPage}
+          onRunToolbarAction={runToolbarAction}
+        />
         <div className="preview-stage">
           {previewMode === 'canvas' ? (
             <SemanticCanvas
@@ -1382,9 +756,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 title={`Go to line ${diagnostic.range.start.line}, column ${diagnostic.range.start.column}`}
                 onClick={() => {
                   setLeftPanelOpen(true);
-                  setDslFocusTarget(undefined);
-                  setDslFocusPosition(diagnostic.range?.start);
-                  setDslFocusVersion((version) => version + 1);
+                  focusDslPosition(diagnostic.range?.start);
                 }}
               >
                 {diagnostic.message}
