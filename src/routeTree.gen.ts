@@ -23,6 +23,8 @@ import { Route as ApiAgentHistoryRouteImport } from './routes/api/agent/history'
 import { Route as ApiAgentChatRouteImport } from './routes/api/agent/chat'
 import { Route as ApiModelingWorkspacesWorkspaceIdRouteImport } from './routes/api/modeling/workspaces.$workspaceId'
 import { Route as ApiModelingDocumentRecordsDocumentIdRouteImport } from './routes/api/modeling/document-records.$documentId'
+import { Route as ApiModelingWorkspacesWorkspaceIdVersionsRouteImport } from './routes/api/modeling/workspaces.$workspaceId.versions'
+import { Route as ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRouteImport } from './routes/api/modeling/workspaces.$workspaceId.versions.$versionId'
 
 const PreviewRoute = PreviewRouteImport.update({
   id: '/preview',
@@ -98,6 +100,18 @@ const ApiModelingDocumentRecordsDocumentIdRoute =
     path: '/$documentId',
     getParentRoute: () => ApiModelingDocumentRecordsRoute,
   } as any)
+const ApiModelingWorkspacesWorkspaceIdVersionsRoute =
+  ApiModelingWorkspacesWorkspaceIdVersionsRouteImport.update({
+    id: '/versions',
+    path: '/versions',
+    getParentRoute: () => ApiModelingWorkspacesWorkspaceIdRoute,
+  } as any)
+const ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRoute =
+  ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRouteImport.update({
+    id: '/$versionId',
+    path: '/$versionId',
+    getParentRoute: () => ApiModelingWorkspacesWorkspaceIdVersionsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -113,7 +127,9 @@ export interface FileRoutesByFullPath {
   '/api/modeling/translations': typeof ApiModelingTranslationsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
   '/api/modeling/document-records/$documentId': typeof ApiModelingDocumentRecordsDocumentIdRoute
-  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
+  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId/versions': typeof ApiModelingWorkspacesWorkspaceIdVersionsRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId/versions/$versionId': typeof ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -129,7 +145,9 @@ export interface FileRoutesByTo {
   '/api/modeling/translations': typeof ApiModelingTranslationsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
   '/api/modeling/document-records/$documentId': typeof ApiModelingDocumentRecordsDocumentIdRoute
-  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
+  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId/versions': typeof ApiModelingWorkspacesWorkspaceIdVersionsRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId/versions/$versionId': typeof ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -146,7 +164,9 @@ export interface FileRoutesById {
   '/api/modeling/translations': typeof ApiModelingTranslationsRoute
   '/api/modeling/workspaces': typeof ApiModelingWorkspacesRouteWithChildren
   '/api/modeling/document-records/$documentId': typeof ApiModelingDocumentRecordsDocumentIdRoute
-  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRoute
+  '/api/modeling/workspaces/$workspaceId': typeof ApiModelingWorkspacesWorkspaceIdRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId/versions': typeof ApiModelingWorkspacesWorkspaceIdVersionsRouteWithChildren
+  '/api/modeling/workspaces/$workspaceId/versions/$versionId': typeof ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -165,6 +185,8 @@ export interface FileRouteTypes {
     | '/api/modeling/workspaces'
     | '/api/modeling/document-records/$documentId'
     | '/api/modeling/workspaces/$workspaceId'
+    | '/api/modeling/workspaces/$workspaceId/versions'
+    | '/api/modeling/workspaces/$workspaceId/versions/$versionId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -181,6 +203,8 @@ export interface FileRouteTypes {
     | '/api/modeling/workspaces'
     | '/api/modeling/document-records/$documentId'
     | '/api/modeling/workspaces/$workspaceId'
+    | '/api/modeling/workspaces/$workspaceId/versions'
+    | '/api/modeling/workspaces/$workspaceId/versions/$versionId'
   id:
     | '__root__'
     | '/'
@@ -197,6 +221,8 @@ export interface FileRouteTypes {
     | '/api/modeling/workspaces'
     | '/api/modeling/document-records/$documentId'
     | '/api/modeling/workspaces/$workspaceId'
+    | '/api/modeling/workspaces/$workspaceId/versions'
+    | '/api/modeling/workspaces/$workspaceId/versions/$versionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -314,6 +340,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiModelingDocumentRecordsDocumentIdRouteImport
       parentRoute: typeof ApiModelingDocumentRecordsRoute
     }
+    '/api/modeling/workspaces/$workspaceId/versions': {
+      id: '/api/modeling/workspaces/$workspaceId/versions'
+      path: '/versions'
+      fullPath: '/api/modeling/workspaces/$workspaceId/versions'
+      preLoaderRoute: typeof ApiModelingWorkspacesWorkspaceIdVersionsRouteImport
+      parentRoute: typeof ApiModelingWorkspacesWorkspaceIdRoute
+    }
+    '/api/modeling/workspaces/$workspaceId/versions/$versionId': {
+      id: '/api/modeling/workspaces/$workspaceId/versions/$versionId'
+      path: '/$versionId'
+      fullPath: '/api/modeling/workspaces/$workspaceId/versions/$versionId'
+      preLoaderRoute: typeof ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRouteImport
+      parentRoute: typeof ApiModelingWorkspacesWorkspaceIdVersionsRoute
+    }
   }
 }
 
@@ -332,12 +372,43 @@ const ApiModelingDocumentRecordsRouteWithChildren =
     ApiModelingDocumentRecordsRouteChildren,
   )
 
+interface ApiModelingWorkspacesWorkspaceIdVersionsRouteChildren {
+  ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRoute: typeof ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRoute
+}
+
+const ApiModelingWorkspacesWorkspaceIdVersionsRouteChildren: ApiModelingWorkspacesWorkspaceIdVersionsRouteChildren =
+  {
+    ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRoute:
+      ApiModelingWorkspacesWorkspaceIdVersionsVersionIdRoute,
+  }
+
+const ApiModelingWorkspacesWorkspaceIdVersionsRouteWithChildren =
+  ApiModelingWorkspacesWorkspaceIdVersionsRoute._addFileChildren(
+    ApiModelingWorkspacesWorkspaceIdVersionsRouteChildren,
+  )
+
+interface ApiModelingWorkspacesWorkspaceIdRouteChildren {
+  ApiModelingWorkspacesWorkspaceIdVersionsRoute: typeof ApiModelingWorkspacesWorkspaceIdVersionsRouteWithChildren
+}
+
+const ApiModelingWorkspacesWorkspaceIdRouteChildren: ApiModelingWorkspacesWorkspaceIdRouteChildren =
+  {
+    ApiModelingWorkspacesWorkspaceIdVersionsRoute:
+      ApiModelingWorkspacesWorkspaceIdVersionsRouteWithChildren,
+  }
+
+const ApiModelingWorkspacesWorkspaceIdRouteWithChildren =
+  ApiModelingWorkspacesWorkspaceIdRoute._addFileChildren(
+    ApiModelingWorkspacesWorkspaceIdRouteChildren,
+  )
+
 interface ApiModelingWorkspacesRouteChildren {
-  ApiModelingWorkspacesWorkspaceIdRoute: typeof ApiModelingWorkspacesWorkspaceIdRoute
+  ApiModelingWorkspacesWorkspaceIdRoute: typeof ApiModelingWorkspacesWorkspaceIdRouteWithChildren
 }
 
 const ApiModelingWorkspacesRouteChildren: ApiModelingWorkspacesRouteChildren = {
-  ApiModelingWorkspacesWorkspaceIdRoute: ApiModelingWorkspacesWorkspaceIdRoute,
+  ApiModelingWorkspacesWorkspaceIdRoute:
+    ApiModelingWorkspacesWorkspaceIdRouteWithChildren,
 }
 
 const ApiModelingWorkspacesRouteWithChildren =

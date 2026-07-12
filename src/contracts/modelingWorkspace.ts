@@ -1,12 +1,28 @@
 export interface ModelingWorkspaceSummary {
   id: string;
   name: string;
+  headVersionId?: string;
   updatedAt: string;
 }
 
 export interface ModelingWorkspace extends ModelingWorkspaceSummary {
   dsl: string;
   createdAt: string;
+}
+
+export interface ModelingWorkspaceVersionSummary {
+  id: string;
+  workspaceId: string;
+  versionNo: number;
+  parentVersionId?: string;
+  modelHash: string;
+  message: string;
+  author?: string;
+  createdAt: string;
+}
+
+export interface ModelingWorkspaceVersion extends ModelingWorkspaceVersionSummary {
+  dsl: string;
 }
 
 export interface CreateModelingWorkspaceInput {
@@ -19,6 +35,12 @@ export interface UpdateModelingWorkspaceInput {
   dsl?: string;
 }
 
+export interface CreateModelingWorkspaceVersionInput {
+  message?: string;
+  dsl?: string;
+  author?: string;
+}
+
 export interface ModelingWorkspaceClient {
   list(signal?: AbortSignal): Promise<ModelingWorkspaceSummary[]>;
   get(workspaceId: string, signal?: AbortSignal): Promise<ModelingWorkspace>;
@@ -29,4 +51,23 @@ export interface ModelingWorkspaceClient {
     signal?: AbortSignal
   ): Promise<ModelingWorkspace>;
   remove(workspaceId: string, signal?: AbortSignal): Promise<void>;
+  listVersions(
+    workspaceId: string,
+    signal?: AbortSignal
+  ): Promise<ModelingWorkspaceVersionSummary[]>;
+  getVersion(
+    workspaceId: string,
+    versionId: string,
+    signal?: AbortSignal
+  ): Promise<ModelingWorkspaceVersion>;
+  createVersion(
+    workspaceId: string,
+    input: CreateModelingWorkspaceVersionInput,
+    signal?: AbortSignal
+  ): Promise<{ workspace: ModelingWorkspace; version: ModelingWorkspaceVersion }>;
+  restoreVersion(
+    workspaceId: string,
+    versionId: string,
+    signal?: AbortSignal
+  ): Promise<ModelingWorkspace>;
 }

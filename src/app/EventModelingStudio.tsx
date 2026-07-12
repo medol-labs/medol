@@ -11,6 +11,7 @@ import { OverflowText } from '../components/ui/overflow-text';
 import { ModelExplorer } from '../features/model-explorer/ModelExplorer';
 import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
 import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
+import { WorkspaceVersionPanel } from '../features/workspace/WorkspaceVersionPanel';
 import { GlobalSearchDialog } from '../features/model-search/GlobalSearchDialog';
 import { buildModelSearchIndex, type ModelSearchItem } from '../features/model-search/modelSearch';
 import { useModelingWorkspace } from '../features/workspace/useModelingWorkspace';
@@ -120,13 +121,18 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     dsl,
     updateDsl,
     workspaces,
+    versions,
+    versionStatus,
     activeWorkspaceId,
+    activeWorkspace,
     status: dslPersistenceStatus,
     workspaceRevision,
     switchWorkspace,
     createWorkspace,
     renameWorkspace,
-    deleteWorkspace
+    deleteWorkspace,
+    createVersion,
+    restoreVersion
   } = useModelingWorkspace(sampleDsl);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
   const [toolbarAction, setToolbarAction] = useState<ToolbarAction | ''>('');
@@ -876,6 +882,14 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
               onRename={(name) => void renameWorkspace(name)}
               onDelete={() => void deleteWorkspace()}
             />
+            <WorkspaceVersionPanel
+              activeWorkspaceId={activeWorkspaceId}
+              activeHeadVersionId={activeWorkspace?.headVersionId}
+              versions={versions}
+              status={versionStatus}
+              onCreateVersion={createVersion}
+              onRestoreVersion={restoreVersion}
+            />
           </div>
           <div className="toolbar-actions">
             <div className="toolbar-view-controls">
@@ -1035,6 +1049,14 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 onCreate={(name) => void createWorkspace(name)}
                 onRename={(name) => void renameWorkspace(name)}
                 onDelete={() => void deleteWorkspace()}
+              />
+              <WorkspaceVersionPanel
+                activeWorkspaceId={activeWorkspaceId}
+                activeHeadVersionId={activeWorkspace?.headVersionId}
+                versions={versions}
+                status={versionStatus}
+                onCreateVersion={createVersion}
+                onRestoreVersion={restoreVersion}
               />
             </div>
             <button type="button" className="collapse-button" onClick={() => setLeftPanelOpen(false)}>Hide</button>

@@ -3,10 +3,12 @@ import { useDebouncedValue } from '../../app/useDebouncedValue';
 import { modelingWorkspaceClient } from './httpModelingWorkspaceClient';
 import type {
   ModelingWorkspace,
+  ModelingWorkspaceVersionSummary,
   ModelingWorkspaceSummary
 } from '../../contracts/modelingWorkspace';
 
 export type WorkspacePersistenceStatus = 'loading' | 'saving' | 'saved' | 'offline';
+export type WorkspaceVersionStatus = 'loading' | 'ready' | 'offline';
 
 const selectedWorkspaceStorageKey = 'event-modeling-toolkit:selected-workspace:v1';
 
@@ -14,6 +16,8 @@ export const useModelingWorkspace = (initialDsl: string) => {
   const [dsl, setDsl] = useState(initialDsl);
   const [workspaces, setWorkspaces] = useState<ModelingWorkspaceSummary[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>();
+  const [versions, setVersions] = useState<ModelingWorkspaceVersionSummary[]>([]);
+  const [versionStatus, setVersionStatus] = useState<WorkspaceVersionStatus>('loading');
   const [status, setStatus] = useState<WorkspacePersistenceStatus>('loading');
   const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [ready, setReady] = useState(false);
@@ -33,10 +37,31 @@ export const useModelingWorkspace = (initialDsl: string) => {
       {
         id: workspace.id,
         name: workspace.name,
+        headVersionId: workspace.headVersionId,
         updatedAt: workspace.updatedAt
       },
       ...current.filter((candidate) => candidate.id !== workspace.id)
     ]);
+  }, []);
+
+  const loadWorkspaceVersions = useCallback(async (
+    workspaceId: string,
+    signal?: AbortSignal
+  ) => {
+    setVersionStatus('loading');
+    try {
+      const loadedVersions = await modelingWorkspaceClient.listVersions(workspaceId, signal);
+      if (signal?.aborted) return;
+      if (activeWorkspaceIdRef.current === workspaceId) {
+        setVersions(loadedVersions);
+        setVersionStatus('ready');
+      }
+    } catch (error) {
+      if (signal?.aborted) return;
+      console.error(error);
+      setVersions([]);
+      setVersionStatus('offline');
+    }
   }, []);
 
   const loadWorkspace = useCallback(async (
@@ -61,6 +86,7 @@ export const useModelingWorkspace = (initialDsl: string) => {
       persistSelectedWorkspaceId(workspace.id);
       lastPersistedDslRef.current = workspace.dsl;
       mergeWorkspace(workspace);
+      void loadWorkspaceVersions(workspace.id, controller.signal);
 
       const keepCurrentDsl = preserveEarlyEdit && editedBeforeReadyRef.current;
       if (!keepCurrentDsl) {
@@ -76,7 +102,7 @@ export const useModelingWorkspace = (initialDsl: string) => {
       console.error(error);
       setStatus('offline');
     }
-  }, [mergeWorkspace]);
+  }, [loadWorkspaceVersions, mergeWorkspace]);
 
   const persistCurrentDsl = useCallback(async () => {
     const workspaceId = activeWorkspaceIdRef.current;
@@ -219,6 +245,7 @@ export const useModelingWorkspace = (initialDsl: string) => {
       saveControllerRef.current?.abort();
       await modelingWorkspaceClient.remove(workspaceId);
       setWorkspaces((current) => current.filter((workspace) => workspace.id !== workspaceId));
+      setVersions([]);
       editedBeforeReadyRef.current = false;
       await loadWorkspace(nextWorkspace.id);
     } catch (error) {
@@ -227,10 +254,68 @@ export const useModelingWorkspace = (initialDsl: string) => {
     }
   }, [loadWorkspace, workspaces]);
 
+  const createVersion = useCallback(async (message: string) => {
+    const workspaceId = activeWorkspaceIdRef.current;
+    if (!workspaceId) return undefined;
+    const currentDsl = latestDslRef.current;
+
+    setVersionStatus('loading');
+    try {
+      const result = await modelingWorkspaceClient.createVersion(workspaceId, {
+        message,
+        dsl: currentDsl
+      });
+      lastPersistedDslRef.current = result.workspace.dsl;
+      latestDslRef.current = result.workspace.dsl;
+      setDsl(result.workspace.dsl);
+      mergeWorkspace(result.workspace);
+      setVersions((current) => [
+        result.version,
+        ...current.filter((version) => version.id !== result.version.id)
+      ]);
+      setStatus('saved');
+      setVersionStatus('ready');
+      return result.version;
+    } catch (error) {
+      console.error(error);
+      setVersionStatus('offline');
+      setStatus('offline');
+      throw error;
+    }
+  }, [mergeWorkspace]);
+
+  const restoreVersion = useCallback(async (versionId: string) => {
+    const workspaceId = activeWorkspaceIdRef.current;
+    if (!workspaceId) return;
+
+    saveControllerRef.current?.abort();
+    setStatus('loading');
+    setVersionStatus('loading');
+    try {
+      const workspace = await modelingWorkspaceClient.restoreVersion(workspaceId, versionId);
+      activeWorkspaceIdRef.current = workspace.id;
+      latestDslRef.current = workspace.dsl;
+      lastPersistedDslRef.current = workspace.dsl;
+      editedBeforeReadyRef.current = false;
+      setDsl(workspace.dsl);
+      setWorkspaceRevision((revision) => revision + 1);
+      mergeWorkspace(workspace);
+      setStatus('saved');
+      await loadWorkspaceVersions(workspace.id);
+    } catch (error) {
+      console.error(error);
+      setStatus('offline');
+      setVersionStatus('offline');
+      throw error;
+    }
+  }, [loadWorkspaceVersions, mergeWorkspace]);
+
   return {
     dsl,
     updateDsl,
     workspaces,
+    versions,
+    versionStatus,
     activeWorkspaceId,
     activeWorkspace: workspaces.find((workspace) => workspace.id === activeWorkspaceId),
     status,
@@ -238,7 +323,9 @@ export const useModelingWorkspace = (initialDsl: string) => {
     switchWorkspace,
     createWorkspace,
     renameWorkspace,
-    deleteWorkspace
+    deleteWorkspace,
+    createVersion,
+    restoreVersion
   };
 };
 

@@ -2,6 +2,8 @@ import type {
   CreateModelingWorkspaceInput,
   ModelingWorkspace,
   ModelingWorkspaceClient,
+  ModelingWorkspaceVersion,
+  ModelingWorkspaceVersionSummary,
   ModelingWorkspaceSummary,
   UpdateModelingWorkspaceInput
 } from '../../contracts/modelingWorkspace';
@@ -55,6 +57,47 @@ export const createHttpModelingWorkspaceClient = (
         method: 'DELETE',
         signal
       });
+    },
+    listVersions: async (workspaceId, signal) => {
+      const body = await request<{
+        versions: ModelingWorkspaceVersionSummary[];
+      }>(
+        workspaceVersionsUrl(normalizedBaseUrl, workspaceId),
+        { signal }
+      );
+      return body.versions;
+    },
+    getVersion: async (workspaceId, versionId, signal) => {
+      const body = await request<{
+        version: ModelingWorkspaceVersion;
+      }>(
+        workspaceVersionUrl(normalizedBaseUrl, workspaceId, versionId),
+        { signal }
+      );
+      return body.version;
+    },
+    createVersion: async (workspaceId, input, signal) => {
+      return request<{ workspace: ModelingWorkspace; version: ModelingWorkspaceVersion }>(
+        workspaceVersionsUrl(normalizedBaseUrl, workspaceId),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+          signal
+        }
+      );
+    },
+    restoreVersion: async (workspaceId, versionId, signal) => {
+      const body = await request<{ workspace: ModelingWorkspace }>(
+        workspaceVersionUrl(normalizedBaseUrl, workspaceId, versionId),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restore' }),
+          signal
+        }
+      );
+      return body.workspace;
     }
   };
 };
@@ -77,4 +120,16 @@ const request = async <T>(url: string, init?: RequestInit): Promise<T> => {
 
 const workspaceUrl = (baseUrl: string, workspaceId: string): string => {
   return `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}`;
+};
+
+const workspaceVersionsUrl = (baseUrl: string, workspaceId: string): string => {
+  return `${workspaceUrl(baseUrl, workspaceId)}/versions`;
+};
+
+const workspaceVersionUrl = (
+  baseUrl: string,
+  workspaceId: string,
+  versionId: string
+): string => {
+  return `${workspaceVersionsUrl(baseUrl, workspaceId)}/${encodeURIComponent(versionId)}`;
 };

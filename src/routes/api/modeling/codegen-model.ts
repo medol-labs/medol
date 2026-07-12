@@ -6,7 +6,8 @@ import { parseMedol } from '../../../lib/dslParser';
 import { readModelTranslations } from '../../../server/modelTranslationRepository';
 import {
   listModelingWorkspaces,
-  readModelingWorkspace
+  readModelingWorkspace,
+  readModelingWorkspaceVersion
 } from '../../../server/modelingWorkspaceRepository';
 
 export const Route = createFileRoute('/api/modeling/codegen-model')({
@@ -15,7 +16,14 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
       GET: ({ request }) => {
         const url = new URL(request.url);
         const workspaceId = url.searchParams.get('workspaceId')?.trim();
+        const versionId = url.searchParams.get('versionId')?.trim();
         const locale = url.searchParams.get('locale') ?? url.searchParams.get('language');
+        if (versionId && !workspaceId) {
+          return Response.json({
+            error: 'workspaceId is required when versionId is provided'
+          }, { status: 400 });
+        }
+
         const workspace = workspaceId
           ? readModelingWorkspace(workspaceId)
           : readLatestWorkspace();
@@ -26,7 +34,15 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
           }, { status: 404 });
         }
 
-        const model = parseMedol(workspace.dsl);
+        const version = versionId
+          ? readModelingWorkspaceVersion(workspace.id, versionId)
+          : undefined;
+        if (versionId && !version) {
+          return Response.json({ error: 'workspace version not found' }, { status: 404 });
+        }
+
+        const dsl = version?.dsl ?? workspace.dsl;
+        const model = parseMedol(dsl);
         if (model.diagnostics.length > 0) {
           return Response.json({
             error: 'MEDOL validation failed',
@@ -38,7 +54,7 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
         if (locale) {
           const translations = readModelTranslations({
             workspaceId: workspace.id,
-            sourceHash: hashMedolSource(workspace.dsl),
+            sourceHash: hashMedolSource(dsl),
             locale
           });
           codegenModel = withCodegenTranslations(codegenModel, locale, translations);
@@ -50,6 +66,11 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
             'Content-Disposition': contentDisposition('codegen-model.json'),
             'X-Medol-Workspace-Id': workspace.id,
             'X-Medol-Workspace-Name': encodeURIComponent(workspace.name),
+            ...(version ? {
+              'X-Medol-Version-Id': version.id,
+              'X-Medol-Version-No': String(version.versionNo),
+              'X-Medol-Model-Hash': version.modelHash
+            } : {}),
             ...(locale ? { 'X-Medol-Locale': locale } : {})
           }
         });
