@@ -23,6 +23,9 @@ export const Route = createFileRoute('/api/modeling/workspaces/$workspaceId/vers
           message?: unknown;
           dsl?: unknown;
           author?: unknown;
+          releaseChannel?: unknown;
+          releaseLabel?: unknown;
+          releaseNotes?: unknown;
         };
         const validation = validateWorkspaceVersionInput(body);
         if (validation.error) {

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDebouncedValue } from '../../app/useDebouncedValue';
 import { modelingWorkspaceClient } from './httpModelingWorkspaceClient';
 import type {
+  CreateModelingWorkspaceVersionInput,
   ModelingWorkspace,
+  ModelingWorkspaceVersion,
   ModelingWorkspaceVersionSummary,
   ModelingWorkspaceSummary
 } from '../../contracts/modelingWorkspace';
@@ -254,7 +256,7 @@ export const useModelingWorkspace = (initialDsl: string) => {
     }
   }, [loadWorkspace, workspaces]);
 
-  const createVersion = useCallback(async (message: string) => {
+  const createVersion = useCallback(async (input: CreateModelingWorkspaceVersionInput) => {
     const workspaceId = activeWorkspaceIdRef.current;
     if (!workspaceId) return undefined;
     const currentDsl = latestDslRef.current;
@@ -262,7 +264,7 @@ export const useModelingWorkspace = (initialDsl: string) => {
     setVersionStatus('loading');
     try {
       const result = await modelingWorkspaceClient.createVersion(workspaceId, {
-        message,
+        ...input,
         dsl: currentDsl
       });
       lastPersistedDslRef.current = result.workspace.dsl;
@@ -283,6 +285,12 @@ export const useModelingWorkspace = (initialDsl: string) => {
       throw error;
     }
   }, [mergeWorkspace]);
+
+  const loadVersion = useCallback(async (versionId: string): Promise<ModelingWorkspaceVersion | undefined> => {
+    const workspaceId = activeWorkspaceIdRef.current;
+    if (!workspaceId) return undefined;
+    return modelingWorkspaceClient.getVersion(workspaceId, versionId);
+  }, []);
 
   const restoreVersion = useCallback(async (versionId: string) => {
     const workspaceId = activeWorkspaceIdRef.current;
@@ -325,6 +333,7 @@ export const useModelingWorkspace = (initialDsl: string) => {
     renameWorkspace,
     deleteWorkspace,
     createVersion,
+    loadVersion,
     restoreVersion
   };
 };

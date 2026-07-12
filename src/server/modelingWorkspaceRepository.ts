@@ -29,6 +29,10 @@ interface WorkspaceVersionRow {
   model_hash: string;
   message: string;
   author: string | null;
+  release_channel: string | null;
+  release_label: string | null;
+  release_notes: string | null;
+  released_at: string | null;
   created_at: string;
 }
 
@@ -54,6 +58,10 @@ database.exec(`
     model_hash TEXT NOT NULL,
     message TEXT NOT NULL DEFAULT '',
     author TEXT,
+    release_channel TEXT,
+    release_label TEXT,
+    release_notes TEXT,
+    released_at TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(workspace_id, version_no)
   );
@@ -63,6 +71,7 @@ database.exec(`
 `);
 
 ensureWorkspaceHeadVersionColumn();
+ensureWorkspaceVersionReleaseColumns();
 migrateLegacyDslWorkspaces();
 backfillWorkspaceVersions();
 
@@ -118,20 +127,23 @@ const deleteWorkspaceVersionsStatement = database.prepare(`
 `);
 
 const listWorkspaceVersionsStatement = database.prepare(`
-  SELECT id, workspace_id, version_no, parent_version_id, dsl, model_hash, message, author, created_at
+  SELECT id, workspace_id, version_no, parent_version_id, dsl, model_hash, message, author,
+    release_channel, release_label, release_notes, released_at, created_at
   FROM modeling_workspace_versions
   WHERE workspace_id = ?
   ORDER BY version_no DESC
 `);
 
 const selectWorkspaceVersionStatement = database.prepare(`
-  SELECT id, workspace_id, version_no, parent_version_id, dsl, model_hash, message, author, created_at
+  SELECT id, workspace_id, version_no, parent_version_id, dsl, model_hash, message, author,
+    release_channel, release_label, release_notes, released_at, created_at
   FROM modeling_workspace_versions
   WHERE workspace_id = ? AND id = ?
 `);
 
 const selectLatestWorkspaceVersionStatement = database.prepare(`
-  SELECT id, workspace_id, version_no, parent_version_id, dsl, model_hash, message, author, created_at
+  SELECT id, workspace_id, version_no, parent_version_id, dsl, model_hash, message, author,
+    release_channel, release_label, release_notes, released_at, created_at
   FROM modeling_workspace_versions
   WHERE workspace_id = ?
   ORDER BY version_no DESC
@@ -148,9 +160,13 @@ const insertWorkspaceVersionStatement = database.prepare(`
     model_hash,
     message,
     author,
+    release_channel,
+    release_label,
+    release_notes,
+    released_at,
     created_at
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 `);
 
 export const listModelingWorkspaces = (): ModelingWorkspaceSummary[] => {
@@ -174,7 +190,10 @@ export const createModelingWorkspace = (
       parentVersionId: undefined,
       dsl: input.dsl ?? '',
       message: 'Initial version',
-      author: undefined
+      author: undefined,
+      releaseChannel: undefined,
+      releaseLabel: undefined,
+      releaseNotes: undefined
     });
     updateWorkspaceHeadVersionStatement.run(version.id, workspaceId);
   })();
@@ -243,7 +262,10 @@ export const createModelingWorkspaceVersion = (
       parentVersionId: latest?.id,
       dsl: sourceDsl,
       message: input.message?.trim() || `Version ${(latest?.version_no ?? 0) + 1}`,
-      author: input.author?.trim() || undefined
+      author: input.author?.trim() || undefined,
+      releaseChannel: input.releaseChannel?.trim() || undefined,
+      releaseLabel: input.releaseLabel?.trim() || undefined,
+      releaseNotes: input.releaseNotes?.trim() || undefined
     });
     updateWorkspaceHeadVersionStatement.run(version.id, workspaceId);
     return version;
@@ -293,6 +315,14 @@ const toVersionSummary = (row: WorkspaceVersionRow): ModelingWorkspaceVersionSum
   modelHash: row.model_hash,
   message: row.message,
   ...(row.author ? { author: row.author } : {}),
+  ...(row.release_channel ? {
+    release: {
+      channel: row.release_channel,
+      ...(row.release_label ? { label: row.release_label } : {}),
+      ...(row.release_notes ? { notes: row.release_notes } : {}),
+      releasedAt: row.released_at ?? row.created_at
+    }
+  } : {}),
   createdAt: row.created_at
 });
 
@@ -307,7 +337,10 @@ const insertWorkspaceVersion = ({
   parentVersionId,
   dsl,
   message,
-  author
+  author,
+  releaseChannel,
+  releaseLabel,
+  releaseNotes
 }: {
   workspaceId: string;
   versionNo: number;
@@ -315,6 +348,9 @@ const insertWorkspaceVersion = ({
   dsl: string;
   message: string;
   author?: string;
+  releaseChannel?: string;
+  releaseLabel?: string;
+  releaseNotes?: string;
 }): ModelingWorkspaceVersion => {
   const versionId = randomUUID();
   insertWorkspaceVersionStatement.run(
@@ -325,7 +361,11 @@ const insertWorkspaceVersion = ({
     dsl,
     hashMedolSource(dsl),
     message,
-    author ?? null
+    author ?? null,
+    releaseChannel ?? null,
+    releaseLabel ?? null,
+    releaseNotes ?? null,
+    releaseChannel ? new Date().toISOString() : null
   );
 
   const row = selectWorkspaceVersionStatement.get(workspaceId, versionId) as
@@ -341,6 +381,25 @@ function ensureWorkspaceHeadVersionColumn(): void {
   }>;
   if (columns.some((column) => column.name === 'head_version_id')) return;
   database.exec('ALTER TABLE modeling_workspaces ADD COLUMN head_version_id TEXT');
+}
+
+function ensureWorkspaceVersionReleaseColumns(): void {
+  const columns = database.prepare('PRAGMA table_info(modeling_workspace_versions)').all() as Array<{
+    name: string;
+  }>;
+  const columnNames = new Set(columns.map((column) => column.name));
+  const columnDefinitions: Array<[string, string]> = [
+    ['release_channel', 'TEXT'],
+    ['release_label', 'TEXT'],
+    ['release_notes', 'TEXT'],
+    ['released_at', 'TEXT']
+  ];
+
+  for (const [name, type] of columnDefinitions) {
+    if (!columnNames.has(name)) {
+      database.exec(`ALTER TABLE modeling_workspace_versions ADD COLUMN ${name} ${type}`);
+    }
+  }
 }
 
 function migrateLegacyDslWorkspaces(): void {

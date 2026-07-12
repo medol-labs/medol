@@ -38,7 +38,10 @@ test('creates immutable workspace versions and restores a version into the draft
   const created = repository.createModelingWorkspaceVersion(workspace.id, {
     message: 'Add Sales context',
     dsl: nextDsl,
-    author: 'tester'
+    author: 'tester',
+    releaseChannel: 'stable',
+    releaseLabel: 'Orders v1',
+    releaseNotes: 'Ready for generated application review.'
   });
 
   assert.ok(created);
@@ -47,6 +50,13 @@ test('creates immutable workspace versions and restores a version into the draft
   assert.equal(created.version.dsl, nextDsl);
   assert.equal(created.version.message, 'Add Sales context');
   assert.equal(created.version.author, 'tester');
+  assert.deepEqual(created.version.release, {
+    channel: 'stable',
+    label: 'Orders v1',
+    notes: 'Ready for generated application review.',
+    releasedAt: created.version.release?.releasedAt
+  });
+  assert.ok(created.version.release?.releasedAt);
   assert.equal(created.workspace.dsl, nextDsl);
   assert.equal(created.workspace.headVersionId, created.version.id);
 

@@ -1,6 +1,8 @@
 import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
 import { WorkspaceVersionPanel } from '../features/workspace/WorkspaceVersionPanel';
 import type {
+  CreateModelingWorkspaceVersionInput,
+  ModelingWorkspaceVersion,
   ModelingWorkspaceVersionSummary,
   ModelingWorkspaceSummary
 } from '../contracts/modelingWorkspace';
@@ -20,7 +22,8 @@ export interface WorkspaceHeaderProps {
   onCreate: (name: string) => void;
   onRename: (name: string) => void;
   onDelete: () => void;
-  onCreateVersion: (message: string) => Promise<ModelingWorkspaceVersionSummary | undefined>;
+  onCreateVersion: (input: CreateModelingWorkspaceVersionInput) => Promise<ModelingWorkspaceVersionSummary | undefined>;
+  onLoadVersion: (versionId: string) => Promise<ModelingWorkspaceVersion | undefined>;
   onRestoreVersion: (versionId: string) => Promise<void>;
 }
 
@@ -36,6 +39,7 @@ export function WorkspaceHeader({
   onRename,
   onDelete,
   onCreateVersion,
+  onLoadVersion,
   onRestoreVersion
 }: WorkspaceHeaderProps) {
   return (
@@ -56,6 +60,7 @@ export function WorkspaceHeader({
         versions={versions}
         status={versionStatus}
         onCreateVersion={onCreateVersion}
+        onLoadVersion={onLoadVersion}
         onRestoreVersion={onRestoreVersion}
       />
     </div>

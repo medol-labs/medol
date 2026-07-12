@@ -18,11 +18,19 @@ export interface ModelingWorkspaceVersionSummary {
   modelHash: string;
   message: string;
   author?: string;
+  release?: ModelingWorkspaceVersionRelease;
   createdAt: string;
 }
 
 export interface ModelingWorkspaceVersion extends ModelingWorkspaceVersionSummary {
   dsl: string;
+}
+
+export interface ModelingWorkspaceVersionRelease {
+  channel: string;
+  label?: string;
+  notes?: string;
+  releasedAt: string;
 }
 
 export interface CreateModelingWorkspaceInput {
@@ -39,6 +47,9 @@ export interface CreateModelingWorkspaceVersionInput {
   message?: string;
   dsl?: string;
   author?: string;
+  releaseChannel?: string;
+  releaseLabel?: string;
+  releaseNotes?: string;
 }
 
 export interface ModelingWorkspaceClient {

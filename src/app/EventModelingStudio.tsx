@@ -54,6 +54,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     renameWorkspace,
     deleteWorkspace,
     createVersion,
+    loadVersion,
     restoreVersion
   } = useModelingWorkspace(sampleDsl);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
@@ -406,6 +407,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     onRename: (name: string) => void renameWorkspace(name),
     onDelete: () => void deleteWorkspace(),
     onCreateVersion: createVersion,
+    onLoadVersion: loadVersion,
     onRestoreVersion: restoreVersion
   };
 
