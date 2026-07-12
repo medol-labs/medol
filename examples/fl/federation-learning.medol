@@ -8,6 +8,14 @@ context OrganizationManagement {
   metric organizationActivationLeadTime
   metric availableComputeNodeCoverage
 
+  enum OrganizationType {
+    HOSPITAL
+    RESEARCH_INSTITUTE
+    PUBLIC_HEALTH_AGENCY
+    LABORATORY
+    REHABILITATION_CENTER
+  }
+
   slice RegisterOrganization {
     startsLifecycle
 
@@ -21,14 +29,14 @@ context OrganizationManagement {
     command RegisterOrganization {
       organizationId: UUID id generated technical
       organizationName: String
-      organizationType: String // HOSPITAL / RESEARCH_INSTITUTE / PUBLIC_HEALTH_AGENCY / LABORATORY / REHABILITATION_CENTER
+      organizationType: OrganizationType
       contactEmail: String
     }
 
     event OrganizationRegistered {
       organizationId: UUID id technical
       organizationName: String
-      organizationType: String
+      organizationType: OrganizationType
       contactEmail: String
     }
 
@@ -115,7 +123,7 @@ context OrganizationManagement {
     readmodel OrganizationDirectory[] {
       organizationId: UUID id
       organizationName: String
-      organizationType: String
+      organizationType: OrganizationType
       state: Organization.State
       availableComputeNodeCount: Int
       approvedDatasetCount: Int
