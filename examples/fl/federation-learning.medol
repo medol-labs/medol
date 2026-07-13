@@ -1444,6 +1444,102 @@ context RuntimeOnboarding {
     }
   }
 
+  slice RuntimeInstallationGuide {
+    actor RuntimeInstaller
+    ui RuntimeInstallationGuideScreen
+    reactsTo RuntimeBootstrapTokenIssued
+
+    readmodel RuntimeInstallationGuide[] {
+      runtimeInstallationPlanId: UUID id
+      organizationId: UUID
+      networkProfileId: UUID
+      bootstrapTokenId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the runtime installation guide."
+      }
+      networkProfileName: String? derived {
+        from OrganizationNetworkProfileConfigured.profileName
+        rule "Lookup by networkProfileId and denormalize the network profile display name into the runtime installation guide."
+      }
+      infrastructureName: String? derived {
+        from RuntimeInstallationPlanCreated.infrastructureName
+        rule "Lookup by runtimeInstallationPlanId and denormalize the planned infrastructure display name into the runtime installation guide."
+      }
+      tokenName: String
+      tokenFingerprint: String
+      bootstrapUrl: String derived {
+        from RuntimeBootstrapTokenIssued.bootstrapTokenId
+        rule "Render the public platform bootstrap config endpoint for the runtime agent first-connect handshake."
+      }
+      bootstrapCommand: String derived {
+        from RuntimeBootstrapTokenIssued.bootstrapTokenId
+        rule "Render the copyable install/start command using bootstrapUrl, agentImageRef, and one-time token material held by the secure token delivery service; never derive it from tokenHash."
+      }
+      agentImageRef: String derived {
+        from RuntimeInstallationPlanCreated.installProfile
+        rule "Resolve the runtime agent image or installation package from the install profile, architecture, and platform release channel."
+      }
+      platformApiEndpoint: String? derived {
+        from OrganizationNetworkProfileConfigured.platformApiEndpoint
+        rule "Lookup by networkProfileId and show the platform API endpoint the runtime agent will use after bootstrap."
+      }
+      runtimeControlEndpoint: String? derived {
+        from OrganizationNetworkProfileConfigured.runtimeControlEndpoint
+        rule "Lookup by networkProfileId and show the runtime control endpoint the runtime agent will use after bootstrap."
+      }
+      registryEndpoint: String? derived {
+        from OrganizationNetworkProfileConfigured.registryEndpoint
+        rule "Lookup by networkProfileId and show the image registry endpoint needed by the install command."
+      }
+      caBundleRef: String? derived {
+        from OrganizationNetworkProfileConfigured.caBundleRef
+        rule "Lookup by networkProfileId and show the CA bundle reference required to trust platform endpoints."
+      }
+      allowedCidrs: String[] from RuntimeBootstrapTokenIssued.allowedCidrs
+      infrastructureType: String? dictionary "RUNTIME_INFRASTRUCTURE_TYPE" derived {
+        from RuntimeInstallationPlanCreated.infrastructureType
+        rule "Lookup by runtimeInstallationPlanId and display the planned runtime infrastructure type."
+      }
+      orchestratorType: String? dictionary "RUNTIME_ORCHESTRATOR_TYPE" derived {
+        from RuntimeInstallationPlanCreated.orchestratorType
+        rule "Lookup by runtimeInstallationPlanId and display the planned orchestrator type."
+      }
+      orchestratorVersion: String? dictionary "RUNTIME_ORCHESTRATOR_VERSION" derived {
+        from RuntimeInstallationPlanCreated.orchestratorVersion
+        rule "Lookup by runtimeInstallationPlanId and display the planned orchestrator version."
+      }
+      installProfile: String? dictionary "RUNTIME_INSTALL_PROFILE" derived {
+        from RuntimeInstallationPlanCreated.installProfile
+        rule "Lookup by runtimeInstallationPlanId and display the selected runtime install profile."
+      }
+      architecture: String? derived {
+        from RuntimeInstallationPlanCreated.architecture
+        rule "Lookup by runtimeInstallationPlanId and display the target runtime architecture."
+      }
+      expectedNodeCount: Int? derived {
+        from RuntimeInstallationPlanCreated.expectedNodeCount
+        rule "Lookup by runtimeInstallationPlanId and display the planned node count."
+      }
+      nodeLabels: String[] derived {
+        from RuntimeInstallationPlanCreated.nodeLabels
+        rule "Lookup by runtimeInstallationPlanId and display the node labels the runtime should apply."
+      }
+      tokenState: RuntimeBootstrapToken.State
+      issuedAt: DateTime
+      expiresAt: DateTime
+      revokedAt: DateTime?
+      revokeReason: String?
+      requestCount: Int
+      subscribe OrganizationRegistered
+      subscribe OrganizationNetworkProfileConfigured
+      subscribe RuntimeInstallationPlanCreated
+      subscribe RuntimeBootstrapTokenIssued
+      subscribe RuntimeBootstrapTokenRevoked
+      subscribe RuntimeBootstrapConfigRequested
+    }
+  }
+
   slice RuntimeBootstrapRequestCatalog {
     readmodel RuntimeBootstrapRequestCatalog[] {
       bootstrapRequestId: UUID id
@@ -1640,6 +1736,7 @@ context RuntimeOnboarding {
 
     slice CreateRuntimeInstallationPlan
     slice RuntimeInstallationPlanCatalog
+    slice RuntimeInstallationGuide
   }
 
   concept RuntimeBootstrapToken {
