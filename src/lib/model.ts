@@ -129,6 +129,26 @@ export interface EmAggregate {
   slices: EmSlice[];
 }
 
+export interface EmExternalSystem {
+  id: string;
+  name: string;
+  sourceRange?: MedolSourceRange;
+  kind?: string;
+  protocol?: string;
+  endpoint?: EmExternalEndpoint;
+  capabilities: EmExternalCapability[];
+}
+
+export interface EmExternalEndpoint {
+  type: 'config';
+  key: string;
+}
+
+export interface EmExternalCapability {
+  type: 'command' | 'event';
+  name: string;
+}
+
 export interface EmContext {
   id: string;
   name: string;
@@ -137,6 +157,7 @@ export interface EmContext {
   aggregates: EmAggregate[];
   slices: EmSlice[];
   concepts: EmConcept[];
+  externalSystems: EmExternalSystem[];
   looseElements: EmElement[];
   notes: string[];
   risks: string[];

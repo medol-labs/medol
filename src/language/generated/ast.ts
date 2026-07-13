@@ -23,6 +23,7 @@ export type MedolKeywordNames =
     | "("
     | ")"
     | ","
+    | "-"
     | "."
     | ".."
     | ":"
@@ -41,10 +42,12 @@ export type MedolKeywordNames =
     | "automation"
     | "background"
     | "cache"
+    | "capabilities"
     | "code"
     | "command"
     | "concept"
     | "condition"
+    | "config"
     | "confirm"
     | "context"
     | "decision"
@@ -57,10 +60,12 @@ export type MedolKeywordNames =
     | "domain"
     | "drawer"
     | "emits"
+    | "endpoint"
     | "enum"
     | "event"
     | "example"
     | "expression"
+    | "external"
     | "false"
     | "field"
     | "form"
@@ -75,6 +80,7 @@ export type MedolKeywordNames =
     | "inline"
     | "integration"
     | "key"
+    | "kind"
     | "label"
     | "length"
     | "list"
@@ -89,6 +95,7 @@ export type MedolKeywordNames =
     | "order"
     | "policy"
     | "projection"
+    | "protocol"
     | "query"
     | "range"
     | "reactsTo"
@@ -364,7 +371,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Automation | Concept | Decision | EnumType | Integration | Metric | Note | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
+export type ContextElement = Automation | Concept | Decision | EnumType | External | Integration | Metric | Note | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -584,6 +591,125 @@ export function isExpression(item: unknown): item is Expression {
     return reflection.isInstance(item, Expression.$type);
 }
 
+export interface External extends langium.AstNode {
+    readonly $container: Context;
+    readonly $type: 'External';
+    elements: Array<ExternalElement>;
+    name: string;
+}
+
+export const External = {
+    $type: 'External',
+    elements: 'elements',
+    name: 'name'
+} as const;
+
+export function isExternal(item: unknown): item is External {
+    return reflection.isInstance(item, External.$type);
+}
+
+export interface ExternalCapabilities extends langium.AstNode {
+    readonly $container: External;
+    readonly $type: 'ExternalCapabilities';
+    capabilities: Array<ExternalCapability>;
+}
+
+export const ExternalCapabilities = {
+    $type: 'ExternalCapabilities',
+    capabilities: 'capabilities'
+} as const;
+
+export function isExternalCapabilities(item: unknown): item is ExternalCapabilities {
+    return reflection.isInstance(item, ExternalCapabilities.$type);
+}
+
+export interface ExternalCapability extends langium.AstNode {
+    readonly $container: ExternalCapabilities;
+    readonly $type: 'ExternalCapability';
+    name: string;
+    type: 'command' | 'event';
+}
+
+export const ExternalCapability = {
+    $type: 'ExternalCapability',
+    name: 'name',
+    type: 'type'
+} as const;
+
+export function isExternalCapability(item: unknown): item is ExternalCapability {
+    return reflection.isInstance(item, ExternalCapability.$type);
+}
+
+export type ExternalElement = ExternalCapabilities | ExternalEndpoint | ExternalKind | ExternalProtocol;
+
+export const ExternalElement = {
+    $type: 'ExternalElement'
+} as const;
+
+export function isExternalElement(item: unknown): item is ExternalElement {
+    return reflection.isInstance(item, ExternalElement.$type);
+}
+
+export interface ExternalEndpoint extends langium.AstNode {
+    readonly $container: External;
+    readonly $type: 'ExternalEndpoint';
+    configKey: string;
+}
+
+export const ExternalEndpoint = {
+    $type: 'ExternalEndpoint',
+    configKey: 'configKey'
+} as const;
+
+export function isExternalEndpoint(item: unknown): item is ExternalEndpoint {
+    return reflection.isInstance(item, ExternalEndpoint.$type);
+}
+
+export interface ExternalKind extends langium.AstNode {
+    readonly $container: External;
+    readonly $type: 'ExternalKind';
+    value: ExternalToken;
+}
+
+export const ExternalKind = {
+    $type: 'ExternalKind',
+    value: 'value'
+} as const;
+
+export function isExternalKind(item: unknown): item is ExternalKind {
+    return reflection.isInstance(item, ExternalKind.$type);
+}
+
+export interface ExternalProtocol extends langium.AstNode {
+    readonly $container: External;
+    readonly $type: 'ExternalProtocol';
+    value: ExternalToken;
+}
+
+export const ExternalProtocol = {
+    $type: 'ExternalProtocol',
+    value: 'value'
+} as const;
+
+export function isExternalProtocol(item: unknown): item is ExternalProtocol {
+    return reflection.isInstance(item, ExternalProtocol.$type);
+}
+
+export interface ExternalToken extends langium.AstNode {
+    readonly $container: ExternalKind | ExternalProtocol;
+    readonly $type: 'ExternalToken';
+    parts: Array<string>;
+}
+
+export const ExternalToken = {
+    $type: 'ExternalToken',
+    parts: 'parts'
+} as const;
+
+export function isExternalToken(item: unknown): item is ExternalToken {
+    return reflection.isInstance(item, ExternalToken.$type);
+}
+
 export interface Field extends langium.AstNode {
     readonly $container: Command | Event | ReadModel | StructuredValueType;
     readonly $type: 'Field';
@@ -675,10 +801,10 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export type FieldName = 'active' | 'code' | 'domain' | 'event' | 'label' | 'order' | 'state' | 'value' | string;
+export type FieldName = 'active' | 'code' | 'domain' | 'event' | 'label' | 'missing' | 'order' | 'state' | 'value' | string;
 
 export function isFieldName(item: unknown): item is FieldName {
-    return item === 'active' || item === 'code' || item === 'domain' || item === 'event' || item === 'label' || item === 'order' || item === 'state' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'active' || item === 'code' || item === 'domain' || item === 'event' || item === 'label' || item === 'missing' || item === 'order' || item === 'state' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface FieldSource extends langium.AstNode {
@@ -1514,6 +1640,14 @@ export type MedolAstType = {
     Example: Example
     ExampleBlock: ExampleBlock
     Expression: Expression
+    External: External
+    ExternalCapabilities: ExternalCapabilities
+    ExternalCapability: ExternalCapability
+    ExternalElement: ExternalElement
+    ExternalEndpoint: ExternalEndpoint
+    ExternalKind: ExternalKind
+    ExternalProtocol: ExternalProtocol
+    ExternalToken: ExternalToken
     Field: Field
     FieldDerivation: FieldDerivation
     FieldDetails: FieldDetails
@@ -1888,6 +2022,84 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Expression: {
             name: Expression.$type,
             properties: {
+            },
+            superTypes: []
+        },
+        External: {
+            name: External.$type,
+            properties: {
+                elements: {
+                    name: External.elements,
+                    defaultValue: []
+                },
+                name: {
+                    name: External.name
+                }
+            },
+            superTypes: [ContextElement.$type]
+        },
+        ExternalCapabilities: {
+            name: ExternalCapabilities.$type,
+            properties: {
+                capabilities: {
+                    name: ExternalCapabilities.capabilities,
+                    defaultValue: []
+                }
+            },
+            superTypes: [ExternalElement.$type]
+        },
+        ExternalCapability: {
+            name: ExternalCapability.$type,
+            properties: {
+                name: {
+                    name: ExternalCapability.name
+                },
+                type: {
+                    name: ExternalCapability.type
+                }
+            },
+            superTypes: []
+        },
+        ExternalElement: {
+            name: ExternalElement.$type,
+            properties: {
+            },
+            superTypes: []
+        },
+        ExternalEndpoint: {
+            name: ExternalEndpoint.$type,
+            properties: {
+                configKey: {
+                    name: ExternalEndpoint.configKey
+                }
+            },
+            superTypes: [ExternalElement.$type]
+        },
+        ExternalKind: {
+            name: ExternalKind.$type,
+            properties: {
+                value: {
+                    name: ExternalKind.value
+                }
+            },
+            superTypes: [ExternalElement.$type]
+        },
+        ExternalProtocol: {
+            name: ExternalProtocol.$type,
+            properties: {
+                value: {
+                    name: ExternalProtocol.value
+                }
+            },
+            superTypes: [ExternalElement.$type]
+        },
+        ExternalToken: {
+            name: ExternalToken.$type,
+            properties: {
+                parts: {
+                    name: ExternalToken.parts,
+                    defaultValue: []
+                }
             },
             superTypes: []
         },

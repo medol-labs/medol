@@ -18,6 +18,7 @@ export interface CodegenModel {
   transitions: CodegenTransition[];
   actors: CodegenActor[];
   slices: CodegenSlice[];
+  externalSystems: CodegenExternalSystem[];
 }
 
 export interface CodegenContext {
@@ -32,7 +33,30 @@ export interface CodegenContext {
   valueTypes: Array<{ id: string; name: string; title: string; kind: 'scalar' | 'enum' | 'object' }>;
   aggregates: Array<{ id: string; name: string; title: string }>;
   concepts: Array<{ id: string; name: string; title: string; states: string[] }>;
+  externalSystems: Array<{ id: string; name: string; title: string }>;
   slices: Array<{ id: string; name: string; title: string }>;
+}
+
+export interface CodegenExternalSystem {
+  id: string;
+  name: string;
+  title: string;
+  context: string;
+  kind?: string;
+  protocol?: string;
+  endpoint?: CodegenExternalEndpoint;
+  capabilities: CodegenExternalCapability[];
+}
+
+export interface CodegenExternalEndpoint {
+  type: 'config';
+  key: string;
+}
+
+export interface CodegenExternalCapability {
+  type: 'command' | 'event';
+  name: string;
+  title: string;
 }
 
 export type CodegenValueTypeConstraint =
@@ -379,6 +403,11 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         title: humanize(concept.name),
         states: concept.states
       })),
+      externalSystems: contextItem.externalSystems.map((external) => ({
+        id: stableId('external', external.id),
+        name: external.name,
+        title: humanize(external.name)
+      })),
       slices: contextItem.slices.map(toCodegenSliceRef)
     })),
     valueTypes: model.contexts.flatMap((contextItem) => contextItem.valueTypes.map((valueType) => ({
@@ -410,7 +439,21 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
     }))),
     transitions: buildTransitions(model),
     actors: [...actorRecords.values()],
-    slices
+    slices,
+    externalSystems: model.contexts.flatMap((contextItem) => contextItem.externalSystems.map((external) => ({
+      id: stableId('external', external.id),
+      name: external.name,
+      title: humanize(external.name),
+      context: contextItem.name,
+      ...(external.kind ? { kind: external.kind } : {}),
+      ...(external.protocol ? { protocol: external.protocol } : {}),
+      ...(external.endpoint ? { endpoint: external.endpoint } : {}),
+      capabilities: external.capabilities.map((capability) => ({
+        type: capability.type,
+        name: capability.name,
+        title: humanize(capability.name)
+      }))
+    })))
   };
 };
 

@@ -38,6 +38,7 @@ ContextElement:
     | Slice
     | Concept
     | Automation
+    | External
     | Integration
     | ReadModel
     | UserJourney
@@ -348,6 +349,7 @@ FieldName returns string:
     | 'domain'
     | 'event'
     | 'label'
+    | 'missing'
     | 'order'
     | 'state'
     | 'value'
@@ -410,6 +412,45 @@ IntegrationElement:
     | Emits
     | Command
     | Event
+;
+
+External:
+    'external' name=ID '{'
+        elements+=ExternalElement*
+    '}'
+;
+
+ExternalElement:
+      ExternalKind
+    | ExternalProtocol
+    | ExternalEndpoint
+    | ExternalCapabilities
+;
+
+ExternalKind:
+    'kind' value=ExternalToken
+;
+
+ExternalProtocol:
+    'protocol' value=ExternalToken
+;
+
+ExternalEndpoint:
+    'endpoint' 'config' configKey=STRING
+;
+
+ExternalCapabilities:
+    'capabilities' '{'
+        capabilities+=ExternalCapability*
+    '}'
+;
+
+ExternalCapability:
+    type=('command' | 'event') name=ID
+;
+
+ExternalToken:
+    parts+=ID ('-' parts+=ID)*
 ;
 
 Source:

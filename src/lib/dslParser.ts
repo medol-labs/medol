@@ -11,6 +11,11 @@ import {
   isStartsLifecycleMarker,
   isConcept,
   isEvent,
+  isExternal,
+  isExternalCapabilities,
+  isExternalEndpoint,
+  isExternalKind,
+  isExternalProtocol,
   isField,
   isFieldDerivation,
   isFieldSourceMapping,
@@ -52,6 +57,8 @@ import type {
   Concept as AstConcept,
   Event as AstEvent,
   Expression,
+  External as AstExternal,
+  ExternalToken as AstExternalToken,
   Field as AstField,
   FieldSource,
   Integration as AstIntegration,
@@ -69,7 +76,7 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmDerivedLookup, type EmDictionaryProvider, type MedolDiagnostic, type MedolSourceRange } from './model';
+import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 
@@ -310,6 +317,7 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     aggregates: [],
     slices: [],
     concepts: [],
+    externalSystems: [],
     looseElements: [],
     notes: [],
     risks: [],
@@ -336,6 +344,10 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     }
     if (isConcept(element)) {
       context.concepts.push(parseConcept(element, context.id));
+      continue;
+    }
+    if (isExternal(element)) {
+      context.externalSystems.push(parseExternalSystem(element, context.id));
       continue;
     }
     if (isNote(element)) {
@@ -369,6 +381,35 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   }
 
   return context;
+};
+
+const parseExternalSystem = (node: AstExternal, contextId: string): EmExternalSystem => {
+  const name = safeName(node.name, 'UnnamedExternal');
+  const kind = formatExternalToken(node.elements.find(isExternalKind)?.value);
+  const protocol = formatExternalToken(node.elements.find(isExternalProtocol)?.value);
+  const endpoint = node.elements.find(isExternalEndpoint);
+  const capabilities = node.elements
+    .filter(isExternalCapabilities)
+    .flatMap((group) => group.capabilities ?? [])
+    .map((capability) => ({
+      type: capability.type,
+      name: safeName(capability.name, 'UnnamedCapability')
+    }));
+
+  return {
+    id: `${contextId}/external/${name}`,
+    name,
+    ...withSourceRange(node),
+    ...(kind ? { kind } : {}),
+    ...(protocol ? { protocol } : {}),
+    ...(endpoint?.configKey ? { endpoint: { type: 'config', key: endpoint.configKey } as const } : {}),
+    capabilities
+  };
+};
+
+const formatExternalToken = (token: AstExternalToken | undefined): string | undefined => {
+  const value = token?.parts?.join('-');
+  return value || undefined;
 };
 
 const parseValueType = (node: AstValueType, contextId: string): EmValueType => {

@@ -1008,6 +1008,16 @@ context RuntimeOnboarding {
   metric runtimeBootstrapSuccessRate
   metric runtimeInfrastructureConnectionLatency
 
+  external RuntimeAgent {
+    kind runtime-agent
+    protocol http
+    endpoint config "RUNTIME_AGENT_URL"
+    capabilities {
+      command RequestDatasetAccess
+      event DatasetAccessValidated
+    }
+  }
+
   slice ConfigureOrganizationNetworkProfile {
     startsLifecycle
 
