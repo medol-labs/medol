@@ -2379,6 +2379,81 @@ context DatasetGovernance {
     }
   }
 
+  slice DatasetReadiness {
+    readmodel DatasetReadiness[] {
+      datasetId: UUID id
+      organizationId: UUID
+      runtimeAgentId: UUID?
+      featureSchemaId: UUID
+      labelSchemaId: UUID?
+      datasetName: String
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the dataset readiness view."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset readiness view."
+      }
+      featureSchemaVersion: Int? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset readiness view."
+      }
+      agentDatasetHandle: String?
+      datasetUsage: String
+      sensitivityLevel: String
+      containsPII: Boolean
+      metadataStatus: String
+      contractStatus: String
+      approvalStatus: String
+      accessStatus: String
+      runtimeStatus: String
+      overallReadiness: String
+      readyForTraining: Boolean
+      canBeSelectedForTraining: Boolean
+      readinessScore: Int
+      missingRequirements: String[]
+      blockingReasons: String[]
+      warnings: String[]
+      sampleCount: Int?
+      featureCount: Int?
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
+      classBalanceScore: Decimal?
+      metadataReportId: UUID?
+      statisticsRef: String?
+      datasetAccessValidationId: UUID?
+      readable: Boolean?
+      schemaReadable: Boolean?
+      sampleBatchReadable: Boolean?
+      validationReportId: UUID?
+      approvedFederatedUse: String?
+      approvalExpiresAt: DateTime?
+      lastProfiledAt: DateTime?
+      lastAccessValidatedAt: DateTime?
+      lastRuntimeHeartbeatAt: DateTime?
+      lastUpdatedAt: DateTime?
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
+      subscribe DatasetRegistered
+      subscribe DatasetProfilingRequested
+      subscribe DatasetMetadataReported
+      subscribe DatasetContractValidated
+      subscribe DatasetRejectedForTraining
+      subscribe DatasetApprovedForTraining
+      subscribe DatasetTrainingApprovalExpired
+      subscribe DatasetTrainingApprovalRevoked
+      subscribe DatasetAccessValidationRequested
+      subscribe RuntimeDatasetAccessValidated
+      subscribe DatasetAccessBlocked
+      subscribe RuntimeInfrastructureConnected
+      subscribe RuntimeAgentOfflineDetected
+      subscribe RuntimeAgentRecovered
+    }
+  }
+
   concept Dataset {
     state Registered
     state ProfilingRequested
@@ -2398,6 +2473,7 @@ context DatasetGovernance {
     slice ExpireDatasetTrainingApproval
     slice RevokeDatasetTrainingApproval
     slice DatasetCapability
+    slice DatasetReadiness
   }
 
   slice RequestRuntimeDatasetAccessValidation {
@@ -3387,16 +3463,34 @@ context TrainingOrchestration {
       }
       participantStatus: String
       readinessStatus: String
+      readinessStage: String
+      eligibilityScore: Int
       availableComputeNodeCount: Int
       healthyComputeNodeCount: Int
       runtimeInfrastructureConnected: Boolean
       runtimeHealthy: Boolean
       resourceSnapshotReady: Boolean
       availableGpuCount: Int?
+      datasetId: UUID?
+      datasetName: String?
+      datasetReady: Boolean
+      datasetReadinessStatus: String
       matchedDatasetMetadataReady: Boolean
+      datasetAccessValidated: Boolean
+      datasetApprovedForTraining: Boolean
+      datasetApprovalExpiresAt: DateTime?
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      qualityScore: Decimal?
+      securityReady: Boolean
+      nodeKeyReady: Boolean
+      attestationVerified: Boolean
+      secureAggregationKeyReady: Boolean
       eligible: Boolean
       eligibilityReason: String?
       ineligibleReasons: String[]
+      warningReasons: String[]
+      nextRequiredAction: String?
       canDispatchRuntime: Boolean
       canStartRoundContribution: Boolean
       runtimeDispatched: Boolean
@@ -3419,9 +3513,22 @@ context TrainingOrchestration {
       subscribe RuntimeAgentRecovered
       subscribe RuntimeNodeResourcePressureDetected
       subscribe RuntimeNodeCapacityChanged
+      subscribe DatasetRegistered
       subscribe DatasetMetadataReported
       subscribe DatasetContractValidated
       subscribe DatasetApprovedForTraining
+      subscribe DatasetTrainingApprovalExpired
+      subscribe DatasetTrainingApprovalRevoked
+      subscribe DatasetAccessValidationRequested
+      subscribe RuntimeDatasetAccessValidated
+      subscribe DatasetAccessBlocked
+      subscribe NodeKeyActivated
+      subscribe NodeKeyRevoked
+      subscribe NodeAttestationReportVerified
+      subscribe NodeAttestationReportExpired
+      subscribe NodeAttestationReportRevoked
+      subscribe SecureAggregationKeyGenerated
+      subscribe SecureAggregationKeyRevoked
       subscribe TrainingRuntimeDispatched
       subscribe TrainingRuntimeStarted
       subscribe TrainingRuntimeCompleted
@@ -4316,23 +4423,42 @@ context TrainingOrchestration {
       startedRuntimeCount: Int
       selectedRuntimeCount: Int
       targetRuntimeCount: Int
+      contributionRequestedCount: Int
+      globalModelPulledCount: Int
       submittedUpdateCount: Int
       rejectedUpdateCount: Int
       evaluatedUpdateCount: Int
+      acceptedUpdateCount: Int
       pendingUpdateCount: Int
+      failedRuntimeCount: Int
+      completedRuntimeCount: Int
       quorumMet: Boolean
+      quorumStatus: String
+      minimumNodesPerRound: Int?
       aggregationReady: Boolean
+      secureAggregationRequired: Boolean
+      secureAggregationStatus: String?
       evaluationComplete: Boolean
       progressPercent: Int
       currentPhase: String
       nextAction: String?
       blockedReason: String?
+      delayedReason: String?
+      roundStartedAt: DateTime?
+      contributionDeadlineAt: DateTime?
+      aggregationStartedAt: DateTime?
+      evaluationSubmittedAt: DateTime?
+      completedAt: DateTime?
+      failedAt: DateTime?
       aggregationProvider: String?
       sourceModelVersionId: UUID?
       sourceModelArtifactRef: String?
       modelRepositoryRef: String?
       modelHash: String?
+      localUpdateArtifactRefs: String[]
+      rejectedUpdateReasons: String[]
       aggregatedModelVersionId: UUID?
+      aggregatedModelArtifactRef: String?
       globalAccuracy: Decimal?
       globalFairnessScore: Decimal?
       failureReason: String?
@@ -4342,6 +4468,9 @@ context TrainingOrchestration {
       subscribe TrainingRoundStarted
       subscribe RoundGlobalModelPublished
       subscribe AgentRoundContributionRequested
+      subscribe AgentRoundGlobalModelPulled
+      subscribe TrainingRuntimeCompleted
+      subscribe TrainingRuntimeFailed
       subscribe LocalModelUpdateSubmitted
       subscribe LocalModelEvaluationSubmitted
       subscribe LocalModelUpdateRejected
