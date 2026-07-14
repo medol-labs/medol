@@ -166,7 +166,6 @@ context OrganizationManagement {
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
       orchestratorNodeName: String?
-      syncedAt: DateTime generated technical
     }
 
     event ComputeNodeRegistered {
@@ -175,7 +174,6 @@ context OrganizationManagement {
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
       orchestratorNodeName: String?
-      syncedAt: DateTime
     }
 
     state Available
@@ -229,7 +227,6 @@ context OrganizationManagement {
     command DisableComputeNode {
       nodeId: UUID id technical
       disabledReason: String
-      disabledAt: DateTime generated technical
     }
 
     event ComputeNodeDisabled {
@@ -239,7 +236,6 @@ context OrganizationManagement {
         rule "Carry the owning organization for organization-level node availability counts."
       }
       disabledReason: String
-      disabledAt: DateTime
     }
 
     state Disabled
@@ -253,7 +249,6 @@ context OrganizationManagement {
     command EnableComputeNode {
       nodeId: UUID id technical
       enableReason: String
-      enabledAt: DateTime generated technical
     }
 
     event ComputeNodeEnabled {
@@ -263,7 +258,6 @@ context OrganizationManagement {
         rule "Carry the owning organization for organization-level node availability counts."
       }
       enableReason: String
-      enabledAt: DateTime
     }
 
     state Available
@@ -676,7 +670,6 @@ context DictionaryMaintenance {
       ownerContext: String
       description: String?
       multiTenant: Boolean
-      registeredAt: DateTime generated technical
     }
 
     event DictionaryRegistered {
@@ -686,7 +679,6 @@ context DictionaryMaintenance {
       ownerContext: String
       description: String?
       multiTenant: Boolean
-      registeredAt: DateTime
     }
 
     state Registered
@@ -728,7 +720,6 @@ context DictionaryMaintenance {
       ownerContext: String
       description: String?
       multiTenant: Boolean
-      updatedAt: DateTime generated technical
     }
 
     event DictionaryUpdated {
@@ -738,7 +729,6 @@ context DictionaryMaintenance {
       ownerContext: String
       description: String?
       multiTenant: Boolean
-      updatedAt: DateTime
     }
   }
 
@@ -755,14 +745,12 @@ context DictionaryMaintenance {
       dictionaryId: UUID id technical
       dictionaryCode: DictionaryCode
       archiveReason: String
-      archivedAt: DateTime generated technical
     }
 
     event DictionaryArchived {
       dictionaryId: UUID id technical
       dictionaryCode: DictionaryCode
       archiveReason: String
-      archivedAt: DateTime
     }
 
     state Archived
@@ -810,7 +798,6 @@ context DictionaryMaintenance {
       active: Boolean
       effectiveFrom: DateTime?
       effectiveUntil: DateTime?
-      addedAt: DateTime generated technical
     }
 
     event DictionaryValueAdded {
@@ -824,7 +811,6 @@ context DictionaryMaintenance {
       active: Boolean
       effectiveFrom: DateTime?
       effectiveUntil: DateTime?
-      addedAt: DateTime
     }
 
     state Active
@@ -850,7 +836,6 @@ context DictionaryMaintenance {
       active: Boolean
       effectiveFrom: DateTime?
       effectiveUntil: DateTime?
-      updatedAt: DateTime generated technical
     }
 
     event DictionaryValueUpdated {
@@ -863,7 +848,6 @@ context DictionaryMaintenance {
       active: Boolean
       effectiveFrom: DateTime?
       effectiveUntil: DateTime?
-      updatedAt: DateTime
     }
   }
 
@@ -882,7 +866,6 @@ context DictionaryMaintenance {
       dictionaryCode: DictionaryCode
       valueCode: DictionaryValueCode
       disabledReason: String
-      disabledAt: DateTime generated technical
     }
 
     event DictionaryValueDisabled {
@@ -890,7 +873,6 @@ context DictionaryMaintenance {
       dictionaryCode: DictionaryCode
       valueCode: DictionaryValueCode
       disabledReason: String
-      disabledAt: DateTime
     }
 
     state Disabled
@@ -910,14 +892,12 @@ context DictionaryMaintenance {
       dictionaryValueId: UUID id technical
       dictionaryCode: DictionaryCode
       valueCode: DictionaryValueCode
-      enabledAt: DateTime generated technical
     }
 
     event DictionaryValueEnabled {
       dictionaryValueId: UUID id technical
       dictionaryCode: DictionaryCode
       valueCode: DictionaryValueCode
-      enabledAt: DateTime
     }
 
     state Active
@@ -1089,7 +1069,6 @@ context RuntimeOnboarding {
       expectedCpuCoreCount: Int?
       expectedMemoryGb: Int?
       nodeLabels: String[]
-      plannedAt: DateTime generated technical
     }
 
     event RuntimeInstallationPlanCreated {
@@ -1107,7 +1086,6 @@ context RuntimeOnboarding {
       expectedCpuCoreCount: Int?
       expectedMemoryGb: Int?
       nodeLabels: String[]
-      plannedAt: DateTime
     }
 
     state Planned
@@ -1130,7 +1108,6 @@ context RuntimeOnboarding {
       tokenHash: String generated technical
       
       maxUseCount: Int
-      issuedAt: DateTime generated technical
       expiresAt: DateTime
     }
 
@@ -1144,7 +1121,6 @@ context RuntimeOnboarding {
       tokenHash: String
       
       maxUseCount: Int
-      issuedAt: DateTime
       expiresAt: DateTime
     }
 
@@ -1160,14 +1136,12 @@ context RuntimeOnboarding {
       bootstrapTokenId: UUID id technical
       organizationId: UUID
       revokeReason: String
-      revokedAt: DateTime generated technical
     }
 
     event RuntimeBootstrapTokenRevoked {
       bootstrapTokenId: UUID id technical
       organizationId: UUID
       revokeReason: String
-      revokedAt: DateTime
     }
 
     state Revoked
@@ -1192,7 +1166,6 @@ context RuntimeOnboarding {
       osVersion: String
       cpuModel: String?
       gpuModel: String?
-      requestedAt: DateTime generated technical
     }
 
     event RuntimeBootstrapConfigRequested {
@@ -1208,7 +1181,6 @@ context RuntimeOnboarding {
       osVersion: String
       cpuModel: String?
       gpuModel: String?
-      requestedAt: DateTime
     }
 
     state Requested
@@ -1259,7 +1231,6 @@ context RuntimeOnboarding {
       architecture: String
       nodeLabels: String[]
       joinCredentialRef: String?
-      issuedAt: DateTime generated technical
     }
 
     event RuntimeBootstrapConfigIssued {
@@ -1283,7 +1254,6 @@ context RuntimeOnboarding {
       architecture: String
       nodeLabels: String[]
       joinCredentialRef: String?
-      issuedAt: DateTime
     }
 
     state ConfigIssued
@@ -1300,7 +1270,6 @@ context RuntimeOnboarding {
       bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       rejectionReason: String
-      rejectedAt: DateTime generated technical
     }
 
     event RuntimeBootstrapRequestRejected {
@@ -1309,7 +1278,6 @@ context RuntimeOnboarding {
       bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       rejectionReason: String
-      rejectedAt: DateTime
     }
 
     state Rejected
@@ -1611,14 +1579,12 @@ context RuntimeOnboarding {
       runtimeInfrastructureId: UUID id technical
       organizationId: UUID
       revokeReason: String
-      revokedBy: String
     }
 
     event RuntimeInfrastructureAccessRevoked {
       runtimeInfrastructureId: UUID id technical
       organizationId: UUID
       revokeReason: String
-      revokedBy: String
     }
 
     state Revoked
@@ -2065,7 +2031,6 @@ context DatasetGovernance {
       labelSchemaId: UUID from DatasetRegistered.labelSchemaId
       agentDatasetHandle: String from DatasetRegistered.agentDatasetHandle
       profilingProfile: String?
-      requestedAt: DateTime generated technical
     }
 
     event DatasetProfilingRequested {
@@ -2076,7 +2041,6 @@ context DatasetGovernance {
       labelSchemaId: UUID
       agentDatasetHandle: String
       profilingProfile: String?
-      requestedAt: DateTime
     }
 
     state ProfilingRequested
@@ -2147,7 +2111,6 @@ context DatasetGovernance {
       featureSchemaId: UUID from DatasetMetadataReported.featureSchemaId
       labelSchemaId: UUID from DatasetMetadataReported.labelSchemaId
       validationProfile: String?
-      validatedAt: DateTime generated technical
     }
 
     event DatasetContractValidated {
@@ -2159,7 +2122,6 @@ context DatasetGovernance {
       labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
       qualityScore: Decimal from DatasetMetadataReported.qualityScore
       nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
-      validatedAt: DateTime
     }
   
     state ContractValidated
@@ -2438,7 +2400,6 @@ context DatasetGovernance {
         rule "Use the opaque agent-side dataset handle without exposing connector configuration."
       }
       validationMode: String
-      requestedAt: DateTime generated technical
     }
 
     event DatasetAccessValidationRequested {
@@ -2448,7 +2409,6 @@ context DatasetGovernance {
       runtimeAgentId: UUID
       agentDatasetHandle: String
       validationMode: String
-      requestedAt: DateTime
     }
 
     state ValidationRequested
@@ -2497,7 +2457,6 @@ context DatasetGovernance {
       datasetId: UUID
       runtimeAgentId: UUID
       violationReason: String
-      blockedBy: String
     }
 
     event DatasetAccessBlocked {
@@ -2505,7 +2464,6 @@ context DatasetGovernance {
       datasetId: UUID from BlockRuntimeDatasetAccess.datasetId
       runtimeAgentId: UUID from BlockRuntimeDatasetAccess.runtimeAgentId
       violationReason: String from BlockRuntimeDatasetAccess.violationReason
-      blockedBy: String from BlockRuntimeDatasetAccess.blockedBy
     }
 
     state AccessBlocked
@@ -2617,8 +2575,6 @@ context ModelRepository {
       modelSignatureRef: String?
       modelSizeBytes: Int?
       sourceType: String
-      registeredBy: String
-      registeredAt: DateTime generated technical
     }
 
     event ModelArtifactRegistered {
@@ -2630,8 +2586,6 @@ context ModelRepository {
       modelSignatureRef: String?
       modelSizeBytes: Int?
       sourceType: String
-      registeredBy: String
-      registeredAt: DateTime
     }
 
     state Registered
@@ -2872,13 +2826,11 @@ context TrainingOrchestration {
     command LockTrainingRunConfiguration {
       trainingRunConfigurationId: UUID id technical
       trainingJobId: UUID
-      lockedBy: String
     }
 
     event TrainingRunConfigurationLocked {
       trainingRunConfigurationId: UUID id technical
       trainingJobId: UUID
-      lockedBy: String
     }
 
     state Locked
@@ -3542,14 +3494,12 @@ context TrainingOrchestration {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       pauseReason: String
-      requestedBy: String
     }
 
     event TrainingJobPaused {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       pauseReason: String
-      requestedBy: String
     }
 
     state Paused
@@ -3564,14 +3514,12 @@ context TrainingOrchestration {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       resumeReason: String?
-      requestedBy: String
     }
 
     event TrainingJobResumed {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       resumeReason: String?
-      requestedBy: String
     }
 
     state Running
@@ -3750,7 +3698,6 @@ context TrainingOrchestration {
       selectedRuntimeCount: Int
       participantSelectionRef: String
       selectionPolicy: String
-      selectedAt: DateTime generated technical
     }
 
     event TrainingRoundParticipantsSelected {
@@ -3764,7 +3711,6 @@ context TrainingOrchestration {
       selectedRuntimeCount: Int
       participantSelectionRef: String
       selectionPolicy: String
-      selectedAt: DateTime
     }
 
     state ParticipantsSelected
@@ -3977,7 +3923,6 @@ context TrainingOrchestration {
       modelSignatureRef: String? from RoundGlobalModelPublished.modelSignatureRef
       runtimePayloadRef: String?
       artifactStoreRef: String?
-      requestedAt: DateTime generated technical
     }
 
     event AgentRoundContributionRequested {
@@ -3997,7 +3942,6 @@ context TrainingOrchestration {
       modelSignatureRef: String?
       runtimePayloadRef: String?
       artifactStoreRef: String?
-      requestedAt: DateTime
     }
   }
 
@@ -4624,14 +4568,12 @@ context ModelLifecycle {
       modelVersionId: UUID id technical
       previousModelVersionId: UUID
       rollbackReason: String
-      requestedBy: String
     }
 
     event ModelVersionRolledBack {
       modelVersionId: UUID id technical
       previousModelVersionId: UUID
       rollbackReason: String
-      requestedBy: String
     }
 
     state RolledBack
@@ -4645,13 +4587,11 @@ context ModelLifecycle {
     command RetireModelVersion {
       modelVersionId: UUID id technical
       retirementReason: String
-      requestedBy: String
     }
 
     event ModelVersionRetired {
       modelVersionId: UUID id technical
       retirementReason: String
-      requestedBy: String
     }
 
     state Retired
@@ -4760,7 +4700,6 @@ context RuntimeOperations {
       nodeId: UUID id technical
       runtimeAgentId: UUID
       lastHeartbeatAt: DateTime
-      offlineDetectedAt: DateTime generated technical
       offlineReason: String
     }
 
@@ -4768,7 +4707,6 @@ context RuntimeOperations {
       nodeId: UUID id technical
       runtimeAgentId: UUID
       lastHeartbeatAt: DateTime
-      offlineDetectedAt: DateTime
       offlineReason: String
     }
 
@@ -4786,14 +4724,12 @@ context RuntimeOperations {
     command MarkRuntimeAgentRecovered {
       nodeId: UUID id technical
       runtimeAgentId: UUID
-      recoveredAt: DateTime generated technical
       recoveryReason: String?
     }
 
     event RuntimeAgentRecovered {
       nodeId: UUID id technical
       runtimeAgentId: UUID
-      recoveredAt: DateTime
       recoveryReason: String?
     }
 
@@ -4815,7 +4751,6 @@ context RuntimeOperations {
       pressureType: String
       observedValue: Decimal
       thresholdValue: Decimal
-      detectedAt: DateTime generated technical
     }
 
     event RuntimeNodeResourcePressureDetected {
@@ -4825,7 +4760,6 @@ context RuntimeOperations {
       pressureType: String
       observedValue: Decimal
       thresholdValue: Decimal
-      detectedAt: DateTime
     }
 
     state PressureDetected
@@ -4856,7 +4790,6 @@ context RuntimeOperations {
       architecture: String
       inventoryHash: String
       discoveredAt: DateTime
-      recordedAt: DateTime generated technical
     }
 
     event RuntimeNodeInventoryReported {
@@ -4875,7 +4808,6 @@ context RuntimeOperations {
       architecture: String
       inventoryHash: String
       discoveredAt: DateTime
-      recordedAt: DateTime
     }
 
     state Reported
@@ -4952,7 +4884,6 @@ context RuntimeOperations {
       allocatableCpuCores: Int
       allocatableMemoryGb: Int
       allocatableGpuCount: Int
-      changedAt: DateTime generated technical
     }
 
     event RuntimeNodeCapacityChanged {
@@ -4963,7 +4894,6 @@ context RuntimeOperations {
       allocatableCpuCores: Int
       allocatableMemoryGb: Int
       allocatableGpuCount: Int
-      changedAt: DateTime
     }
 
     state CapacityChanged
@@ -5372,7 +5302,6 @@ context KeyAndAttestationManagement {
         attestationType: String
         hardwareFingerprint: String
         measurementHash: String
-        signedBy: String
         submittedAt: DateTime
         expiresAt: DateTime
       }
@@ -5383,7 +5312,6 @@ context KeyAndAttestationManagement {
         attestationType: String
         hardwareFingerprint: String
         measurementHash: String
-        signedBy: String
         submittedAt: DateTime
         expiresAt: DateTime
       }
@@ -5466,14 +5394,12 @@ context KeyAndAttestationManagement {
         attestationReportId: UUID id technical
         nodeId: UUID
         quarantineReason: String
-        quarantinedBy: String
       }
 
       event NodeQuarantined {
         attestationReportId: UUID id technical from QuarantineNodeAfterAttestationFailure.attestationReportId
         nodeId: UUID from QuarantineNodeAfterAttestationFailure.nodeId
         quarantineReason: String from QuarantineNodeAfterAttestationFailure.quarantineReason
-        quarantinedBy: String from QuarantineNodeAfterAttestationFailure.quarantinedBy
       }
 
       state Quarantined
@@ -6096,7 +6022,6 @@ context KeyAndAttestationManagement {
       readerPlugin: String
       readMode: String
       materializationMode: String
-      configuredAt: DateTime generated technical
     }
 
     event AgentDatasetAccessProfileConfigured {
@@ -6113,7 +6038,6 @@ context KeyAndAttestationManagement {
       readerPlugin: String
       readMode: String
       materializationMode: String
-      configuredAt: DateTime
     }
 
     state Configured
