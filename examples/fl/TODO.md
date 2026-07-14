@@ -13,3 +13,8 @@
 - [ ] 多系统菜单是按现在加下拉还是在左侧菜单再加一个分类
 - [ ] Issue Runtime Bootstrap Token network profile id runtime install plan id 没有显示名称
 - [ ] Docker compose 做调度器
+    - [ ] 本机 docker compose 运行 fl
+- [ ] 适配开发环境，注册完不走调度平台直接交互
+- [ ] 安装 k3s
+- [ ] umadb
+    - [ ] Projector 没有执行，没有更新 readmodel

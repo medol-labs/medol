@@ -153,12 +153,6 @@ context OrganizationManagement {
   slice SyncComputeNodeRegistration {
     startsLifecycle
 
-    tags {
-      nodeId
-      organizationId
-      runtimeAgentId
-    }
-
     reactsTo RuntimeNodeInventoryReported
 
     automation SyncNodeWhenRuntimeNodeInventoryReported {
@@ -434,11 +428,6 @@ context FederationManagement {
     ui ParticipantInvitationScreen dialog
     reactsTo FederationCreated
 
-    tags {
-      federationId
-      organizationId
-    }
-
     command InviteParticipant {
       federationId: UUID id technical
       organizationId: UUID
@@ -499,10 +488,6 @@ context FederationManagement {
   slice ApproveParticipant {
     actor GovernanceReviewer
     // 这里也需要 tags 吗  TODO
-    tags {
-      federationId
-      organizationId
-    }
 
     ui MembershipReviewScreen dialog
     reactsTo ParticipantInvited
@@ -554,11 +539,6 @@ context FederationManagement {
     ui MembershipReviewScreen dialog
     reactsTo ParticipantInvited
 
-    tags {
-      federationId
-      organizationId
-    }
-
     command RejectParticipant {
       federationId: UUID id technical
       organizationId: UUID
@@ -578,11 +558,6 @@ context FederationManagement {
     actor FederationOwner
     ui ParticipantInvitationScreen confirm
     reactsTo ParticipantInvited
-
-    tags {
-      federationId
-      organizationId
-    }
 
     command RevokeParticipantInvitation {
       federationId: UUID id technical
@@ -604,11 +579,6 @@ context FederationManagement {
     ui MembershipReviewScreen dialog
     reactsTo ParticipantJoined
 
-    tags {
-      federationId
-      organizationId
-    }
-
     command SuspendParticipant {
       federationId: UUID id technical
       organizationId: UUID
@@ -628,11 +598,6 @@ context FederationManagement {
     actor GovernanceReviewer
     ui MembershipReviewScreen confirm
     reactsTo ParticipantSuspended
-
-    tags {
-      federationId
-      organizationId
-    }
 
     command RemoveParticipant {
       federationId: UUID id technical
@@ -701,7 +666,6 @@ context DictionaryMaintenance {
     ui DictionaryCatalogScreen
 
     tags {
-      dictionaryId
       dictionaryCode
     }
 
@@ -726,6 +690,26 @@ context DictionaryMaintenance {
     }
 
     state Registered
+
+    specification "Dictionary Code Unique" {
+      rule """
+        FederDictionary Codes must be unique.
+      """
+
+      expression {
+        unique Dictionary.dictionaryCode
+      }
+
+      scenario "Reject Duplicate Dictionary" {
+        given DictionaryRegistered {
+          dictionaryCode = "B"
+        }
+        when RegisterDictionary {
+          dictionaryCode = "B"
+        }
+        then reject "Dictionary Already Exists"
+      }
+    }
   }
 
   slice UpdateDictionary {
@@ -734,7 +718,6 @@ context DictionaryMaintenance {
     reactsTo DictionaryRegistered
 
     tags {
-      dictionaryId
       dictionaryCode
     }
 
@@ -765,7 +748,6 @@ context DictionaryMaintenance {
     reactsTo DictionaryRegistered
 
     tags {
-      dictionaryId
       dictionaryCode
     }
 
@@ -813,7 +795,6 @@ context DictionaryMaintenance {
     reactsTo DictionaryRegistered
 
     tags {
-      dictionaryValueId
       dictionaryCode
       valueCode
     }
@@ -855,7 +836,6 @@ context DictionaryMaintenance {
     reactsTo DictionaryValueAdded
 
     tags {
-      dictionaryValueId
       dictionaryCode
       valueCode
     }
@@ -893,7 +873,6 @@ context DictionaryMaintenance {
     reactsTo DictionaryValueAdded
 
     tags {
-      dictionaryValueId
       dictionaryCode
       valueCode
     }
@@ -923,7 +902,6 @@ context DictionaryMaintenance {
     reactsTo DictionaryValueDisabled
 
     tags {
-      dictionaryValueId
       dictionaryCode
       valueCode
     }
@@ -1026,7 +1004,6 @@ context RuntimeOnboarding {
     reactsTo OrganizationActivated
 
     tags {
-      organizationId
       profileName = normalize(profileName)
     }
 
@@ -1040,7 +1017,7 @@ context RuntimeOnboarding {
       registryEndpoint: String
       artifactStoreEndpoint: String?
       caBundleRef: String
-      allowedCidrs: String[]
+      
       tlsSanNames: String[]
     }
 
@@ -1054,7 +1031,7 @@ context RuntimeOnboarding {
       registryEndpoint: String
       artifactStoreEndpoint: String?
       caBundleRef: String
-      allowedCidrs: String[]
+      
       tlsSanNames: String[]
     }
 
@@ -1082,7 +1059,7 @@ context RuntimeOnboarding {
       registryEndpoint: String
       artifactStoreEndpoint: String?
       caBundleRef: String
-      allowedCidrs: String[]
+      
       tlsSanNames: String[]
       state: OrganizationNetworkProfile.State
       subscribe OrganizationRegistered
@@ -1096,12 +1073,6 @@ context RuntimeOnboarding {
     actor PlatformAdmin
     ui RuntimeInstallationPlanScreen
     reactsTo OrganizationNetworkProfileConfigured
-
-    tags {
-      runtimeInstallationPlanId
-      organizationId
-      networkProfileId
-    }
 
     command CreateRuntimeInstallationPlan {
       runtimeInstallationPlanId: UUID id generated technical
@@ -1149,12 +1120,6 @@ context RuntimeOnboarding {
     ui RuntimeBootstrapTokenScreen
     reactsTo RuntimeInstallationPlanCreated
 
-    tags {
-      organizationId
-      networkProfileId
-      runtimeInstallationPlanId
-    }
-
     command IssueRuntimeBootstrapToken {
       bootstrapTokenId: UUID id generated technical
       organizationId: UUID
@@ -1163,7 +1128,7 @@ context RuntimeOnboarding {
       tokenName: String
       tokenFingerprint: String generated technical
       tokenHash: String generated technical
-      allowedCidrs: String[]
+      
       maxUseCount: Int
       issuedAt: DateTime generated technical
       expiresAt: DateTime
@@ -1177,7 +1142,7 @@ context RuntimeOnboarding {
       tokenName: String
       tokenFingerprint: String
       tokenHash: String
-      allowedCidrs: String[]
+      
       maxUseCount: Int
       issuedAt: DateTime
       expiresAt: DateTime
@@ -1213,12 +1178,6 @@ context RuntimeOnboarding {
 
     actor RuntimeInstaller
     reactsTo RuntimeBootstrapTokenIssued
-
-    tags {
-      organizationId
-      bootstrapTokenId
-      runtimeInstallationPlanId
-    }
 
     command RequestRuntimeBootstrapConfig {
       bootstrapRequestId: UUID id generated technical
@@ -1258,18 +1217,6 @@ context RuntimeOnboarding {
       rule """
         Runtime bootstrap configuration can be requested only when the requester IP is allowed by the organization's network profile and the bootstrap token is valid.
       """
-
-      scenario "Reject Bootstrap From Disallowed Network" {
-        given OrganizationNetworkProfileConfigured {
-          organizationId = "org-1"
-          allowedCidrs = "10.20.0.0/16"
-        }
-        when RequestRuntimeBootstrapConfig {
-          organizationId = "org-1"
-          requesterIp = "172.16.1.9"
-        }
-        then reject "Requester Network Not Allowed"
-      }
 
       scenario "Reject Revoked Bootstrap Token" {
         given RuntimeBootstrapTokenRevoked {
@@ -1428,7 +1375,7 @@ context RuntimeOnboarding {
       tokenName: String
       tokenFingerprint: String
       state: RuntimeBootstrapToken.State
-      allowedCidrs: String[]
+      
       maxUseCount: Int
       requestCount: Int
       issuedAt: DateTime
@@ -1496,7 +1443,6 @@ context RuntimeOnboarding {
         from OrganizationNetworkProfileConfigured.caBundleRef
         rule "Lookup by networkProfileId and show the CA bundle reference required to trust platform endpoints."
       }
-      allowedCidrs: String[] from RuntimeBootstrapTokenIssued.allowedCidrs
       infrastructureType: String? dictionary "RUNTIME_INFRASTRUCTURE_TYPE" derived {
         from RuntimeInstallationPlanCreated.infrastructureType
         rule "Lookup by runtimeInstallationPlanId and display the planned runtime infrastructure type."
@@ -1591,12 +1537,6 @@ context RuntimeOnboarding {
     automation RegisterInfrastructureWhenBootstrapConfigIssued {
       condition expectedNodeCount > 0
       emits RegisterRuntimeInfrastructure
-    }
-
-    tags {
-      organizationId
-      runtimeInstallationPlanId
-      runtimeInfrastructureId
     }
 
     command RegisterRuntimeInfrastructure {
@@ -3206,12 +3146,6 @@ context TrainingOrchestration {
     startsLifecycle
     reactsTo TrainingJobSubmitted
 
-    tags {
-      trainingJobId
-      organizationId
-      runtimeAgentId
-    }
-
     automation DispatchRuntimeToEligibleParticipants {
       on TrainingJobSubmitted
       condition eligible == true
@@ -3304,11 +3238,6 @@ context TrainingOrchestration {
   slice RecordTrainingRuntimeStart {
     reactsTo AgentRuntimeJobStarted
 
-    tags {
-      trainingJobId
-      runtimeAgentId
-    }
-
     automation RecordRuntimeStartWhenAgentStarted {
       on AgentRuntimeJobStarted
       emits RecordTrainingRuntimeStart
@@ -3350,11 +3279,6 @@ context TrainingOrchestration {
   slice RecordTrainingRuntimeCompletion {
     reactsTo AgentRuntimeJobCompleted
 
-    tags {
-      trainingJobId
-      runtimeAgentId
-    }
-
     automation RecordRuntimeCompletionWhenAgentCompleted {
       on AgentRuntimeJobCompleted
       emits RecordTrainingRuntimeCompletion
@@ -3395,11 +3319,6 @@ context TrainingOrchestration {
 
   slice RecordTrainingRuntimeFailure {
     reactsTo AgentRuntimeJobFailed
-
-    tags {
-      trainingJobId
-      runtimeAgentId
-    }
 
     automation RecordRuntimeFailureWhenAgentFailed {
       on AgentRuntimeJobFailed
@@ -4919,13 +4838,6 @@ context RuntimeOperations {
     automation RecordRuntimeNodeInventoryWhenAgentReported {
       on AgentRuntimeNodeInventoryReported
       emits RecordRuntimeNodeInventory
-    }
-
-    tags {
-      nodeId
-      organizationId
-      runtimeInfrastructureId
-      runtimeAgentId
     }
 
     command RecordRuntimeNodeInventory {
