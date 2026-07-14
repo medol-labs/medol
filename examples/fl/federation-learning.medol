@@ -667,18 +667,14 @@ context DictionaryMaintenance {
       dictionaryId: UUID id generated technical
       dictionaryCode: DictionaryCode
       dictionaryName: String
-      ownerContext: String
       description: String?
-      multiTenant: Boolean
     }
 
     event DictionaryRegistered {
       dictionaryId: UUID id technical
       dictionaryCode: DictionaryCode
       dictionaryName: String
-      ownerContext: String
       description: String?
-      multiTenant: Boolean
     }
 
     state Registered
@@ -709,26 +705,16 @@ context DictionaryMaintenance {
     ui DictionaryCatalogScreen
     reactsTo DictionaryRegistered
 
-    tags {
-      dictionaryCode
-    }
-
     command UpdateDictionary {
       dictionaryId: UUID id technical
-      dictionaryCode: DictionaryCode
       dictionaryName: String
-      ownerContext: String
       description: String?
-      multiTenant: Boolean
     }
 
     event DictionaryUpdated {
       dictionaryId: UUID id technical
-      dictionaryCode: DictionaryCode
       dictionaryName: String
-      ownerContext: String
       description: String?
-      multiTenant: Boolean
     }
   }
 
@@ -737,19 +723,13 @@ context DictionaryMaintenance {
     ui DictionaryCatalogScreen confirm
     reactsTo DictionaryRegistered
 
-    tags {
-      dictionaryCode
-    }
-
     command ArchiveDictionary {
       dictionaryId: UUID id technical
-      dictionaryCode: DictionaryCode
       archiveReason: String
     }
 
     event DictionaryArchived {
       dictionaryId: UUID id technical
-      dictionaryCode: DictionaryCode
       archiveReason: String
     }
 
@@ -761,9 +741,7 @@ context DictionaryMaintenance {
       dictionaryId: UUID id
       dictionaryCode: DictionaryCode query
       dictionaryName: String
-      ownerContext: String
       description: String?
-      multiTenant: Boolean
       state: Dictionary.State
       registeredAt: DateTime
       updatedAt: DateTime?
@@ -796,8 +774,6 @@ context DictionaryMaintenance {
       displayOrder: DisplayOrder?
       description: String?
       active: Boolean
-      effectiveFrom: DateTime?
-      effectiveUntil: DateTime?
     }
 
     event DictionaryValueAdded {
@@ -809,46 +785,9 @@ context DictionaryMaintenance {
       displayOrder: DisplayOrder?
       description: String?
       active: Boolean
-      effectiveFrom: DateTime?
-      effectiveUntil: DateTime?
     }
 
     state Active
-  }
-
-  slice UpdateDictionaryValue {
-    actor PlatformAdmin
-    ui DictionaryValueCatalogScreen
-    reactsTo DictionaryValueAdded
-
-    tags {
-      dictionaryCode
-      valueCode
-    }
-
-    command UpdateDictionaryValue {
-      dictionaryValueId: UUID id technical
-      dictionaryCode: DictionaryCode
-      valueCode: DictionaryValueCode
-      displayName: String
-      displayOrder: DisplayOrder?
-      description: String?
-      active: Boolean
-      effectiveFrom: DateTime?
-      effectiveUntil: DateTime?
-    }
-
-    event DictionaryValueUpdated {
-      dictionaryValueId: UUID id technical
-      dictionaryCode: DictionaryCode
-      valueCode: DictionaryValueCode
-      displayName: String
-      displayOrder: DisplayOrder?
-      description: String?
-      active: Boolean
-      effectiveFrom: DateTime?
-      effectiveUntil: DateTime?
-    }
   }
 
   slice DisableDictionaryValue {
@@ -856,22 +795,13 @@ context DictionaryMaintenance {
     ui DictionaryValueCatalogScreen confirm
     reactsTo DictionaryValueAdded
 
-    tags {
-      dictionaryCode
-      valueCode
-    }
-
     command DisableDictionaryValue {
       dictionaryValueId: UUID id technical
-      dictionaryCode: DictionaryCode
-      valueCode: DictionaryValueCode
       disabledReason: String
     }
 
     event DictionaryValueDisabled {
       dictionaryValueId: UUID id technical
-      dictionaryCode: DictionaryCode
-      valueCode: DictionaryValueCode
       disabledReason: String
     }
 
@@ -883,21 +813,14 @@ context DictionaryMaintenance {
     ui DictionaryValueCatalogScreen
     reactsTo DictionaryValueDisabled
 
-    tags {
-      dictionaryCode
-      valueCode
-    }
-
     command EnableDictionaryValue {
       dictionaryValueId: UUID id technical
-      dictionaryCode: DictionaryCode
-      valueCode: DictionaryValueCode
+      enableReason: String
     }
 
     event DictionaryValueEnabled {
       dictionaryValueId: UUID id technical
-      dictionaryCode: DictionaryCode
-      valueCode: DictionaryValueCode
+      enableReason: String
     }
 
     state Active
@@ -921,8 +844,6 @@ context DictionaryMaintenance {
       displayOrder: DisplayOrder?
       description: String?
       active: Boolean query
-      effectiveFrom: DateTime?
-      effectiveUntil: DateTime?
       state: DictionaryValue.State
       addedAt: DateTime
       updatedAt: DateTime?
@@ -951,7 +872,6 @@ context DictionaryMaintenance {
     state Disabled
 
     slice AddDictionaryValue
-    slice UpdateDictionaryValue
     slice DisableDictionaryValue
     slice EnableDictionaryValue
     slice DictionaryValueCatalog
@@ -984,6 +904,7 @@ context RuntimeOnboarding {
     reactsTo OrganizationActivated
 
     tags {
+      organizationId
       profileName = normalize(profileName)
     }
 
@@ -996,9 +917,9 @@ context RuntimeOnboarding {
       runtimeControlEndpoint: String  // 对组织暴露的运行时控制入口，可映射到 k3s/k8s/其他
       registryEndpoint: String
       artifactStoreEndpoint: String?
-      caBundleRef: String
+      caBundleRef: String?
       
-      tlsSanNames: String[]
+      tlsSanNames: String[]?
     }
 
     event OrganizationNetworkProfileConfigured {
@@ -1010,9 +931,9 @@ context RuntimeOnboarding {
       runtimeControlEndpoint: String
       registryEndpoint: String
       artifactStoreEndpoint: String?
-      caBundleRef: String
+      caBundleRef: String?
       
-      tlsSanNames: String[]
+      tlsSanNames: String[]?
     }
 
     state Configured
@@ -1038,9 +959,9 @@ context RuntimeOnboarding {
       runtimeControlEndpoint: String
       registryEndpoint: String
       artifactStoreEndpoint: String?
-      caBundleRef: String
+      caBundleRef: String?
       
-      tlsSanNames: String[]
+      tlsSanNames: String[]?
       state: OrganizationNetworkProfile.State
       subscribe OrganizationRegistered
       subscribe OrganizationNetworkProfileConfigured
@@ -1054,6 +975,10 @@ context RuntimeOnboarding {
     ui RuntimeInstallationPlanScreen
     reactsTo OrganizationNetworkProfileConfigured
 
+    tags {
+      networkProfileId
+    }
+
     command CreateRuntimeInstallationPlan {
       runtimeInstallationPlanId: UUID id generated technical
       organizationId: UUID
@@ -1065,10 +990,6 @@ context RuntimeOnboarding {
       installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       architecture: String
       expectedNodeCount: Int
-      expectedGpuNodeCount: Int?
-      expectedCpuCoreCount: Int?
-      expectedMemoryGb: Int?
-      nodeLabels: String[]
     }
 
     event RuntimeInstallationPlanCreated {
@@ -1082,10 +1003,6 @@ context RuntimeOnboarding {
       installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       architecture: String
       expectedNodeCount: Int
-      expectedGpuNodeCount: Int?
-      expectedCpuCoreCount: Int?
-      expectedMemoryGb: Int?
-      nodeLabels: String[]
     }
 
     state Planned
