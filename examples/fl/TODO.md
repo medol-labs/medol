@@ -12,3 +12,4 @@
 - [ ] list 页面添加“查询”或者“刷新”按钮
 - [ ] 多系统菜单是按现在加下拉还是在左侧菜单再加一个分类
 - [ ] Issue Runtime Bootstrap Token network profile id runtime install plan id 没有显示名称
+- [ ] Docker compose 做调度器
