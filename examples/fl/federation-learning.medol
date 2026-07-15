@@ -851,7 +851,6 @@ context DictionaryMaintenance {
       disabledReason: String?
       enabledAt: DateTime?
       subscribe DictionaryValueAdded
-      subscribe DictionaryValueUpdated
       subscribe DictionaryValueDisabled
       subscribe DictionaryValueEnabled
     }
