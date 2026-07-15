@@ -4,24 +4,117 @@ export interface ModelTranslationCatalog {
   sourceTexts: string[];
 }
 
+export interface ModelTranslationGroup {
+  name: string;
+  sourceTexts: string[];
+}
+
 export type ModelTranslations = Record<string, string>;
 
 export const buildModelTranslationCatalog = (
   codegenModel: CodegenModel
 ): ModelTranslationCatalog => {
+  const groups = buildModelTranslationGroups(codegenModel);
+  const texts = new Set<string>();
+  groups.forEach((group) => group.sourceTexts.forEach((sourceText) => texts.add(sourceText)));
+
+  return {
+    sourceTexts: [...texts].sort((left, right) => left.localeCompare(right))
+  };
+};
+
+export const buildModelTranslationGroups = (
+  codegenModel: CodegenModel
+): ModelTranslationGroup[] => {
+  const global = createCollector();
+  const contextCollectors = new Map(
+    codegenModel.contexts.map((context) => [context.name, createCollector()])
+  );
+  const collectorForContext = (contextName: string | undefined) =>
+    contextName ? contextCollectors.get(contextName) ?? global : global;
+
+  addCommonTexts(global.add);
+
+  global.add(codegenModel.domain);
+  codegenModel.actors.forEach((actor) => global.add(actor.title));
+
+  codegenModel.contexts.forEach((context) => {
+    const collector = collectorForContext(context.name);
+    collector.add(context.title);
+    context.notes.forEach(collector.add);
+    context.risks.forEach(collector.add);
+    context.decisions.forEach(collector.add);
+    context.metrics.forEach(collector.add);
+  });
+
+  codegenModel.valueTypes.forEach((valueType) => {
+    const collector = collectorForContext(valueType.context);
+    collector.add(valueType.title);
+    valueType.fields.forEach((field) => addField(field, collector.add));
+    valueType.values.forEach(collector.add);
+  });
+
+  codegenModel.aggregates.forEach((aggregate) => {
+    const collector = collectorForContext(aggregate.context);
+    collector.add(aggregate.title);
+    aggregate.states.forEach(collector.add);
+  });
+
+  codegenModel.concepts.forEach((concept) => {
+    const collector = collectorForContext(concept.context);
+    collector.add(concept.title);
+    concept.states.forEach(collector.add);
+  });
+
+  codegenModel.slices.forEach((slice) => {
+    const collector = collectorForContext(slice.context);
+    collector.add(slice.title);
+    collector.add(slice.chapter);
+    slice.hotspots.forEach(collector.add);
+    [...slice.commands, ...slice.events, ...slice.readmodels, ...slice.screens, ...slice.processors]
+      .forEach((element) => {
+        collector.add(element.title);
+        element.fields.forEach((field) => addField(field, collector.add));
+      });
+    slice.specifications.forEach((specification) => {
+      collector.add(specification.title);
+      collector.add(specification.specification);
+      collector.add(specification.rule);
+      specification.expressions.forEach(collector.add);
+      specification.given.forEach((item) => collector.add(item.title));
+      specification.when.forEach((item) => collector.add(item.title));
+      if (Array.isArray(specification.then)) {
+        specification.then.forEach((item) => collector.add(item.title));
+      } else {
+        collector.add(specification.then.title);
+        collector.add(specification.then.description);
+      }
+    });
+  });
+
+  return [
+    { name: 'Common', sourceTexts: global.sourceTexts() },
+    ...codegenModel.contexts.map((context) => ({
+      name: context.title,
+      sourceTexts: collectorForContext(context.name).sourceTexts()
+    }))
+  ].filter((group) => group.sourceTexts.length > 0);
+};
+
+const createCollector = () => {
   const texts = new Set<string>();
   const add = (value: string | undefined): void => {
     const text = value?.trim();
     if (text) texts.add(text);
   };
-  const addField = (field: CodegenField): void => {
-    const label = titleCase(field.name);
-    add(label);
-    add(`Enter ${label}`);
-    add(`Select ${label}`);
-    add(`${label} is required`);
-  };
 
+  return {
+    add,
+    sourceTexts: () => [...texts].sort((left, right) => left.localeCompare(right))
+  };
+};
+
+const addCommonTexts = (add: (value: string | undefined) => void): void => {
   add('Dashboard');
   add('Submit');
   add('Submitting...');
@@ -36,57 +129,17 @@ export const buildModelTranslationCatalog = (
   add('Hide');
   add('True');
   add('False');
+};
 
-  add(codegenModel.domain);
-  codegenModel.contexts.forEach((context) => {
-    add(context.title);
-    context.notes.forEach(add);
-    context.risks.forEach(add);
-    context.decisions.forEach(add);
-    context.metrics.forEach(add);
-  });
-  codegenModel.valueTypes.forEach((valueType) => {
-    add(valueType.title);
-    valueType.fields.forEach(addField);
-    valueType.values.forEach(add);
-  });
-  codegenModel.aggregates.forEach((aggregate) => {
-    add(aggregate.title);
-    aggregate.states.forEach(add);
-  });
-  codegenModel.concepts.forEach((concept) => {
-    add(concept.title);
-    concept.states.forEach(add);
-  });
-  codegenModel.actors.forEach((actor) => add(actor.title));
-  codegenModel.slices.forEach((slice) => {
-    add(slice.title);
-    add(slice.chapter);
-    slice.hotspots.forEach(add);
-    [...slice.commands, ...slice.events, ...slice.readmodels, ...slice.screens, ...slice.processors]
-      .forEach((element) => {
-        add(element.title);
-        element.fields.forEach(addField);
-      });
-    slice.specifications.forEach((specification) => {
-      add(specification.title);
-      add(specification.specification);
-      add(specification.rule);
-      specification.expressions.forEach(add);
-      specification.given.forEach((item) => add(item.title));
-      specification.when.forEach((item) => add(item.title));
-      if (Array.isArray(specification.then)) {
-        specification.then.forEach((item) => add(item.title));
-      } else {
-        add(specification.then.title);
-        add(specification.then.description);
-      }
-    });
-  });
-
-  return {
-    sourceTexts: [...texts].sort((left, right) => left.localeCompare(right))
-  };
+const addField = (
+  field: CodegenField,
+  add: (value: string | undefined) => void
+): void => {
+  const label = titleCase(field.name);
+  add(label);
+  add(`Enter ${label}`);
+  add(`Select ${label}`);
+  add(`${label} is required`);
 };
 
 export const toCodegenTranslations = (

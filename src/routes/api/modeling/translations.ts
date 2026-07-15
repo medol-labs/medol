@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { hashMedolSource } from '../../../features/documentation/documentReferences';
 import {
   buildModelTranslationCatalog,
+  buildModelTranslationGroups,
   toCodegenTranslations,
   type ModelTranslations
 } from '../../../features/model-i18n/modelTranslation';
@@ -14,6 +15,7 @@ import {
 } from '../../../server/modelTranslationRepository';
 
 const maxDslLength = 2_000_000;
+const defaultTranslationBatchSize = 25;
 
 export const Route = createFileRoute('/api/modeling/translations')({
   server: {
@@ -75,29 +77,80 @@ export const Route = createFileRoute('/api/modeling/translations')({
         const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : undefined;
         const codegenModel = modelToCodegenModel(model);
         const catalog = buildModelTranslationCatalog(codegenModel);
+        const groups = buildModelTranslationGroups(codegenModel);
         const existing = readModelTranslations({ workspaceId, sourceHash, locale });
-        const missing = body.regenerate
+        const missingSourceTexts = body.regenerate
           ? catalog.sourceTexts
           : catalog.sourceTexts.filter((sourceText) => !existing[sourceText]);
+        const missingSet = new Set(missingSourceTexts);
+        const pendingGroups = groups
+          .map((group) => ({
+            name: group.name,
+            sourceTexts: group.sourceTexts.filter((sourceText) => missingSet.has(sourceText))
+          }))
+          .filter((group) => group.sourceTexts.length > 0);
 
         let generated: ModelTranslations = {};
         let warning: string | undefined;
+        let failedGroup: string | undefined;
         let usage: unknown;
-        if (missing.length > 0) {
-          const result = await requestModelTranslations({ sourceTexts: missing, locale });
-          warning = result.warning;
-          usage = result.usage;
-          if (result.translations && Object.keys(result.translations).length > 0) {
-            generated = result.translations;
-            upsertModelTranslations({
-              workspaceId,
-              sourceHash,
+        if (pendingGroups.length > 0) {
+          translationLoop:
+          for (const [groupIndex, group] of pendingGroups.entries()) {
+            const batches = chunk(group.sourceTexts, translationBatchSize());
+            for (const [batchIndex, batch] of batches.entries()) {
+              const result = await requestModelTranslations({ sourceTexts: batch, locale });
+              usage = result.usage ?? usage;
+              if (result.translations && Object.keys(result.translations).length > 0) {
+                generated = {
+                  ...generated,
+                  ...result.translations
+                };
+                upsertModelTranslations({
+                  workspaceId,
+                  sourceHash,
+                  locale,
+                  translations: result.translations,
+                  provider: result.provider,
+                  model: result.model
+                });
+              }
+              if (result.warning) {
+                warning = result.warning;
+                failedGroup = group.name;
+                console.warn('[model-i18n] Model translation completed with warning', {
+                  locale,
+                  requested: missingSourceTexts.length,
+                  group: group.name,
+                  groupIndex: groupIndex + 1,
+                  groups: pendingGroups.length,
+                  batch: batchIndex + 1,
+                  batches: batches.length,
+                  batchSize: batch.length,
+                  generated: Object.keys(generated).length,
+                  warning
+                });
+                break translationLoop;
+              }
+            }
+            console.info('[model-i18n] Model translation group completed', {
               locale,
-              translations: result.translations,
-              provider: result.provider,
-              model: result.model
+              group: group.name,
+              groupIndex: groupIndex + 1,
+              groups: pendingGroups.length,
+              translated: group.sourceTexts.length,
+              generated: Object.keys(generated).length
             });
           }
+        }
+
+        if (!warning && pendingGroups.length > 0) {
+          console.info('[model-i18n] Model translation completed', {
+            locale,
+            requested: missingSourceTexts.length,
+            groups: pendingGroups.length,
+            generated: Object.keys(generated).length
+          });
         }
 
         const translations = {
@@ -111,12 +164,36 @@ export const Route = createFileRoute('/api/modeling/translations')({
           total: catalog.sourceTexts.length,
           translated: Object.keys(translations).length,
           missing: catalog.sourceTexts.filter((sourceText) => !translations[sourceText]),
+          pendingGroups: groups
+            .map((group) => ({
+              name: group.name,
+              missing: group.sourceTexts.filter((sourceText) => !translations[sourceText]).length,
+              total: group.sourceTexts.length
+            }))
+            .filter((group) => group.missing > 0),
           translations,
           codegen: toCodegenTranslations(locale, translations),
           ...(usage ? { usage } : {}),
+          ...(failedGroup ? { failedGroup } : {}),
           ...(warning ? { warning } : {})
         });
       }
     }
   }
 });
+
+function translationBatchSize(): number {
+  const raw = typeof process === 'undefined'
+    ? undefined
+    : process.env.MODEL_TRANSLATION_BATCH_SIZE;
+  const value = raw ? Number.parseInt(raw, 10) : defaultTranslationBatchSize;
+  return Number.isFinite(value) && value > 0 ? value : defaultTranslationBatchSize;
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}

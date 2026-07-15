@@ -26,6 +26,13 @@ export const requestModelTranslations = async (input: {
 }): Promise<ModelTranslationProviderResult> => {
   const sourceTexts = input.sourceTexts.filter((text) => text.trim().length > 0);
   if (sourceTexts.length === 0) return { translations: {} };
+  if (isIdentityLocale(input.locale)) {
+    return {
+      translations: Object.fromEntries(sourceTexts.map((text) => [text, text])),
+      provider: 'local',
+      model: 'identity'
+    };
+  }
 
   const config = getAgentProviderConfig();
   if (config.provider === 'mock') {
@@ -66,12 +73,13 @@ export const requestModelTranslations = async (input: {
         }]
       });
       return {
-        translations,
+        translations: completeTranslations(translations, sourceTexts),
         usage,
         provider: 'openai',
         model: config.openai.model
       };
     } catch (error) {
+      console.error('[model-i18n] OpenAI model translation request failed', error);
       return { warning: formatWarning(error) };
     }
   }
@@ -91,18 +99,38 @@ export const requestModelTranslations = async (input: {
         instructions: translationSystemPrompt,
         input: prompt,
         temperature: 0,
+        max_output_tokens: Math.max(4096, Math.min(12000, sourceTexts.length * 96)),
         reasoning: { effort: 'low' }
       })
     });
     const responseText = await response.text();
     if (!response.ok) {
+      console.error('[model-i18n] MiniMax model translation request failed', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseText
+      });
       return { warning: `模型翻译服务暂不可用（HTTP ${response.status}），未生成新的翻译。` };
     }
     const responseJson = parseJson(responseText);
     const output = extractOutputText(responseJson) ?? responseText;
     const translations = translationSchema.safeParse(parseEmbeddedJson(output));
     if (!translations.success) {
+      console.error('[model-i18n] Model translation response did not match schema', {
+        issues: translations.error.issues,
+        output
+      });
       return { warning: '模型翻译结果格式不完整，未生成新的翻译。' };
+    }
+    const complete = completeTranslations(translations.data, sourceTexts);
+    const missing = sourceTexts.filter((sourceText) => !complete[sourceText]);
+    if (missing.length > 0) {
+      console.error('[model-i18n] Model translation response missed source strings', {
+        missing,
+        translated: Object.keys(translations.data).length,
+        expected: sourceTexts.length
+      });
+      return { warning: '模型翻译结果缺少部分条目，未生成新的翻译。' };
     }
     const usage = extractOpenAiCompatibleUsage(responseJson, {
       provider: 'minimax',
@@ -113,12 +141,13 @@ export const requestModelTranslations = async (input: {
       output
     );
     return {
-      translations: translations.data,
+      translations: complete,
       usage,
       provider: 'minimax',
       model: config.minimax.model
     };
   } catch (error) {
+    console.error('[model-i18n] MiniMax model translation request failed', error);
     return { warning: formatWarning(error) };
   }
 };
@@ -135,6 +164,19 @@ const translationSystemPrompt = [
 
 const buildPrompt = (sourceTexts: string[], locale: string): string =>
   JSON.stringify({ locale, sourceTexts });
+
+const isIdentityLocale = (locale: string): boolean => {
+  const normalized = locale.trim().toLowerCase();
+  return normalized === 'en' || normalized === 'en-us' || normalized === 'en_us';
+};
+
+const completeTranslations = (
+  translations: ModelTranslations,
+  sourceTexts: string[]
+): ModelTranslations =>
+  Object.fromEntries(sourceTexts
+    .filter((sourceText) => translations[sourceText]?.trim())
+    .map((sourceText) => [sourceText, translations[sourceText]]));
 
 const parseEmbeddedJson = (value: string): unknown => {
   const trimmed = value.trim()
