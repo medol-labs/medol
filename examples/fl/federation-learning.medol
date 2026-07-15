@@ -892,6 +892,7 @@ context RuntimeOnboarding {
     capabilities {
       command RequestDatasetAccess
       event DatasetAccessValidated
+      event RuntimeAgentReadyReported
     }
   }
 
@@ -917,6 +918,8 @@ context RuntimeOnboarding {
       registryEndpoint: String
       artifactStoreEndpoint: String?
       caBundleRef: String?
+      organizationRuntimeIngressIp: String?
+      clusterJoinEndpoint: String?
       
       tlsSanNames: String[]?
     }
@@ -931,6 +934,8 @@ context RuntimeOnboarding {
       registryEndpoint: String
       artifactStoreEndpoint: String?
       caBundleRef: String?
+      organizationRuntimeIngressIp: String?
+      clusterJoinEndpoint: String?
       
       tlsSanNames: String[]?
     }
@@ -959,6 +964,8 @@ context RuntimeOnboarding {
       registryEndpoint: String
       artifactStoreEndpoint: String?
       caBundleRef: String?
+      organizationRuntimeIngressIp: String?
+      clusterJoinEndpoint: String?
       
       tlsSanNames: String[]?
       state: OrganizationNetworkProfile.State
@@ -1007,72 +1014,15 @@ context RuntimeOnboarding {
     state Planned
   }
 
-  slice IssueRuntimeBootstrapToken {
-    startsLifecycle
-
-    actor PlatformAdmin
-    ui RuntimeBootstrapTokenScreen
-    reactsTo RuntimeInstallationPlanCreated
-
-    command IssueRuntimeBootstrapToken {
-      bootstrapTokenId: UUID id generated technical
-      organizationId: UUID
-      networkProfileId: UUID
-      runtimeInstallationPlanId: UUID
-      tokenName: String
-      tokenFingerprint: String generated technical
-      tokenHash: String generated technical
-      
-      maxUseCount: Int
-      expiresAt: DateTime
-    }
-
-    event RuntimeBootstrapTokenIssued {
-      bootstrapTokenId: UUID id technical
-      organizationId: UUID
-      networkProfileId: UUID
-      runtimeInstallationPlanId: UUID
-      tokenName: String
-      tokenFingerprint: String
-      tokenHash: String
-      
-      maxUseCount: Int
-      expiresAt: DateTime
-    }
-
-    state Issued
-  }
-
-  slice RevokeRuntimeBootstrapToken {
-    actor SecurityReviewer
-    ui RuntimeBootstrapTokenScreen confirm
-    reactsTo RuntimeBootstrapTokenIssued
-
-    command RevokeRuntimeBootstrapToken {
-      bootstrapTokenId: UUID id technical
-      organizationId: UUID
-      revokeReason: String
-    }
-
-    event RuntimeBootstrapTokenRevoked {
-      bootstrapTokenId: UUID id technical
-      organizationId: UUID
-      revokeReason: String
-    }
-
-    state Revoked
-  }
-
   slice RequestRuntimeBootstrapConfig {
     startsLifecycle
 
     actor RuntimeInstaller
-    reactsTo RuntimeBootstrapTokenIssued
+    reactsTo RuntimeInstallationPlanCreated
 
     command RequestRuntimeBootstrapConfig {
       bootstrapRequestId: UUID id generated technical
       organizationId: UUID
-      bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       requesterIp: String
       machineFingerprint: String
@@ -1087,7 +1037,6 @@ context RuntimeOnboarding {
     event RuntimeBootstrapConfigRequested {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
-      bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       requesterIp: String
       machineFingerprint: String
@@ -1101,21 +1050,6 @@ context RuntimeOnboarding {
 
     state Requested
 
-    specification "Bootstrap Request Must Match Network Policy" {
-      rule """
-        Runtime bootstrap configuration can be requested only when the requester IP is allowed by the organization's network profile and the bootstrap token is valid.
-      """
-
-      scenario "Reject Revoked Bootstrap Token" {
-        given RuntimeBootstrapTokenRevoked {
-          bootstrapTokenId = "token-1"
-        }
-        when RequestRuntimeBootstrapConfig {
-          bootstrapTokenId = "token-1"
-        }
-        then reject "Bootstrap Token Revoked"
-      }
-    }
   }
 
   slice IssueRuntimeBootstrapConfig {
@@ -1129,7 +1063,6 @@ context RuntimeOnboarding {
     command IssueRuntimeBootstrapConfig {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
-      bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       runtimeInfrastructureId: UUID generated technical
       networkProfileId: UUID
@@ -1146,13 +1079,13 @@ context RuntimeOnboarding {
       expectedNodeCount: Int
       architecture: String
       nodeLabels: String[]
+      infrastructurePackageRef: String
       joinCredentialRef: String?
     }
 
     event RuntimeBootstrapConfigIssued {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
-      bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       runtimeInfrastructureId: UUID
       networkProfileId: UUID
@@ -1169,6 +1102,7 @@ context RuntimeOnboarding {
       expectedNodeCount: Int
       architecture: String
       nodeLabels: String[]
+      infrastructurePackageRef: String
       joinCredentialRef: String?
     }
 
@@ -1183,7 +1117,6 @@ context RuntimeOnboarding {
     command RejectRuntimeBootstrapRequest {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
-      bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       rejectionReason: String
     }
@@ -1191,7 +1124,6 @@ context RuntimeOnboarding {
     event RuntimeBootstrapRequestRejected {
       bootstrapRequestId: UUID id technical
       organizationId: UUID
-      bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       rejectionReason: String
     }
@@ -1224,67 +1156,35 @@ context RuntimeOnboarding {
       expectedMemoryGb: Int?
       nodeLabels: String[]
       planStatus: String
-      bootstrapTokenId: UUID?
       runtimeInfrastructureId: UUID?
       observedNodeCount: Int?
+      runtimeAgentId: UUID?
+      runtimeAgentVersion: String?
       plannedAt: DateTime
+      verifiedAt: DateTime?
+      agentDeployedAt: DateTime?
+      agentReadyAt: DateTime?
       lastConnectedAt: DateTime?
       subscribe OrganizationRegistered
       subscribe OrganizationNetworkProfileConfigured
       subscribe RuntimeInstallationPlanCreated
-      subscribe RuntimeBootstrapTokenIssued
       subscribe RuntimeInfrastructureRegistered
+      subscribe RuntimeInfrastructureVerified
+      subscribe RuntimeAgentDeployed
+      subscribe RuntimeAgentReady
       subscribe RuntimeInfrastructureConnected
-    }
-  }
-
-  slice RuntimeBootstrapTokenCatalog {
-    readmodel RuntimeBootstrapTokenCatalog[] {
-      bootstrapTokenId: UUID id
-      organizationId: UUID
-      networkProfileId: UUID
-      runtimeInstallationPlanId: UUID
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the bootstrap token catalog."
-      }
-      networkProfileName: String? derived {
-        from OrganizationNetworkProfileConfigured.profileName
-        rule "Lookup by networkProfileId and denormalize the network profile display name into the bootstrap token catalog."
-      }
-      infrastructureName: String? derived {
-        from RuntimeInstallationPlanCreated.infrastructureName
-        rule "Lookup by runtimeInstallationPlanId and denormalize the planned infrastructure display name into the bootstrap token catalog."
-      }
-      tokenName: String
-      tokenFingerprint: String
-      state: RuntimeBootstrapToken.State
-      
-      maxUseCount: Int
-      requestCount: Int
-      issuedAt: DateTime
-      expiresAt: DateTime
-      revokedAt: DateTime?
-      revokeReason: String?
-      subscribe OrganizationRegistered
-      subscribe OrganizationNetworkProfileConfigured
-      subscribe RuntimeInstallationPlanCreated
-      subscribe RuntimeBootstrapTokenIssued
-      subscribe RuntimeBootstrapTokenRevoked
-      subscribe RuntimeBootstrapConfigRequested
     }
   }
 
   slice RuntimeInstallationGuide {
     actor RuntimeInstaller
     ui RuntimeInstallationGuideScreen
-    reactsTo RuntimeBootstrapTokenIssued
+    reactsTo RuntimeInstallationPlanCreated
 
     readmodel RuntimeInstallationGuide[] {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
       networkProfileId: UUID
-      bootstrapTokenId: UUID
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the runtime installation guide."
@@ -1297,15 +1197,13 @@ context RuntimeOnboarding {
         from RuntimeInstallationPlanCreated.infrastructureName
         rule "Lookup by runtimeInstallationPlanId and denormalize the planned infrastructure display name into the runtime installation guide."
       }
-      tokenName: String
-      tokenFingerprint: String
       bootstrapUrl: String derived {
-        from RuntimeBootstrapTokenIssued.bootstrapTokenId
-        rule "Render the public platform bootstrap config endpoint for the runtime agent first-connect handshake."
+        from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
+        rule "Render the public platform bootstrap config endpoint for the runtime installer handshake."
       }
       bootstrapCommand: String derived {
-        from RuntimeBootstrapTokenIssued.bootstrapTokenId
-        rule "Render the copyable install/start command using bootstrapUrl, agentImageRef, and one-time token material held by the secure token delivery service; never derive it from tokenHash."
+        from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
+        rule "Render the copyable install/start command using bootstrapUrl, installProfile, architecture, and the platform-managed runtime installer package."
       }
       agentImageRef: String derived {
         from RuntimeInstallationPlanCreated.installProfile
@@ -1355,18 +1253,24 @@ context RuntimeOnboarding {
         from RuntimeInstallationPlanCreated.nodeLabels
         rule "Lookup by runtimeInstallationPlanId and display the node labels the runtime should apply."
       }
-      tokenState: RuntimeBootstrapToken.State
-      issuedAt: DateTime
-      expiresAt: DateTime
-      revokedAt: DateTime?
-      revokeReason: String?
+      organizationRuntimeIngressIp: String? derived {
+        from OrganizationNetworkProfileConfigured.organizationRuntimeIngressIp
+        rule "Lookup by networkProfileId and display the platform-assigned organization runtime ingress IP used during infrastructure installation."
+      }
+      clusterJoinEndpoint: String? derived {
+        from OrganizationNetworkProfileConfigured.clusterJoinEndpoint
+        rule "Lookup by networkProfileId and display the endpoint runtime installer uses to join the organization infrastructure to the cluster."
+      }
+      infrastructurePackageRef: String? derived {
+        from RuntimeBootstrapConfigIssued.infrastructurePackageRef
+        rule "Lookup by runtimeInstallationPlanId and display the infrastructure package returned by bootstrap configuration."
+      }
       requestCount: Int
       subscribe OrganizationRegistered
       subscribe OrganizationNetworkProfileConfigured
       subscribe RuntimeInstallationPlanCreated
-      subscribe RuntimeBootstrapTokenIssued
-      subscribe RuntimeBootstrapTokenRevoked
       subscribe RuntimeBootstrapConfigRequested
+      subscribe RuntimeBootstrapConfigIssued
     }
   }
 
@@ -1374,15 +1278,10 @@ context RuntimeOnboarding {
     readmodel RuntimeBootstrapRequestCatalog[] {
       bootstrapRequestId: UUID id
       organizationId: UUID
-      bootstrapTokenId: UUID
       runtimeInstallationPlanId: UUID
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the bootstrap request catalog."
-      }
-      bootstrapTokenName: String? derived {
-        from RuntimeBootstrapTokenIssued.tokenName
-        rule "Lookup by bootstrapTokenId and denormalize the bootstrap token display name into the bootstrap request catalog."
       }
       infrastructureName: String? derived {
         from RuntimeInstallationPlanCreated.infrastructureName
@@ -1406,7 +1305,6 @@ context RuntimeOnboarding {
       rejectionReason: String?
       subscribe OrganizationRegistered
       subscribe RuntimeInstallationPlanCreated
-      subscribe RuntimeBootstrapTokenIssued
       subscribe RuntimeBootstrapConfigRequested
       subscribe RuntimeBootstrapConfigIssued
       subscribe RuntimeBootstrapRequestRejected
@@ -1454,6 +1352,109 @@ context RuntimeOnboarding {
     }
 
     state Registered
+  }
+
+  slice VerifyRuntimeInfrastructure {
+    actor PlatformAdmin
+    ui RuntimeInstallationPlanScreen
+    reactsTo RuntimeInfrastructureRegistered
+
+    automation VerifyInfrastructureWhenInstallationObserved {
+      on RuntimeInfrastructureRegistered
+      condition runtimeInfrastructureInstallVerified == true
+      emits VerifyRuntimeInfrastructure
+    }
+
+    command VerifyRuntimeInfrastructure {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      verifiedAt: DateTime
+      observedNodeCount: Int
+      controlPlaneEndpointRef: String?
+      verificationSummary: String
+    }
+
+    event RuntimeInfrastructureVerified {
+      runtimeInfrastructureId: UUID id technical
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      verifiedAt: DateTime
+      observedNodeCount: Int
+      controlPlaneEndpointRef: String?
+      verificationSummary: String
+    }
+
+    state Verified
+  }
+
+  slice DeployRuntimeAgent {
+    actor PlatformAdmin
+    ui RuntimeInstallationPlanScreen
+    reactsTo RuntimeInfrastructureVerified
+
+    automation DeployRuntimeAgentWhenInfrastructureVerified {
+      on RuntimeInfrastructureVerified
+      emits DeployRuntimeAgent
+    }
+
+    command DeployRuntimeAgent {
+      runtimeAgentDeploymentId: UUID id generated technical
+      runtimeInfrastructureId: UUID
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      runtimeAgentId: UUID generated technical
+      agentImageRef: String
+      deploymentNamespace: String
+      deploymentName: String
+      serviceAccountName: String?
+      configEndpoint: String
+      deployedAt: DateTime
+    }
+
+    event RuntimeAgentDeployed {
+      runtimeAgentDeploymentId: UUID id technical
+      runtimeInfrastructureId: UUID
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      runtimeAgentId: UUID
+      agentImageRef: String
+      deploymentNamespace: String
+      deploymentName: String
+      serviceAccountName: String?
+      configEndpoint: String
+      deployedAt: DateTime
+    }
+
+    state AgentDeployed
+  }
+
+  slice MarkRuntimeAgentReady {
+    reactsTo RuntimeAgentReadyReported
+
+    command MarkRuntimeAgentReady {
+      runtimeAgentId: UUID id technical from RuntimeAgentReadyReported.runtimeAgentId
+      runtimeInfrastructureId: UUID from RuntimeAgentReadyReported.runtimeInfrastructureId
+      organizationId: UUID from RuntimeAgentReadyReported.organizationId
+      runtimeInstallationPlanId: UUID from RuntimeAgentReadyReported.runtimeInstallationPlanId
+      agentVersion: String from RuntimeAgentReadyReported.agentVersion
+      startedAt: DateTime from RuntimeAgentReadyReported.startedAt
+      readyAt: DateTime from RuntimeAgentReadyReported.readyAt
+      selfCheckSummary: String from RuntimeAgentReadyReported.selfCheckSummary
+    }
+
+    event RuntimeAgentReady {
+      runtimeAgentId: UUID id technical
+      runtimeInfrastructureId: UUID
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      agentVersion: String
+      startedAt: DateTime
+      readyAt: DateTime
+      selfCheckSummary: String
+    }
+
+    state AgentReady
   }
 
   slice ReportRuntimeInfrastructureConnected {
@@ -1535,12 +1536,20 @@ context RuntimeOnboarding {
       availableCpuCores: Int?
       availableMemoryGb: Int?
       availableGpuCount: Int?
+      runtimeAgentId: UUID?
+      runtimeAgentVersion: String?
+      infrastructureVerifiedAt: DateTime?
+      agentDeployedAt: DateTime?
+      agentReadyAt: DateTime?
       connectedAt: DateTime?
       state: RuntimeInfrastructure.State
       subscribe OrganizationRegistered
       subscribe OrganizationNetworkProfileConfigured
       subscribe RuntimeBootstrapConfigIssued
       subscribe RuntimeInfrastructureRegistered
+      subscribe RuntimeInfrastructureVerified
+      subscribe RuntimeAgentDeployed
+      subscribe RuntimeAgentReady
       subscribe RuntimeInfrastructureConnected
       subscribe RuntimeInfrastructureAccessRevoked
     }
@@ -1561,15 +1570,6 @@ context RuntimeOnboarding {
     slice RuntimeInstallationGuide
   }
 
-  concept RuntimeBootstrapToken {
-    state Issued
-    state Revoked
-
-    slice IssueRuntimeBootstrapToken
-    slice RevokeRuntimeBootstrapToken
-    slice RuntimeBootstrapTokenCatalog
-  }
-
   concept RuntimeBootstrapRequest {
     state Requested
     state ConfigIssued
@@ -1583,10 +1583,16 @@ context RuntimeOnboarding {
 
   concept RuntimeInfrastructure {
     state Registered
+    state Verified
+    state AgentDeployed
+    state AgentReady
     state Connected
     state Revoked
 
     slice RegisterRuntimeInfrastructure
+    slice VerifyRuntimeInfrastructure
+    slice DeployRuntimeAgent
+    slice MarkRuntimeAgentReady
     slice ReportRuntimeInfrastructureConnected
     slice RevokeRuntimeInfrastructureAccess
     slice RuntimeInfrastructureAccessView
@@ -5784,6 +5790,13 @@ context KeyAndAttestationManagement {
       emits ReportRuntimeInfrastructureConnected
     }
 
+    integration PlatformRuntimeAgentReadyReporting {
+      source RuntimeAgentLifecycle
+      target RuntimeOnboarding
+      reactsTo RuntimeAgentReadyReported
+      emits MarkRuntimeAgentReady
+    }
+
     integration PlatformRuntimeNodeInventoryReporting {
       source AgentRuntimeNodeInventory
       target RuntimeOperations
@@ -6398,21 +6411,94 @@ context KeyAndAttestationManagement {
     slice AgentRoundContributionCatalog
   }
 
+  slice RecordRuntimeAgentStarted {
+    startsLifecycle
+
+    actor RuntimeAgent
+
+    command RecordRuntimeAgentStarted {
+      runtimeAgentId: UUID id technical
+      runtimeInfrastructureId: UUID
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      agentVersion: String
+      podName: String?
+      imageRef: String
+      startedAt: DateTime
+    }
+
+    event RuntimeAgentStarted {
+      runtimeAgentId: UUID id technical
+      runtimeInfrastructureId: UUID
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      agentVersion: String
+      podName: String?
+      imageRef: String
+      startedAt: DateTime
+    }
+
+    state Started
+  }
+
+  slice ReportRuntimeAgentReady {
+    actor RuntimeAgent
+    reactsTo RuntimeAgentStarted
+
+    automation ReportReadyAfterConfigurationFetchAndSelfCheck {
+      on RuntimeAgentStarted
+      condition runtimeAgentReadyProbePassed == true
+      emits ReportRuntimeAgentReady
+    }
+
+    command ReportRuntimeAgentReady {
+      runtimeAgentId: UUID id technical from RuntimeAgentStarted.runtimeAgentId
+      runtimeInfrastructureId: UUID from RuntimeAgentStarted.runtimeInfrastructureId
+      organizationId: UUID from RuntimeAgentStarted.organizationId
+      runtimeInstallationPlanId: UUID from RuntimeAgentStarted.runtimeInstallationPlanId
+      agentVersion: String from RuntimeAgentStarted.agentVersion
+      startedAt: DateTime from RuntimeAgentStarted.startedAt
+      readyAt: DateTime
+      selfCheckSummary: String
+    }
+
+    event RuntimeAgentReadyReported {
+      runtimeAgentId: UUID id technical
+      runtimeInfrastructureId: UUID
+      organizationId: UUID
+      runtimeInstallationPlanId: UUID
+      agentVersion: String
+      startedAt: DateTime
+      readyAt: DateTime
+      selfCheckSummary: String
+    }
+
+    state Ready
+  }
+
+  concept RuntimeAgentLifecycle {
+    state Started
+    state Ready
+
+    slice RecordRuntimeAgentStarted
+    slice ReportRuntimeAgentReady
+  }
+
   slice ReportAgentRuntimeInfrastructureConnection {
     startsLifecycle
-    reactsTo RuntimeInfrastructureRegistered
+    reactsTo RuntimeAgentReadyReported
 
     automation ReportInfrastructureConnectionAfterSelfCheck {
-      on RuntimeInfrastructureRegistered
-      condition runtimeSelfCheckPassed == true
+      on RuntimeAgentReadyReported
+      condition runtimeInfrastructureReachable == true
       emits ReportAgentRuntimeInfrastructureConnection
     }
 
     command ReportAgentRuntimeInfrastructureConnection {
-      runtimeInfrastructureId: UUID id technical
-      organizationId: UUID
-      runtimeInstallationPlanId: UUID
-      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID id technical from RuntimeAgentReadyReported.runtimeInfrastructureId
+      organizationId: UUID from RuntimeAgentReadyReported.organizationId
+      runtimeInstallationPlanId: UUID from RuntimeAgentReadyReported.runtimeInstallationPlanId
+      runtimeAgentId: UUID from RuntimeAgentReadyReported.runtimeAgentId
       connectedAt: DateTime
       observedNodeCount: Int
       availableCpuCores: Int
@@ -6445,17 +6531,12 @@ context KeyAndAttestationManagement {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the agent runtime infrastructure connection catalog."
       }
-      infrastructureName: String? derived {
-        from RuntimeInfrastructureRegistered.infrastructureName
-        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the agent runtime infrastructure connection catalog."
-      }
       connectedAt: DateTime
       observedNodeCount: Int
       availableCpuCores: Int
       availableMemoryGb: Int
       availableGpuCount: Int
       subscribe OrganizationRegistered
-      subscribe RuntimeInfrastructureRegistered
       subscribe AgentRuntimeInfrastructureConnectionReported
     }
   }
@@ -6541,10 +6622,6 @@ context KeyAndAttestationManagement {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the agent runtime node inventory catalog."
       }
-      infrastructureName: String? derived {
-        from RuntimeInfrastructureRegistered.infrastructureName
-        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the agent runtime node inventory catalog."
-      }
       orchestratorNodeName: String
       providerNodeId: String?
       nodeRole: String
@@ -6556,7 +6633,6 @@ context KeyAndAttestationManagement {
       inventoryHash: String
       discoveredAt: DateTime
       subscribe OrganizationRegistered
-      subscribe RuntimeInfrastructureRegistered
       subscribe AgentRuntimeNodeInventoryReported
     }
   }

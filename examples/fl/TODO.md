@@ -18,3 +18,56 @@
 - [ ] 安装 k3s
 - [ ] umadb
     - [ ] Projector 没有执行，没有更新 readmodel
+
+
+
+## Dictionary 
+
+当前 [federation-learning.medol]里，动态字典项只有 5 个 `dictionaryCode`，都属于 `RuntimeOnboarding` 相关字段：
+
+| dictionaryCode | 使用次数 | 用途字段 |
+| --- | ---: | --- |
+| `RUNTIME_CONNECTIVITY_MODE` | 3 | `connectivityMode` |
+| `RUNTIME_INFRASTRUCTURE_TYPE` | 9 | `infrastructureType` |
+| `RUNTIME_ORCHESTRATOR_TYPE` | 10 | `orchestratorType` |
+| `RUNTIME_ORCHESTRATOR_VERSION` | 9 | `orchestratorVersion` |
+| `RUNTIME_INSTALL_PROFILE` | 9 | `installProfile` |
+
+这些字段集中在：
+
+- `ConfigureOrganizationNetworkProfile`
+- `CreateRuntimeInstallationPlan`
+- `IssueRuntimeBootstrapConfig`
+- `RuntimeInstallationPlanCatalog`
+- `RuntimeBootstrapRequestCatalog`
+- `RegisterRuntimeInfrastructure`
+- `RuntimeInfrastructureAccessView`
+
+当前模型只声明了这些字典 code 的使用位置，没有在 `.medol` 里定义具体 `valueCode/displayName` 预置值。具体值需要通过 `DictionaryMaintenance` 的命令维护：
+
+- `RegisterDictionary`
+- `AddDictionaryValue`
+- `DisableDictionaryValue`
+- `EnableDictionaryValue`
+
+字典值读模型是 `DictionaryValueCatalog`，其 provider 映射是：
+
+```text
+code  = dictionaryCode
+value = valueCode
+label = displayName
+active = active
+state = state
+order = displayOrder
+```
+
+另外，静态枚举不是动态字典；当前文件里还定义了一个 enum：
+
+```text
+OrganizationType:
+- HOSPITAL
+- RESEARCH_INSTITUTE
+- PUBLIC_HEALTH_AGENCY
+- LABORATORY
+- REHABILITATION_CENTER
+```
