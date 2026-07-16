@@ -1135,6 +1135,7 @@ context RuntimeOnboarding {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
       networkProfileId: UUID
+      runtimeInfrastructureId: UUID
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the runtime installation guide."
@@ -1256,16 +1257,19 @@ context RuntimeOnboarding {
 
     automation VerifyInfrastructureWhenRegistered {
       on RuntimeInfrastructureRegistered
-      condition runtimeInfrastructureVerificationPassed == true
       emits VerifyRuntimeInfrastructure
     }
 
     command VerifyRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
-      verifiedAt: DateTime
+      verificationPassed: Boolean
+      verifiedAt: DateTime?
+      failedAt: DateTime?
       observedNodeCount: Int from RuntimeInfrastructureRegistered.observedNodeCount
       runtimeManagementEndpointRef: String? from RuntimeInfrastructureRegistered.runtimeManagementEndpointRef
-      verificationSummary: String
+      verificationSummary: String?
+      failureReason: String?
+      remediationHint: String?
     }
 
     event RuntimeInfrastructureVerified {
@@ -1274,29 +1278,6 @@ context RuntimeOnboarding {
       observedNodeCount: Int
       runtimeManagementEndpointRef: String?
       verificationSummary: String
-    }
-
-    state Verified
-  }
-
-  slice FailRuntimeInfrastructureVerification {
-    actor PlatformAdmin
-    ui RuntimeInstallationPlanScreen
-    reactsTo RuntimeInfrastructureRegistered
-
-    automation FailInfrastructureVerificationWhenRegistered {
-      on RuntimeInfrastructureRegistered
-      condition runtimeInfrastructureVerificationPassed == false
-      emits FailRuntimeInfrastructureVerification
-    }
-
-    command FailRuntimeInfrastructureVerification {
-      runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
-      failedAt: DateTime
-      observedNodeCount: Int from RuntimeInfrastructureRegistered.observedNodeCount
-      runtimeManagementEndpointRef: String? from RuntimeInfrastructureRegistered.runtimeManagementEndpointRef
-      failureReason: String
-      remediationHint: String?
     }
 
     event RuntimeInfrastructureVerificationFailed {
@@ -1308,7 +1289,41 @@ context RuntimeOnboarding {
       remediationHint: String?
     }
 
-    state VerificationFailed
+    state Verified
+
+    specification "Runtime Infrastructure Verification Outcome" {
+      rule """
+        Runtime infrastructure verification runs once after the runtime infrastructure is registered. The verification processor checks the actual runtime environment according to infrastructureType and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.
+      """
+
+      scenario "Runtime Infrastructure Verification Passed" {
+        given RuntimeInfrastructureRegistered {
+          runtimeInfrastructureId = "runtime-infra-1"
+          observedNodeCount = 3
+        }
+        when VerifyRuntimeInfrastructure {
+          runtimeInfrastructureId = "runtime-infra-1"
+          verificationPassed = true
+          observedNodeCount = 3
+          verificationSummary = "K3S cluster is reachable and all expected nodes are ready."
+        }
+        then RuntimeInfrastructureVerified
+      }
+
+      scenario "Runtime Infrastructure Verification Failed" {
+        given RuntimeInfrastructureRegistered {
+          runtimeInfrastructureId = "runtime-infra-2"
+          observedNodeCount = 0
+        }
+        when VerifyRuntimeInfrastructure {
+          runtimeInfrastructureId = "runtime-infra-2"
+          verificationPassed = false
+          observedNodeCount = 0
+          failureReason = "Runtime infrastructure endpoint is unreachable."
+        }
+        then RuntimeInfrastructureVerificationFailed
+      }
+    }
   }
 
   slice RequestRuntimeAgentInstallation {
@@ -1492,6 +1507,7 @@ context RuntimeOnboarding {
   concept RuntimeInfrastructure {
     state Registered
     state Verified
+    state VerificationFailed
     state AgentInstallationRequested
     state AgentReady
     state Connected

@@ -772,6 +772,9 @@ const toCodegenDictionaryProvider = (provider: EmDictionaryProvider): CodegenDic
 
 const buildDependencies = (model: EmModel, elementsById: Map<string, EmElement>): Map<string, CodegenDependency[]> => {
   const dependenciesByElementId = new Map<string, CodegenDependency[]>();
+  const elements = [...elementsById.values()];
+  const findElementByKindAndName = (kind: EmElement['kind'], name: string): EmElement | undefined =>
+    elements.find((element) => element.kind === kind && element.name === name);
 
   for (const edge of model.edges) {
     const source = elementsById.get(edge.source);
@@ -790,6 +793,27 @@ const buildDependencies = (model: EmModel, elementsById: Map<string, EmElement>)
       direction: 'INBOUND',
       title: humanize(source.name),
       elementType: toElementType(source.kind)
+    });
+  }
+
+  for (const element of elementsById.values()) {
+    if (element.kind !== 'gwt') continue;
+    const metadata = element.metadata ?? {};
+    if (!metadata.when || !metadata.then) continue;
+    const command = findElementByKindAndName('command', metadata.when);
+    const event = findElementByKindAndName('event', metadata.then);
+    if (!command || !event) continue;
+    pushDependency(dependenciesByElementId, command.id, {
+      id: stableId(event.kind, event.id),
+      direction: 'OUTBOUND',
+      title: humanize(event.name),
+      elementType: toElementType(event.kind)
+    });
+    pushDependency(dependenciesByElementId, event.id, {
+      id: stableId(command.kind, command.id),
+      direction: 'INBOUND',
+      title: humanize(command.name),
+      elementType: toElementType(command.kind)
     });
   }
 
