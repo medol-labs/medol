@@ -1523,6 +1523,16 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             }
           },
           {
+            "$type": "Assignment",
+            "feature": "port",
+            "operator": "?=",
+            "terminal": {
+              "$type": "Keyword",
+              "value": "port"
+            },
+            "cardinality": "?"
+          },
+          {
             "$type": "Keyword",
             "value": "{"
           },
@@ -2964,6 +2974,10 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
           {
             "$type": "Keyword",
             "value": "order"
+          },
+          {
+            "$type": "Keyword",
+            "value": "port"
           },
           {
             "$type": "Keyword",

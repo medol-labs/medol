@@ -94,6 +94,7 @@ export type MedolKeywordNames =
     | "oneOf"
     | "order"
     | "policy"
+    | "port"
     | "projection"
     | "protocol"
     | "query"
@@ -269,13 +270,15 @@ export interface Command extends langium.AstNode {
     examples: Array<Example>;
     fields: Array<Field>;
     name: string;
+    port: boolean;
 }
 
 export const Command = {
     $type: 'Command',
     examples: 'examples',
     fields: 'fields',
-    name: 'name'
+    name: 'name',
+    port: 'port'
 } as const;
 
 export function isCommand(item: unknown): item is Command {
@@ -801,10 +804,10 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export type FieldName = 'active' | 'code' | 'domain' | 'event' | 'label' | 'missing' | 'order' | 'state' | 'value' | string;
+export type FieldName = 'active' | 'code' | 'domain' | 'event' | 'label' | 'missing' | 'order' | 'port' | 'state' | 'value' | string;
 
 export function isFieldName(item: unknown): item is FieldName {
-    return item === 'active' || item === 'code' || item === 'domain' || item === 'event' || item === 'label' || item === 'missing' || item === 'order' || item === 'state' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'active' || item === 'code' || item === 'domain' || item === 'event' || item === 'label' || item === 'missing' || item === 'order' || item === 'port' || item === 'state' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface FieldSource extends langium.AstNode {
@@ -1810,6 +1813,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 name: {
                     name: Command.name
+                },
+                port: {
+                    name: Command.port,
+                    defaultValue: false
                 }
             },
             superTypes: [IntegrationElement.$type, SliceElement.$type]

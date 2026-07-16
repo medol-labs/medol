@@ -1260,7 +1260,7 @@ context RuntimeOnboarding {
       emits VerifyRuntimeInfrastructure
     }
 
-    command VerifyRuntimeInfrastructure {
+    command VerifyRuntimeInfrastructure port {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
       verificationPassed: Boolean
       verifiedAt: DateTime?

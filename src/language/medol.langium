@@ -186,7 +186,7 @@ ReactsTo:
 ;
 
 Command:
-    'command' name=ID '{'
+    'command' name=ID port?='port'? '{'
         fields+=Field*
         examples+=Example*
     '}'
@@ -351,6 +351,7 @@ FieldName returns string:
     | 'label'
     | 'missing'
     | 'order'
+    | 'port'
     | 'state'
     | 'value'
 ;

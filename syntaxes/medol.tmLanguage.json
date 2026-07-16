@@ -11,7 +11,7 @@
     },
     {
       "name": "keyword.control.medol",
-      "match": "\\b(active|actor|assert|automation|background|cache|capabilities|code|command|concept|condition|config|confirm|context|decision|deployment|derived|detail|dialog|dictionary|dictionaryProvider|domain|drawer|emits|endpoint|enum|event|example|expression|external|false|field|form|format|from|generated|given|hotspot|id|import|includes|inline|integration|key|kind|label|length|list|lookup|matches|metric|missing|note|null|on|oneOf|order|policy|projection|protocol|query|range|reactsTo|readmodel|reject|risk|rule|scenario|slice|source|specification|startsLifecycle|state|steps|strategy|subscribe|tags|target|technical|then|true|type|ui|unique|userJourney|value|view|when|wizard)\\b"
+      "match": "\\b(active|actor|assert|automation|background|cache|capabilities|code|command|concept|condition|config|confirm|context|decision|deployment|derived|detail|dialog|dictionary|dictionaryProvider|domain|drawer|emits|endpoint|enum|event|example|expression|external|false|field|form|format|from|generated|given|hotspot|id|import|includes|inline|integration|key|kind|label|length|list|lookup|matches|metric|missing|note|null|on|oneOf|order|policy|port|projection|protocol|query|range|reactsTo|readmodel|reject|risk|rule|scenario|slice|source|specification|startsLifecycle|state|steps|strategy|subscribe|tags|target|technical|then|true|type|ui|unique|userJourney|value|view|when|wizard)\\b"
     },
     {
       "name": "string.quoted.double.medol",

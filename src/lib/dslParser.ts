@@ -684,6 +684,7 @@ const parseElement = (
     name: safeName(node.name, 'UnnamedElement'),
     fields: parseElementFields(node),
     ...withSourceRange(node),
+    ...(isCommand(node) && node.port ? { port: true } : {}),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),

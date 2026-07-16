@@ -55,6 +55,7 @@ interface ConfigElement {
     elementType: string;
   }>;
   createsAggregate?: boolean;
+  port?: boolean;
   ui?: CodegenUi;
   dictionaryProvider?: CodegenElement['dictionaryProvider'];
   triggers?: [];
@@ -228,6 +229,7 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   ...(element.aggregate ? { aggregateDependencies: [element.aggregate.title] } : {}),
   dependencies: element.dependencies.map(toConfigDependency),
   createsAggregate: element.startsLifecycle ?? false,
+  ...(element.type === 'COMMAND' && element.port ? { port: true } : {}),
   ...(element.ui ? { ui: element.ui } : {}),
   ...(element.dictionaryProvider ? { dictionaryProvider: element.dictionaryProvider } : {}),
   triggers: [],

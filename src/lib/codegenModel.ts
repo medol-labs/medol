@@ -165,6 +165,7 @@ export interface CodegenElement {
   fields: CodegenField[];
   dependencies: CodegenDependency[];
   startsLifecycle?: boolean;
+  port?: boolean;
   listElement?: boolean;
   ui?: CodegenUi;
   dictionaryProvider?: CodegenDictionaryProvider;
@@ -635,6 +636,7 @@ const toCodegenElement = (
   fields: element.fields.map(toCodegenField),
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   ...(startsLifecycle ? { startsLifecycle } : {}),
+  ...(type === 'COMMAND' && element.port ? { port: true } : {}),
   ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {}),
   ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {})

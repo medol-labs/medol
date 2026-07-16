@@ -38,6 +38,7 @@ interface ConfigElement {
   title?: string;
   aggregate?: string;
   createsAggregate?: boolean;
+  port?: boolean;
   listElement?: boolean;
   fields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
@@ -457,7 +458,8 @@ const pad = (indent: number): string => ' '.repeat(indent);
 const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel', element: ConfigElement, indent: number, extraLines: string[] = []): void => {
   const pad = ' '.repeat(indent);
   const listMarker = kind === 'readmodel' && element.listElement ? '[]' : '';
-  lines.push(`${pad}${kind} ${toDslId(element.title, kind)}${listMarker} {`);
+  const portMarker = kind === 'command' && element.port ? ' port' : '';
+  lines.push(`${pad}${kind} ${toDslId(element.title, kind)}${portMarker}${listMarker} {`);
   if (kind === 'readmodel' && element.dictionaryProvider) {
     appendDictionaryProvider(lines, element.dictionaryProvider, indent + 2);
   }
