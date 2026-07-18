@@ -97,6 +97,7 @@ interface ConfigSlice {
   stateChange?: ConfigStateChange;
   aggregates?: Array<{ name?: string; title?: string }>;
   tags?: Array<{ name?: string; expression?: string }>;
+  port?: boolean;
   concepts?: string[];
 }
 
@@ -288,6 +289,9 @@ const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void 
   if (slice.commands?.some((command) => command.createsAggregate)) {
     lines.push(`${pad(elementIndent)}startsLifecycle`);
   }
+  if (slice.port || slice.commands?.some((command) => command.port)) {
+    lines.push(`${pad(elementIndent)}port`);
+  }
   const screen = slice.screens?.[0];
   if (screen?.title) lines.push(...formatUi(screen, elementIndent));
 
@@ -458,8 +462,7 @@ const pad = (indent: number): string => ' '.repeat(indent);
 const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel', element: ConfigElement, indent: number, extraLines: string[] = []): void => {
   const pad = ' '.repeat(indent);
   const listMarker = kind === 'readmodel' && element.listElement ? '[]' : '';
-  const portMarker = kind === 'command' && element.port ? ' port' : '';
-  lines.push(`${pad}${kind} ${toDslId(element.title, kind)}${portMarker}${listMarker} {`);
+  lines.push(`${pad}${kind} ${toDslId(element.title, kind)}${listMarker} {`);
   if (kind === 'readmodel' && element.dictionaryProvider) {
     appendDictionaryProvider(lines, element.dictionaryProvider, indent + 2);
   }

@@ -27,6 +27,7 @@ import {
   isNote,
   isNullLiteral,
   isNumberLiteral,
+  isPortMarker,
   isReadModel,
   isReactsTo,
   isRefExpr,
@@ -503,6 +504,7 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[]): EmSlice =
     name: sliceName,
     ...withSourceRange(node),
     startsLifecycle: elements.some(isStartsLifecycleMarker),
+    port: elements.some(isPortMarker),
     resultingState: elements.find(isState)?.name,
     tags: tags.map((tag) => ({
       name: tag.name,
@@ -684,7 +686,6 @@ const parseElement = (
     name: safeName(node.name, 'UnnamedElement'),
     fields: parseElementFields(node),
     ...withSourceRange(node),
-    ...(isCommand(node) && node.port ? { port: true } : {}),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),

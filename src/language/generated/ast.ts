@@ -270,15 +270,13 @@ export interface Command extends langium.AstNode {
     examples: Array<Example>;
     fields: Array<Field>;
     name: string;
-    port: boolean;
 }
 
 export const Command = {
     $type: 'Command',
     examples: 'examples',
     fields: 'fields',
-    name: 'name',
-    port: 'port'
+    name: 'name'
 } as const;
 
 export function isCommand(item: unknown): item is Command {
@@ -1002,6 +1000,21 @@ export function isNumberLiteral(item: unknown): item is NumberLiteral {
     return reflection.isInstance(item, NumberLiteral.$type);
 }
 
+export interface PortMarker extends langium.AstNode {
+    readonly $container: Slice;
+    readonly $type: 'PortMarker';
+    port: boolean;
+}
+
+export const PortMarker = {
+    $type: 'PortMarker',
+    port: 'port'
+} as const;
+
+export function isPortMarker(item: unknown): item is PortMarker {
+    return reflection.isInstance(item, PortMarker.$type);
+}
+
 export type PrimaryExpr = Literal | RefExpr;
 
 export const PrimaryExpr = {
@@ -1132,7 +1145,7 @@ export function isSlice(item: unknown): item is Slice {
     return reflection.isInstance(item, Slice.$type);
 }
 
-export type SliceElement = ActorRef | Automation | Command | Event | Hotspot | ReactsTo | ReadModel | SliceTags | Specification | StartsLifecycleMarker | State | UiRef;
+export type SliceElement = ActorRef | Automation | Command | Event | Hotspot | PortMarker | ReactsTo | ReadModel | SliceTags | Specification | StartsLifecycleMarker | State | UiRef;
 
 export const SliceElement = {
     $type: 'SliceElement'
@@ -1668,6 +1681,7 @@ export type MedolAstType = {
     Note: Note
     NullLiteral: NullLiteral
     NumberLiteral: NumberLiteral
+    PortMarker: PortMarker
     PrimaryExpr: PrimaryExpr
     ReactsTo: ReactsTo
     ReadModel: ReadModel
@@ -1813,10 +1827,6 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 name: {
                     name: Command.name
-                },
-                port: {
-                    name: Command.port,
-                    defaultValue: false
                 }
             },
             superTypes: [IntegrationElement.$type, SliceElement.$type]
@@ -2321,6 +2331,16 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [Literal.$type]
+        },
+        PortMarker: {
+            name: PortMarker.$type,
+            properties: {
+                port: {
+                    name: PortMarker.port,
+                    defaultValue: false
+                }
+            },
+            superTypes: [SliceElement.$type]
         },
         PrimaryExpr: {
             name: PrimaryExpr.$type,

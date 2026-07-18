@@ -131,6 +131,7 @@ export interface CodegenSlice {
   context: string;
   aggregate?: CodegenAggregateRef;
   tags: CodegenSliceTag[];
+  port?: boolean;
   concepts: string[];
   commands: CodegenElement[];
   events: CodegenElement[];
@@ -592,6 +593,7 @@ const toCodegenSlice = (
     context,
     ...(aggregate ? { aggregate } : {}),
     tags: slice.tags,
+    ...(slice.port ? { port: true } : {}),
     concepts,
     commands: commands.map((element, commandIndex) =>
       toCodegenElement(
@@ -602,7 +604,8 @@ const toCodegenSlice = (
         slice.name,
         dependenciesByElementId,
         slice.startsLifecycle && commandIndex === 0,
-        screens[0]?.ui
+        screens[0]?.ui,
+        slice.port
       )
     ),
     events: events.map((element) => toCodegenElement(element, 'EVENT', aggregate, context, slice.name, dependenciesByElementId)),
@@ -624,7 +627,8 @@ const toCodegenElement = (
   sliceName: string,
   dependenciesByElementId: Map<string, CodegenDependency[]>,
   startsLifecycle = false,
-  ui?: CodegenUi
+  ui?: CodegenUi,
+  port = false
 ): CodegenElement => ({
   id: stableId(element.kind, element.id),
   name: element.name,
@@ -636,7 +640,7 @@ const toCodegenElement = (
   fields: element.fields.map(toCodegenField),
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   ...(startsLifecycle ? { startsLifecycle } : {}),
-  ...(type === 'COMMAND' && element.port ? { port: true } : {}),
+  ...(type === 'COMMAND' && port ? { port: true } : {}),
   ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {}),
   ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {})

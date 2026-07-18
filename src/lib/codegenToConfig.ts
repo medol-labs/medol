@@ -117,6 +117,7 @@ interface ConfigSlice {
   context: string;
   sliceType: 'STATE_CHANGE';
   tags: Array<{ name: string; expression?: string }>;
+  port?: boolean;
   concepts: string[];
   commands: ConfigElement[];
   events: ConfigElement[];
@@ -198,6 +199,7 @@ const toConfigSlice = (slice: CodegenSlice): ConfigSlice => ({
   context: slice.context,
   sliceType: 'STATE_CHANGE',
   tags: slice.tags,
+  ...(slice.port || slice.commands.some((command) => command.port) ? { port: true } : {}),
   concepts: slice.concepts,
   commands: slice.commands.map(toConfigElement),
   events: slice.events.map(toConfigElement),

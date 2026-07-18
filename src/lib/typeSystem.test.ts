@@ -79,11 +79,12 @@ test('parses optional list fields and preserves codegen cardinality', () => {
   assert.match(roundTripDsl, /shape: Int\[\]\?/);
 });
 
-test('parses command port marker and preserves it for code generation', () => {
+test('parses slice port marker and preserves it for code generation', () => {
   const model = parseMedol(`
     context Runtime {
       slice VerifyRuntimeInfrastructure {
-        command VerifyRuntimeInfrastructure port {
+        port
+        command VerifyRuntimeInfrastructure {
           runtimeInfrastructureId: UUID id technical
           port: Int
         }
@@ -95,25 +96,27 @@ test('parses command port marker and preserves it for code generation', () => {
   `);
 
   assert.deepEqual(model.diagnostics, []);
+  const slice = model.contexts[0].slices[0];
+  assert.equal(slice.port, true);
   const command = model.contexts[0].slices[0].elements.find((element) => element.kind === 'command');
-  assert.equal(command?.port, true);
   assert.equal(command?.fields.find((field) => field.name === 'port')?.type, 'Int');
 
   const codegen = modelToCodegenModel(model);
+  assert.equal(codegen.slices[0].port, true);
   assert.equal(codegen.slices[0].commands[0].port, true);
 
   const roundTripDsl = configToDsl({
     context: 'Runtime',
     slices: [{
       title: 'VerifyRuntimeInfrastructure',
+      port: true,
       commands: [{
         title: 'VerifyRuntimeInfrastructure',
-        port: true,
         fields: []
       }]
     }]
   });
-  assert.match(roundTripDsl, /command VerifyRuntimeInfrastructure port \{/);
+  assert.match(roundTripDsl, /slice VerifyRuntimeInfrastructure \{\n\s+port\n\s+command VerifyRuntimeInfrastructure \{/);
 });
 
 test('uses concept lifecycle states as qualified enum field types', () => {

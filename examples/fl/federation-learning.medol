@@ -893,7 +893,6 @@ context RuntimeOnboarding {
     capabilities {
       command RequestDatasetAccess
       event DatasetAccessValidated
-      event RuntimeAgentReadyReported
     }
   }
 
@@ -994,7 +993,7 @@ context RuntimeOnboarding {
       infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
       runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
       installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       architecture: String
       expectedNodeCount: Int
@@ -1009,7 +1008,7 @@ context RuntimeOnboarding {
       infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
       runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
       installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       architecture: String
       expectedNodeCount: Int
@@ -1042,7 +1041,7 @@ context RuntimeOnboarding {
       installProfile: String dictionary "RUNTIME_INSTALL_PROFILE" from RuntimeInstallationPlanCreated.installProfile
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE" from RuntimeInstallationPlanCreated.runtimeEnvironmentType
       runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION" from RuntimeInstallationPlanCreated.runtimeEnvironmentVersion
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" from RuntimeInstallationPlanCreated.agentInstallMode
+      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE" from RuntimeInstallationPlanCreated.agentDeploymentMode
       expectedNodeCount: Int from RuntimeInstallationPlanCreated.expectedNodeCount
       architecture: String from RuntimeInstallationPlanCreated.architecture
       runtimeLabels: String[]? from RuntimeInstallationPlanCreated.runtimeLabels
@@ -1065,7 +1064,7 @@ context RuntimeOnboarding {
       installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
       runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
       expectedNodeCount: Int
       architecture: String
       runtimeLabels: String[]?
@@ -1093,7 +1092,7 @@ context RuntimeOnboarding {
       infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
       runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
       installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
       architecture: String
       expectedNodeCount: Int
@@ -1110,8 +1109,9 @@ context RuntimeOnboarding {
       verifiedAt: DateTime?
       verificationFailedAt: DateTime?
       verificationFailureReason: String?
-      agentInstallationRequestedAt: DateTime?
       agentReadyAt: DateTime?
+      agentDeploymentFailedAt: DateTime?
+      agentDeploymentFailureReason: String?
       lastConnectedAt: DateTime?
       subscribe OrganizationRegistered
       subscribe OrganizationNetworkProfileConfigured
@@ -1120,8 +1120,8 @@ context RuntimeOnboarding {
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
-      subscribe RuntimeAgentInstallationRequested
       subscribe RuntimeAgentReady
+      subscribe DeployRuntimeAgentFailed
       subscribe RuntimeInfrastructureConnected
     }
   }
@@ -1188,8 +1188,8 @@ context RuntimeOnboarding {
         from RuntimeInstallationPlanCreated.runtimeEnvironmentVersion
         rule "Lookup by runtimeInstallationPlanId and display the planned runtime environment version."
       }
-      agentInstallMode: String? dictionary "RUNTIME_AGENT_INSTALL_MODE" derived {
-        from RuntimeInstallationPlanCreated.agentInstallMode
+      agentDeploymentMode: String? dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE" derived {
+        from RuntimeInstallationPlanCreated.agentDeploymentMode
         rule "Lookup by runtimeInstallationPlanId and display how the platform should request runtime agent installation."
       }
       installProfile: String? dictionary "RUNTIME_INSTALL_PROFILE" derived {
@@ -1254,13 +1254,14 @@ context RuntimeOnboarding {
     actor PlatformAdmin
     ui RuntimeInstallationPlanScreen
     reactsTo RuntimeInfrastructureRegistered
+    port
 
     automation VerifyInfrastructureWhenRegistered {
       on RuntimeInfrastructureRegistered
       emits VerifyRuntimeInfrastructure
     }
 
-    command VerifyRuntimeInfrastructure port {
+    command VerifyRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
       verificationPassed: Boolean
       verifiedAt: DateTime?
@@ -1326,21 +1327,22 @@ context RuntimeOnboarding {
     }
   }
 
-  slice RequestRuntimeAgentInstallation {
+  slice DeployRuntimeAgent {
     actor PlatformAdmin
     ui RuntimeInstallationPlanScreen
     reactsTo RuntimeInfrastructureVerified
+    port
 
-    automation RequestRuntimeAgentInstallationWhenInfrastructureVerified {
+    automation DeployRuntimeAgentWhenInfrastructureVerified {
       on RuntimeInfrastructureVerified
-      emits RequestRuntimeAgentInstallation
+      emits DeployRuntimeAgent
     }
 
-    command RequestRuntimeAgentInstallation {
-      runtimeAgentInstallationRequestId: UUID id generated technical
-      runtimeInfrastructureId: UUID from RuntimeInfrastructureVerified.runtimeInfrastructureId
+    command DeployRuntimeAgent {
+      runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureVerified.runtimeInfrastructureId
+      runtimeAgentDeploymentRequestId: UUID generated technical
       runtimeAgentId: UUID generated technical
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
       agentArtifactRef: String
       installTargetRef: String
       installInstanceName: String
@@ -1348,47 +1350,55 @@ context RuntimeOnboarding {
       runtimePrincipalRef: String?
       configEndpoint: String
       requestedAt: DateTime
-    }
-
-    event RuntimeAgentInstallationRequested {
-      runtimeAgentInstallationRequestId: UUID id technical
-      runtimeInfrastructureId: UUID
-      runtimeAgentId: UUID
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
-      agentArtifactRef: String
-      installTargetRef: String
-      installInstanceName: String
-      runtimeAccessCredentialRef: String?
-      runtimePrincipalRef: String?
-      configEndpoint: String
-      requestedAt: DateTime
-    }
-
-    state AgentInstallationRequested
-  }
-
-  slice MarkRuntimeAgentReady {
-    reactsTo RuntimeAgentReadyReported
-
-    command MarkRuntimeAgentReady {
-      runtimeAgentId: UUID id technical from RuntimeAgentReadyReported.runtimeAgentId
-      runtimeInfrastructureId: UUID from RuntimeAgentReadyReported.runtimeInfrastructureId
-      agentVersion: String from RuntimeAgentReadyReported.agentVersion
-      startedAt: DateTime from RuntimeAgentReadyReported.startedAt
-      readyAt: DateTime from RuntimeAgentReadyReported.readyAt
-      selfCheckSummary: String from RuntimeAgentReadyReported.selfCheckSummary
     }
 
     event RuntimeAgentReady {
-      runtimeAgentId: UUID id technical
-      runtimeInfrastructureId: UUID
+      runtimeInfrastructureId: UUID id technical
+      runtimeAgentId: UUID
       agentVersion: String
       startedAt: DateTime
       readyAt: DateTime
       selfCheckSummary: String
     }
 
+    event DeployRuntimeAgentFailed {
+      runtimeInfrastructureId: UUID id technical
+      runtimeAgentDeploymentRequestId: UUID
+      runtimeAgentId: UUID?
+      failedAt: DateTime
+      failureReason: String
+      remediationHint: String?
+    }
+
     state AgentReady
+
+    specification "Runtime Agent Deployment Outcome" {
+      rule """
+        Runtime agent deployment runs after the runtime infrastructure is verified. The deployment service deploys the agent workload to the target infrastructure and records exactly one outcome: RuntimeAgentReady when the agent starts and passes its readiness checks, or DeployRuntimeAgentFailed when deployment or readiness fails.
+      """
+
+      scenario "Runtime Agent Deployment Succeeded" {
+        given RuntimeInfrastructureVerified {
+          runtimeInfrastructureId = "runtime-infra-1"
+        }
+        when DeployRuntimeAgent {
+          runtimeInfrastructureId = "runtime-infra-1"
+          installInstanceName = "runtime-agent"
+        }
+        then RuntimeAgentReady
+      }
+
+      scenario "Runtime Agent Deployment Failed" {
+        given RuntimeInfrastructureVerified {
+          runtimeInfrastructureId = "runtime-infra-2"
+        }
+        when DeployRuntimeAgent {
+          runtimeInfrastructureId = "runtime-infra-2"
+          installInstanceName = "runtime-agent"
+        }
+        then DeployRuntimeAgentFailed
+      }
+    }
   }
 
   slice ReportRuntimeInfrastructureConnected {
@@ -1458,7 +1468,7 @@ context RuntimeOnboarding {
       registryEndpoint: String
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
       runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
       infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
       expectedNodeCount: Int
       observedNodeCount: Int?
@@ -1470,8 +1480,9 @@ context RuntimeOnboarding {
       infrastructureVerifiedAt: DateTime?
       infrastructureVerificationFailedAt: DateTime?
       infrastructureVerificationFailureReason: String?
-      agentInstallationRequestedAt: DateTime?
       agentReadyAt: DateTime?
+      agentDeploymentFailedAt: DateTime?
+      agentDeploymentFailureReason: String?
       connectedAt: DateTime?
       state: RuntimeInfrastructure.State
       subscribe OrganizationRegistered
@@ -1480,8 +1491,8 @@ context RuntimeOnboarding {
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
-      subscribe RuntimeAgentInstallationRequested
       subscribe RuntimeAgentReady
+      subscribe DeployRuntimeAgentFailed
       subscribe RuntimeInfrastructureConnected
       subscribe RuntimeInfrastructureAccessRevoked
     }
@@ -1508,15 +1519,14 @@ context RuntimeOnboarding {
     state Registered
     state Verified
     state VerificationFailed
-    state AgentInstallationRequested
     state AgentReady
+    state RuntimeAgentFailed
     state Connected
     state Revoked
 
     slice RegisterRuntimeInfrastructure
     slice VerifyRuntimeInfrastructure
-    slice RequestRuntimeAgentInstallation
-    slice MarkRuntimeAgentReady
+    slice DeployRuntimeAgent
     slice ReportRuntimeInfrastructureConnected
     slice RevokeRuntimeInfrastructureAccess
     slice RuntimeInfrastructureAccessView
@@ -5713,13 +5723,6 @@ context KeyAndAttestationManagement {
       target RuntimeOnboarding
       reactsTo AgentRuntimeInfrastructureConnectionReported
       emits ReportRuntimeInfrastructureConnected
-    }
-
-    integration PlatformRuntimeAgentReadyReporting {
-      source RuntimeAgentLifecycle
-      target RuntimeOnboarding
-      reactsTo RuntimeAgentReadyReported
-      emits MarkRuntimeAgentReady
     }
 
     integration PlatformRuntimeNodeInventoryReporting {

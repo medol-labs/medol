@@ -107,6 +107,7 @@ Slice:
 SliceElement:
       ActorRef
     | StartsLifecycleMarker
+    | PortMarker
     | SliceTags
     | UiRef
     | ReactsTo
@@ -165,6 +166,10 @@ StartsLifecycleMarker:
     startsLifecycle?='startsLifecycle'
 ;
 
+PortMarker:
+    port?='port'
+;
+
 UiRef:
     'ui' view=ID type=UiType?
 ;
@@ -186,7 +191,7 @@ ReactsTo:
 ;
 
 Command:
-    'command' name=ID port?='port'? '{'
+    'command' name=ID '{'
         fields+=Field*
         examples+=Example*
     '}'

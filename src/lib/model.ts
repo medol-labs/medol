@@ -43,7 +43,6 @@ export interface EmElement {
   kind: EmElementKind;
   name: string;
   fields: EmField[];
-  port?: boolean;
   listElement?: boolean;
   sliceId?: string;
   aggregateId?: string;
@@ -84,6 +83,7 @@ export interface EmSlice {
   aggregateId?: string;
   sourceRange?: MedolSourceRange;
   startsLifecycle?: boolean;
+  port?: boolean;
   resultingState?: string;
   tags: EmSliceTag[];
   hotspots: string[];

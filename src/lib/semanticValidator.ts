@@ -5,6 +5,7 @@ import {
   isEnumType,
   isNumberLiteral,
   isNullLiteral,
+  isPortMarker,
   isSlice,
   isSliceTags,
   isStartsLifecycleMarker,
@@ -456,10 +457,12 @@ const validateAstSlice = (
   const stateCount = (astSlice.elements ?? []).filter(isState).length;
   const tagBlockCount = (astSlice.elements ?? []).filter(isSliceTags).length;
   const lifecycleMarkerCount = (astSlice.elements ?? []).filter(isStartsLifecycleMarker).length;
+  const portMarkerCount = (astSlice.elements ?? []).filter(isPortMarker).length;
   const commandCount = (astSlice.elements ?? []).filter(isCommand).length;
   if (stateCount > 1) diagnostics.push(`Slice ${sliceName}: declares more than one resulting state.`);
   if (tagBlockCount > 1) diagnostics.push(`Slice ${sliceName}: declares more than one tags block.`);
   if (lifecycleMarkerCount > 1) diagnostics.push(`Slice ${sliceName}: declares startsLifecycle more than once.`);
+  if (portMarkerCount > 1) diagnostics.push(`Slice ${sliceName}: declares port more than once.`);
   if (commandCount > 1) diagnostics.push(`Slice ${sliceName}: declares more than one command.`);
   if (lifecycleMarkerCount > 0 && commandCount === 0) {
     diagnostics.push(`Slice ${sliceName}: startsLifecycle requires a command.`);
