@@ -185,26 +185,8 @@ context OrganizationManagement {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        lookup key organizationId
-        source event OrganizationRegistered
-        source field organizationName
-        target field organizationName
-        cache projection OrganizationDirectory
-        missing policy keep
-        rule "Lookup by organizationId and denormalize the organization display name into the compute node catalog."
-      }
-      infrastructureName: String? derived {
-        from RuntimeBootstrapConfigIssued.infrastructureName
-        lookup key runtimeInfrastructureId
-        source event RuntimeBootstrapConfigIssued
-        source field infrastructureName
-        target field infrastructureName
-        cache projection RuntimeInfrastructureCatalog
-        missing policy keep
-        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the compute node catalog."
-      }
+      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
+      runtimeName: String? derived from RuntimeInfrastructureCatalog.runtimeName by runtimeInfrastructureId
       orchestratorNodeName: String?
       availabilityStatus: String
       disabledReason: String?
@@ -212,7 +194,7 @@ context OrganizationManagement {
       lastDisabledAt: DateTime?
       lastEnabledAt: DateTime?
       subscribe OrganizationRegistered
-      subscribe RuntimeBootstrapConfigIssued
+      subscribe RuntimeInstallationPlanCreated
       subscribe RuntimeInfrastructureRegistered
       subscribe ComputeNodeRegistered
       subscribe ComputeNodeDisabled
@@ -445,26 +427,8 @@ context FederationManagement {
     readmodel FederationMembershipDirectory[] {
       federationId: UUID id
       organizationId: UUID id
-      federationName: String? derived {
-        from FederationCreated.federationName
-        lookup key federationId
-        source event FederationCreated
-        source field federationName
-        target field federationName
-        cache projection FederationOverview
-        missing policy keep
-        rule "Lookup by federationId and denormalize the federation display name into the membership directory."
-      }
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        lookup key organizationId
-        source event OrganizationRegistered
-        source field organizationName
-        target field organizationName
-        cache projection OrganizationDirectory
-        missing policy keep
-        rule "Lookup by organizationId and denormalize the organization display name into the membership directory."
-      }
+      federationName: String? derived from FederationOverview.federationName by federationId
+      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
       membershipStatus: String
       invitationNote: String?
       approvalNote: String?
@@ -879,9 +843,10 @@ context DictionaryMaintenance {
 }
 
 context RuntimeOnboarding {
-  note "Runtime onboarding owns organization-specific network endpoints, bootstrap configuration, runtime environment connection, and access revocation. K3s, Kubernetes, Docker Compose, and host process runtimes are installation targets, not separate domain concepts."
+  note "Runtime onboarding owns runtime installation planning, bootstrap configuration, runtime environment registration, agent installation, readiness, connection reporting, and access revocation. K3s, Kubernetes, Docker Compose, and host process runtimes are installation targets, not separate domain concepts."
+  note "Runtime bootstrap and agent installation material is support configuration, not domain state: the platform backend adapter reads platform.runtime.bootstrap.publicBaseAddress, platform.runtime.agent.platformApiBaseAddress, platform.runtime.agent.controlApiBaseAddress, platform.runtime.agent.containerRegistry, platform.runtime.agent.trustBundleSecretName, and platform.runtime.agent.accessGrantSecretPrefix from deployment config or a secret store. Commands, events, and read models keep only runtimeInstallationPlanId, runtimeInfrastructurePackageId, and generated access grant IDs."
 
-  risk "Organizations can receive wrong platform endpoints and fail to connect runtime infrastructure."
+  risk "Organizations can receive wrong runtime installation guidance and fail to connect runtime infrastructure."
   risk "Leaked bootstrap tokens can allow unauthorized infrastructure to join the platform."
   metric runtimeBootstrapSuccessRate
   metric runtimeInfrastructureConnectionLatency
@@ -889,217 +854,119 @@ context RuntimeOnboarding {
   external RuntimeAgent {
     kind runtime-agent
     protocol http
-    endpoint config "RUNTIME_AGENT_URL"
     capabilities {
       command RequestDatasetAccess
       event DatasetAccessValidated
     }
   }
 
-  slice ConfigureOrganizationNetworkProfile {
+  slice RegisterRuntimeInfrastructurePackage {
     startsLifecycle
 
     actor PlatformAdmin
-    ui OrganizationNetworkProfileScreen
-    reactsTo OrganizationActivated
+    ui RuntimeInfrastructurePackageCatalogScreen
 
     tags {
-      organizationId
-      profileName = normalize(profileName)
+      packageName = normalize(packageName)
+      packageVersion
     }
 
-    command ConfigureOrganizationNetworkProfile {
-      networkProfileId: UUID id generated technical
-      organizationId: UUID
-      profileName: String
-      connectivityMode: String dictionary "RUNTIME_CONNECTIVITY_MODE"
-      platformApiEndpoint: String
-      runtimeControlEndpoint: String
-      registryEndpoint: String
-      artifactStoreEndpoint: String?
-      caBundleRef: String?
-      organizationRuntimeIngressIp: String?
-      runtimeJoinEndpoint: String?
-      
-      tlsSanNames: String[]?
+    command RegisterRuntimeInfrastructurePackage {
+      runtimeInfrastructurePackageId: UUID id generated technical
+      packageName: String
+      packageVersion: String
+      // 安装包支持的 runtime 环境类型；真实包地址、签名、secret 由平台包服务按 packageId 解析。
+      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      // 安装包对应的 runtime agent 部署方式；真实 adapter 配置不进入建模。
+      runtimeDeploymentTargetType: String dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE"
+      // 安装规格档位，和安装包一起维护，创建计划时不再人工重复填写。
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
+      architecture: String
+      // 面向 RuntimeInstaller 的安装向导内容或模板，由平台维护并在 RuntimeInstallationGuide 中展示。
+      installGuide: String
     }
 
-    event OrganizationNetworkProfileConfigured {
-      networkProfileId: UUID id technical
-      organizationId: UUID
-      profileName: String
-      connectivityMode: String dictionary "RUNTIME_CONNECTIVITY_MODE"
-      platformApiEndpoint: String
-      runtimeControlEndpoint: String
-      registryEndpoint: String
-      artifactStoreEndpoint: String?
-      caBundleRef: String?
-      organizationRuntimeIngressIp: String?
-      runtimeJoinEndpoint: String?
-      
-      tlsSanNames: String[]?
+    event RuntimeInfrastructurePackageRegistered {
+      runtimeInfrastructurePackageId: UUID id technical
+      packageName: String
+      packageVersion: String
+      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeDeploymentTargetType: String dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE"
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
+      architecture: String
+      installGuide: String
     }
 
-    state Configured
+    state Registered
   }
 
-  slice OrganizationNetworkProfileCatalog {
-    readmodel OrganizationNetworkProfileCatalog[] {
-      networkProfileId: UUID id
-      organizationId: UUID
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        lookup key organizationId
-        source event OrganizationRegistered
-        source field organizationName
-        target field organizationName
-        cache projection OrganizationDirectory
-        missing policy keep
-        rule "Lookup by organizationId and denormalize the organization display name into the network profile catalog."
-      }
-      profileName: String
-      connectivityMode: String dictionary "RUNTIME_CONNECTIVITY_MODE"
-      platformApiEndpoint: String
-      runtimeControlEndpoint: String
-      registryEndpoint: String
-      artifactStoreEndpoint: String?
-      caBundleRef: String?
-      organizationRuntimeIngressIp: String?
-      runtimeJoinEndpoint: String?
-      
-      tlsSanNames: String[]?
-      state: OrganizationNetworkProfile.State
-      subscribe OrganizationRegistered
-      subscribe OrganizationNetworkProfileConfigured
+  slice RuntimeInfrastructurePackageCatalog {
+    readmodel RuntimeInfrastructurePackageCatalog[] {
+      runtimeInfrastructurePackageId: UUID id
+      packageName: String
+      packageVersion: String
+      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeDeploymentTargetType: String dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE"
+      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
+      architecture: String
+      installGuide: String
+      state: RuntimeInfrastructurePackage.State
+      subscribe RuntimeInfrastructurePackageRegistered
     }
   }
 
+  // Runtime installation plan describes how an organization runtime will be onboarded.
+  // PlatformAdmin selects a platform-maintained infrastructure package; RuntimeInstaller follows the generated guide to prepare K3s, Docker Compose, or local runtime.
+  // After infrastructure registration and verification, the platform requests runtime agent installation according to this plan.
   slice CreateRuntimeInstallationPlan {
     startsLifecycle
 
     actor PlatformAdmin
     ui RuntimeInstallationPlanScreen
-    reactsTo OrganizationNetworkProfileConfigured
+    reactsTo OrganizationActivated
 
     tags {
-      networkProfileId
+      organizationId
     }
 
     command CreateRuntimeInstallationPlan {
       runtimeInstallationPlanId: UUID id generated technical
       organizationId: UUID
-      networkProfileId: UUID
-      infrastructureName: String
-      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
-      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
-      runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
-      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
-      architecture: String
+      runtimeInfrastructurePackageId: UUID
+      runtimeName: String
+      // agent 安装责任模式，表达是平台自动请求安装，还是仅生成指引由人工执行。
+      // 例：PLATFORM_MANAGED、MANUAL_GUIDED。
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       expectedNodeCount: Int
-      runtimeLabels: String[]?
     }
 
     event RuntimeInstallationPlanCreated {
       runtimeInstallationPlanId: UUID id technical
+      runtimeInfrastructureId: UUID generated technical
       organizationId: UUID
-      networkProfileId: UUID
-      infrastructureName: String
-      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
-      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
-      runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
-      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
-      architecture: String
+      runtimeInfrastructurePackageId: UUID
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       expectedNodeCount: Int
-      runtimeLabels: String[]?
     }
 
     state Planned
-  }
-
-  slice IssueRuntimeBootstrapConfig {
-    reactsTo RuntimeInstallationPlanCreated
-
-    automation IssueConfigWhenRuntimeInstallationPlanCreated {
-      on RuntimeInstallationPlanCreated
-      emits IssueRuntimeBootstrapConfig
-    }
-
-    command IssueRuntimeBootstrapConfig {
-      runtimeInstallationPlanId: UUID id technical from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
-      organizationId: UUID from RuntimeInstallationPlanCreated.organizationId
-      networkProfileId: UUID from RuntimeInstallationPlanCreated.networkProfileId
-      runtimeInfrastructureId: UUID generated technical
-      infrastructureName: String from RuntimeInstallationPlanCreated.infrastructureName
-      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE" from RuntimeInstallationPlanCreated.infrastructureType
-      platformApiEndpoint: String
-      runtimeControlEndpoint: String
-      registryEndpoint: String
-      artifactStoreEndpoint: String?
-      caBundleRef: String
-      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE" from RuntimeInstallationPlanCreated.installProfile
-      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE" from RuntimeInstallationPlanCreated.runtimeEnvironmentType
-      runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION" from RuntimeInstallationPlanCreated.runtimeEnvironmentVersion
-      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE" from RuntimeInstallationPlanCreated.agentDeploymentMode
-      expectedNodeCount: Int from RuntimeInstallationPlanCreated.expectedNodeCount
-      architecture: String from RuntimeInstallationPlanCreated.architecture
-      runtimeLabels: String[]? from RuntimeInstallationPlanCreated.runtimeLabels
-      runtimePackageRef: String
-      runtimeJoinCredentialRef: String?
-    }
-
-    event RuntimeBootstrapConfigIssued {
-      runtimeInstallationPlanId: UUID id technical
-      organizationId: UUID
-      runtimeInfrastructureId: UUID
-      networkProfileId: UUID
-      infrastructureName: String
-      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
-      platformApiEndpoint: String
-      runtimeControlEndpoint: String
-      registryEndpoint: String
-      artifactStoreEndpoint: String?
-      caBundleRef: String
-      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
-      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
-      runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
-      expectedNodeCount: Int
-      architecture: String
-      runtimeLabels: String[]?
-      runtimePackageRef: String
-      runtimeJoinCredentialRef: String?
-    }
-
-    state ConfigIssued
   }
 
   slice RuntimeInstallationPlanCatalog {
     readmodel RuntimeInstallationPlanCatalog[] {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
-      networkProfileId: UUID
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the runtime installation plan catalog."
       }
-      networkProfileName: String? derived {
-        from OrganizationNetworkProfileConfigured.profileName
-        rule "Lookup by networkProfileId and denormalize the network profile display name into the runtime installation plan catalog."
-      }
-      infrastructureName: String
-      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
-      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
-      runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
-      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
-      architecture: String
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       expectedNodeCount: Int
-      expectedGpuNodeCount: Int?
-      expectedCpuCoreCount: Int?
-      expectedMemoryGb: Int?
-      runtimeLabels: String[]?
       planStatus: String
       runtimeInfrastructureId: UUID?
       observedNodeCount: Int?
@@ -1114,9 +981,8 @@ context RuntimeOnboarding {
       agentDeploymentFailureReason: String?
       lastConnectedAt: DateTime?
       subscribe OrganizationRegistered
-      subscribe OrganizationNetworkProfileConfigured
+      subscribe RuntimeInfrastructurePackageRegistered
       subscribe RuntimeInstallationPlanCreated
-      subscribe RuntimeBootstrapConfigIssued
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
@@ -1134,96 +1000,41 @@ context RuntimeOnboarding {
     readmodel RuntimeInstallationGuide[] {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
-      networkProfileId: UUID
       runtimeInfrastructureId: UUID
+      runtimeInfrastructurePackageId: UUID? derived {
+        from RuntimeInstallationPlanCreated.runtimeInfrastructurePackageId
+        rule "Lookup by runtimeInstallationPlanId and display the selected infrastructure installer package."
+      }
+      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
+      infrastructureInstallGuide: String? derived from RuntimeInfrastructurePackageCatalog.installGuide by runtimeInfrastructurePackageId
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the runtime installation guide."
       }
-      networkProfileName: String? derived {
-        from OrganizationNetworkProfileConfigured.profileName
-        rule "Lookup by networkProfileId and denormalize the network profile display name into the runtime installation guide."
-      }
-      infrastructureName: String? derived {
-        from RuntimeInstallationPlanCreated.infrastructureName
-        rule "Lookup by runtimeInstallationPlanId and denormalize the planned infrastructure display name into the runtime installation guide."
-      }
-      bootstrapUrl: String derived {
-        from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
-        rule "Render the public platform bootstrap config endpoint for the runtime installer handshake."
+      runtimeName: String? derived {
+        from RuntimeInstallationPlanCreated.runtimeName
+        rule "Lookup by runtimeInstallationPlanId and denormalize the planned runtime display name into the runtime installation guide."
       }
       bootstrapCommand: String derived {
         from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
-        rule "Render the copyable install/start command using bootstrapUrl, installProfile, architecture, and the platform-managed runtime installer package."
+        rule "Render the copyable install/start command using the runtime installation plan and platform-managed bootstrap service."
       }
-      agentArtifactRef: String derived {
-        from RuntimeInstallationPlanCreated.installProfile
-        rule "Resolve the runtime agent image, compose bundle, or host binary package from the install profile, architecture, and platform release channel."
-      }
-      platformApiEndpoint: String? derived {
-        from OrganizationNetworkProfileConfigured.platformApiEndpoint
-        rule "Lookup by networkProfileId and show the platform API endpoint the runtime agent will use after bootstrap."
-      }
-      runtimeControlEndpoint: String? derived {
-        from OrganizationNetworkProfileConfigured.runtimeControlEndpoint
-        rule "Lookup by networkProfileId and show the runtime control endpoint the runtime agent will use after bootstrap."
-      }
-      registryEndpoint: String? derived {
-        from OrganizationNetworkProfileConfigured.registryEndpoint
-        rule "Lookup by networkProfileId and show the image registry endpoint needed by the install command."
-      }
-      caBundleRef: String? derived {
-        from OrganizationNetworkProfileConfigured.caBundleRef
-        rule "Lookup by networkProfileId and show the CA bundle reference required to trust platform endpoints."
-      }
-      infrastructureType: String? dictionary "RUNTIME_INFRASTRUCTURE_TYPE" derived {
-        from RuntimeInstallationPlanCreated.infrastructureType
-        rule "Lookup by runtimeInstallationPlanId and display the planned runtime infrastructure type."
-      }
-      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived {
-        from RuntimeInstallationPlanCreated.runtimeEnvironmentType
-        rule "Lookup by runtimeInstallationPlanId and display the planned runtime environment type."
-      }
-      runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION" derived {
-        from RuntimeInstallationPlanCreated.runtimeEnvironmentVersion
-        rule "Lookup by runtimeInstallationPlanId and display the planned runtime environment version."
-      }
-      agentDeploymentMode: String? dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE" derived {
-        from RuntimeInstallationPlanCreated.agentDeploymentMode
+      runtimeDeploymentTargetType: String? dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeDeploymentTargetType by runtimeInfrastructurePackageId
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
+      agentInstallMode: String? dictionary "RUNTIME_AGENT_INSTALL_MODE" derived {
+        from RuntimeInstallationPlanCreated.agentInstallMode
         rule "Lookup by runtimeInstallationPlanId and display how the platform should request runtime agent installation."
       }
-      installProfile: String? dictionary "RUNTIME_INSTALL_PROFILE" derived {
-        from RuntimeInstallationPlanCreated.installProfile
-        rule "Lookup by runtimeInstallationPlanId and display the selected runtime install profile."
-      }
-      architecture: String? derived {
-        from RuntimeInstallationPlanCreated.architecture
-        rule "Lookup by runtimeInstallationPlanId and display the target runtime architecture."
-      }
+      installProfile: String? dictionary "RUNTIME_INSTALL_PROFILE" derived from RuntimeInfrastructurePackageCatalog.installProfile by runtimeInfrastructurePackageId
+      architecture: String? derived from RuntimeInfrastructurePackageCatalog.architecture by runtimeInfrastructurePackageId
       expectedNodeCount: Int? derived {
         from RuntimeInstallationPlanCreated.expectedNodeCount
         rule "Lookup by runtimeInstallationPlanId and display the planned node count."
       }
-      runtimeLabels: String[]? derived {
-        from RuntimeInstallationPlanCreated.runtimeLabels
-        rule "Lookup by runtimeInstallationPlanId and display labels the runtime environment should apply when supported."
-      }
-      organizationRuntimeIngressIp: String? derived {
-        from OrganizationNetworkProfileConfigured.organizationRuntimeIngressIp
-        rule "Lookup by networkProfileId and display the platform-assigned organization runtime ingress IP used during infrastructure installation."
-      }
-      runtimeJoinEndpoint: String? derived {
-        from OrganizationNetworkProfileConfigured.runtimeJoinEndpoint
-        rule "Lookup by networkProfileId and display the endpoint runtime installer uses to join the organization runtime environment when required."
-      }
-      runtimePackageRef: String? derived {
-        from RuntimeBootstrapConfigIssued.runtimePackageRef
-        rule "Lookup by runtimeInstallationPlanId and display the runtime package returned by bootstrap configuration."
-      }
       subscribe OrganizationRegistered
-      subscribe OrganizationNetworkProfileConfigured
+      subscribe RuntimeInfrastructurePackageRegistered
       subscribe RuntimeInstallationPlanCreated
-      subscribe RuntimeBootstrapConfigIssued
     }
   }
 
@@ -1231,19 +1042,15 @@ context RuntimeOnboarding {
     startsLifecycle
 
     actor RuntimeInstaller
-    reactsTo RuntimeBootstrapConfigIssued
+    reactsTo RuntimeInstallationPlanCreated
 
     command RegisterRuntimeInfrastructure {
-      runtimeInfrastructureId: UUID id technical from RuntimeBootstrapConfigIssued.runtimeInfrastructureId
-      runtimeManagementEndpointRef: String?
-      observedNodeCount: Int
+      runtimeInfrastructureId: UUID id technical from RuntimeInstallationPlanCreated.runtimeInfrastructureId
       installedAt: DateTime
     }
 
     event RuntimeInfrastructureRegistered {
       runtimeInfrastructureId: UUID id technical
-      runtimeManagementEndpointRef: String?
-      observedNodeCount: Int
       installedAt: DateTime
     }
 
@@ -1266,8 +1073,7 @@ context RuntimeOnboarding {
       verificationPassed: Boolean
       verifiedAt: DateTime?
       failedAt: DateTime?
-      observedNodeCount: Int from RuntimeInfrastructureRegistered.observedNodeCount
-      runtimeManagementEndpointRef: String? from RuntimeInfrastructureRegistered.runtimeManagementEndpointRef
+      observedNodeCount: Int
       verificationSummary: String?
       failureReason: String?
       remediationHint: String?
@@ -1277,7 +1083,6 @@ context RuntimeOnboarding {
       runtimeInfrastructureId: UUID id technical
       verifiedAt: DateTime
       observedNodeCount: Int
-      runtimeManagementEndpointRef: String?
       verificationSummary: String
     }
 
@@ -1285,7 +1090,6 @@ context RuntimeOnboarding {
       runtimeInfrastructureId: UUID id technical
       failedAt: DateTime
       observedNodeCount: Int
-      runtimeManagementEndpointRef: String?
       failureReason: String
       remediationHint: String?
     }
@@ -1294,13 +1098,12 @@ context RuntimeOnboarding {
 
     specification "Runtime Infrastructure Verification Outcome" {
       rule """
-        Runtime infrastructure verification runs once after the runtime infrastructure is registered. The verification processor checks the actual runtime environment according to infrastructureType and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.
+        Runtime infrastructure verification runs once after the runtime infrastructure is registered. The verification processor resolves the selected runtime infrastructure package and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.
       """
 
       scenario "Runtime Infrastructure Verification Passed" {
         given RuntimeInfrastructureRegistered {
           runtimeInfrastructureId = "runtime-infra-1"
-          observedNodeCount = 3
         }
         when VerifyRuntimeInfrastructure {
           runtimeInfrastructureId = "runtime-infra-1"
@@ -1314,13 +1117,12 @@ context RuntimeOnboarding {
       scenario "Runtime Infrastructure Verification Failed" {
         given RuntimeInfrastructureRegistered {
           runtimeInfrastructureId = "runtime-infra-2"
-          observedNodeCount = 0
         }
         when VerifyRuntimeInfrastructure {
           runtimeInfrastructureId = "runtime-infra-2"
           verificationPassed = false
           observedNodeCount = 0
-          failureReason = "Runtime infrastructure endpoint is unreachable."
+          failureReason = "Runtime infrastructure is unreachable."
         }
         then RuntimeInfrastructureVerificationFailed
       }
@@ -1342,19 +1144,14 @@ context RuntimeOnboarding {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureVerified.runtimeInfrastructureId
       runtimeAgentDeploymentRequestId: UUID generated technical
       runtimeAgentId: UUID generated technical
-      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
-      agentArtifactRef: String
-      installTargetRef: String
-      installInstanceName: String
-      runtimeAccessCredentialRef: String?
-      runtimePrincipalRef: String?
-      configEndpoint: String
+      runtimeAccessGrantId: UUID generated technical
       requestedAt: DateTime
     }
 
     event RuntimeAgentReady {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
+      runtimeAccessGrantId: UUID
       agentVersion: String
       startedAt: DateTime
       readyAt: DateTime
@@ -1383,7 +1180,6 @@ context RuntimeOnboarding {
         }
         when DeployRuntimeAgent {
           runtimeInfrastructureId = "runtime-infra-1"
-          installInstanceName = "runtime-agent"
         }
         then RuntimeAgentReady
       }
@@ -1394,7 +1190,6 @@ context RuntimeOnboarding {
         }
         when DeployRuntimeAgent {
           runtimeInfrastructureId = "runtime-infra-2"
-          installInstanceName = "runtime-agent"
         }
         then DeployRuntimeAgentFailed
       }
@@ -1429,7 +1224,7 @@ context RuntimeOnboarding {
 
   slice RevokeRuntimeInfrastructureAccess {
     actor SecurityReviewer
-    ui OrganizationNetworkProfileScreen confirm
+    ui RuntimeInstallationPlanScreen confirm
     reactsTo RuntimeInfrastructureConnected
 
     command RevokeRuntimeInfrastructureAccess {
@@ -1449,27 +1244,21 @@ context RuntimeOnboarding {
     readmodel RuntimeInfrastructureAccessView[] {
       runtimeInfrastructureId: UUID id
       organizationId: UUID
-      networkProfileId: UUID
       runtimeInstallationPlanId: UUID
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the runtime infrastructure access view."
       }
-      networkProfileName: String? derived {
-        from OrganizationNetworkProfileConfigured.profileName
-        rule "Lookup by networkProfileId and denormalize the network profile display name into the runtime infrastructure access view."
+      runtimeName: String? derived {
+        from RuntimeInstallationPlanCreated.runtimeName
+        rule "Lookup by runtimeInfrastructureId and denormalize the runtime display name into the access view."
       }
-      infrastructureName: String? derived {
-        from RuntimeBootstrapConfigIssued.infrastructureName
-        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the access view."
-      }
-      platformApiEndpoint: String
-      runtimeControlEndpoint: String
-      registryEndpoint: String
-      runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
-      runtimeEnvironmentVersion: String? dictionary "RUNTIME_ENVIRONMENT_VERSION"
-      agentDeploymentMode: String dictionary "RUNTIME_AGENT_DEPLOYMENT_MODE"
-      infrastructureType: String dictionary "RUNTIME_INFRASTRUCTURE_TYPE"
+      runtimeDeploymentTargetType: String? dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeDeploymentTargetType by runtimeInfrastructurePackageId
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       expectedNodeCount: Int
       observedNodeCount: Int?
       availableCpuCores: Int?
@@ -1477,6 +1266,7 @@ context RuntimeOnboarding {
       availableGpuCount: Int?
       runtimeAgentId: UUID?
       runtimeAgentVersion: String?
+      runtimeAccessGrantId: UUID?
       infrastructureVerifiedAt: DateTime?
       infrastructureVerificationFailedAt: DateTime?
       infrastructureVerificationFailureReason: String?
@@ -1486,8 +1276,8 @@ context RuntimeOnboarding {
       connectedAt: DateTime?
       state: RuntimeInfrastructure.State
       subscribe OrganizationRegistered
-      subscribe OrganizationNetworkProfileConfigured
-      subscribe RuntimeBootstrapConfigIssued
+      subscribe RuntimeInfrastructurePackageRegistered
+      subscribe RuntimeInstallationPlanCreated
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
@@ -1498,21 +1288,19 @@ context RuntimeOnboarding {
     }
   }
 
-  concept OrganizationNetworkProfile {
-    state Configured
-
-    slice ConfigureOrganizationNetworkProfile
-    slice OrganizationNetworkProfileCatalog
-  }
-
   concept RuntimeInstallationPlan {
     state Planned
-    state ConfigIssued
 
     slice CreateRuntimeInstallationPlan
-    slice IssueRuntimeBootstrapConfig
     slice RuntimeInstallationPlanCatalog
     slice RuntimeInstallationGuide
+  }
+
+  concept RuntimeInfrastructurePackage {
+    state Registered
+
+    slice RegisterRuntimeInfrastructurePackage
+    slice RuntimeInfrastructurePackageCatalog
   }
 
   concept RuntimeInfrastructure {
@@ -4680,9 +4468,9 @@ context RuntimeOperations {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the runtime node inventory view."
       }
-      infrastructureName: String? derived {
-        from RuntimeBootstrapConfigIssued.infrastructureName
-        rule "Lookup by runtimeInfrastructureId and denormalize the runtime infrastructure display name into the runtime node inventory view."
+      runtimeName: String? derived {
+        from RuntimeInstallationPlanCreated.runtimeName
+        rule "Lookup by runtimeInfrastructureId and denormalize the runtime display name into the runtime node inventory view."
       }
       orchestratorNodeName: String
       providerNodeId: String?
@@ -4696,7 +4484,7 @@ context RuntimeOperations {
       discoveredAt: DateTime
       recordedAt: DateTime
       subscribe OrganizationRegistered
-      subscribe RuntimeBootstrapConfigIssued
+      subscribe RuntimeInstallationPlanCreated
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeNodeInventoryReported
     }

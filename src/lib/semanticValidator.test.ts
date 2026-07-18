@@ -5,6 +5,37 @@ import { MedolValidationError, medolToCodegenModel } from './dslToConfig';
 
 const diagnosticsFor = (medol: string): string[] => parseMedol(medol).diagnostics;
 
+test('parses derived read model lookups with composite keys', () => {
+  const model = parseMedol(`
+    context Demo {
+      slice Catalogs {
+        readmodel TenantThingDirectory[] {
+          tenantId: UUID id
+          thingId: UUID id
+          displayName: String
+        }
+        readmodel ThingUsage[] {
+          tenantId: UUID id
+          thingId: UUID id
+          displayName: String? derived from TenantThingDirectory.displayName by tenantId, thingId
+        }
+      }
+    }
+  `);
+  assert.deepEqual(model.diagnostics, []);
+  const field = model.contexts[0].slices[0].elements
+    .find((element) => element.name === 'ThingUsage')
+    ?.fields.find((item) => item.name === 'displayName');
+  assert.deepEqual(field?.mapping?.lookup, {
+    key: 'tenantId',
+    keys: ['tenantId', 'thingId'],
+    cacheProjection: 'TenantThingDirectory',
+    sourceField: 'displayName',
+    targetField: 'displayName',
+    missingValuePolicy: 'keep'
+  });
+});
+
 test('reports parser and semantic diagnostics at their real source ranges', () => {
   const parserModel = parseMedol(`context Demo {
   value Feature {

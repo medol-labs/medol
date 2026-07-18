@@ -55,13 +55,13 @@
   - [ ] 尽快稳定版本，实现 federation learning 代码细节
 - [ ] 网关轻量方案
   - [ ] 集成 APISIX
-- [X] 非核心冗余字段怎么处理， xxxName
+- [x] 非核心冗余字段怎么处理， xxxName
   - projector 中主动查询相关 readmodel
 - [ ] UI 端生成对接设计工具 Figma/v0 等
   - [ ] 交由 Code Agent 基于 medol 建模做设计，综合考虑整体系统
 - [ ] ai 生成用户旅程，再结合文生视频工具，生成系统使用引导视频
 - [ ] 建模中的 Ref 到底填什么，用户怎么能知道怎么填
-- [X] 代码生成时，对 automation 前端不需要生成命令入口
+- [x] 代码生成时，对 automation 前端不需要生成命令入口
 - [ ] 前端页面菜单优化，菜单名称长时无法看清具体菜单，交互有问题
 - [ ] Axon Framework 5 的生成没有 slice 选择了
 - [ ] Axon5 接入 MetaData 注入，并在 readmodel 中统自动生成命令执行人，执行时间
@@ -70,7 +70,7 @@
 - [ ] 生成模拟数据部分，再进一步调整完善，需要快速提供测试数据，需要 ai 提供思路
 - [ ] 外部系统对接，建模中缺少外部系统声明
 - [ ] Event Strore(DCB) 解决方案
-  - [ ]  适配 Umadb
+  - [ ] 适配 Umadb
 - [ ] Review fl 建模
   - [ ] 所有 command event 不需要显示包含 xxcommandAt xxcommandBy
   - [ ] 本身 ID 不需要 tags 再加
@@ -80,6 +80,7 @@
 - [ ] 优化国际化在系统端的生成，code generator 中添加命令，可以实时添加或修改对应语言的国际化文件
   - [ ] 后端国际化（异常信息等）
 - [ ] 生成代码格式化
+- [ ] Event 信息冗余与版本话怎么选
 
 ##
 
@@ -88,4 +89,3 @@
 一个 aggregate 内的 state slices，应该共享同一个聚合身份与生命周期。
 
 也就是同一 aggregate 里的主要 command/event 应该大致围绕同一主键：
-

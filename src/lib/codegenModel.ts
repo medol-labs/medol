@@ -197,6 +197,7 @@ export interface CodegenFieldSource {
 
 export interface CodegenDerivedLookup {
   key?: string;
+  keys?: string[];
   sourceEvent?: string;
   sourceField?: string;
   targetField?: string;

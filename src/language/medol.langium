@@ -384,13 +384,13 @@ FieldSourceMapping:
 ;
 
 FieldDerivation:
-    'derived' ('from' sources+=FieldSource (',' sources+=FieldSource)*)?
+    'derived' ('from' sources+=FieldSource (',' sources+=FieldSource)*)? ('by' lookupKey=LookupKey)?
 ;
 
 FieldDetails:
     '{'
         ('from' sources+=FieldSource (',' sources+=FieldSource)*)?
-        ('lookup' 'key' lookupKey=FieldSource)?
+        ('lookup' 'key' lookupKey=LookupKey)?
         ('source' 'event' sourceEvent=ID)?
         ('source' 'field' sourceField=FieldSource)?
         ('target' 'field' targetField=FieldSource)?
@@ -399,6 +399,10 @@ FieldDetails:
         ('rule' rule=STRING)?
         ('example' example=STRING)?
     '}'
+;
+
+LookupKey:
+    keys+=FieldSource (',' keys+=FieldSource)*
 ;
 
 FieldSource:

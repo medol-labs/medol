@@ -63,6 +63,7 @@ import type {
   Field as AstField,
   FieldSource,
   Integration as AstIntegration,
+  LookupKey as AstLookupKey,
   Model as AstModel,
   ReadModel as AstReadModel,
   Slice as AstSlice,
@@ -797,11 +798,26 @@ const parseReadModelDictionaryProvider = (node: AstReadModel): { dictionaryProvi
 };
 
 const parseDerivedLookup = (field: AstField): EmDerivedLookup | undefined => {
+  const inlineLookupKey = field.mapping && isFieldDerivation(field.mapping) ? field.mapping.lookupKey : undefined;
+  if (inlineLookupKey) {
+    const source = field.mapping.sources?.[0];
+    const sourceParts = source?.parts ?? [];
+    const lookupKeys = formatLookupKeys(inlineLookupKey);
+    return {
+      ...(lookupKeys[0] ? { key: lookupKeys[0] } : {}),
+      ...(lookupKeys.length > 1 ? { keys: lookupKeys } : {}),
+      ...(sourceParts.length > 1 ? { cacheProjection: sourceParts[0] } : {}),
+      ...(source ? { sourceField: sourceParts.length > 1 ? sourceParts.slice(1).join('.') : formatFieldSource(source) } : {}),
+      targetField: safeName(field.name, 'unnamedField'),
+      missingValuePolicy: 'keep'
+    };
+  }
+
   const details = field.details;
   if (!details) return undefined;
 
   const lookup: EmDerivedLookup = {
-    ...(details.lookupKey ? { key: formatFieldSource(details.lookupKey) } : {}),
+    ...formatLookupKeyMetadata(details.lookupKey),
     ...(details.sourceEvent ? { sourceEvent: details.sourceEvent } : {}),
     ...(details.sourceField ? { sourceField: formatFieldSource(details.sourceField) } : {}),
     ...(details.targetField ? { targetField: formatFieldSource(details.targetField) } : {}),
@@ -810,6 +826,18 @@ const parseDerivedLookup = (field: AstField): EmDerivedLookup | undefined => {
     ...(details.missingValuePolicy ? { missingValuePolicy: details.missingValuePolicy } : {})
   };
   return Object.keys(lookup).length > 0 ? lookup : undefined;
+};
+
+const formatLookupKeyMetadata = (lookupKey: AstLookupKey | undefined): Pick<EmDerivedLookup, 'key' | 'keys'> => {
+  const keys = lookupKey ? formatLookupKeys(lookupKey) : [];
+  return {
+    ...(keys[0] ? { key: keys[0] } : {}),
+    ...(keys.length > 1 ? { keys } : {})
+  };
+};
+
+const formatLookupKeys = (lookupKey: AstLookupKey): string[] => {
+  return lookupKey.keys.map(formatFieldSource);
 };
 
 const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstSpecification | AstIntegration): Record<string, string> => {

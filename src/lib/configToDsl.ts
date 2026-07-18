@@ -26,6 +26,7 @@ interface ConfigFieldMapping {
 
 interface ConfigDerivedLookup {
   key?: string;
+  keys?: string[];
   sourceEvent?: string;
   sourceField?: string;
   targetField?: string;
@@ -531,6 +532,22 @@ const formatMapping = (field: ConfigField): { inline: string; details?: string }
     return { inline: sources.length ? ` derived from ${formatSources(sources)}` : ' derived' };
   }
 
+  const projectionLookup = formatProjectionLookup(field, mapping.lookup);
+  if (projectionLookup) {
+    return {
+      inline: ` derived from ${projectionLookup.source} by ${formatLookupKey(projectionLookup.keys)}`,
+      ...(mapping.rule ? { details: `rule ${quote(mapping.rule)}` } : {})
+    };
+  }
+
+  const inlineLookup = formatInlineLookup(field, sources, mapping.lookup);
+  if (inlineLookup) {
+    return {
+      inline: `${sources.length ? ` derived from ${formatSources(sources)}` : ' derived'} by ${formatSources([inlineLookup])}`,
+      ...(mapping.rule ? { details: `rule ${quote(mapping.rule)}` } : {})
+    };
+  }
+
   const lookupDetails = formatLookupDetails(mapping.lookup);
   return {
     inline: ' derived',
@@ -542,10 +559,47 @@ const formatMapping = (field: ConfigField): { inline: string; details?: string }
   };
 };
 
+const formatProjectionLookup = (
+  field: ConfigField,
+  lookup?: ConfigDerivedLookup
+): { source: string; key: string; keys: string[] } | undefined => {
+  const keys = lookupKeys(lookup);
+  if (keys.length === 0 || !lookup?.cacheProjection) return undefined;
+  if (lookup.cacheStrategy) return undefined;
+  if (lookup.missingValuePolicy && lookup.missingValuePolicy !== 'keep') return undefined;
+  if (lookup.targetField && lookup.targetField !== field.name) return undefined;
+
+  const sourceField = lookup.sourceField || field.name;
+  return {
+    source: `${toDslId(lookup.cacheProjection, 'Projection')}.${formatSources([sourceField])}`,
+    key: keys[0],
+    keys
+  };
+};
+
+const formatInlineLookup = (
+  field: ConfigField,
+  sources: string[],
+  lookup?: ConfigDerivedLookup
+): string | undefined => {
+  const keys = lookupKeys(lookup);
+  if (keys.length !== 1 || sources.length !== 1) return undefined;
+  if (lookup.cacheProjection || lookup.cacheStrategy || lookup.missingValuePolicy) return undefined;
+  if (lookup.targetField && lookup.targetField !== field.name) return undefined;
+
+  const source = sources[0];
+  const sourceParts = source.split('.').filter(Boolean);
+  const inferredSourceEvent = sourceParts.length > 1 ? sourceParts[0] : undefined;
+  const inferredSourceField = sourceParts.length > 1 ? sourceParts.slice(1).join('.') : source;
+  if (lookup.sourceEvent && lookup.sourceEvent !== inferredSourceEvent) return undefined;
+  if (lookup.sourceField && lookup.sourceField !== inferredSourceField && lookup.sourceField !== source) return undefined;
+  return keys[0];
+};
+
 const formatLookupDetails = (lookup?: ConfigDerivedLookup): string => {
   if (!lookup) return '';
   return [
-    lookup.key ? `lookup key ${formatSources([lookup.key])}` : '',
+    lookupKeys(lookup).length ? `lookup key ${formatLookupKey(lookupKeys(lookup))}` : '',
     lookup.sourceEvent ? `source event ${toDslId(lookup.sourceEvent, 'Event')}` : '',
     lookup.sourceField ? `source field ${formatSources([lookup.sourceField])}` : '',
     lookup.targetField ? `target field ${formatSources([lookup.targetField])}` : '',
@@ -554,6 +608,12 @@ const formatLookupDetails = (lookup?: ConfigDerivedLookup): string => {
     lookup.missingValuePolicy ? `missing policy ${toDslId(lookup.missingValuePolicy, 'policy')}` : ''
   ].filter(Boolean).join(' ');
 };
+
+const lookupKeys = (lookup?: ConfigDerivedLookup): string[] =>
+  lookup?.keys?.length ? lookup.keys : lookup?.key ? [lookup.key] : [];
+
+const formatLookupKey = (keys: string[]): string =>
+  formatSources(keys);
 
 const formatSources = (sources: string[]): string =>
   sources

@@ -41,6 +41,7 @@ export type MedolKeywordNames =
     | "assert"
     | "automation"
     | "background"
+    | "by"
     | "cache"
     | "capabilities"
     | "code"
@@ -747,11 +748,13 @@ export function isFieldAttribute(item: unknown): item is FieldAttribute {
 export interface FieldDerivation extends langium.AstNode {
     readonly $container: Field;
     readonly $type: 'FieldDerivation';
+    lookupKey?: LookupKey;
     sources: Array<FieldSource>;
 }
 
 export const FieldDerivation = {
     $type: 'FieldDerivation',
+    lookupKey: 'lookupKey',
     sources: 'sources'
 } as const;
 
@@ -765,7 +768,7 @@ export interface FieldDetails extends langium.AstNode {
     cacheProjection?: string;
     cacheStrategy?: string;
     example?: string;
-    lookupKey?: FieldSource;
+    lookupKey?: LookupKey;
     missingValuePolicy?: string;
     rule?: string;
     sourceEvent?: string;
@@ -809,7 +812,7 @@ export function isFieldName(item: unknown): item is FieldName {
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | FieldDerivation | FieldDetails | FieldSourceMapping | UniqueValidation;
+    readonly $container: AssertValidation | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -920,6 +923,21 @@ export const Literal = {
 
 export function isLiteral(item: unknown): item is Literal {
     return reflection.isInstance(item, Literal.$type);
+}
+
+export interface LookupKey extends langium.AstNode {
+    readonly $container: FieldDerivation | FieldDetails;
+    readonly $type: 'LookupKey';
+    keys: Array<FieldSource>;
+}
+
+export const LookupKey = {
+    $type: 'LookupKey',
+    keys: 'keys'
+} as const;
+
+export function isLookupKey(item: unknown): item is LookupKey {
+    return reflection.isInstance(item, LookupKey.$type);
 }
 
 export interface Metric extends langium.AstNode {
@@ -1676,6 +1694,7 @@ export type MedolAstType = {
     Integration: Integration
     IntegrationElement: IntegrationElement
     Literal: Literal
+    LookupKey: LookupKey
     Metric: Metric
     Model: Model
     Note: Note
@@ -2151,6 +2170,9 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         FieldDerivation: {
             name: FieldDerivation.$type,
             properties: {
+                lookupKey: {
+                    name: FieldDerivation.lookupKey
+                },
                 sources: {
                     name: FieldDerivation.sources,
                     defaultValue: []
@@ -2276,6 +2298,16 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             properties: {
             },
             superTypes: [PrimaryExpr.$type, ValidationOperand.$type]
+        },
+        LookupKey: {
+            name: LookupKey.$type,
+            properties: {
+                keys: {
+                    name: LookupKey.keys,
+                    defaultValue: []
+                }
+            },
+            superTypes: []
         },
         Metric: {
             name: Metric.$type,
