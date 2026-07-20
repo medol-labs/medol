@@ -13,6 +13,7 @@ export default defineConfig({
   },
   server: {
     port: 5172,
+    allowedHosts: ['host.docker.internal'],
     watch: {
       ignored: ['**/data/**']
     }
