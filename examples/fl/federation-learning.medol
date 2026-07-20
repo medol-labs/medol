@@ -289,8 +289,12 @@ context FederationManagement {
   }
 
   slice InviteParticipant {
-    // 这里怎么也是 start TODO 
     startsLifecycle
+
+    tags {
+      federationId
+      organizationId
+    }
 
     actor FederationOwner
     ui ParticipantInvitationScreen dialog
@@ -337,7 +341,6 @@ context FederationManagement {
 
   slice ApproveParticipant {
     actor GovernanceReviewer
-    // 这里也需要 tags 吗  TODO
 
     ui MembershipReviewScreen dialog
     reactsTo ParticipantInvited
@@ -870,8 +873,8 @@ context RuntimeProvisioning {
       agentReadyAt: DateTime?
       agentDeploymentFailedAt: DateTime?
       agentDeploymentFailureReason: String?
-      manualAgentInstallationFailedAt: DateTime?
-      manualAgentInstallationFailureReason: String?
+      agentDeploymentRetryFailedAt: DateTime?
+      agentDeploymentRetryFailureReason: String?
       lastConnectedAt: DateTime?
       subscribe OrganizationRegistered
       subscribe RuntimeInfrastructurePackageRegistered
@@ -881,8 +884,8 @@ context RuntimeProvisioning {
       subscribe RuntimeInfrastructureVerificationFailed
       subscribe RuntimeAgentInstallationSucceeded
       subscribe RuntimeAgentInstallationFailed
-      subscribe RuntimeAgentManuallyInstalled
-      subscribe ManualRuntimeAgentInstallationFailed
+      subscribe RuntimeAgentDeploymentRetrySucceeded
+      subscribe RuntimeAgentDeploymentRetryFailed
       subscribe RuntimeConnectionEstablished
     }
   }
@@ -1084,19 +1087,20 @@ context RuntimeProvisioning {
     }
   }
 
-  slice InstallRuntimeAgentManually {
+  slice RetryRuntimeAgentDeployment {
     actor PlatformAdmin
     ui RuntimeInstallationPlanScreen confirm
     port
 
-    command InstallRuntimeAgentManually {
+    command RetryRuntimeAgentDeployment {
       runtimeAgentId: UUID generated technical
       runtimeInfrastructureId: UUID id technical
       currentRuntimeInfrastructureState: RuntimeInfrastructure.State derived from RuntimeInfrastructureAccessView.state by runtimeInfrastructureId
+      retryReason: String
       requestedAt: DateTime
     }
 
-    event RuntimeAgentManuallyInstalled {
+    event RuntimeAgentDeploymentRetrySucceeded {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
       agentVersion: String
@@ -1105,59 +1109,64 @@ context RuntimeProvisioning {
       readyAt: DateTime
     }
 
-    event ManualRuntimeAgentInstallationFailed {
+    event RuntimeAgentDeploymentRetryFailed {
       runtimeInfrastructureId: UUID id technical
       startedAt: DateTime
+      requestedAt: DateTime
       failedAt: DateTime
       failureReason: String
     }
 
     state AgentReady
 
-    specification "Manual Runtime Agent Installation Outcome" {
+    specification "Runtime Agent Deployment Retry Outcome" {
       rule """
-        The runtime installation plan screen exposes a manual install action only when the current runtime infrastructure state is RuntimeAgentFailed or Offline. A platform admin can run the same agent installation port from the page and records exactly one outcome: RuntimeAgentManuallyInstalled when the agent becomes ready, or ManualRuntimeAgentInstallationFailed when the manual installation attempt fails.
+        The runtime installation plan screen exposes a retry deployment action only when the current runtime infrastructure state is RuntimeAgentFailed or Offline. A platform admin manually triggers the same platform-managed deployment port from the page; no human installs the agent on the server. The retry records exactly one outcome: RuntimeAgentDeploymentRetrySucceeded when the agent becomes ready, or RuntimeAgentDeploymentRetryFailed when deployment or readiness fails again.
       """
 
-      scenario "Manual Runtime Agent Installation Succeeded After Failed Deployment" {
+      scenario "Runtime Agent Deployment Retry Succeeded After Failed Deployment" {
         given RuntimeAgentInstallationFailed {
           runtimeInfrastructureId = "runtime-infra-2"
         }
-        when InstallRuntimeAgentManually {
+        when RetryRuntimeAgentDeployment {
           runtimeInfrastructureId = "runtime-infra-2"
           currentRuntimeInfrastructureState = "RuntimeAgentFailed"
+          retryReason = "Retry after fixing registry credentials."
         }
-        then RuntimeAgentManuallyInstalled
+        then RuntimeAgentDeploymentRetrySucceeded
       }
 
-      scenario "Manual Runtime Agent Installation Succeeded After Offline" {
-        when InstallRuntimeAgentManually {
+      scenario "Runtime Agent Deployment Retry Succeeded After Offline" {
+        when RetryRuntimeAgentDeployment {
           runtimeInfrastructureId = "runtime-infra-3"
           currentRuntimeInfrastructureState = "Offline"
+          retryReason = "Reconnect runtime agent."
         }
-        then RuntimeAgentManuallyInstalled
+        then RuntimeAgentDeploymentRetrySucceeded
       }
 
-      scenario "Manual Runtime Agent Installation Failed" {
+      scenario "Runtime Agent Deployment Retry Failed" {
         given RuntimeAgentInstallationFailed {
           runtimeInfrastructureId = "runtime-infra-4"
         }
-        when InstallRuntimeAgentManually {
+        when RetryRuntimeAgentDeployment {
           runtimeInfrastructureId = "runtime-infra-4"
           currentRuntimeInfrastructureState = "RuntimeAgentFailed"
+          retryReason = "Retry after transient failure."
         }
-        then ManualRuntimeAgentInstallationFailed
+        then RuntimeAgentDeploymentRetryFailed
       }
 
-      scenario "Reject Manual Runtime Agent Installation While Connected" {
+      scenario "Reject Runtime Agent Deployment Retry While Connected" {
         given RuntimeConnectionEstablished {
           runtimeInfrastructureId = "runtime-infra-5"
         }
-        when InstallRuntimeAgentManually {
+        when RetryRuntimeAgentDeployment {
           runtimeInfrastructureId = "runtime-infra-5"
           currentRuntimeInfrastructureState = "Connected"
+          retryReason = "Force redeploy."
         }
-        then reject "Runtime Agent Manual Installation Not Allowed"
+        then reject "Runtime Agent Deployment Retry Not Allowed"
       }
     }
   }
@@ -1208,8 +1217,8 @@ context RuntimeProvisioning {
       agentReadyAt: DateTime?
       agentDeploymentFailedAt: DateTime?
       agentDeploymentFailureReason: String?
-      manualAgentInstallationFailedAt: DateTime?
-      manualAgentInstallationFailureReason: String?
+      agentDeploymentRetryFailedAt: DateTime?
+      agentDeploymentRetryFailureReason: String?
       connectedAt: DateTime?
       state: RuntimeInfrastructure.State
       subscribe OrganizationRegistered
@@ -1220,8 +1229,8 @@ context RuntimeProvisioning {
       subscribe RuntimeInfrastructureVerificationFailed
       subscribe RuntimeAgentInstallationSucceeded
       subscribe RuntimeAgentInstallationFailed
-      subscribe RuntimeAgentManuallyInstalled
-      subscribe ManualRuntimeAgentInstallationFailed
+      subscribe RuntimeAgentDeploymentRetrySucceeded
+      subscribe RuntimeAgentDeploymentRetryFailed
       subscribe RuntimeConnectionEstablished
     }
   }
@@ -1253,7 +1262,7 @@ context RuntimeProvisioning {
     slice RegisterRuntimeInfrastructure
     slice VerifyRuntimeInfrastructure
     slice DeployRuntimeAgent
-    slice InstallRuntimeAgentManually
+    slice RetryRuntimeAgentDeployment
     slice RecordRuntimeConnectionEstablished
     slice RuntimeInfrastructureAccessView
   }
@@ -1266,20 +1275,6 @@ context DatasetGovernance {
   risk "Validated dataset access can remain selectable after governance revocation unless blocked explicitly."
   metric datasetContractValidationFailureRate
   metric runtimeDatasetAccessValidationLatency
-
-  integration RuntimeAgentDatasetAccess {
-    source Dataset
-    target RuntimeAgent
-    reactsTo DatasetAccessValidationRequested
-    emits ValidateAgentDatasetAccess
-  }
-
-  integration RuntimeAgentDatasetProfiling {
-    source Dataset
-    target RuntimeAgent
-    reactsTo DatasetProfilingRequested
-    emits ProfileAgentDataset
-  }
 
   slice DefineFeatureSchema {
     startsLifecycle
@@ -1295,15 +1290,19 @@ context DatasetGovernance {
     command DefineFeatureSchema {
       featureSchemaId: UUID id generated technical
       featureDomain: String
-      // 版本怎么来，不能是用户填写 TODO
-      version: Int
+      version: String generated technical
+      dataModality: String dictionary "FEATURE_SCHEMA_DATA_MODALITY"
       features: FeatureDefinition[]
+      labels: LabelDefinition[]?
     }
   
     event FeatureSchemaDefined {
       featureSchemaId: UUID id technical
       featureDomain: String
-      version: Int
+      version: String
+      dataModality: String dictionary "FEATURE_SCHEMA_DATA_MODALITY"
+      features: FeatureDefinition[]
+      labels: LabelDefinition[]?
       featureCount: Int derived {
         from DefineFeatureSchema.features
         rule "Count entries in the features collection."
@@ -1314,7 +1313,7 @@ context DatasetGovernance {
   
     specification "Feature Schema Domain Version Unique" {
       rule """
-        A feature schema is uniquely identified by the combination of its domain and version. Two schemas within the same domain cannot share a version.
+        A feature schema is uniquely identified by the combination of its domain and system-assigned version. Two schemas within the same domain cannot share a version, and users do not manually type the next version. The schema data modality describes whether the feature list represents tabular columns or logical inputs for unstructured data such as text, image, audio, document, or embedding datasets.
       """
   
       expression {
@@ -1322,13 +1321,13 @@ context DatasetGovernance {
       }
   
       scenario "Reject Duplicate Feature Schema Version" {
-        given FeatureSchemaPublished {
+        given FeatureSchemaDefined {
           featureDomain = "CreditRisk"
-          version = 1
+          version = "1.0.0"
         }
         when DefineFeatureSchema {
           featureDomain = "CreditRisk"
-          version = 1
+          version = "1.0.0"
         }
         then reject "Feature Schema Version Already Exists"
       }
@@ -1347,14 +1346,6 @@ context DatasetGovernance {
   
     event FeatureSchemaPublished {
       featureSchemaId: UUID id technical
-      featureDomain: String derived {
-        from FeatureSchema.featureDomain
-        rule "Carry the schema domain from the defined feature schema."
-      }
-      version: Int derived {
-        from FeatureSchema.version
-        rule "Carry the schema version from the defined feature schema."
-      }
       publishNote: String?
     }
   
@@ -1368,8 +1359,6 @@ context DatasetGovernance {
       scenario "Publish Draft Schema" {
         given FeatureSchemaDefined {
           featureSchemaId = "schema-1"
-          featureDomain = "CreditRisk"
-          version = 1
         }
         when PublishFeatureSchema {
           featureSchemaId = "schema-1"
@@ -1431,26 +1420,26 @@ context DatasetGovernance {
       featureSchemaId: UUID id technical
       supersededByFeatureSchemaId: UUID
       featureDomain: String
-      supersededVersion: Int
+      supersededVersion: String
       supersessionReason: String?
       supersededAt: DateTime
     }
   
     specification "Supersede Published Schema With Newer Version" {
       rule """
-        Only schemas in the Published state can be superseded, and the superseding schema must belong to the same domain and have a higher version.
+        Only schemas in the Published state can be superseded, and the superseding schema must belong to the same domain and have a later system-assigned version according to schema version ordering.
       """
   
       scenario "Supersede Older Version" {
         given FeatureSchemaDefined {
           featureSchemaId = "schema-1"
           featureDomain = "CreditRisk"
-          version = 1
+          version = "1.0.0"
         }
         given FeatureSchemaDefined {
           featureSchemaId = "schema-2"
           featureDomain = "CreditRisk"
-          version = 2
+          version = "1.1.0"
         }
         when SupersedeFeatureSchemaVersion {
           featureSchemaId = "schema-1"
@@ -1477,7 +1466,7 @@ context DatasetGovernance {
         from FeatureSchema.featureDomain
         rule "Use the schema domain as the recommendation boundary."
       }
-      recommendedVersion: Int derived {
+      recommendedVersion: String derived {
         from FeatureSchema.version
         rule "Expose the recommended schema version for catalog projection."
       }
@@ -1494,7 +1483,7 @@ context DatasetGovernance {
         given FeatureSchemaDefined {
           featureSchemaId = "schema-2"
           featureDomain = "CreditRisk"
-          version = 2
+          version = "1.1.0"
         }
         when MarkCurrentRecommendedFeatureSchemaVersion {
           featureSchemaId = "schema-2"
@@ -1508,20 +1497,21 @@ context DatasetGovernance {
     readmodel CurrentRecommendedFeatureSchemaCatalog[] {
       featureDomain: String id
       recommendedFeatureSchemaId: UUID
-      recommendedVersion: Int
-      // TODO 统一处理时间与操作人
+      recommendedVersion: String
       recommendedAt: DateTime
       recommendationNote: String?
       subscribe CurrentRecommendedFeatureSchemaVersionMarked
     }
   }
 
-  // 缺少 FeatureShcema 详情查看 readmodel TODO
   slice FeatureSchemaCatalog {
     readmodel FeatureSchemaCatalog[] {
       featureSchemaId: UUID id
       featureDomain: String
-      version: Int
+      version: String
+      dataModality: String dictionary "FEATURE_SCHEMA_DATA_MODALITY"
+      features: FeatureDefinition[]
+      labels: LabelDefinition[]?
       featureCount: Int
       schemaStatus: String
       supersededByFeatureSchemaId: UUID?
@@ -1554,6 +1544,12 @@ context DatasetGovernance {
   slice DeclareDataset {
     startsLifecycle
 
+    tags {
+      organizationId
+      featureSchemaId
+      datasetName
+    }
+
     actor DataOwner
     ui DatasetRegistrationScreen
     reactsTo FeatureSchemaPublished
@@ -1562,91 +1558,21 @@ context DatasetGovernance {
       datasetId: UUID id generated technical
       organizationId: UUID
       featureSchemaId: UUID
-      labelSchemaId: UUID
       datasetName: String
       datasetType: String
       datasetUsage: String
-      sensitivityLevel: String
-      containsPII: Boolean
-      region: String
     }
   
     event DatasetDeclared {
       datasetId: UUID id technical
       organizationId: UUID
       featureSchemaId: UUID
-      labelSchemaId: UUID
       datasetName: String
       datasetType: String
       datasetUsage: String
-      sensitivityLevel: String
-      containsPII: Boolean
-      region: String
     }
   
     state Registered
-  }
-
-  slice ReportDatasetRuntimeBinding {
-    startsLifecycle
-
-    actor RuntimeAgent
-    reactsTo DatasetDeclared
-
-    command ReportDatasetRuntimeBinding {
-      datasetRuntimeBindingId: UUID id generated technical
-      datasetId: UUID from DatasetDeclared.datasetId
-      organizationId: UUID from DatasetDeclared.organizationId
-      runtimeId: UUID
-      opaqueDatasetHandle: String
-      bindingFingerprint: String
-      supportedOperations: String[]
-      reportedAt: DateTime
-    }
-
-    event DatasetRuntimeBindingReported {
-      datasetRuntimeBindingId: UUID id technical
-      datasetId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      opaqueDatasetHandle: String
-      bindingFingerprint: String
-      supportedOperations: String[]
-      reportedAt: DateTime
-    }
-
-    state Bound
-  }
-
-  slice RequestRuntimeDatasetProfiling {
-    reactsTo DatasetRuntimeBindingReported
-
-    automation RequestDatasetProfilingWhenDatasetBindingReported {
-      on DatasetRuntimeBindingReported
-      emits RequestRuntimeDatasetProfiling
-    }
-
-    command RequestRuntimeDatasetProfiling {
-      datasetId: UUID id technical from DatasetRuntimeBindingReported.datasetId
-      organizationId: UUID from DatasetRuntimeBindingReported.organizationId
-      runtimeId: UUID from DatasetRuntimeBindingReported.runtimeId
-      featureSchemaId: UUID derived from DatasetDeclared.featureSchemaId by datasetId
-      labelSchemaId: UUID derived from DatasetDeclared.labelSchemaId by datasetId
-      opaqueDatasetHandle: String from DatasetRuntimeBindingReported.opaqueDatasetHandle
-      profilingProfile: String?
-    }
-
-    event DatasetProfilingRequested {
-      datasetId: UUID id technical
-      organizationId: UUID
-      runtimeId: UUID
-      featureSchemaId: UUID
-      labelSchemaId: UUID
-      opaqueDatasetHandle: String
-      profilingProfile: String?
-    }
-
-    state ProfilingRequested
   }
 
   slice RecordRuntimeDatasetMetadata {
@@ -1663,7 +1589,6 @@ context DatasetGovernance {
       organizationId: UUID from AgentDatasetMetadataReported.organizationId
       runtimeId: UUID from AgentDatasetMetadataReported.runtimeId
       featureSchemaId: UUID from AgentDatasetMetadataReported.featureSchemaId
-      labelSchemaId: UUID from AgentDatasetMetadataReported.labelSchemaId
       sampleCount: Int from AgentDatasetMetadataReported.sampleCount
       featureCount: Int from AgentDatasetMetadataReported.featureCount
       schemaCompatible: Boolean from AgentDatasetMetadataReported.schemaCompatible
@@ -1683,7 +1608,6 @@ context DatasetGovernance {
       organizationId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
-      labelSchemaId: UUID
       sampleCount: Int
       featureCount: Int
       schemaCompatible: Boolean
@@ -1702,9 +1626,10 @@ context DatasetGovernance {
 
   slice ValidateDatasetContract {
     reactsTo DatasetMetadataReported
+    port
   
     automation ValidateDatasetContractAutomatically {
-      condition sampleCount > 0
+      on DatasetMetadataReported
       emits ValidateDatasetContract
     }
   
@@ -1712,22 +1637,30 @@ context DatasetGovernance {
       datasetId: UUID id technical from DatasetMetadataReported.datasetId
       metadataReportId: UUID from DatasetMetadataReported.metadataReportId
       featureSchemaId: UUID from DatasetMetadataReported.featureSchemaId
-      labelSchemaId: UUID from DatasetMetadataReported.labelSchemaId
-      validationProfile: String?
     }
 
     event DatasetContractValidated {
       datasetId: UUID id technical
       featureSchemaId: UUID
-      labelSchemaId: UUID
       metadataReportId: UUID
       schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
       labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
       qualityScore: Decimal from DatasetMetadataReported.qualityScore
       nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
     }
-  
-    state ContractValidated
+
+    event DatasetContractValidationFailed {
+      datasetId: UUID id technical
+      featureSchemaId: UUID
+      metadataReportId: UUID
+      schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
+      labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
+      qualityScore: Decimal from DatasetMetadataReported.qualityScore
+      nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
+      failureReason: String generated technical
+    }
+
+    state ContractValidationCompleted
   }
 
   slice RejectDatasetForTraining {
@@ -1755,8 +1688,6 @@ context DatasetGovernance {
 
     command ApproveDatasetForTraining {
       datasetId: UUID id technical
-      allowedFederatedUse: String
-      expiresAt: DateTime
     }
 
     event DatasetApprovedForTraining {
@@ -1765,13 +1696,11 @@ context DatasetGovernance {
         from Dataset.organizationId
         rule "Carry the owning organization for organization-level approved dataset counts."
       }
-      allowedFederatedUse: String
-      expiresAt: DateTime
     }
 
     specification "Only Validated Quality Datasets Are Approved" {
       rule """
-        A dataset can be approved only after contract validation succeeds and the validation profile reports acceptable quality and schema compatibility.
+        A dataset can be approved only after contract validation succeeds with acceptable quality and schema compatibility.
       """
 
       scenario "Approve Validated Dataset" {
@@ -1796,28 +1725,6 @@ context DatasetGovernance {
     }
 
     state Approved
-  }
-
-  // 是否需要 TODO
-  slice ExpireDatasetTrainingApproval {
-    reactsTo DatasetApprovedForTraining
-
-    automation ExpireDatasetApprovalWhenPastExpiry {
-      condition expiresAt < now
-      emits ExpireDatasetTrainingApproval
-    }
-
-    command ExpireDatasetTrainingApproval {
-      datasetId: UUID id technical
-      expiredAt: DateTime
-    }
-
-    event DatasetTrainingApprovalExpired {
-      datasetId: UUID id technical
-      expiredAt: DateTime
-    }
-
-    state ApprovalExpired
   }
 
   slice RevokeDatasetTrainingApproval {
@@ -1852,7 +1759,7 @@ context DatasetGovernance {
         from FeatureSchemaDefined.featureDomain
         rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset capability catalog."
       }
-      featureSchemaVersion: Int? derived {
+      featureSchemaVersion: String? derived {
         from FeatureSchemaDefined.version
         rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset capability catalog."
       }
@@ -1868,19 +1775,16 @@ context DatasetGovernance {
       statisticsRef: String?
       metadataStatus: String
       approvalStatus: String
-      expiresAt: DateTime?
       approved: Boolean
       lastProfiledAt: DateTime?
       subscribe OrganizationRegistered
       subscribe FeatureSchemaDefined
       subscribe DatasetDeclared
-      subscribe DatasetRuntimeBindingReported
-      subscribe DatasetProfilingRequested
       subscribe DatasetMetadataReported
       subscribe DatasetContractValidated
+      subscribe DatasetContractValidationFailed
       subscribe DatasetRejectedForTraining
       subscribe DatasetApprovedForTraining
-      subscribe DatasetTrainingApprovalExpired
       subscribe DatasetTrainingApprovalRevoked
     }
   }
@@ -1891,7 +1795,6 @@ context DatasetGovernance {
       organizationId: UUID
       runtimeId: UUID?
       featureSchemaId: UUID
-      labelSchemaId: UUID?
       datasetName: String
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
@@ -1901,14 +1804,11 @@ context DatasetGovernance {
         from FeatureSchemaDefined.featureDomain
         rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset readiness view."
       }
-      featureSchemaVersion: Int? derived {
+      featureSchemaVersion: String? derived {
         from FeatureSchemaDefined.version
         rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset readiness view."
       }
-      opaqueDatasetHandle: String?
       datasetUsage: String
-      sensitivityLevel: String
-      containsPII: Boolean
       metadataStatus: String
       contractStatus: String
       approvalStatus: String
@@ -1935,8 +1835,6 @@ context DatasetGovernance {
       schemaReadable: Boolean?
       sampleBatchReadable: Boolean?
       validationReportId: UUID?
-      approvedFederatedUse: String?
-      approvalExpiresAt: DateTime?
       lastProfiledAt: DateTime?
       lastAccessValidatedAt: DateTime?
       lastRuntimeHeartbeatAt: DateTime?
@@ -1944,17 +1842,13 @@ context DatasetGovernance {
       subscribe OrganizationRegistered
       subscribe FeatureSchemaDefined
       subscribe DatasetDeclared
-      subscribe DatasetRuntimeBindingReported
-      subscribe DatasetProfilingRequested
       subscribe DatasetMetadataReported
       subscribe DatasetContractValidated
+      subscribe DatasetContractValidationFailed
       subscribe DatasetRejectedForTraining
       subscribe DatasetApprovedForTraining
-      subscribe DatasetTrainingApprovalExpired
       subscribe DatasetTrainingApprovalRevoked
-      subscribe DatasetAccessValidationRequested
-      subscribe RuntimeDatasetAccessValidated
-      subscribe DatasetAccessBlocked
+      subscribe AgentDatasetAccessValidated
       subscribe RuntimeConnectionEstablished
       subscribe RuntimeAgentOfflineDetected
       subscribe RuntimeAgentRecovered
@@ -1963,195 +1857,39 @@ context DatasetGovernance {
 
   concept Dataset {
     state Registered
-    state ProfilingRequested
     state MetadataReported
-    state ContractValidated
+    state ContractValidationCompleted
     state Approved
     state Rejected
-    state ApprovalExpired
     state ApprovalRevoked
 
     slice DeclareDataset
-    slice RequestRuntimeDatasetProfiling
     slice RecordRuntimeDatasetMetadata
     slice ValidateDatasetContract
     slice RejectDatasetForTraining
     slice ApproveDatasetForTraining
-    slice ExpireDatasetTrainingApproval
     slice RevokeDatasetTrainingApproval
     slice DatasetCapability
     slice DatasetReadiness
   }
 
-  concept DatasetRuntimeBinding {
-    state Bound
-
-    slice ReportDatasetRuntimeBinding
-  }
-
-  slice RequestRuntimeDatasetAccessValidation {
-    startsLifecycle
-    reactsTo DatasetApprovedForTraining
-
-    automation RequestDatasetAccessValidationWhenDatasetApproved {
-      on DatasetApprovedForTraining
-      emits RequestRuntimeDatasetAccessValidation
-    }
-
-    command RequestRuntimeDatasetAccessValidation {
-      datasetAccessValidationId: UUID id generated technical
-      datasetId: UUID from DatasetApprovedForTraining.datasetId
-      organizationId: UUID from DatasetApprovedForTraining.organizationId
-      runtimeId: UUID derived from DatasetRuntimeBindingReported.runtimeId by datasetId
-      opaqueDatasetHandle: String derived {
-        from DatasetRuntimeBindingReported.opaqueDatasetHandle
-        rule "Use the opaque runtime-side dataset handle without exposing connector configuration."
-      }
-      validationMode: String
-    }
-
-    event DatasetAccessValidationRequested {
-      datasetAccessValidationId: UUID id technical
-      datasetId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      opaqueDatasetHandle: String
-      validationMode: String
-    }
-
-    state ValidationRequested
-  }
-
-  slice CompleteRuntimeDatasetAccessValidation {
-    reactsTo AgentDatasetAccessValidated
-
-    automation CompleteDatasetAccessValidationWhenAgentValidated {
-      on AgentDatasetAccessValidated
-      emits CompleteRuntimeDatasetAccessValidation
-    }
-
-    command CompleteRuntimeDatasetAccessValidation {
-      datasetAccessValidationId: UUID id technical from AgentDatasetAccessValidated.datasetAccessValidationId
-      datasetId: UUID from AgentDatasetAccessValidated.datasetId
-      runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
-      readable: Boolean from AgentDatasetAccessValidated.readable
-      schemaReadable: Boolean from AgentDatasetAccessValidated.schemaReadable
-      sampleBatchReadable: Boolean from AgentDatasetAccessValidated.sampleBatchReadable
-      validationReportId: UUID from AgentDatasetAccessValidated.validationReportId
-      validatedAt: DateTime from AgentDatasetAccessValidated.validatedAt
-    }
-
-    event RuntimeDatasetAccessValidated {
-      datasetAccessValidationId: UUID id technical
-      datasetId: UUID
-      runtimeId: UUID
-      readable: Boolean
-      schemaReadable: Boolean
-      sampleBatchReadable: Boolean
-      validationReportId: UUID
-      validatedAt: DateTime
-    }
-
-    state Validated
-  }
-
-  slice BlockRuntimeDatasetAccess {
-    actor ComplianceOfficer
-    ui DatasetAccessValidationScreen confirm
-    reactsTo RuntimeDatasetAccessValidated
-
-    command BlockRuntimeDatasetAccess {
-      datasetAccessValidationId: UUID id technical
-      datasetId: UUID
-      runtimeId: UUID
-      violationReason: String
-    }
-
-    event DatasetAccessBlocked {
-      datasetAccessValidationId: UUID id technical from BlockRuntimeDatasetAccess.datasetAccessValidationId
-      datasetId: UUID from BlockRuntimeDatasetAccess.datasetId
-      runtimeId: UUID from BlockRuntimeDatasetAccess.runtimeId
-      violationReason: String from BlockRuntimeDatasetAccess.violationReason
-    }
-
-    state AccessBlocked
-
-    specification "Blocked Dataset Access Cannot Be Used For Training" {
-      rule """
-        Blocked dataset access validation evidence must not be selected by any future training job or node participation request.
-      """
-
-      scenario "Block Violating Dataset Access" {
-        given RuntimeDatasetAccessValidated {
-          datasetAccessValidationId = "access-1"
-          readable = true
-        }
-        when BlockRuntimeDatasetAccess {
-          datasetAccessValidationId = "access-1"
-          violationReason = "Policy Revoked"
-        }
-        then DatasetAccessBlocked
-      }
-    }
-  }
-
-  slice DatasetRuntimeAccessCatalog {
-    readmodel DatasetRuntimeAccessCatalog[] {
-      datasetAccessValidationId: UUID id
-      datasetId: UUID
-      runtimeId: UUID
-      datasetName: String? derived {
-        from DatasetDeclared.datasetName
-        rule "Lookup by datasetId and denormalize the dataset display name into the runtime access catalog."
-      }
-      opaqueDatasetHandle: String
-      validationMode: String
-      readable: Boolean
-      schemaReadable: Boolean
-      sampleBatchReadable: Boolean
-      validationReportId: UUID?
-      accessStatus: String
-      blockedReason: String?
-      requestedAt: DateTime
-      validatedAt: DateTime?
-      subscribe DatasetDeclared
-      subscribe DatasetRuntimeBindingReported
-      subscribe DatasetAccessValidationRequested
-      subscribe RuntimeDatasetAccessValidated
-      subscribe DatasetAccessBlocked
-    }
-  }
-
-  concept RuntimeDatasetAccessValidation {
-    state ValidationRequested
-    state Validated
-    state AccessBlocked
-
-    slice RequestRuntimeDatasetAccessValidation
-    slice CompleteRuntimeDatasetAccessValidation
-    slice BlockRuntimeDatasetAccess
-    slice DatasetRuntimeAccessCatalog
-  }
-
   value FeatureDefinition {
     featureName: String
-    // 数据类型也不能由用户填写 TODO
-    dataType: String
-    // TODO 这是什么
-    shape: Int[]?
+    dataType: String dictionary "FEATURE_DATA_TYPE"
+    required: Boolean
     nullable: Boolean
     description: String?
     validationRules: String[]
     defaultValue: String?
     isIdentifier: Boolean
     isSensitive: Boolean
-    encodingStrategy: String?
+    encodingStrategy: String? dictionary "FEATURE_ENCODING_STRATEGY"
     featureTags: String[]
   }
   
   value LabelDefinition {
     labelName: String
-    dataType: String
+    dataType: String dictionary "FEATURE_DATA_TYPE"
     cardinality: Int
     classLabels: String[]?
     isMultilabel: Boolean
@@ -2280,13 +2018,6 @@ context TrainingOrchestration {
     emits SubmitGlobalModelEvaluation
   }
 
-  integration ParticipantRuntimeAgent {
-    source TrainingJob
-    target RuntimeAgent
-    reactsTo TrainingParticipationOffered
-    emits RejectTrainingParticipation
-  }
-
   slice DefineTrainingRunConfiguration {
     startsLifecycle
 
@@ -2298,9 +2029,8 @@ context TrainingOrchestration {
       federationId: UUID
       featureSchemaId: UUID
       initialModelVersionId: UUID
-      strategyName: String
-      // 可选枚举 TODO
-      aggregationAlgorithm: String
+      strategyName: String dictionary "TRAINING_STRATEGY"
+      aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
       minimumNodesPerRound: Int
       roundTimeoutSeconds: Int
@@ -2308,8 +2038,8 @@ context TrainingOrchestration {
       localEpochs: Int
       batchSize: Int
       learningRate: Decimal
-      optimizer: String
-      lossFunction: String
+      optimizer: String dictionary "TRAINING_OPTIMIZER"
+      lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
       gradientClippingNorm: Decimal?
       secureAggregationRequired: Boolean
       differentialPrivacyEnabled: Boolean
@@ -2325,13 +2055,13 @@ context TrainingOrchestration {
       federationId: UUID
       featureSchemaId: UUID
       initialModelVersionId: UUID
-      initialModelArtifactRef: String derived {
+      initialModelArtifactUri: String derived {
         from ModelArtifact.modelArtifactRef
-        rule "Snapshot the initial model artifact pull reference selected from the model repository."
+        rule "Snapshot the initial model artifact URI selected from the model repository."
       }
-      initialModelRepositoryRef: String derived {
+      initialModelRepositoryName: String derived {
         from ModelArtifact.modelRepositoryRef
-        rule "Snapshot the model repository reference so runtime agents can pull the initial global model."
+        rule "Snapshot the model repository name so runtime agents can identify where the initial global model is managed."
       }
       initialModelFormat: String derived {
         from ModelArtifact.modelFormat
@@ -2341,12 +2071,12 @@ context TrainingOrchestration {
         from ModelArtifact.modelHash
         rule "Snapshot the content hash used by runtime agents to verify the pulled model."
       }
-      initialModelSignatureRef: String? derived {
+      initialModelSignatureUri: String? derived {
         from ModelArtifact.modelSignatureRef
-        rule "Snapshot the optional signature used to verify model provenance."
+        rule "Snapshot the optional signature URI used to verify model provenance."
       }
-      strategyName: String
-      aggregationAlgorithm: String
+      strategyName: String dictionary "TRAINING_STRATEGY"
+      aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
       minimumNodesPerRound: Int
       roundTimeoutSeconds: Int
@@ -2354,8 +2084,8 @@ context TrainingOrchestration {
       localEpochs: Int
       batchSize: Int
       learningRate: Decimal
-      optimizer: String
-      lossFunction: String
+      optimizer: String dictionary "TRAINING_OPTIMIZER"
+      lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
       gradientClippingNorm: Decimal?
       secureAggregationRequired: Boolean
       differentialPrivacyEnabled: Boolean
@@ -2367,59 +2097,231 @@ context TrainingOrchestration {
     }
 
     state Draft
-  }
-
-  slice ValidateTrainingRunConfiguration {
-    reactsTo TrainingRunConfigurationDefined
-
-    automation ValidateTrainingRunConfigurationAutomatically {
-      condition maxRounds > 0
-      emits ValidateTrainingRunConfiguration
-    }
-
-    command ValidateTrainingRunConfiguration {
-      trainingRunConfigurationId: UUID id technical
-      validationProfile: String
-    }
-
-    event TrainingRunConfigurationValidated {
-      trainingRunConfigurationId: UUID id technical from ValidateTrainingRunConfiguration.trainingRunConfigurationId
-      valid: Boolean
-      validationReportId: UUID
-      effectiveMinimumNodesPerRound: Int derived {
-        from TrainingRunConfiguration.minimumNodesPerRound, TrainingRunConfiguration.failureToleranceRatio
-        rule "Derive the effective runtime quorum from the selected strategy and failure tolerance."
-      }
-    }
-
-    state Validated
 
     specification "Training Configuration Must Be Runnable" {
       rule """
-        A training run configuration must define a positive round budget, a feasible runtime quorum, and privacy parameters when differential privacy is enabled.
+        A training run configuration is accepted only when the selected federation, feature schema, and initial model version exist; the round budget, quorum, timeouts, and local training parameters are positive; and differential privacy parameters are complete when differential privacy is enabled.
       """
 
-      scenario "Validate Runnable Configuration" {
-        given TrainingRunConfigurationDefined {
+      scenario "Define Runnable Configuration" {
+        when DefineTrainingRunConfiguration {
           trainingRunConfigurationId = "cfg-1"
+          federationId = "fed-1"
+          featureSchemaId = "schema-1"
+          initialModelVersionId = "model-1"
+          strategyName = "FED_AVG"
+          aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 10
           minimumNodesPerRound = 3
+          roundTimeoutSeconds = 1800
+          nodeResponseTimeoutSeconds = 300
+          localEpochs = 2
+          batchSize = 64
+          learningRate = 0.01
+          optimizer = "SGD"
+          lossFunction = "CROSS_ENTROPY"
+          secureAggregationRequired = true
+          differentialPrivacyEnabled = false
+          minimumAccuracy = 0.9
+          failureToleranceRatio = 0.2
         }
-        when ValidateTrainingRunConfiguration {
-          trainingRunConfigurationId = "cfg-1"
-        }
-        then TrainingRunConfigurationValidated
+        then TrainingRunConfigurationDefined
       }
 
       scenario "Reject Empty Round Budget" {
-        given TrainingRunConfigurationDefined {
+        when DefineTrainingRunConfiguration {
           trainingRunConfigurationId = "cfg-2"
+          federationId = "fed-1"
+          featureSchemaId = "schema-1"
+          initialModelVersionId = "model-1"
+          strategyName = "FED_AVG"
+          aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 0
-        }
-        when ValidateTrainingRunConfiguration {
-          trainingRunConfigurationId = "cfg-2"
+          minimumNodesPerRound = 3
+          roundTimeoutSeconds = 1800
+          nodeResponseTimeoutSeconds = 300
+          localEpochs = 2
+          batchSize = 64
+          learningRate = 0.01
+          optimizer = "SGD"
+          lossFunction = "CROSS_ENTROPY"
+          secureAggregationRequired = true
+          differentialPrivacyEnabled = false
+          minimumAccuracy = 0.9
+          failureToleranceRatio = 0.2
         }
         then reject "Positive Round Budget Required"
+      }
+
+      scenario "Reject Differential Privacy Without Parameters" {
+        when DefineTrainingRunConfiguration {
+          trainingRunConfigurationId = "cfg-3"
+          federationId = "fed-1"
+          featureSchemaId = "schema-1"
+          initialModelVersionId = "model-1"
+          strategyName = "FED_AVG"
+          aggregationAlgorithm = "FEDERATED_AVERAGING"
+          maxRounds = 10
+          minimumNodesPerRound = 3
+          roundTimeoutSeconds = 1800
+          nodeResponseTimeoutSeconds = 300
+          localEpochs = 2
+          batchSize = 64
+          learningRate = 0.01
+          optimizer = "SGD"
+          lossFunction = "CROSS_ENTROPY"
+          secureAggregationRequired = true
+          differentialPrivacyEnabled = true
+          minimumAccuracy = 0.9
+          failureToleranceRatio = 0.2
+        }
+        then reject "Differential Privacy Parameters Required"
+      }
+    }
+  }
+
+  slice UpdateTrainingRunConfiguration {
+    actor MLOpsEngineer
+    ui TrainingRunConfigurationScreen
+    reactsTo TrainingRunConfigurationDefined
+
+    command UpdateTrainingRunConfiguration {
+      trainingRunConfigurationId: UUID id technical
+      federationId: UUID
+      featureSchemaId: UUID
+      initialModelVersionId: UUID
+      strategyName: String dictionary "TRAINING_STRATEGY"
+      aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      maxRounds: Int
+      minimumNodesPerRound: Int
+      roundTimeoutSeconds: Int
+      nodeResponseTimeoutSeconds: Int
+      localEpochs: Int
+      batchSize: Int
+      learningRate: Decimal
+      optimizer: String dictionary "TRAINING_OPTIMIZER"
+      lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
+      gradientClippingNorm: Decimal?
+      secureAggregationRequired: Boolean
+      differentialPrivacyEnabled: Boolean
+      dpNoiseMultiplier: Decimal?
+      dpClipNorm: Decimal?
+      minimumAccuracy: Decimal
+      minimumFairnessScore: Decimal?
+      failureToleranceRatio: Decimal
+      updateReason: String?
+    }
+
+    event TrainingRunConfigurationUpdated {
+      trainingRunConfigurationId: UUID id technical
+      federationId: UUID
+      featureSchemaId: UUID
+      initialModelVersionId: UUID
+      initialModelArtifactUri: String derived {
+        from ModelArtifact.modelArtifactRef
+        rule "Snapshot the updated initial model artifact URI selected from the model repository."
+      }
+      initialModelRepositoryName: String derived {
+        from ModelArtifact.modelRepositoryRef
+        rule "Snapshot the updated model repository name so runtime agents can identify where the initial global model is managed."
+      }
+      initialModelFormat: String derived {
+        from ModelArtifact.modelFormat
+        rule "Snapshot the updated model format needed by the runtime engine."
+      }
+      initialModelHash: String derived {
+        from ModelArtifact.modelHash
+        rule "Snapshot the updated content hash used by runtime agents to verify the pulled model."
+      }
+      initialModelSignatureUri: String? derived {
+        from ModelArtifact.modelSignatureRef
+        rule "Snapshot the updated optional signature URI used to verify model provenance."
+      }
+      strategyName: String dictionary "TRAINING_STRATEGY"
+      aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      maxRounds: Int
+      minimumNodesPerRound: Int
+      roundTimeoutSeconds: Int
+      nodeResponseTimeoutSeconds: Int
+      localEpochs: Int
+      batchSize: Int
+      learningRate: Decimal
+      optimizer: String dictionary "TRAINING_OPTIMIZER"
+      lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
+      gradientClippingNorm: Decimal?
+      secureAggregationRequired: Boolean
+      differentialPrivacyEnabled: Boolean
+      dpNoiseMultiplier: Decimal?
+      dpClipNorm: Decimal?
+      minimumAccuracy: Decimal
+      minimumFairnessScore: Decimal?
+      failureToleranceRatio: Decimal
+      updateReason: String?
+    }
+
+    state Draft
+
+    specification "Draft Training Configuration Can Be Updated" {
+      rule """
+        A training run configuration can be updated only while it is still Draft. The updated values must satisfy the same runnable configuration rules as creation. After the configuration is locked by training submission, correction must happen by creating a new configuration.
+      """
+
+      scenario "Update Draft Runnable Configuration" {
+        given TrainingRunConfigurationDefined {
+          trainingRunConfigurationId = "cfg-1"
+        }
+        when UpdateTrainingRunConfiguration {
+          trainingRunConfigurationId = "cfg-1"
+          federationId = "fed-1"
+          featureSchemaId = "schema-1"
+          initialModelVersionId = "model-2"
+          strategyName = "FED_AVG"
+          aggregationAlgorithm = "FEDERATED_AVERAGING"
+          maxRounds = 20
+          minimumNodesPerRound = 3
+          roundTimeoutSeconds = 1800
+          nodeResponseTimeoutSeconds = 300
+          localEpochs = 2
+          batchSize = 64
+          learningRate = 0.01
+          optimizer = "SGD"
+          lossFunction = "CROSS_ENTROPY"
+          secureAggregationRequired = true
+          differentialPrivacyEnabled = false
+          minimumAccuracy = 0.9
+          failureToleranceRatio = 0.2
+          updateReason = "Tune round budget before submission."
+        }
+        then TrainingRunConfigurationUpdated
+      }
+
+      scenario "Reject Update After Configuration Locked" {
+        given TrainingRunConfigurationLocked {
+          trainingRunConfigurationId = "cfg-2"
+        }
+        when UpdateTrainingRunConfiguration {
+          trainingRunConfigurationId = "cfg-2"
+          federationId = "fed-1"
+          featureSchemaId = "schema-1"
+          initialModelVersionId = "model-2"
+          strategyName = "FED_AVG"
+          aggregationAlgorithm = "FEDERATED_AVERAGING"
+          maxRounds = 20
+          minimumNodesPerRound = 3
+          roundTimeoutSeconds = 1800
+          nodeResponseTimeoutSeconds = 300
+          localEpochs = 2
+          batchSize = 64
+          learningRate = 0.01
+          optimizer = "SGD"
+          lossFunction = "CROSS_ENTROPY"
+          secureAggregationRequired = true
+          differentialPrivacyEnabled = false
+          minimumAccuracy = 0.9
+          failureToleranceRatio = 0.2
+          updateReason = "Fix submitted configuration."
+        }
+        then reject "Training Run Configuration Locked"
       }
     }
   }
@@ -2433,8 +2335,11 @@ context TrainingOrchestration {
     }
 
     command LockTrainingRunConfiguration {
-      trainingRunConfigurationId: UUID id technical
-      trainingJobId: UUID
+      trainingRunConfigurationId: UUID id technical derived {
+        from TrainingJob.trainingRunConfigurationId
+        rule "Lock the configuration selected by the submitted training job."
+      }
+      trainingJobId: UUID from TrainingJobSubmitted.trainingJobId
     }
 
     event TrainingRunConfigurationLocked {
@@ -2459,38 +2364,54 @@ context TrainingOrchestration {
         from FeatureSchemaDefined.featureDomain
         rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training run configuration catalog."
       }
-      featureSchemaVersion: Int? derived {
+      featureSchemaVersion: String? derived {
         from FeatureSchemaDefined.version
         rule "Lookup by featureSchemaId and denormalize the feature schema version into the training run configuration catalog."
       }
-      initialModelArtifactRef: String
-      initialModelRepositoryRef: String
+      initialModelArtifactUri: String
+      initialModelRepositoryName: String
       initialModelFormat: String
       initialModelHash: String
-      initialModelSignatureRef: String?
-      strategyName: String
-      aggregationAlgorithm: String
+      initialModelSignatureUri: String?
+      strategyName: String dictionary "TRAINING_STRATEGY"
+      aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
       minimumNodesPerRound: Int
+      roundTimeoutSeconds: Int
+      nodeResponseTimeoutSeconds: Int
+      localEpochs: Int
+      batchSize: Int
+      learningRate: Decimal
+      optimizer: String dictionary "TRAINING_OPTIMIZER"
+      lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
+      gradientClippingNorm: Decimal?
       secureAggregationRequired: Boolean
       differentialPrivacyEnabled: Boolean
+      dpNoiseMultiplier: Decimal?
+      dpClipNorm: Decimal?
       minimumAccuracy: Decimal
+      minimumFairnessScore: Decimal?
+      failureToleranceRatio: Decimal
+      updateReason: String?
+      lockedByTrainingJobId: UUID? derived {
+        from TrainingRunConfigurationLocked.trainingJobId
+        rule "Record the training job that locked this configuration after submission."
+      }
       state: TrainingRunConfiguration.State
       subscribe FederationCreated
       subscribe FeatureSchemaDefined
       subscribe TrainingRunConfigurationDefined
-      subscribe TrainingRunConfigurationValidated
+      subscribe TrainingRunConfigurationUpdated
       subscribe TrainingRunConfigurationLocked
     }
   }
 
   concept TrainingRunConfiguration {
     state Draft
-    state Validated
     state Locked
 
     slice DefineTrainingRunConfiguration
-    slice ValidateTrainingRunConfiguration
+    slice UpdateTrainingRunConfiguration
     slice LockTrainingRunConfiguration
     slice TrainingRunConfigurationCatalog
   }
@@ -2500,15 +2421,15 @@ context TrainingOrchestration {
 
     actor ResearchLead
     ui TrainingJobCreationScreen
-    reactsTo TrainingRunConfigurationValidated
+    reactsTo TrainingRunConfigurationDefined
 
     // Participating organizations are resolved from federation membership and runtime readiness.
     command CreateTrainingJob {
       trainingJobId: UUID id generated technical
       federationId: UUID
       trainingRunConfigurationId: UUID
+      // 本次训练任务的业务目标或实验目的，用于列表、审计和结果解释；不承载训练超参数。
       objective: String
-      targetMetric: String
     }
 
     event TrainingJobCreated {
@@ -2516,22 +2437,22 @@ context TrainingOrchestration {
       federationId: UUID
       featureSchemaId: UUID derived {
         from TrainingRunConfiguration.featureSchemaId
-        rule "Use the feature schema selected in the validated training run configuration."
+        rule "Use the feature schema selected in the runnable training run configuration."
       }
       trainingRunConfigurationId: UUID
+      // 本次训练任务的业务目标或实验目的，用于列表、审计和结果解释；不承载训练超参数。
       objective: String
-      targetMetric: String
     }
 
     state Draft
 
-    specification "Training Job Requires Validated Configuration And Runtime Access" {
+    specification "Training Job Requires Runnable Configuration And Runtime Access" {
       rule """
-        A training job can be created only from a validated training run configuration. Runtime agents match local datasets by the configuration's feature schema when work is dispatched.
+        A training job can be created only from a defined runnable training run configuration. Runtime agents match local datasets by the configuration's feature schema when work is dispatched.
       """
 
-      scenario "Create Training Job With Validated Inputs" {
-        given TrainingRunConfigurationValidated {
+      scenario "Create Training Job With Runnable Configuration" {
+        given TrainingRunConfigurationDefined {
           trainingRunConfigurationId = "config-1"
         }
         when CreateTrainingJob {
@@ -2541,12 +2462,12 @@ context TrainingOrchestration {
         then TrainingJobCreated
       }
 
-      scenario "Reject Training Job Without Validated Configuration" {
+      scenario "Reject Training Job Without Runnable Configuration" {
         when CreateTrainingJob {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
         }
-        then reject "Validated Training Configuration Required"
+        then reject "Runnable Training Configuration Required"
       }
     }
   }
@@ -2558,127 +2479,17 @@ context TrainingOrchestration {
 
     command SubmitTrainingJob {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
     }
 
     event TrainingJobSubmitted {
       trainingJobId: UUID id technical from SubmitTrainingJob.trainingJobId
-      federationId: UUID derived {
-        from TrainingJob.federationId
-        rule "Carry the federation boundary so eligible participants and compute nodes are resolved from federation membership at submission time."
-      }
-      trainingRunConfigurationId: UUID from SubmitTrainingJob.trainingRunConfigurationId
-      featureSchemaId: UUID derived {
-        from TrainingJob.featureSchemaId
-        rule "Snapshot the feature schema so runtime agents can match their local datasets without platform-side dataset binding."
-      }
-      initialModelVersionId: UUID derived {
-        from TrainingRunConfiguration.initialModelVersionId
-        rule "Snapshot the initial model version selected by the training run configuration."
-      }
-      initialModelArtifactRef: String derived {
-        from TrainingRunConfiguration.initialModelArtifactRef
-        rule "Snapshot the initial model artifact pull reference for reproducible round one execution."
-      }
-      initialModelRepositoryRef: String derived {
-        from TrainingRunConfiguration.initialModelRepositoryRef
-        rule "Snapshot the model repository reference used by runtime agents to pull the initial model."
-      }
-      initialModelFormat: String derived {
-        from TrainingRunConfiguration.initialModelFormat
-        rule "Snapshot the initial model format used by runtime engines."
-      }
-      initialModelHash: String derived {
-        from TrainingRunConfiguration.initialModelHash
-        rule "Snapshot the initial model hash used by runtime agents to verify downloads."
-      }
-      initialModelSignatureRef: String? derived {
-        from TrainingRunConfiguration.initialModelSignatureRef
-        rule "Snapshot the optional initial model signature reference."
-      }
-      strategyName: String derived {
-        from TrainingRunConfiguration.strategyName
-        rule "Snapshot the validated training strategy name when the job is submitted."
-      }
-      aggregationAlgorithm: String derived {
-        from TrainingRunConfiguration.aggregationAlgorithm
-        rule "Snapshot the aggregation algorithm for runtime dispatch and audit."
-      }
-      maxRounds: Int derived {
-        from TrainingRunConfiguration.maxRounds
-        rule "Snapshot the configured round budget when the training job is submitted."
-      }
-      minimumNodesPerRound: Int derived {
-        from TrainingRunConfiguration.minimumNodesPerRound
-        rule "Snapshot the configured minimum runtime quorum when the training job is submitted."
-      }
-      roundTimeoutSeconds: Int derived {
-        from TrainingRunConfiguration.roundTimeoutSeconds
-        rule "Snapshot the round timeout for reproducible orchestration."
-      }
-      nodeResponseTimeoutSeconds: Int derived {
-        from TrainingRunConfiguration.nodeResponseTimeoutSeconds
-        rule "Snapshot the node response timeout for runtime scheduling."
-      }
-      localEpochs: Int derived {
-        from TrainingRunConfiguration.localEpochs
-        rule "Snapshot local training epochs for runtime payload construction."
-      }
-      batchSize: Int derived {
-        from TrainingRunConfiguration.batchSize
-        rule "Snapshot batch size for runtime payload construction."
-      }
-      learningRate: Decimal derived {
-        from TrainingRunConfiguration.learningRate
-        rule "Snapshot learning rate for runtime payload construction."
-      }
-      optimizer: String derived {
-        from TrainingRunConfiguration.optimizer
-        rule "Snapshot optimizer for runtime payload construction."
-      }
-      lossFunction: String derived {
-        from TrainingRunConfiguration.lossFunction
-        rule "Snapshot loss function for runtime payload construction."
-      }
-      gradientClippingNorm: Decimal? derived {
-        from TrainingRunConfiguration.gradientClippingNorm
-        rule "Snapshot optional gradient clipping for runtime payload construction."
-      }
-      secureAggregationRequired: Boolean derived {
-        from TrainingRunConfiguration.secureAggregationRequired
-        rule "Snapshot the secure aggregation requirement for round orchestration."
-      }
-      differentialPrivacyEnabled: Boolean derived {
-        from TrainingRunConfiguration.differentialPrivacyEnabled
-        rule "Snapshot the differential privacy toggle for runtime payload construction."
-      }
-      dpNoiseMultiplier: Decimal? derived {
-        from TrainingRunConfiguration.dpNoiseMultiplier
-        rule "Snapshot optional DP noise multiplier for runtime payload construction."
-      }
-      dpClipNorm: Decimal? derived {
-        from TrainingRunConfiguration.dpClipNorm
-        rule "Snapshot optional DP clip norm for runtime payload construction."
-      }
-      minimumAccuracy: Decimal derived {
-        from TrainingRunConfiguration.minimumAccuracy
-        rule "Snapshot the configured target accuracy when the training job is submitted."
-      }
-      minimumFairnessScore: Decimal? derived {
-        from TrainingRunConfiguration.minimumFairnessScore
-        rule "Snapshot optional minimum fairness target for evaluation."
-      }
-      failureToleranceRatio: Decimal derived {
-        from TrainingRunConfiguration.failureToleranceRatio
-        rule "Snapshot failure tolerance for quorum and retry decisions."
-      }
     }
 
     state Submitted
 
     specification "Only Created Training Jobs Can Be Submitted" {
       rule """
-        A training job can be submitted after it is created from a validated training run configuration. Dataset matching is delegated to each runtime agent using the selected feature schema.
+        A training job can be submitted after it is created from a runnable training run configuration. Dataset matching is delegated to each runtime agent using the selected feature schema.
       """
 
       scenario "Submit Created Training Job" {
@@ -2688,7 +2499,6 @@ context TrainingOrchestration {
         }
         when SubmitTrainingJob {
           trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
         }
         then TrainingJobSubmitted
       }
@@ -2696,121 +2506,10 @@ context TrainingOrchestration {
       scenario "Reject Unknown Training Job" {
         when SubmitTrainingJob {
           trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
         }
         then reject "Training Job Required"
       }
     }
-  }
-
-  slice OfferTrainingParticipation {
-    startsLifecycle
-    reactsTo TrainingJobSubmitted
-
-    automation OfferParticipationToEligibleRuntimes {
-      on TrainingJobSubmitted
-      condition eligible == true
-      emits OfferTrainingParticipation
-    }
-
-    command OfferTrainingParticipation {
-      trainingParticipationId: UUID id generated technical
-      trainingJobId: UUID from TrainingJobSubmitted.trainingJobId
-      federationId: UUID from TrainingJobSubmitted.federationId
-      trainingRunConfigurationId: UUID from TrainingJobSubmitted.trainingRunConfigurationId
-      featureSchemaId: UUID from TrainingJobSubmitted.featureSchemaId
-      organizationId: UUID derived {
-        from TrainingParticipantEligibility.organizationId
-        rule "Offer participation to eligible federation members."
-      }
-      runtimeId: UUID derived {
-        from TrainingParticipantEligibility.runtimeId
-        rule "Training participation is offered to a stable RuntimeIdentity, not to a compute node or transient agent instance."
-      }
-      offeredAt: DateTime
-      offerExpiresAt: DateTime
-    }
-
-    event TrainingParticipationOffered {
-      trainingParticipationId: UUID id technical
-      trainingJobId: UUID
-      federationId: UUID
-      trainingRunConfigurationId: UUID
-      featureSchemaId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      offeredAt: DateTime
-      offerExpiresAt: DateTime
-    }
-
-    state Offered
-  }
-
-  slice RecordTrainingParticipationAccepted {
-    reactsTo ExecutionPlanAccepted
-
-    command RecordTrainingParticipationAccepted {
-      trainingParticipationId: UUID id technical from ExecutionPlanAccepted.trainingParticipationId
-      trainingJobId: UUID from ExecutionPlanAccepted.trainingJobId
-      runtimeId: UUID from ExecutionPlanAccepted.runtimeId
-      acceptedAt: DateTime from ExecutionPlanAccepted.acceptedAt
-    }
-
-    event TrainingParticipationAccepted {
-      trainingParticipationId: UUID id technical
-      trainingJobId: UUID
-      runtimeId: UUID
-      acceptedAt: DateTime
-    }
-
-    state Accepted
-  }
-
-  slice RejectTrainingParticipation {
-    actor RuntimeAgent
-    reactsTo TrainingParticipationOffered
-
-    command RejectTrainingParticipation {
-      trainingParticipationId: UUID id technical
-      trainingJobId: UUID
-      runtimeId: UUID
-      rejectionReason: String
-      rejectedAt: DateTime
-    }
-
-    event TrainingParticipationRejected {
-      trainingParticipationId: UUID id technical
-      trainingJobId: UUID
-      runtimeId: UUID
-      rejectionReason: String
-      rejectedAt: DateTime
-    }
-
-    state Rejected
-  }
-
-  slice RevokeTrainingParticipation {
-    actor MLOpsEngineer
-    ui TrainingOperationsScreen confirm
-    reactsTo TrainingParticipationOffered
-
-    command RevokeTrainingParticipation {
-      trainingParticipationId: UUID id technical
-      trainingJobId: UUID
-      runtimeId: UUID
-      revocationReason: String
-      revokedAt: DateTime
-    }
-
-    event TrainingParticipationRevoked {
-      trainingParticipationId: UUID id technical
-      trainingJobId: UUID
-      runtimeId: UUID
-      revocationReason: String
-      revokedAt: DateTime
-    }
-
-    state Revoked
   }
 
   slice TrainingParticipantEligibility {
@@ -2834,7 +2533,7 @@ context TrainingOrchestration {
         from FeatureSchemaDefined.featureDomain
         rule "Lookup by featureSchemaId and denormalize the feature schema domain into participant eligibility."
       }
-      featureSchemaVersion: Int? derived {
+      featureSchemaVersion: String? derived {
         from FeatureSchemaDefined.version
         rule "Lookup by featureSchemaId and denormalize the feature schema version into participant eligibility."
       }
@@ -2855,7 +2554,6 @@ context TrainingOrchestration {
       matchedDatasetMetadataReady: Boolean
       datasetAccessValidated: Boolean
       datasetApprovedForTraining: Boolean
-      datasetApprovalExpiresAt: DateTime?
       schemaCompatible: Boolean?
       labelCompatible: Boolean?
       qualityScore: Decimal?
@@ -2868,6 +2566,7 @@ context TrainingOrchestration {
       subscribe FederationCreated
       subscribe OrganizationRegistered
       subscribe FeatureSchemaDefined
+      subscribe TrainingJobCreated
       subscribe TrainingJobSubmitted
       subscribe ParticipantJoined
       subscribe ParticipantSuspended
@@ -2886,99 +2585,23 @@ context TrainingOrchestration {
       subscribe DatasetMetadataReported
       subscribe DatasetContractValidated
       subscribe DatasetApprovedForTraining
-      subscribe DatasetTrainingApprovalExpired
       subscribe DatasetTrainingApprovalRevoked
-      subscribe DatasetAccessValidationRequested
-      subscribe RuntimeDatasetAccessValidated
-      subscribe DatasetAccessBlocked
-      subscribe TrainingParticipationAccepted
-      subscribe TrainingParticipationRejected
-      subscribe TrainingParticipationRevoked
+      subscribe AgentDatasetAccessValidated
     }
-  }
-
-  slice TrainingParticipationCatalog {
-    readmodel TrainingParticipationCatalog[] {
-      trainingParticipationId: UUID id
-      trainingJobId: UUID
-      federationId: UUID
-      trainingRunConfigurationId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      featureSchemaId: UUID
-      trainingJobObjective: String? derived {
-        from TrainingJobCreated.objective
-        rule "Lookup by trainingJobId and denormalize the training job objective into the training participation catalog."
-      }
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the training participation catalog."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training participation catalog."
-      }
-      featureSchemaVersion: Int? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the training participation catalog."
-      }
-      state: TrainingParticipation.State
-      offerExpiresAt: DateTime?
-      offeredAt: DateTime?
-      acceptedAt: DateTime?
-      rejectedAt: DateTime?
-      revokedAt: DateTime?
-      rejectionReason: String?
-      revocationReason: String?
-      subscribe TrainingJobCreated
-      subscribe OrganizationRegistered
-      subscribe FeatureSchemaDefined
-      subscribe TrainingParticipationOffered
-      subscribe TrainingParticipationAccepted
-      subscribe TrainingParticipationRejected
-      subscribe TrainingParticipationRevoked
-    }
-  }
-
-  slice TrackTrainingJobRunning {
-    reactsTo TrainingRoundStarted
-
-    automation MarkTrainingJobRunningWhenRoundStarts {
-      on TrainingRoundStarted
-      emits MarkTrainingJobRunning
-    }
-
-    command MarkTrainingJobRunning {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      roundId: UUID
-      roundNumber: Int
-    }
-
-    event TrainingJobRunning {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      roundId: UUID
-      roundNumber: Int
-    }
-
-    state Running
   }
 
   slice PauseTrainingJob {
     actor MLOpsEngineer
     ui TrainingOperationsScreen
-    reactsTo TrainingJobRunning
+    reactsTo TrainingRoundStarted
 
     command PauseTrainingJob {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
       pauseReason: String
     }
 
     event TrainingJobPaused {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
       pauseReason: String
     }
 
@@ -2992,13 +2615,11 @@ context TrainingOrchestration {
 
     command ResumeTrainingJob {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
       resumeReason: String?
     }
 
     event TrainingJobResumed {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
       resumeReason: String?
     }
 
@@ -3008,17 +2629,15 @@ context TrainingOrchestration {
   slice CancelTrainingJob {
     actor MLOpsEngineer
     ui TrainingOperationsScreen
-    reactsTo TrainingJobRunning
+    reactsTo TrainingRoundStarted
 
     command CancelTrainingJob {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
       cancelReason: String?
     }
 
     event TrainingJobCanceled {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
       cancelReason: String?
     }
 
@@ -3033,8 +2652,8 @@ context TrainingOrchestration {
       emits SelectTrainingRoundParticipants
     }
   }
-
   slice CompleteTrainingJob {
+
     reactsTo TrainingRoundCompleted
 
     automation CompleteJobWhenRoundBudgetExhausted {
@@ -3049,7 +2668,6 @@ context TrainingOrchestration {
 
     command CompleteTrainingJob {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
       finalRoundId: UUID
       finalModelVersionId: UUID
       stopReason: String
@@ -3057,7 +2675,6 @@ context TrainingOrchestration {
 
     event TrainingJobCompleted {
       trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
       finalRoundId: UUID
       finalModelVersionId: UUID
       stopReason: String
@@ -3080,14 +2697,13 @@ context TrainingOrchestration {
         from FeatureSchemaDefined.featureDomain
         rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training job dashboard."
       }
-      featureSchemaVersion: Int? derived {
+      featureSchemaVersion: String? derived {
         from FeatureSchemaDefined.version
         rule "Lookup by featureSchemaId and denormalize the feature schema version into the training job dashboard."
       }
       objective: String
-      targetMetric: String
-      strategyName: String?
-      aggregationAlgorithm: String?
+      strategyName: String? dictionary "TRAINING_STRATEGY"
+      aggregationAlgorithm: String? dictionary "AGGREGATION_ALGORITHM"
       secureAggregationRequired: Boolean?
       state: TrainingJob.State
       workflowStage: String
@@ -3113,9 +2729,6 @@ context TrainingOrchestration {
       subscribe FeatureSchemaDefined
       subscribe TrainingJobCreated
       subscribe TrainingJobSubmitted
-      subscribe TrainingParticipationOffered
-      subscribe TrainingParticipationAccepted
-      subscribe TrainingJobRunning
       subscribe TrainingJobPaused
       subscribe TrainingJobResumed
       subscribe TrainingJobCanceled
@@ -3136,7 +2749,6 @@ context TrainingOrchestration {
     slice CreateTrainingJob
     slice SubmitTrainingJob
     slice TrainingParticipantEligibility
-    slice TrackTrainingJobRunning
     slice PauseTrainingJob
     slice ResumeTrainingJob
     slice CancelTrainingJob
@@ -3145,39 +2757,36 @@ context TrainingOrchestration {
     slice TrainingJobDashboard
   }
 
-  concept TrainingParticipation {
-    state Offered
-    state Accepted
-    state Rejected
-    state Revoked
-
-    slice OfferTrainingParticipation
-    slice RecordTrainingParticipationAccepted
-    slice RejectTrainingParticipation
-    slice RevokeTrainingParticipation
-    slice TrainingParticipationCatalog
-  }
-
   slice SelectTrainingRoundParticipants {
     startsLifecycle
-    reactsTo TrainingParticipationAccepted
+    reactsTo TrainingJobSubmitted
 
-    automation SelectInitialRoundParticipantsWhenAcceptedQuorumReady {
-      condition acceptedParticipationCount >= minimumNodesPerRound
+    automation SelectInitialRoundParticipantsWhenTrainingSubmitted {
+      on TrainingJobSubmitted
+      condition selectedEligibleRuntimeCount >= minimumNodesPerRound
       emits SelectTrainingRoundParticipants
     }
 
     command SelectTrainingRoundParticipants {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      featureSchemaId: UUID
+      trainingJobId: UUID id technical from TrainingJobSubmitted.trainingJobId
+      trainingRunConfigurationId: UUID derived {
+        from TrainingJob.trainingRunConfigurationId
+        rule "Use the training configuration selected by the submitted job."
+      }
+      featureSchemaId: UUID derived {
+        from TrainingJob.featureSchemaId
+        rule "Use the feature schema selected by the job configuration."
+      }
       roundId: UUID generated technical
-      roundNumber: Int
-      minimumNodesPerRound: Int
-      acceptedParticipationCount: Int
-      selectedRuntimeCount: Int
-      participantSelectionRef: String
-      selectionPolicy: String
+      roundNumber: Int generated technical
+      minimumNodesPerRound: Int derived {
+        from TrainingRunConfiguration.minimumNodesPerRound
+        rule "Use the runtime quorum configured for the selected training configuration."
+      }
+      selectedEligibleRuntimeCount: Int generated technical
+      selectedRuntimeCount: Int generated technical
+      participantSelectionRef: String generated technical
+      selectionPolicy: String generated technical
     }
 
     event TrainingRoundParticipantsSelected {
@@ -3187,7 +2796,7 @@ context TrainingOrchestration {
       roundId: UUID
       roundNumber: Int
       minimumNodesPerRound: Int
-      acceptedParticipationCount: Int
+      selectedEligibleRuntimeCount: Int
       selectedRuntimeCount: Int
       participantSelectionRef: String
       selectionPolicy: String
@@ -3197,39 +2806,25 @@ context TrainingOrchestration {
 
     specification "Training Round Participants Are Snapshotted Per Round" {
       rule """
-        Each training round starts from a participant snapshot. Runtimes that start after a round has begun cannot join that round, but they can be selected for a later round when the policy allows dynamic round snapshots.
+        Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates domain facts, not readmodel state: submitted job, locked training configuration, active federation membership, admitted runtime identity, active federation runtime grant, verified runtime capability, non-quarantined connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots.
       """
 
       scenario "Select Participants When Runtime Pool Reaches Quorum" {
-        given TrainingParticipationAccepted {
+        given TrainingJobSubmitted {
           trainingJobId = "job-1"
-          runtimeId = "runtime-1"
         }
         when SelectTrainingRoundParticipants {
           trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-          roundNumber = 1
-          minimumNodesPerRound = 3
-          acceptedParticipationCount = 4
-          selectedRuntimeCount = 3
-          selectionPolicy = "ROUND_SNAPSHOT"
         }
         then TrainingRoundParticipantsSelected
       }
 
       scenario "Reject Participant Snapshot Below Quorum" {
-        given TrainingParticipationAccepted {
+        given TrainingJobSubmitted {
           trainingJobId = "job-1"
-          runtimeId = "runtime-1"
         }
         when SelectTrainingRoundParticipants {
           trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-          roundNumber = 1
-          minimumNodesPerRound = 3
-          acceptedParticipationCount = 2
-          selectedRuntimeCount = 2
-          selectionPolicy = "ROUND_SNAPSHOT"
         }
         then reject "Round Participant Quorum Required"
       }
@@ -3253,6 +2848,7 @@ context TrainingOrchestration {
       roundNumber: Int from TrainingRoundParticipantsSelected.roundNumber
       participantSelectionRef: String from TrainingRoundParticipantsSelected.participantSelectionRef
       selectedRuntimeCount: Int from TrainingRoundParticipantsSelected.selectedRuntimeCount
+      minimumNodesPerRound: Int from TrainingRoundParticipantsSelected.minimumNodesPerRound
     }
 
     event TrainingRoundStarted {
@@ -3263,6 +2859,7 @@ context TrainingOrchestration {
       roundNumber: Int
       participantSelectionRef: String
       selectedRuntimeCount: Int
+      minimumNodesPerRound: Int
     }
 
     state Running
@@ -3324,28 +2921,28 @@ context TrainingOrchestration {
       roundNumber: Int from TrainingRoundStarted.roundNumber
       participantSelectionRef: String from TrainingRoundStarted.participantSelectionRef
       sourceModelVersionId: UUID derived {
-        from TrainingJobSubmitted.initialModelVersionId, TrainingRoundCompleted.aggregatedModelVersionId
-        rule "Round one uses the initial model snapshot from the submitted training job; later rounds use the aggregated model from the previous completed round."
+        from TrainingRunConfiguration.initialModelVersionId, TrainingRoundCompleted.aggregatedModelVersionId
+        rule "Round one uses the initial model selected by the training configuration; later rounds use the aggregated model from the previous completed round."
       }
       sourceModelArtifactRef: String derived {
-        from TrainingJobSubmitted.initialModelArtifactRef, TrainingRoundCompleted.modelArtifactRef
-        rule "Publish the artifact reference that selected runtime agents can pull for this round."
+        from TrainingRunConfiguration.initialModelArtifactUri, TrainingRoundCompleted.modelArtifactRef
+        rule "Publish the artifact URI that selected runtime agents can pull for this round."
       }
       modelRepositoryRef: String derived {
-        from TrainingJobSubmitted.initialModelRepositoryRef, TrainingRoundCompleted.modelRepositoryRef
-        rule "Publish the model repository reference used by runtime agents for pulling the round model."
+        from TrainingRunConfiguration.initialModelRepositoryName, TrainingRoundCompleted.modelRepositoryRef
+        rule "Publish the model repository name used by runtime agents for pulling the round model."
       }
       modelFormat: String derived {
-        from TrainingJobSubmitted.initialModelFormat, TrainingRoundCompleted.modelFormat
+        from TrainingRunConfiguration.initialModelFormat, TrainingRoundCompleted.modelFormat
         rule "Publish the model format expected by the runtime engine."
       }
       modelHash: String derived {
-        from TrainingJobSubmitted.initialModelHash, TrainingRoundCompleted.modelHash
+        from TrainingRunConfiguration.initialModelHash, TrainingRoundCompleted.modelHash
         rule "Publish the content hash that runtime agents must verify after pulling the model."
       }
       modelSignatureRef: String? derived {
-        from TrainingJobSubmitted.initialModelSignatureRef, TrainingRoundCompleted.modelSignatureRef
-        rule "Publish the optional model signature reference for provenance verification."
+        from TrainingRunConfiguration.initialModelSignatureUri, TrainingRoundCompleted.modelSignatureRef
+        rule "Publish the optional model signature URI for provenance verification."
       }
       targetRuntimeCount: Int from TrainingRoundStarted.selectedRuntimeCount
     }
@@ -3382,10 +2979,6 @@ context TrainingOrchestration {
     command GenerateParticipantExecutionPlan {
       executionPlanId: UUID id generated technical
       executionSessionId: UUID generated technical
-      trainingParticipationId: UUID derived {
-        from TrainingRoundParticipantsSelected.participantSelectionRef
-        rule "Resolve the accepted training participation selected for this runtime in the immutable round snapshot."
-      }
       trainingJobId: UUID from RoundGlobalModelPublished.trainingJobId
       trainingRunConfigurationId: UUID from RoundGlobalModelPublished.trainingRunConfigurationId
       featureSchemaId: UUID from RoundGlobalModelPublished.featureSchemaId
@@ -3401,15 +2994,8 @@ context TrainingOrchestration {
       }
       baseModelArtifactRef: String from RoundGlobalModelPublished.sourceModelArtifactRef
       baseModelDigest: String from RoundGlobalModelPublished.modelHash
-      runtimeImageRef: String
-      datasetRequirementRef: String
-      trainingParametersRef: String
-      privacyParametersRef: String
-      aggregationEndpointRef: String
       aggregationPublicKey: String?
       allowedNetworkDestinations: String[]
-      resourceLimitsRef: String
-      outputContractRef: String
       nonce: String
       issuedAt: DateTime
       expiresAt: DateTime
@@ -3418,7 +3004,6 @@ context TrainingOrchestration {
     event ParticipantExecutionPlanGenerated {
       executionPlanId: UUID id technical
       executionSessionId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
@@ -3428,15 +3013,8 @@ context TrainingOrchestration {
       organizationId: UUID
       baseModelArtifactRef: String
       baseModelDigest: String
-      runtimeImageRef: String
-      datasetRequirementRef: String
-      trainingParametersRef: String
-      privacyParametersRef: String
-      aggregationEndpointRef: String
       aggregationPublicKey: String?
       allowedNetworkDestinations: String[]
-      resourceLimitsRef: String
-      outputContractRef: String
       nonce: String
       issuedAt: DateTime
       expiresAt: DateTime
@@ -3481,7 +3059,6 @@ context TrainingOrchestration {
     command IssueParticipantExecutionPlan {
       executionPlanId: UUID id technical from ParticipantExecutionPlanSigned.executionPlanId
       executionSessionId: UUID derived from ParticipantExecutionPlanGenerated.executionSessionId by executionPlanId
-      trainingParticipationId: UUID derived from ParticipantExecutionPlanGenerated.trainingParticipationId by executionPlanId
       trainingJobId: UUID derived from ParticipantExecutionPlanGenerated.trainingJobId by executionPlanId
       trainingRunConfigurationId: UUID derived from ParticipantExecutionPlanGenerated.trainingRunConfigurationId by executionPlanId
       featureSchemaId: UUID derived from ParticipantExecutionPlanGenerated.featureSchemaId by executionPlanId
@@ -3491,15 +3068,8 @@ context TrainingOrchestration {
       organizationId: UUID derived from ParticipantExecutionPlanGenerated.organizationId by executionPlanId
       baseModelArtifactRef: String derived from ParticipantExecutionPlanGenerated.baseModelArtifactRef by executionPlanId
       baseModelDigest: String derived from ParticipantExecutionPlanGenerated.baseModelDigest by executionPlanId
-      runtimeImageRef: String derived from ParticipantExecutionPlanGenerated.runtimeImageRef by executionPlanId
-      datasetRequirementRef: String derived from ParticipantExecutionPlanGenerated.datasetRequirementRef by executionPlanId
-      trainingParametersRef: String derived from ParticipantExecutionPlanGenerated.trainingParametersRef by executionPlanId
-      privacyParametersRef: String derived from ParticipantExecutionPlanGenerated.privacyParametersRef by executionPlanId
-      aggregationEndpointRef: String derived from ParticipantExecutionPlanGenerated.aggregationEndpointRef by executionPlanId
       aggregationPublicKey: String? derived from ParticipantExecutionPlanGenerated.aggregationPublicKey by executionPlanId
       allowedNetworkDestinations: String[] derived from ParticipantExecutionPlanGenerated.allowedNetworkDestinations by executionPlanId
-      resourceLimitsRef: String derived from ParticipantExecutionPlanGenerated.resourceLimitsRef by executionPlanId
-      outputContractRef: String derived from ParticipantExecutionPlanGenerated.outputContractRef by executionPlanId
       nonce: String derived from ParticipantExecutionPlanGenerated.nonce by executionPlanId
       issuedAt: DateTime derived from ParticipantExecutionPlanGenerated.issuedAt by executionPlanId
       expiresAt: DateTime derived from ParticipantExecutionPlanGenerated.expiresAt by executionPlanId
@@ -3509,7 +3079,6 @@ context TrainingOrchestration {
     event ParticipantExecutionPlanIssued {
       executionPlanId: UUID id technical
       executionSessionId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
@@ -3519,15 +3088,8 @@ context TrainingOrchestration {
       organizationId: UUID
       baseModelArtifactRef: String
       baseModelDigest: String
-      runtimeImageRef: String
-      datasetRequirementRef: String
-      trainingParametersRef: String
-      privacyParametersRef: String
-      aggregationEndpointRef: String
       aggregationPublicKey: String?
       allowedNetworkDestinations: String[]
-      resourceLimitsRef: String
-      outputContractRef: String
       nonce: String
       issuedAt: DateTime
       expiresAt: DateTime
@@ -3545,7 +3107,6 @@ context TrainingOrchestration {
       modelUpdateSubmissionId: UUID id generated technical
       executionSessionId: UUID from AgentLocalModelUpdateSubmitted.executionSessionId
       executionPlanId: UUID from AgentLocalModelUpdateSubmitted.executionPlanId
-      trainingParticipationId: UUID from AgentLocalModelUpdateSubmitted.trainingParticipationId
       trainingJobId: UUID from AgentLocalModelUpdateSubmitted.trainingJobId
       trainingRunConfigurationId: UUID
       roundId: UUID
@@ -3564,7 +3125,6 @@ context TrainingOrchestration {
       modelUpdateSubmissionId: UUID id technical
       executionSessionId: UUID
       executionPlanId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
@@ -3582,70 +3142,55 @@ context TrainingOrchestration {
     state Received
   }
 
-  slice AcceptModelUpdateSubmission {
+  slice EvaluateModelUpdateSubmission {
     reactsTo ModelUpdateSubmissionReceived
 
-    automation AcceptModelUpdateWhenPolicyPassed {
-      condition modelUpdatePolicyPassed == true
-      emits AcceptModelUpdateSubmission
+    automation EvaluateModelUpdateWhenReceived {
+      on ModelUpdateSubmissionReceived
+      emits EvaluateModelUpdateSubmission
     }
 
-    command AcceptModelUpdateSubmission {
+    command EvaluateModelUpdateSubmission {
       modelUpdateSubmissionId: UUID id technical from ModelUpdateSubmissionReceived.modelUpdateSubmissionId
       executionSessionId: UUID from ModelUpdateSubmissionReceived.executionSessionId
       executionPlanId: UUID from ModelUpdateSubmissionReceived.executionPlanId
-      trainingParticipationId: UUID from ModelUpdateSubmissionReceived.trainingParticipationId
       trainingJobId: UUID from ModelUpdateSubmissionReceived.trainingJobId
       trainingRunConfigurationId: UUID from ModelUpdateSubmissionReceived.trainingRunConfigurationId
       roundId: UUID from ModelUpdateSubmissionReceived.roundId
       runtimeId: UUID from ModelUpdateSubmissionReceived.runtimeId
-      acceptedAt: DateTime
+      anomalyScore: Decimal generated technical
+      evaluatedAt: DateTime
     }
 
     event ModelUpdateSubmissionAccepted {
       modelUpdateSubmissionId: UUID id technical
       executionSessionId: UUID
       executionPlanId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
       runtimeId: UUID
-      acceptedAt: DateTime
-    }
-
-    state Accepted
-  }
-
-  slice RejectPoisonedLocalUpdate {
-    actor AggregationRuntime
-    reactsTo ModelUpdateSubmissionReceived
-
-    command RejectPoisonedLocalUpdate {
-      modelUpdateSubmissionId: UUID id technical from ModelUpdateSubmissionReceived.modelUpdateSubmissionId
-      trainingJobId: UUID from ModelUpdateSubmissionReceived.trainingJobId
-      trainingRunConfigurationId: UUID from ModelUpdateSubmissionReceived.trainingRunConfigurationId
-      roundId: UUID from ModelUpdateSubmissionReceived.roundId
-      runtimeId: UUID from ModelUpdateSubmissionReceived.runtimeId
-      updateArtifactId: UUID from ModelUpdateSubmissionReceived.updateArtifactId
       anomalyScore: Decimal
-      rejectionReason: String
+      evaluatedAt: DateTime
     }
 
     event ModelUpdateSubmissionRejected {
-      modelUpdateSubmissionId: UUID id technical from RejectPoisonedLocalUpdate.modelUpdateSubmissionId
-      trainingJobId: UUID from RejectPoisonedLocalUpdate.trainingJobId
-      trainingRunConfigurationId: UUID from RejectPoisonedLocalUpdate.trainingRunConfigurationId
-      roundId: UUID from RejectPoisonedLocalUpdate.roundId
-      runtimeId: UUID from RejectPoisonedLocalUpdate.runtimeId
-      updateArtifactId: UUID from RejectPoisonedLocalUpdate.updateArtifactId
-      anomalyScore: Decimal from RejectPoisonedLocalUpdate.anomalyScore
-      rejectionReason: String from RejectPoisonedLocalUpdate.rejectionReason
+      modelUpdateSubmissionId: UUID id technical
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      runtimeId: UUID
+      updateArtifactId: UUID from ModelUpdateSubmissionReceived.updateArtifactId
+      anomalyScore: Decimal
+      rejectionReason: String generated technical
+      evaluatedAt: DateTime
     }
+
+    state Evaluated
 
     specification "Poisoned Local Updates Are Excluded" {
       rule """
-        A local model update with an anomaly score above the configured policy threshold must be rejected and excluded from secure aggregation quorum counts.
+        A local model update is evaluated exactly once by aggregation policy. The same evaluation command records ModelUpdateSubmissionAccepted when the update passes policy, or ModelUpdateSubmissionRejected when anomaly checks fail.
       """
 
       scenario "Reject Anomalous Update" {
@@ -3656,7 +3201,7 @@ context TrainingOrchestration {
           updateArtifactId = "artifact-1"
           trainingLoss = 99.0
         }
-        when RejectPoisonedLocalUpdate {
+        when EvaluateModelUpdateSubmission {
           modelUpdateSubmissionId = "submission-1"
           anomalyScore = 0.98
         }
@@ -3669,7 +3214,7 @@ context TrainingOrchestration {
     reactsTo ModelUpdateSubmissionAccepted
 
     automation RequestAggregationWhenEvaluatedUpdatesComplete {
-      condition acceptedModelUpdateCount >= 3
+      condition acceptedModelUpdateCount >= minimumNodesPerRound
       emits RequestSecureAggregation
     }
 
@@ -3679,6 +3224,7 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       acceptedModelUpdateCount: Int
+      minimumNodesPerRound: Int derived from TrainingRoundStarted.minimumNodesPerRound by roundId
       aggregationProvider: String
     }
 
@@ -3688,6 +3234,7 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       acceptedModelUpdateCount: Int
+      minimumNodesPerRound: Int
       aggregationProvider: String
     }
 
@@ -3841,11 +3388,28 @@ context TrainingOrchestration {
     }
   }
 
-  slice FailTrainingRoundOnQuorumLoss {
+  slice FailTrainingRound {
     actor AggregationRuntime
-    reactsTo ModelUpdateSubmissionRejected
 
-    command FailTrainingRoundOnQuorumLoss {
+    automation FailRoundWhenRejectedUpdatesBreakQuorum {
+      on ModelUpdateSubmissionRejected
+      condition roundQuorumLost == true
+      emits FailTrainingRound
+    }
+
+    automation FailRoundWhenRuntimeExecutionFailureBreaksQuorum {
+      on RoundExecutionFailed
+      condition roundQuorumLost == true
+      emits FailTrainingRound
+    }
+
+    automation FailRoundWhenContributionDeadlineMissed {
+      on TrainingRoundStarted
+      condition roundContributionTimedOut == true
+      emits FailTrainingRound
+    }
+
+    command FailTrainingRound {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
@@ -3856,13 +3420,13 @@ context TrainingOrchestration {
     }
 
     event TrainingRoundFailed {
-      trainingJobId: UUID id technical from FailTrainingRoundOnQuorumLoss.trainingJobId
-      trainingRunConfigurationId: UUID from FailTrainingRoundOnQuorumLoss.trainingRunConfigurationId
-      featureSchemaId: UUID from FailTrainingRoundOnQuorumLoss.featureSchemaId
-      roundId: UUID from FailTrainingRoundOnQuorumLoss.roundId
-      selectedRuntimeCount: Int from FailTrainingRoundOnQuorumLoss.selectedRuntimeCount
-      minimumNodesPerRound: Int from FailTrainingRoundOnQuorumLoss.minimumNodesPerRound
-      failureReason: String from FailTrainingRoundOnQuorumLoss.failureReason
+      trainingJobId: UUID id technical from FailTrainingRound.trainingJobId
+      trainingRunConfigurationId: UUID from FailTrainingRound.trainingRunConfigurationId
+      featureSchemaId: UUID from FailTrainingRound.featureSchemaId
+      roundId: UUID from FailTrainingRound.roundId
+      selectedRuntimeCount: Int from FailTrainingRound.selectedRuntimeCount
+      minimumNodesPerRound: Int from FailTrainingRound.minimumNodesPerRound
+      failureReason: String from FailTrainingRound.failureReason
     }
 
     state Failed
@@ -3882,14 +3446,14 @@ context TrainingOrchestration {
         from FeatureSchemaDefined.featureDomain
         rule "Lookup by featureSchemaId and denormalize the feature schema domain into round progress."
       }
-      featureSchemaVersion: Int? derived {
+      featureSchemaVersion: String? derived {
         from FeatureSchemaDefined.version
         rule "Lookup by featureSchemaId and denormalize the feature schema version into round progress."
       }
       roundNumber: Int
       state: TrainingRound.State
       participantSelectionRef: String?
-      acceptedParticipationCount: Int
+      selectedEligibleRuntimeCount: Int
       selectedRuntimeCount: Int
       targetRuntimeCount: Int
       executionPlanIssuedCount: Int
@@ -3964,13 +3528,12 @@ context TrainingOrchestration {
     slice StartTrainingRound
     slice PublishRoundGlobalModel
     slice SubmitModelUpdateSubmission
-    slice AcceptModelUpdateSubmission
-    slice RejectPoisonedLocalUpdate
+    slice EvaluateModelUpdateSubmission
     slice RequestSecureAggregation
     slice CompleteSecureAggregation
     slice SubmitGlobalModelEvaluation
     slice CompleteTrainingRound
-    slice FailTrainingRoundOnQuorumLoss
+    slice FailTrainingRound
     slice TrainingRoundProgress
   }
 
@@ -5422,17 +4985,10 @@ context SecureAggregation {
     }
 
     integration PlatformDatasetMetadataReporting {
-      source AgentDatasetMetadata
+      source RuntimeDatasetMetadata
       target DatasetGovernance
       reactsTo AgentDatasetMetadataReported
       emits RecordRuntimeDatasetMetadata
-    }
-
-    integration PlatformDatasetAccessValidationReporting {
-      source AgentDatasetAccessValidation
-      target DatasetGovernance
-      reactsTo AgentDatasetAccessValidated
-      emits CompleteRuntimeDatasetAccessValidation
     }
 
     integration PlatformRoundUpdateReporting {
@@ -5594,7 +5150,6 @@ context SecureAggregation {
       datasetId: UUID
       runtimeAgentId: UUID
       dataConnectorId: UUID
-      opaqueDatasetHandle: String
       agentDataAccessHandle: String
       localConnectionConfigRef: String?
       localCredentialRef: String?
@@ -5610,7 +5165,6 @@ context SecureAggregation {
       datasetId: UUID
       runtimeAgentId: UUID
       dataConnectorId: UUID
-      opaqueDatasetHandle: String
       agentDataAccessHandle: String
       localConnectionConfigRef: String?
       localCredentialRef: String?
@@ -5638,7 +5192,6 @@ context SecureAggregation {
         from AgentDataConnectorRegistered.connectorName
         rule "Lookup by dataConnectorId and denormalize the data connector display name into the agent dataset access profile catalog."
       }
-      opaqueDatasetHandle: String
       agentDataAccessHandle: String
       localConnectionConfigRef: String?
       localCredentialRef: String?
@@ -5663,22 +5216,19 @@ context SecureAggregation {
 
   slice ProfileAgentDataset {
     startsLifecycle
-    reactsTo DatasetProfilingRequested
+    reactsTo AgentDatasetAccessProfileConfigured
 
-    automation ProfileDatasetWhenRequested {
-      on DatasetProfilingRequested
+    automation ProfileDatasetWhenAccessProfileConfigured {
+      on AgentDatasetAccessProfileConfigured
       emits ProfileAgentDataset
     }
 
     command ProfileAgentDataset {
       metadataReportId: UUID id generated technical
-      datasetId: UUID from DatasetProfilingRequested.datasetId
-      organizationId: UUID from DatasetProfilingRequested.organizationId
-      runtimeId: UUID from DatasetProfilingRequested.runtimeId
-      featureSchemaId: UUID from DatasetProfilingRequested.featureSchemaId
-      labelSchemaId: UUID from DatasetProfilingRequested.labelSchemaId
-      opaqueDatasetHandle: String from DatasetProfilingRequested.opaqueDatasetHandle
-      profilingProfile: String? from DatasetProfilingRequested.profilingProfile
+      datasetId: UUID from AgentDatasetAccessProfileConfigured.datasetId
+      organizationId: UUID derived from DatasetDeclared.organizationId by datasetId
+      runtimeId: UUID from AgentDatasetAccessProfileConfigured.runtimeAgentId
+      featureSchemaId: UUID derived from DatasetDeclared.featureSchemaId by datasetId
     }
 
     event AgentDatasetMetadataReported {
@@ -5687,7 +5237,6 @@ context SecureAggregation {
       organizationId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
-      labelSchemaId: UUID
       sampleCount: Int
       featureCount: Int
       schemaCompatible: Boolean
@@ -5704,14 +5253,13 @@ context SecureAggregation {
     state Reported
   }
 
-  slice AgentDatasetMetadataCatalog {
-    readmodel AgentDatasetMetadataCatalog[] {
+  slice RuntimeDatasetMetadataCatalog {
+    readmodel RuntimeDatasetMetadataCatalog[] {
       metadataReportId: UUID id
       datasetId: UUID
       organizationId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
-      labelSchemaId: UUID
       datasetName: String? derived {
         from DatasetDeclared.datasetName
         rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset metadata catalog."
@@ -5724,7 +5272,7 @@ context SecureAggregation {
         from FeatureSchemaDefined.featureDomain
         rule "Lookup by featureSchemaId and denormalize the feature schema domain into the agent dataset metadata catalog."
       }
-      featureSchemaVersion: Int? derived {
+      featureSchemaVersion: String? derived {
         from FeatureSchemaDefined.version
         rule "Lookup by featureSchemaId and denormalize the feature schema version into the agent dataset metadata catalog."
       }
@@ -5746,28 +5294,26 @@ context SecureAggregation {
     }
   }
 
-  concept AgentDatasetMetadata {
+  concept RuntimeDatasetMetadata {
     state Reported
 
     slice ProfileAgentDataset
-    slice AgentDatasetMetadataCatalog
+    slice RuntimeDatasetMetadataCatalog
   }
 
   slice ValidateAgentDatasetAccess {
     startsLifecycle
-    reactsTo DatasetAccessValidationRequested
+    reactsTo AgentDatasetAccessProfileConfigured
 
-    automation ValidateDatasetAccessWhenRequested {
-      on DatasetAccessValidationRequested
+    automation ValidateDatasetAccessWhenProfileConfigured {
+      on AgentDatasetAccessProfileConfigured
       emits ValidateAgentDatasetAccess
     }
 
     command ValidateAgentDatasetAccess {
-      datasetAccessValidationId: UUID id technical from DatasetAccessValidationRequested.datasetAccessValidationId
-      datasetId: UUID from DatasetAccessValidationRequested.datasetId
-      runtimeId: UUID from DatasetAccessValidationRequested.runtimeId
-      opaqueDatasetHandle: String from DatasetAccessValidationRequested.opaqueDatasetHandle
-      validationMode: String from DatasetAccessValidationRequested.validationMode
+      datasetAccessValidationId: UUID id generated technical
+      datasetId: UUID from AgentDatasetAccessProfileConfigured.datasetId
+      runtimeId: UUID from AgentDatasetAccessProfileConfigured.runtimeAgentId
     }
 
     event AgentDatasetAccessValidated {
@@ -5822,7 +5368,6 @@ context SecureAggregation {
     command ReceiveParticipantExecutionPlan {
       executionPlanId: UUID id technical from ParticipantExecutionPlanIssued.executionPlanId
       executionSessionId: UUID from ParticipantExecutionPlanIssued.executionSessionId
-      trainingParticipationId: UUID from ParticipantExecutionPlanIssued.trainingParticipationId
       trainingJobId: UUID from ParticipantExecutionPlanIssued.trainingJobId
       trainingRunConfigurationId: UUID from ParticipantExecutionPlanIssued.trainingRunConfigurationId
       featureSchemaId: UUID from ParticipantExecutionPlanIssued.featureSchemaId
@@ -5832,13 +5377,7 @@ context SecureAggregation {
       organizationId: UUID from ParticipantExecutionPlanIssued.organizationId
       baseModelArtifactRef: String from ParticipantExecutionPlanIssued.baseModelArtifactRef
       baseModelDigest: String from ParticipantExecutionPlanIssued.baseModelDigest
-      runtimeImageRef: String from ParticipantExecutionPlanIssued.runtimeImageRef
-      datasetRequirementRef: String from ParticipantExecutionPlanIssued.datasetRequirementRef
-      trainingParametersRef: String from ParticipantExecutionPlanIssued.trainingParametersRef
-      privacyParametersRef: String from ParticipantExecutionPlanIssued.privacyParametersRef
-      aggregationEndpointRef: String from ParticipantExecutionPlanIssued.aggregationEndpointRef
       aggregationPublicKey: String? from ParticipantExecutionPlanIssued.aggregationPublicKey
-      outputContractRef: String from ParticipantExecutionPlanIssued.outputContractRef
       nonce: String from ParticipantExecutionPlanIssued.nonce
       expiresAt: DateTime from ParticipantExecutionPlanIssued.expiresAt
       signature: String from ParticipantExecutionPlanIssued.signature
@@ -5848,7 +5387,6 @@ context SecureAggregation {
     event ExecutionPlanReceived {
       executionPlanId: UUID id technical
       executionSessionId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
@@ -5858,13 +5396,7 @@ context SecureAggregation {
       organizationId: UUID
       baseModelArtifactRef: String
       baseModelDigest: String
-      runtimeImageRef: String
-      datasetRequirementRef: String
-      trainingParametersRef: String
-      privacyParametersRef: String
-      aggregationEndpointRef: String
       aggregationPublicKey: String?
-      outputContractRef: String
       nonce: String
       expiresAt: DateTime
       signature: String
@@ -5886,7 +5418,6 @@ context SecureAggregation {
     command AcceptExecutionPlan {
       executionPlanId: UUID id technical from ExecutionPlanReceived.executionPlanId
       executionSessionId: UUID from ExecutionPlanReceived.executionSessionId
-      trainingParticipationId: UUID from ExecutionPlanReceived.trainingParticipationId
       trainingJobId: UUID from ExecutionPlanReceived.trainingJobId
       runtimeId: UUID from ExecutionPlanReceived.runtimeId
       acceptedAt: DateTime
@@ -5895,7 +5426,6 @@ context SecureAggregation {
     event ExecutionPlanAccepted {
       executionPlanId: UUID id technical
       executionSessionId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       runtimeId: UUID
       acceptedAt: DateTime
@@ -5911,7 +5441,6 @@ context SecureAggregation {
     command RejectExecutionPlan {
       executionPlanId: UUID id technical
       executionSessionId: UUID from ExecutionPlanReceived.executionSessionId
-      trainingParticipationId: UUID from ExecutionPlanReceived.trainingParticipationId
       trainingJobId: UUID from ExecutionPlanReceived.trainingJobId
       runtimeId: UUID from ExecutionPlanReceived.runtimeId
       rejectionReason: String
@@ -5921,7 +5450,6 @@ context SecureAggregation {
     event ExecutionPlanRejected {
       executionPlanId: UUID id technical
       executionSessionId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       runtimeId: UUID
       rejectionReason: String
@@ -5943,7 +5471,6 @@ context SecureAggregation {
       roundExecutionId: UUID id generated technical
       executionSessionId: UUID from ExecutionPlanAccepted.executionSessionId
       executionPlanId: UUID from ExecutionPlanAccepted.executionPlanId
-      trainingParticipationId: UUID from ExecutionPlanAccepted.trainingParticipationId
       trainingJobId: UUID from ExecutionPlanAccepted.trainingJobId
       trainingRunConfigurationId: UUID derived from ExecutionPlanReceived.trainingRunConfigurationId by executionPlanId
       roundId: UUID derived from ExecutionPlanReceived.roundId by executionPlanId
@@ -5960,7 +5487,6 @@ context SecureAggregation {
       roundExecutionId: UUID id technical
       executionSessionId: UUID
       executionPlanId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
@@ -5983,7 +5509,6 @@ context SecureAggregation {
       roundExecutionId: UUID id technical
       executionSessionId: UUID from RoundExecutionStarted.executionSessionId
       executionPlanId: UUID from RoundExecutionStarted.executionPlanId
-      trainingParticipationId: UUID from RoundExecutionStarted.trainingParticipationId
       trainingJobId: UUID from RoundExecutionStarted.trainingJobId
       trainingRunConfigurationId: UUID from RoundExecutionStarted.trainingRunConfigurationId
       roundId: UUID from RoundExecutionStarted.roundId
@@ -5995,7 +5520,6 @@ context SecureAggregation {
       roundExecutionId: UUID id technical
       executionSessionId: UUID
       executionPlanId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
@@ -6013,7 +5537,6 @@ context SecureAggregation {
       roundExecutionId: UUID id technical
       executionSessionId: UUID from RoundExecutionStarted.executionSessionId
       executionPlanId: UUID from RoundExecutionStarted.executionPlanId
-      trainingParticipationId: UUID from RoundExecutionStarted.trainingParticipationId
       trainingJobId: UUID from RoundExecutionStarted.trainingJobId
       trainingRunConfigurationId: UUID from RoundExecutionStarted.trainingRunConfigurationId
       roundId: UUID from RoundExecutionStarted.roundId
@@ -6026,7 +5549,6 @@ context SecureAggregation {
       roundExecutionId: UUID id technical
       executionSessionId: UUID
       executionPlanId: UUID
-      trainingParticipationId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
@@ -6045,7 +5567,6 @@ context SecureAggregation {
       modelUpdateSubmissionId: UUID id generated technical
       executionSessionId: UUID from RoundExecutionCompleted.executionSessionId
       executionPlanId: UUID from RoundExecutionCompleted.executionPlanId
-      trainingParticipationId: UUID from RoundExecutionCompleted.trainingParticipationId
       roundExecutionId: UUID from RoundExecutionCompleted.roundExecutionId
       trainingJobId: UUID from RoundExecutionCompleted.trainingJobId
       trainingRunConfigurationId: UUID from RoundExecutionCompleted.trainingRunConfigurationId
@@ -6064,7 +5585,6 @@ context SecureAggregation {
       modelUpdateSubmissionId: UUID id technical
       executionSessionId: UUID
       executionPlanId: UUID
-      trainingParticipationId: UUID
       roundExecutionId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
@@ -6087,7 +5607,6 @@ context SecureAggregation {
       roundExecutionId: UUID id
       executionSessionId: UUID?
       executionPlanId: UUID?
-      trainingParticipationId: UUID?
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
