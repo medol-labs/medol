@@ -204,7 +204,7 @@ Event:
 ;
 
 ReadModel:
-    ('readmodel' | 'projection') name=ID listElement?='[]'? '{'
+    ('readmodel' | 'projection') todo?='todo'? name=ID listElement?='[]'? '{'
         elements+=ReadModelElement*
     '}'
 ;
@@ -251,7 +251,7 @@ AutomationElement:
 ;
 
 AutomationTrigger:
-    'on' event=[Event:ID]
+    'on' (('todo' todo=[ReadModel:ID]) | event=[Event:ID])
 ;
 
 Condition:

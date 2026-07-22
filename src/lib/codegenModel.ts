@@ -168,6 +168,8 @@ export interface CodegenElement {
   startsLifecycle?: boolean;
   port?: boolean;
   listElement?: boolean;
+  todo?: boolean;
+  metadata?: Record<string, string>;
   ui?: CodegenUi;
   dictionaryProvider?: CodegenDictionaryProvider;
 }
@@ -643,6 +645,8 @@ const toCodegenElement = (
   ...(startsLifecycle ? { startsLifecycle } : {}),
   ...(type === 'COMMAND' && port ? { port: true } : {}),
   ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
+  ...(type === 'READMODEL' && element.todo ? { todo: true } : {}),
+  ...(element.metadata && Object.keys(element.metadata).length > 0 ? { metadata: element.metadata } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {}),
   ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {})
 });

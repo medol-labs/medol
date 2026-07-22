@@ -41,6 +41,8 @@ interface ConfigElement {
   createsAggregate?: boolean;
   port?: boolean;
   listElement?: boolean;
+  todo?: boolean;
+  metadata?: Record<string, string>;
   fields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
   ui?: ConfigUi;
@@ -306,8 +308,19 @@ const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void 
   }
   for (const processor of slice.processors ?? []) {
     lines.push(`${pad(elementIndent)}automation ${toDslId(processor.title, 'Automation')} {`);
+    const on = processor.metadata?.on;
+    const onKind = processor.metadata?.onKind;
+    if (on) {
+      lines.push(`${pad(elementIndent + 2)}on ${onKind === 'todo' ? 'todo ' : ''}${toDslId(on, onKind === 'todo' ? 'ReadModel' : 'Event')}`);
+    }
+    if (processor.metadata?.condition) {
+      lines.push(`${pad(elementIndent + 2)}condition ${processor.metadata.condition}`);
+    }
+    if (processor.metadata?.emits) {
+      lines.push(`${pad(elementIndent + 2)}emits ${toDslId(processor.metadata.emits, 'Command')}`);
+    }
     for (const dependency of processor.dependencies ?? []) {
-      if (dependency.elementType === 'COMMAND' && dependency.title) {
+      if (!processor.metadata?.emits && dependency.elementType === 'COMMAND' && dependency.title) {
         lines.push(`${pad(elementIndent + 2)}emits ${toDslId(dependency.title, 'Command')}`);
       }
     }
@@ -463,7 +476,8 @@ const pad = (indent: number): string => ' '.repeat(indent);
 const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel', element: ConfigElement, indent: number, extraLines: string[] = []): void => {
   const pad = ' '.repeat(indent);
   const listMarker = kind === 'readmodel' && element.listElement ? '[]' : '';
-  lines.push(`${pad}${kind} ${toDslId(element.title, kind)}${listMarker} {`);
+  const todoMarker = kind === 'readmodel' && element.todo ? ' todo' : '';
+  lines.push(`${pad}${kind}${todoMarker} ${toDslId(element.title, kind)}${listMarker} {`);
   if (kind === 'readmodel' && element.dictionaryProvider) {
     appendDictionaryProvider(lines, element.dictionaryProvider, indent + 2);
   }

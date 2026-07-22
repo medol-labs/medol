@@ -118,6 +118,7 @@ export type MedolKeywordNames =
     | "target"
     | "technical"
     | "then"
+    | "todo"
     | "true"
     | "type"
     | "ui"
@@ -213,12 +214,14 @@ export function isAutomationElement(item: unknown): item is AutomationElement {
 export interface AutomationTrigger extends langium.AstNode {
     readonly $container: Automation;
     readonly $type: 'AutomationTrigger';
-    event: langium.Reference<Event>;
+    event?: langium.Reference<Event>;
+    todo?: langium.Reference<ReadModel>;
 }
 
 export const AutomationTrigger = {
     $type: 'AutomationTrigger',
-    event: 'event'
+    event: 'event',
+    todo: 'todo'
 } as const;
 
 export function isAutomationTrigger(item: unknown): item is AutomationTrigger {
@@ -1070,13 +1073,15 @@ export interface ReadModel extends langium.AstNode {
     elements: Array<ReadModelElement>;
     listElement: boolean;
     name: string;
+    todo: boolean;
 }
 
 export const ReadModel = {
     $type: 'ReadModel',
     elements: 'elements',
     listElement: 'listElement',
-    name: 'name'
+    name: 'name',
+    todo: 'todo'
 } as const;
 
 export function isReadModel(item: unknown): item is ReadModel {
@@ -1805,6 +1810,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 event: {
                     name: AutomationTrigger.event,
                     referenceType: Event.$type
+                },
+                todo: {
+                    name: AutomationTrigger.todo,
+                    referenceType: ReadModel.$type
                 }
             },
             superTypes: [AutomationElement.$type]
@@ -2403,6 +2412,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 name: {
                     name: ReadModel.name
+                },
+                todo: {
+                    name: ReadModel.todo,
+                    defaultValue: false
                 }
             },
             superTypes: [ContextElement.$type, SliceElement.$type]

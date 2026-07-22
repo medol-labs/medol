@@ -267,8 +267,7 @@ context FederationManagement {
       minimumParticipantCount: Int
       activeMemberCount: Int
       pendingInvitationCount: Int
-      admittedRuntimeCount: Int
-      activeRuntimeGrantCount: Int
+      activeRuntimeCount: Int
       activeTrainingJobCount: Int
       subscribe FederationCreated
       subscribe FederationActivated
@@ -280,10 +279,8 @@ context FederationManagement {
       subscribe ParticipantInvitationRevoked
       subscribe ParticipantSuspended
       subscribe ParticipantRemoved
-      subscribe RuntimeAdmitted
+      subscribe RuntimeIdentityActivated
       subscribe RuntimeIdentityRevoked
-      subscribe FederationRuntimeAccessGranted
-      subscribe FederationRuntimeAccessRevoked
       subscribe TrainingJobSubmitted
     }
   }
@@ -2001,13 +1998,13 @@ context TrainingOrchestration {
     source TrainingRound
     target SecureAggregationService
     reactsTo SecureAggregationRequested
-    emits CompleteSecureAggregation
+    emits CompleteHomomorphicAggregationSession
   }
 
   integration ParticipantRoundRuntime {
     source TrainingRound
     target RuntimeAgent
-    reactsTo ParticipantExecutionPlanIssued
+    reactsTo ParticipantExecutionPlanDispatched
     emits ReceiveParticipantExecutionPlan
   }
 
@@ -2515,7 +2512,7 @@ context TrainingOrchestration {
   slice TrainingParticipantEligibility {
     reactsTo TrainingJobSubmitted
 
-    readmodel TrainingParticipantEligibility[] {
+    readmodel todo TrainingParticipantEligibility[] {
       trainingJobId: UUID id
       federationId: UUID
       organizationId: UUID
@@ -2541,10 +2538,8 @@ context TrainingOrchestration {
       readinessStatus: String
       readinessStage: String
       eligibilityScore: Int
-      runtimeAdmitted: Boolean
-      runtimeGrantActive: Boolean
+      runtimeIdentityActive: Boolean
       runtimeCapabilitySatisfied: Boolean
-      runtimeQuarantined: Boolean
       runtimeConnectionEstablished: Boolean
       runtimeHealthy: Boolean
       datasetId: UUID?
@@ -2559,6 +2554,9 @@ context TrainingOrchestration {
       qualityScore: Decimal?
       securityReady: Boolean
       eligible: Boolean
+      eligibleRuntimeCount: Int
+      minimumNodesPerRound: Int
+      selectionReady: Boolean
       eligibilityReason: String?
       ineligibleReasons: String[]
       warningReasons: String[]
@@ -2571,13 +2569,9 @@ context TrainingOrchestration {
       subscribe ParticipantJoined
       subscribe ParticipantSuspended
       subscribe ParticipantRemoved
-      subscribe RuntimeAdmitted
+      subscribe RuntimeIdentityActivated
       subscribe RuntimeIdentityRevoked
-      subscribe RuntimeQuarantined
-      subscribe RuntimeCapabilityVerified
-      subscribe RuntimeCapabilityRevoked
-      subscribe FederationRuntimeAccessGranted
-      subscribe FederationRuntimeAccessRevoked
+      subscribe RuntimeCapabilitiesDetected
       subscribe RuntimeConnectionEstablished
       subscribe RuntimeAgentOfflineDetected
       subscribe RuntimeAgentRecovered
@@ -2757,36 +2751,25 @@ context TrainingOrchestration {
     slice TrainingJobDashboard
   }
 
+  value TrainingRoundParticipant {
+    organizationId: UUID
+    runtimeId: UUID
+    datasetId: UUID
+  }
+
   slice SelectTrainingRoundParticipants {
     startsLifecycle
     reactsTo TrainingJobSubmitted
 
+    // TODO port/adapter ?
     automation SelectInitialRoundParticipantsWhenTrainingSubmitted {
-      on TrainingJobSubmitted
-      condition selectedEligibleRuntimeCount >= minimumNodesPerRound
+      on todo TrainingParticipantEligibility
+      condition selectionReady == true
       emits SelectTrainingRoundParticipants
     }
 
     command SelectTrainingRoundParticipants {
       trainingJobId: UUID id technical from TrainingJobSubmitted.trainingJobId
-      trainingRunConfigurationId: UUID derived {
-        from TrainingJob.trainingRunConfigurationId
-        rule "Use the training configuration selected by the submitted job."
-      }
-      featureSchemaId: UUID derived {
-        from TrainingJob.featureSchemaId
-        rule "Use the feature schema selected by the job configuration."
-      }
-      roundId: UUID generated technical
-      roundNumber: Int generated technical
-      minimumNodesPerRound: Int derived {
-        from TrainingRunConfiguration.minimumNodesPerRound
-        rule "Use the runtime quorum configured for the selected training configuration."
-      }
-      selectedEligibleRuntimeCount: Int generated technical
-      selectedRuntimeCount: Int generated technical
-      participantSelectionRef: String generated technical
-      selectionPolicy: String generated technical
     }
 
     event TrainingRoundParticipantsSelected {
@@ -2796,17 +2779,18 @@ context TrainingOrchestration {
       roundId: UUID
       roundNumber: Int
       minimumNodesPerRound: Int
-      selectedEligibleRuntimeCount: Int
+      selectedOrganizationIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedParticipants: TrainingRoundParticipant[]
+      selectedOrganizationCount: Int
       selectedRuntimeCount: Int
-      participantSelectionRef: String
-      selectionPolicy: String
     }
 
     state ParticipantsSelected
 
     specification "Training Round Participants Are Snapshotted Per Round" {
       rule """
-        Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates domain facts, not readmodel state: submitted job, locked training configuration, active federation membership, admitted runtime identity, active federation runtime grant, verified runtime capability, non-quarantined connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots.
+        Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates domain facts, not readmodel state: submitted job, locked training configuration, active federation membership, active runtime identity, detected runtime capabilities, connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots.
       """
 
       scenario "Select Participants When Runtime Pool Reaches Quorum" {
@@ -2833,6 +2817,7 @@ context TrainingOrchestration {
 
   slice StartTrainingRound {
     reactsTo TrainingRoundParticipantsSelected
+    port
 
     automation StartRoundWhenParticipantsSelected {
       on TrainingRoundParticipantsSelected
@@ -2846,7 +2831,10 @@ context TrainingOrchestration {
       featureSchemaId: UUID from TrainingRoundParticipantsSelected.featureSchemaId
       roundId: UUID from TrainingRoundParticipantsSelected.roundId
       roundNumber: Int from TrainingRoundParticipantsSelected.roundNumber
-      participantSelectionRef: String from TrainingRoundParticipantsSelected.participantSelectionRef
+      selectedOrganizationIds: UUID[] from TrainingRoundParticipantsSelected.selectedOrganizationIds
+      selectedRuntimeIds: UUID[] from TrainingRoundParticipantsSelected.selectedRuntimeIds
+      selectedParticipants: TrainingRoundParticipant[] from TrainingRoundParticipantsSelected.selectedParticipants
+      selectedOrganizationCount: Int from TrainingRoundParticipantsSelected.selectedOrganizationCount
       selectedRuntimeCount: Int from TrainingRoundParticipantsSelected.selectedRuntimeCount
       minimumNodesPerRound: Int from TrainingRoundParticipantsSelected.minimumNodesPerRound
     }
@@ -2857,16 +2845,34 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
-      participantSelectionRef: String
+      selectedOrganizationIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedParticipants: TrainingRoundParticipant[]
+      selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+    }
+
+    event TrainingRoundStartFailed {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
+      roundNumber: Int
+      selectedOrganizationIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedParticipants: TrainingRoundParticipant[]
+      selectedOrganizationCount: Int
+      selectedRuntimeCount: Int
+      minimumNodesPerRound: Int
+      failureReason: String
     }
 
     state Running
 
     specification "Training Round Requires Selected Runtime Quorum" {
       rule """
-        A training round can start only from a selected participant snapshot whose selected runtime count satisfies the configured runtime quorum.
+        Starting a training round is an automated domain decision. A selected participant snapshot that satisfies the configured runtime quorum starts the round; a snapshot below quorum records a failed start event instead of relying on an interactive rejection.
       """
 
       scenario "Start Round With Selected Runtime Quorum" {
@@ -2886,7 +2892,7 @@ context TrainingOrchestration {
         then TrainingRoundStarted
       }
 
-      scenario "Reject Round Start Below Quorum" {
+      scenario "Record Failed Round Start Below Quorum" {
         given TrainingRoundParticipantsSelected {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
@@ -2900,105 +2906,42 @@ context TrainingOrchestration {
           roundId = "round-1"
           selectedRuntimeCount = 2
         }
-        then reject "Selected Runtime Quorum Required"
+        then TrainingRoundStartFailed
       }
     }
-  }
-
-  slice PublishRoundGlobalModel {
-    reactsTo TrainingRoundStarted
-
-    automation PublishRoundGlobalModelWhenRoundStarts {
-      on TrainingRoundStarted
-      emits PublishRoundGlobalModel
-    }
-
-    command PublishRoundGlobalModel {
-      trainingJobId: UUID id technical from TrainingRoundStarted.trainingJobId
-      trainingRunConfigurationId: UUID from TrainingRoundStarted.trainingRunConfigurationId
-      featureSchemaId: UUID from TrainingRoundStarted.featureSchemaId
-      roundId: UUID from TrainingRoundStarted.roundId
-      roundNumber: Int from TrainingRoundStarted.roundNumber
-      participantSelectionRef: String from TrainingRoundStarted.participantSelectionRef
-      sourceModelVersionId: UUID derived {
-        from TrainingRunConfiguration.initialModelVersionId, TrainingRoundCompleted.aggregatedModelVersionId
-        rule "Round one uses the initial model selected by the training configuration; later rounds use the aggregated model from the previous completed round."
-      }
-      sourceModelArtifactRef: String derived {
-        from TrainingRunConfiguration.initialModelArtifactUri, TrainingRoundCompleted.modelArtifactRef
-        rule "Publish the artifact URI that selected runtime agents can pull for this round."
-      }
-      modelRepositoryRef: String derived {
-        from TrainingRunConfiguration.initialModelRepositoryName, TrainingRoundCompleted.modelRepositoryRef
-        rule "Publish the model repository name used by runtime agents for pulling the round model."
-      }
-      modelFormat: String derived {
-        from TrainingRunConfiguration.initialModelFormat, TrainingRoundCompleted.modelFormat
-        rule "Publish the model format expected by the runtime engine."
-      }
-      modelHash: String derived {
-        from TrainingRunConfiguration.initialModelHash, TrainingRoundCompleted.modelHash
-        rule "Publish the content hash that runtime agents must verify after pulling the model."
-      }
-      modelSignatureRef: String? derived {
-        from TrainingRunConfiguration.initialModelSignatureUri, TrainingRoundCompleted.modelSignatureRef
-        rule "Publish the optional model signature URI for provenance verification."
-      }
-      targetRuntimeCount: Int from TrainingRoundStarted.selectedRuntimeCount
-    }
-
-    event RoundGlobalModelPublished {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      featureSchemaId: UUID
-      roundId: UUID
-      roundNumber: Int
-      participantSelectionRef: String
-      sourceModelVersionId: UUID
-      sourceModelArtifactRef: String
-      modelRepositoryRef: String
-      modelFormat: String
-      modelHash: String
-      modelSignatureRef: String?
-      targetRuntimeCount: Int
-    }
-
-    state CollectingUpdates
   }
 
   slice GenerateParticipantExecutionPlan {
     startsLifecycle
-    reactsTo RoundGlobalModelPublished
+    reactsTo TrainingRoundStarted
 
     automation GeneratePlanForSelectedRuntime {
-      on RoundGlobalModelPublished
-      condition runtimeSelected == true
+      on TrainingRoundStarted
+      condition selectedRuntimeCount > 0
       emits GenerateParticipantExecutionPlan
     }
 
     command GenerateParticipantExecutionPlan {
       executionPlanId: UUID id generated technical
       executionSessionId: UUID generated technical
-      trainingJobId: UUID from RoundGlobalModelPublished.trainingJobId
-      trainingRunConfigurationId: UUID from RoundGlobalModelPublished.trainingRunConfigurationId
-      featureSchemaId: UUID from RoundGlobalModelPublished.featureSchemaId
-      roundId: UUID from RoundGlobalModelPublished.roundId
-      roundNumber: Int from RoundGlobalModelPublished.roundNumber
+      trainingJobId: UUID from TrainingRoundStarted.trainingJobId
+      trainingRunConfigurationId: UUID from TrainingRoundStarted.trainingRunConfigurationId
+      featureSchemaId: UUID from TrainingRoundStarted.featureSchemaId
+      roundId: UUID from TrainingRoundStarted.roundId
+      roundNumber: Int from TrainingRoundStarted.roundNumber
       runtimeId: UUID derived {
-        from TrainingRoundParticipantsSelected.participantSelectionRef
-        rule "Fan out one immutable execution plan per selected RuntimeIdentity."
+        from TrainingRoundStarted.selectedParticipants.runtimeId
+        rule "Fan out one immutable execution plan per selected runtime in the selected participant snapshot."
       }
       organizationId: UUID derived {
-        from TrainingRoundParticipantsSelected.participantSelectionRef
-        rule "Carry participant organization for audit without exposing local node choice."
+        from TrainingRoundStarted.selectedParticipants.organizationId
+        rule "Carry the organization paired with the selected runtime in the participant snapshot."
       }
-      baseModelArtifactRef: String from RoundGlobalModelPublished.sourceModelArtifactRef
-      baseModelDigest: String from RoundGlobalModelPublished.modelHash
-      aggregationPublicKey: String?
-      allowedNetworkDestinations: String[]
-      nonce: String
-      issuedAt: DateTime
-      expiresAt: DateTime
+      baseModelVersionId: UUID derived {
+        from TrainingRunConfiguration.initialModelVersionId, TrainingRoundCompleted.aggregatedModelVersionId
+        rule "Round one uses the initial model selected by the training configuration; later rounds use the aggregated model from the previous completed round."
+      }
+      generatedAt: DateTime
     }
 
     event ParticipantExecutionPlanGenerated {
@@ -3011,72 +2954,37 @@ context TrainingOrchestration {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
-      baseModelArtifactRef: String
-      baseModelDigest: String
-      aggregationPublicKey: String?
-      allowedNetworkDestinations: String[]
-      nonce: String
-      issuedAt: DateTime
-      expiresAt: DateTime
+      baseModelVersionId: UUID
+      generatedAt: DateTime
     }
 
     state PlanGenerated
   }
 
-  slice SignParticipantExecutionPlan {
+  slice DispatchParticipantExecutionPlan {
     reactsTo ParticipantExecutionPlanGenerated
+    port
 
-    automation SignExecutionPlanWhenGenerated {
+    automation DispatchPlanWhenGenerated {
       on ParticipantExecutionPlanGenerated
-      emits SignParticipantExecutionPlan
+      emits DispatchParticipantExecutionPlan
     }
 
-    command SignParticipantExecutionPlan {
+    command DispatchParticipantExecutionPlan {
       executionPlanId: UUID id technical from ParticipantExecutionPlanGenerated.executionPlanId
-      signingKeyId: String
-      signature: String
-      signedAt: DateTime
+      executionSessionId: UUID from ParticipantExecutionPlanGenerated.executionSessionId
+      trainingJobId: UUID from ParticipantExecutionPlanGenerated.trainingJobId
+      trainingRunConfigurationId: UUID from ParticipantExecutionPlanGenerated.trainingRunConfigurationId
+      featureSchemaId: UUID from ParticipantExecutionPlanGenerated.featureSchemaId
+      roundId: UUID from ParticipantExecutionPlanGenerated.roundId
+      roundNumber: Int from ParticipantExecutionPlanGenerated.roundNumber
+      runtimeId: UUID from ParticipantExecutionPlanGenerated.runtimeId
+      organizationId: UUID from ParticipantExecutionPlanGenerated.organizationId
+      baseModelVersionId: UUID from ParticipantExecutionPlanGenerated.baseModelVersionId
+      dispatchedAt: DateTime
     }
 
-    event ParticipantExecutionPlanSigned {
-      executionPlanId: UUID id technical
-      signingKeyId: String
-      signature: String
-      signedAt: DateTime
-    }
-
-    state PlanSigned
-  }
-
-  slice IssueParticipantExecutionPlan {
-    reactsTo ParticipantExecutionPlanSigned
-
-    automation IssueExecutionPlanWhenSigned {
-      on ParticipantExecutionPlanSigned
-      emits IssueParticipantExecutionPlan
-    }
-
-    command IssueParticipantExecutionPlan {
-      executionPlanId: UUID id technical from ParticipantExecutionPlanSigned.executionPlanId
-      executionSessionId: UUID derived from ParticipantExecutionPlanGenerated.executionSessionId by executionPlanId
-      trainingJobId: UUID derived from ParticipantExecutionPlanGenerated.trainingJobId by executionPlanId
-      trainingRunConfigurationId: UUID derived from ParticipantExecutionPlanGenerated.trainingRunConfigurationId by executionPlanId
-      featureSchemaId: UUID derived from ParticipantExecutionPlanGenerated.featureSchemaId by executionPlanId
-      roundId: UUID derived from ParticipantExecutionPlanGenerated.roundId by executionPlanId
-      roundNumber: Int derived from ParticipantExecutionPlanGenerated.roundNumber by executionPlanId
-      runtimeId: UUID derived from ParticipantExecutionPlanGenerated.runtimeId by executionPlanId
-      organizationId: UUID derived from ParticipantExecutionPlanGenerated.organizationId by executionPlanId
-      baseModelArtifactRef: String derived from ParticipantExecutionPlanGenerated.baseModelArtifactRef by executionPlanId
-      baseModelDigest: String derived from ParticipantExecutionPlanGenerated.baseModelDigest by executionPlanId
-      aggregationPublicKey: String? derived from ParticipantExecutionPlanGenerated.aggregationPublicKey by executionPlanId
-      allowedNetworkDestinations: String[] derived from ParticipantExecutionPlanGenerated.allowedNetworkDestinations by executionPlanId
-      nonce: String derived from ParticipantExecutionPlanGenerated.nonce by executionPlanId
-      issuedAt: DateTime derived from ParticipantExecutionPlanGenerated.issuedAt by executionPlanId
-      expiresAt: DateTime derived from ParticipantExecutionPlanGenerated.expiresAt by executionPlanId
-      signature: String from ParticipantExecutionPlanSigned.signature
-    }
-
-    event ParticipantExecutionPlanIssued {
+    event ParticipantExecutionPlanDispatched {
       executionPlanId: UUID id technical
       executionSessionId: UUID
       trainingJobId: UUID
@@ -3086,17 +2994,11 @@ context TrainingOrchestration {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
-      baseModelArtifactRef: String
-      baseModelDigest: String
-      aggregationPublicKey: String?
-      allowedNetworkDestinations: String[]
-      nonce: String
-      issuedAt: DateTime
-      expiresAt: DateTime
-      signature: String
+      baseModelVersionId: UUID
+      dispatchedAt: DateTime
     }
 
-    state PlanIssued
+    state PlanDispatched
   }
 
   slice SubmitModelUpdateSubmission {
@@ -3224,8 +3126,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       acceptedModelUpdateCount: Int
+      acceptedRuntimeIds: UUID[] derived from ModelUpdateSubmissionAccepted.runtimeId by roundId
       minimumNodesPerRound: Int derived from TrainingRoundStarted.minimumNodesPerRound by roundId
-      aggregationProvider: String
     }
 
     event SecureAggregationRequested {
@@ -3234,28 +3136,28 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       acceptedModelUpdateCount: Int
+      acceptedRuntimeIds: UUID[]
       minimumNodesPerRound: Int
-      aggregationProvider: String
     }
 
     state Aggregating
   }
 
   slice CompleteSecureAggregation {
-    reactsTo SecureAggregationRequested
+    reactsTo SecureAggregationCompleted
 
     command CompleteSecureAggregation {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      featureSchemaId: UUID
-      roundId: UUID
-      requestId: UUID
-      aggregatedModelVersionId: UUID
-      modelArtifactRef: String
-      modelRepositoryRef: String
-      modelFormat: String
-      modelHash: String
-      modelSignatureRef: String?
+      trainingJobId: UUID id technical from SecureAggregationCompleted.trainingJobId
+      trainingRunConfigurationId: UUID from SecureAggregationCompleted.trainingRunConfigurationId
+      featureSchemaId: UUID from SecureAggregationCompleted.featureSchemaId
+      roundId: UUID from SecureAggregationCompleted.roundId
+      secureAggregationSessionId: UUID from SecureAggregationCompleted.secureAggregationSessionId
+      aggregatedModelVersionId: UUID from SecureAggregationCompleted.aggregatedModelVersionId
+      modelArtifactRef: String from SecureAggregationCompleted.modelArtifactRef
+      modelRepositoryRef: String from SecureAggregationCompleted.modelRepositoryRef
+      modelFormat: String from SecureAggregationCompleted.modelFormat
+      modelHash: String from SecureAggregationCompleted.modelHash
+      modelSignatureRef: String? from SecureAggregationCompleted.modelSignatureRef
     }
 
     event GlobalModelUpdated {
@@ -3263,7 +3165,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
-      requestId: UUID
+      secureAggregationSessionId: UUID
       aggregatedModelVersionId: UUID
       modelArtifactRef: String
       modelRepositoryRef: String
@@ -3452,11 +3354,12 @@ context TrainingOrchestration {
       }
       roundNumber: Int
       state: TrainingRound.State
-      participantSelectionRef: String?
-      selectedEligibleRuntimeCount: Int
+      selectedOrganizationIds: UUID[]
+      selectedParticipants: TrainingRoundParticipant[]
+      selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       targetRuntimeCount: Int
-      executionPlanIssuedCount: Int
+      executionPlanDispatchedCount: Int
       roundExecutionStartedCount: Int
       submittedModelUpdateCount: Int
       rejectedUpdateCount: Int
@@ -3483,11 +3386,7 @@ context TrainingOrchestration {
       evaluationSubmittedAt: DateTime?
       completedAt: DateTime?
       failedAt: DateTime?
-      aggregationProvider: String?
-      sourceModelVersionId: UUID?
-      sourceModelArtifactRef: String?
-      modelRepositoryRef: String?
-      modelHash: String?
+      baseModelVersionId: UUID?
       artifactRefs: String[]
       rejectedUpdateReasons: String[]
       aggregatedModelVersionId: UUID?
@@ -3499,8 +3398,9 @@ context TrainingOrchestration {
       subscribe FeatureSchemaDefined
       subscribe TrainingRoundParticipantsSelected
       subscribe TrainingRoundStarted
-      subscribe RoundGlobalModelPublished
-      subscribe ParticipantExecutionPlanIssued
+      subscribe TrainingRoundStartFailed
+      subscribe ParticipantExecutionPlanGenerated
+      subscribe ParticipantExecutionPlanDispatched
       subscribe RoundExecutionStarted
       subscribe RoundExecutionCompleted
       subscribe RoundExecutionFailed
@@ -3526,7 +3426,6 @@ context TrainingOrchestration {
 
     slice SelectTrainingRoundParticipants
     slice StartTrainingRound
-    slice PublishRoundGlobalModel
     slice SubmitModelUpdateSubmission
     slice EvaluateModelUpdateSubmission
     slice RequestSecureAggregation
@@ -3539,12 +3438,10 @@ context TrainingOrchestration {
 
   concept ParticipantExecutionPlan {
     state PlanGenerated
-    state PlanSigned
-    state PlanIssued
+    state PlanDispatched
 
     slice GenerateParticipantExecutionPlan
-    slice SignParticipantExecutionPlan
-    slice IssueParticipantExecutionPlan
+    slice DispatchParticipantExecutionPlan
   }
 }
 
@@ -3572,7 +3469,6 @@ context ModelLifecycle {
       modelArtifactId: UUID
       modelHash: String
       evaluationReportId: UUID
-      lineageRef: String
       finalGlobalAccuracy: Decimal
     }
 
@@ -3583,7 +3479,6 @@ context ModelLifecycle {
       modelArtifactId: UUID
       modelHash: String
       evaluationReportId: UUID
-      lineageRef: String
       finalGlobalAccuracy: Decimal
     }
 
@@ -3694,14 +3589,14 @@ context ModelLifecycle {
 
     command PromoteModelToProduction {
       modelVersionId: UUID id technical
-      releaseChannel: String
-      deploymentTarget: String
+      releaseChannel: String dictionary "MODEL_RELEASE_CHANNEL"
+      productionStage: String dictionary "MODEL_PRODUCTION_STAGE"
     }
 
     event ModelPromotedToProduction {
       modelVersionId: UUID id technical
-      releaseChannel: String
-      deploymentTarget: String
+      releaseChannel: String dictionary "MODEL_RELEASE_CHANNEL"
+      productionStage: String dictionary "MODEL_PRODUCTION_STAGE"
     }
 
     state Production
@@ -3718,7 +3613,7 @@ context ModelLifecycle {
         when PromoteModelToProduction {
           modelVersionId = "model-1"
           releaseChannel = "stable"
-          deploymentTarget = "production"
+          productionStage = "production"
         }
         then ModelPromotedToProduction
       }
@@ -3730,7 +3625,7 @@ context ModelLifecycle {
         when PromoteModelToProduction {
           modelVersionId = "model-1"
           releaseChannel = "stable"
-          deploymentTarget = "production"
+          productionStage = "production"
         }
         then reject "Model Approval Required"
       }
@@ -3787,11 +3682,10 @@ context ModelLifecycle {
       }
       modelHash: String
       evaluationReportId: UUID
-      lineageRef: String
       finalGlobalAccuracy: Decimal
       state: ModelVersion.State
-      releaseChannel: String?
-      deploymentTarget: String?
+      releaseChannel: String? dictionary "MODEL_RELEASE_CHANNEL"
+      productionStage: String? dictionary "MODEL_PRODUCTION_STAGE"
       previousModelVersionId: UUID?
       experimentId: UUID?
       hyperparameterSnapshotId: UUID?
@@ -3845,7 +3739,7 @@ context RuntimeMonitoring {
   metric auditTrailCompleteness
 
   slice RuntimeTelemetryLatest {
-    readmodel RuntimeTelemetryLatest[] {
+    readmodel todo RuntimeTelemetryLatest[] {
       nodeId: UUID id
       runtimeAgentId: UUID
       federationId: UUID?
@@ -3855,6 +3749,9 @@ context RuntimeMonitoring {
       gpuLoad: Decimal?
       memoryLoad: Decimal?
       lastHeartbeatAt: DateTime?
+      heartbeatMissingBeyondThreshold: Boolean
+      heartbeatObservedAfterOffline: Boolean
+      resourcePressureDetected: Boolean
       telemetryRetentionPolicy: String
     }
   }
@@ -3863,6 +3760,7 @@ context RuntimeMonitoring {
     startsLifecycle
 
     automation DetectOfflineRuntimeAgentFromTelemetry {
+      on todo RuntimeTelemetryLatest
       condition heartbeatMissingBeyondThreshold == true
       emits DetectRuntimeAgentOffline
     }
@@ -3888,6 +3786,7 @@ context RuntimeMonitoring {
     reactsTo RuntimeAgentOfflineDetected
 
     automation MarkRecoveredRuntimeAgentFromTelemetry {
+      on todo RuntimeTelemetryLatest
       condition heartbeatObservedAfterOffline == true
       emits MarkRuntimeAgentRecovered
     }
@@ -3911,7 +3810,8 @@ context RuntimeMonitoring {
     startsLifecycle
 
     automation DetectResourcePressureFromTelemetry {
-      condition latestGpuLoad > 95
+      on todo RuntimeTelemetryLatest
+      condition resourcePressureDetected == true
       emits DetectRuntimeNodeResourcePressure
     }
 
@@ -3951,12 +3851,12 @@ context RuntimeMonitoring {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
-      orchestratorNodeName: String
-      providerNodeId: String?
-      nodeRole: String              // CONTROL_PLANE / WORKER
+      runtimeNodeName: String
+      infrastructureNodeId: String?
+      runtimeNodeRole: String
       nodeReady: Boolean
-      kubeletVersion: String?
-      containerRuntimeVersion: String?
+      runtimeEngineVersion: String?
+      containerEngineVersion: String?
       operatingSystem: String?
       architecture: String
       inventoryHash: String
@@ -3969,12 +3869,12 @@ context RuntimeMonitoring {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
-      orchestratorNodeName: String
-      providerNodeId: String?
-      nodeRole: String
+      runtimeNodeName: String
+      infrastructureNodeId: String?
+      runtimeNodeRole: String
       nodeReady: Boolean
-      kubeletVersion: String?
-      containerRuntimeVersion: String?
+      runtimeEngineVersion: String?
+      containerEngineVersion: String?
       operatingSystem: String?
       architecture: String
       inventoryHash: String
@@ -3999,12 +3899,12 @@ context RuntimeMonitoring {
         from RuntimeInstallationPlanCreated.runtimeName
         rule "Lookup by runtimeInfrastructureId and denormalize the runtime display name into the runtime node inventory view."
       }
-      orchestratorNodeName: String
-      providerNodeId: String?
-      nodeRole: String
+      runtimeNodeName: String
+      infrastructureNodeId: String?
+      runtimeNodeRole: String
       nodeReady: Boolean
-      kubeletVersion: String?
-      containerRuntimeVersion: String?
+      runtimeEngineVersion: String?
+      containerEngineVersion: String?
       operatingSystem: String?
       architecture: String
       inventoryHash: String
@@ -4018,11 +3918,11 @@ context RuntimeMonitoring {
   }
 
   slice RuntimeNodeResourceLatest {
-    readmodel RuntimeNodeResourceLatest[] {
+    readmodel todo RuntimeNodeResourceLatest[] {
       nodeId: UUID id
       runtimeAgentId: UUID
       runtimeInfrastructureId: UUID?
-      orchestratorNodeName: String?
+      runtimeNodeName: String?
       nodeReady: Boolean
       allocatableCpuCores: Int
       allocatableMemoryGb: Int
@@ -4033,9 +3933,10 @@ context RuntimeMonitoring {
       availableCpuCores: Int
       availableMemoryGb: Int
       availableGpuCount: Int
-      runningPodCount: Int
-      podCapacity: Int
+      runningWorkloadCount: Int
+      workloadCapacity: Int
       observedAt: DateTime
+      allocatableCapacityChanged: Boolean
       telemetryRetentionPolicy: String
     }
   }
@@ -4044,6 +3945,7 @@ context RuntimeMonitoring {
     startsLifecycle
 
     automation DetectCapacityChangeFromResourceTelemetry {
+      on todo RuntimeNodeResourceLatest
       condition allocatableCapacityChanged == true
       emits DetectRuntimeNodeCapacityChange
     }
@@ -4093,8 +3995,8 @@ context RuntimeMonitoring {
       availableCpuCores: Int?
       availableMemoryGb: Int?
       availableGpuCount: Int?
-      runningPodCount: Int?
-      podCapacity: Int?
+      runningWorkloadCount: Int?
+      workloadCapacity: Int?
       healthStatus: String
       lastHeartbeatAt: DateTime
       lastResourceSnapshotAt: DateTime?
@@ -4175,8 +4077,8 @@ context RuntimeMonitoring {
       alertId: UUID id
       nodeId: UUID
       trainingJobId: UUID?
-      orchestratorNodeName: String? derived {
-        from RuntimeNodeInventoryReported.orchestratorNodeName
+      runtimeNodeName: String? derived {
+        from RuntimeNodeInventoryReported.runtimeNodeName
         rule "Lookup by nodeId and denormalize the runtime node display name into the training alert catalog."
       }
       trainingJobObjective: String? derived {
@@ -4186,16 +4088,67 @@ context RuntimeMonitoring {
       severity: String
       message: String
       state: TrainingAlert.State
+      acknowledgedAt: DateTime?
+      resolvedAt: DateTime?
+      resolutionSummary: String?
+      canAcknowledge: Boolean
+      canResolve: Boolean
       subscribe RuntimeNodeInventoryReported
       subscribe TrainingJobCreated
       subscribe TrainingAlertRaised
+      subscribe TrainingAlertAcknowledged
+      subscribe TrainingAlertResolved
     }
+  }
+
+  slice AcknowledgeTrainingAlert {
+    actor MLOpsEngineer
+    ui RuntimeHealthDashboard
+    reactsTo TrainingAlertRaised
+
+    command AcknowledgeTrainingAlert {
+      alertId: UUID id technical
+      acknowledgedAt: DateTime
+      acknowledgementNote: String?
+    }
+
+    event TrainingAlertAcknowledged {
+      alertId: UUID id technical
+      acknowledgedAt: DateTime
+      acknowledgementNote: String?
+    }
+
+    state Acknowledged
+  }
+
+  slice ResolveTrainingAlert {
+    actor MLOpsEngineer
+    ui RuntimeHealthDashboard
+    reactsTo TrainingAlertAcknowledged
+
+    command ResolveTrainingAlert {
+      alertId: UUID id technical
+      resolvedAt: DateTime
+      resolutionSummary: String
+    }
+
+    event TrainingAlertResolved {
+      alertId: UUID id technical
+      resolvedAt: DateTime
+      resolutionSummary: String
+    }
+
+    state Resolved
   }
 
   concept TrainingAlert {
     state Raised
+    state Acknowledged
+    state Resolved
 
     slice RaiseTrainingAlert
+    slice AcknowledgeTrainingAlert
+    slice ResolveTrainingAlert
     slice TrainingAlertCatalog
   }
 
@@ -4290,206 +4243,53 @@ context RuntimeMonitoring {
     slice AuditRecordLog
   }
 }
+
 context RuntimeGovernance {
-  note "Runtime governance owns stable RuntimeIdentity, public keys, admission, capability, attestation summary, quarantine, revocation, and federation runtime grants. Runtime private keys, local paths, credentials, node scheduling, and data-plane connectivity stay inside participant runtime infrastructure."
-  note "Provisioned runtime infrastructure is not automatically admitted. Network reachability is not business authorization. Training eligibility uses RuntimeIdentity and FederationRuntimeGrant, never node inventory."
+  note "Runtime governance owns stable RuntimeIdentity activation, capability detection, and revocation. Runtime private keys, local paths, credentials, node scheduling, and data-plane connectivity stay inside participant runtime infrastructure."
+  note "Platform-managed runtime agents are activated from platform deployment outcomes. Network reachability is not business authorization. Training eligibility uses active federation membership, RuntimeIdentity, detected capabilities, connected runtime status, and dataset readiness."
+  note "Training parameter encryption, secure aggregation keys, and data-plane message encryption are handled by protocol adapters or SecureAggregation, not by RuntimeIdentity events."
 
-  risk "A provisioned runtime can be mistaken for an admitted training participant."
+  risk "A provisioned runtime can be mistaken for an active training participant."
   risk "Control-plane compromise must not expose runtime private keys or local dataset credentials."
-  metric runtimeAdmissionLeadTime
-  metric runtimePublicKeyRotationFailureRate
+  metric runtimeActivationLeadTime
 
-  slice RequestRuntimeAdmission {
+  slice ActivateRuntimeIdentity {
     startsLifecycle
-    actor RuntimeAgent
+
+    actor PlatformAdmin
+    ui RuntimeInstallationPlanScreen
     reactsTo RuntimeAgentInstallationSucceeded
 
-    command RequestRuntimeAdmission {
-      runtimeAdmissionId: UUID id generated technical
+    automation ActivateRuntimeIdentityWhenAgentInstalled {
+      on RuntimeAgentInstallationSucceeded
+      emits ActivateRuntimeIdentity
+    }
+
+    command ActivateRuntimeIdentity {
+      runtimeId: UUID id generated technical
       runtimeInfrastructureId: UUID from RuntimeAgentInstallationSucceeded.runtimeInfrastructureId
-      runtimeInstanceId: UUID generated technical
+      runtimeAgentId: UUID from RuntimeAgentInstallationSucceeded.runtimeAgentId
       organizationId: UUID derived from RuntimeInstallationPlanCreated.organizationId by runtimeInfrastructureId
       runtimeName: String derived from RuntimeInstallationPlanCreated.runtimeName by runtimeInfrastructureId
-      requestedAt: DateTime
+      activatedAt: DateTime
     }
 
-    event RuntimeAdmissionRequested {
-      runtimeAdmissionId: UUID id technical
+    event RuntimeIdentityActivated {
+      runtimeId: UUID id technical
       runtimeInfrastructureId: UUID
-      runtimeInstanceId: UUID
+      runtimeAgentId: UUID
       organizationId: UUID
       runtimeName: String
-      requestedAt: DateTime
+      activatedAt: DateTime
     }
 
-    state Requested
-  }
-
-  slice RegisterRuntimePublicKey {
-    actor RuntimeAgent
-    reactsTo RuntimeAdmissionRequested
-
-    command RegisterRuntimePublicKey {
-      runtimeAdmissionId: UUID id technical from RuntimeAdmissionRequested.runtimeAdmissionId
-      runtimeInstanceId: UUID from RuntimeAdmissionRequested.runtimeInstanceId
-      organizationId: UUID from RuntimeAdmissionRequested.organizationId
-      publicKey: String
-      keyFingerprint: String
-      keyVersion: Int
-      registeredAt: DateTime
-      expiresAt: DateTime?
-    }
-
-    event RuntimePublicKeyRegistered {
-      runtimeAdmissionId: UUID id technical
-      runtimeInstanceId: UUID
-      organizationId: UUID
-      publicKey: String
-      keyFingerprint: String
-      keyVersion: Int
-      registeredAt: DateTime
-      expiresAt: DateTime?
-    }
-
-    state PublicKeyRegistered
-  }
-
-  slice ApproveRuntimeByOrganization {
-    actor OrganizationAdmin
-    ui RuntimeAdmissionScreen confirm
-    reactsTo RuntimePublicKeyRegistered
-
-    command ApproveRuntimeByOrganization {
-      runtimeAdmissionId: UUID id technical
-      organizationId: UUID
-      approvalNote: String?
-      approvedAt: DateTime
-    }
-
-    event RuntimeApprovedByOrganization {
-      runtimeAdmissionId: UUID id technical
-      organizationId: UUID
-      approvalNote: String?
-      approvedAt: DateTime
-    }
-
-    state OrganizationApproved
-  }
-
-  slice VerifyRuntimeIdentity {
-    actor SecurityReviewer
-    ui RuntimeAdmissionScreen
-    reactsTo RuntimeApprovedByOrganization
-    port
-
-    automation VerifyRuntimeIdentityAfterOrganizationApproval {
-      on RuntimeApprovedByOrganization
-      emits VerifyRuntimeIdentity
-    }
-
-    command VerifyRuntimeIdentity {
-      runtimeAdmissionId: UUID id technical
-      runtimeInstanceId: UUID derived from RuntimeAdmissionRequested.runtimeInstanceId by runtimeAdmissionId
-      publicKeyFingerprint: String derived from RuntimePublicKeyRegistered.keyFingerprint by runtimeAdmissionId
-      verificationPassed: Boolean
-      verifiedAt: DateTime?
-      failedAt: DateTime?
-      failureReason: String?
-    }
-
-    event RuntimeIdentityVerified {
-      runtimeAdmissionId: UUID id technical
-      runtimeInstanceId: UUID
-      publicKeyFingerprint: String
-      verifiedAt: DateTime
-    }
-
-    event RuntimeAdmissionRejected {
-      runtimeAdmissionId: UUID id technical
-      runtimeInstanceId: UUID
-      failedAt: DateTime
-      failureReason: String
-    }
-
-    state PlatformVerified
-  }
-
-  slice AdmitRuntime {
-    startsLifecycle
-
-    actor SecurityReviewer
-    ui RuntimeAdmissionScreen
-    reactsTo RuntimeIdentityVerified
-
-    automation AdmitRuntimeWhenIdentityVerified {
-      on RuntimeIdentityVerified
-      emits AdmitRuntime
-    }
-
-    command AdmitRuntime {
-      runtimeId: UUID id generated technical
-      runtimeAdmissionId: UUID from RuntimeIdentityVerified.runtimeAdmissionId
-      runtimeInstanceId: UUID from RuntimeIdentityVerified.runtimeInstanceId
-      organizationId: UUID derived from RuntimeAdmissionRequested.organizationId by runtimeAdmissionId
-      runtimeName: String derived from RuntimeAdmissionRequested.runtimeName by runtimeAdmissionId
-      publicKey: String derived from RuntimePublicKeyRegistered.publicKey by runtimeAdmissionId
-      keyFingerprint: String from RuntimeIdentityVerified.publicKeyFingerprint
-      keyVersion: Int derived from RuntimePublicKeyRegistered.keyVersion by runtimeAdmissionId
-      admittedAt: DateTime
-      trustLevel: String dictionary "RUNTIME_TRUST_LEVEL"
-    }
-
-    event RuntimeAdmitted {
-      runtimeId: UUID id technical
-      runtimeAdmissionId: UUID
-      runtimeInstanceId: UUID
-      organizationId: UUID
-      runtimeName: String
-      publicKey: String
-      keyFingerprint: String
-      keyVersion: Int
-      admittedAt: DateTime
-      trustLevel: String dictionary "RUNTIME_TRUST_LEVEL"
-    }
-
-    state Admitted
-  }
-
-  slice RotateRuntimePublicKey {
-    actor RuntimeAgent
-    ui RuntimeIdentityScreen
-    reactsTo RuntimeAdmitted
-
-    command RotateRuntimePublicKey {
-      runtimeId: UUID id technical
-      currentKeyFingerprint: String
-      newPublicKey: String
-      newKeyFingerprint: String
-      newKeyVersion: Int
-      rotationSignature: String
-      requestedAt: DateTime
-      activatesAt: DateTime
-      expiresAt: DateTime?
-    }
-
-    event RuntimePublicKeyRotated {
-      runtimeId: UUID id technical
-      previousKeyFingerprint: String from RotateRuntimePublicKey.currentKeyFingerprint
-      publicKey: String from RotateRuntimePublicKey.newPublicKey
-      keyFingerprint: String from RotateRuntimePublicKey.newKeyFingerprint
-      keyVersion: Int from RotateRuntimePublicKey.newKeyVersion
-      requestedAt: DateTime from RotateRuntimePublicKey.requestedAt
-      activatesAt: DateTime from RotateRuntimePublicKey.activatesAt
-      expiresAt: DateTime? from RotateRuntimePublicKey.expiresAt
-    }
-
-    state KeyRotated
+    state Active
   }
 
   slice RevokeRuntimeIdentity {
     actor SecurityReviewer
     ui RuntimeIdentityScreen confirm
-    reactsTo RuntimeAdmitted
+    reactsTo RuntimeIdentityActivated
 
     command RevokeRuntimeIdentity {
       runtimeId: UUID id technical
@@ -4506,253 +4306,81 @@ context RuntimeGovernance {
     state Revoked
   }
 
-  slice QuarantineRuntime {
-    actor SecurityReviewer
-    ui RuntimeIdentityScreen confirm
-    reactsTo RuntimeAdmitted
-
-    command QuarantineRuntime {
-      runtimeId: UUID id technical
-      quarantineReason: String
-      quarantinedAt: DateTime
-    }
-
-    event RuntimeQuarantined {
-      runtimeId: UUID id technical
-      quarantineReason: String
-      quarantinedAt: DateTime
-    }
-
-    state Quarantined
-  }
-
-  slice RegisterRuntimeCapability {
+  slice DetectRuntimeCapabilities {
     startsLifecycle
     actor RuntimeAgent
-    reactsTo RuntimeAdmitted
+    reactsTo RuntimeIdentityActivated
+    port
 
-    command RegisterRuntimeCapability {
-      runtimeCapabilityId: UUID id generated technical
-      runtimeId: UUID
-      capabilityType: String dictionary "RUNTIME_CAPABILITY_TYPE"
-      capabilityValue: String
-      evidenceType: String?
-      observedAt: DateTime
-      expiresAt: DateTime?
+    automation DetectRuntimeCapabilitiesWhenRuntimeActivated {
+      on RuntimeIdentityActivated
+      emits DetectRuntimeCapabilities
     }
 
-    event RuntimeCapabilityRegistered {
-      runtimeCapabilityId: UUID id technical
-      runtimeId: UUID
-      capabilityType: String dictionary "RUNTIME_CAPABILITY_TYPE"
-      capabilityValue: String
-      evidenceType: String?
-      observedAt: DateTime
-      expiresAt: DateTime?
+    command DetectRuntimeCapabilities {
+      runtimeId: UUID id technical from RuntimeIdentityActivated.runtimeId
+      capabilityTypes: String[] dictionary "RUNTIME_CAPABILITY_TYPE"
+      detectedAt: DateTime
     }
 
-    state Declared
-  }
-
-  slice VerifyRuntimeCapability {
-    actor SecurityReviewer
-    ui RuntimeCapabilityScreen
-    reactsTo RuntimeCapabilityRegistered
-
-    command VerifyRuntimeCapability {
-      runtimeCapabilityId: UUID id technical
-      runtimeId: UUID
-      verified: Boolean
-      verificationNote: String?
-      verifiedAt: DateTime
+    event RuntimeCapabilitiesDetected {
+      runtimeId: UUID id technical
+      capabilityTypes: String[] dictionary "RUNTIME_CAPABILITY_TYPE"
+      detectedAt: DateTime
     }
 
-    event RuntimeCapabilityVerified {
-      runtimeCapabilityId: UUID id technical
-      runtimeId: UUID
-      verifiedAt: DateTime
-      verificationNote: String?
-    }
-
-    event RuntimeCapabilityRevoked {
-      runtimeCapabilityId: UUID id technical
-      runtimeId: UUID
-      revokedAt: DateTime from VerifyRuntimeCapability.verifiedAt
-      revocationReason: String from VerifyRuntimeCapability.verificationNote
-    }
-
-    state Verified
-  }
-
-  slice GrantFederationRuntimeAccess {
-    startsLifecycle
-    actor FederationOwner
-    ui FederationRuntimeGrantScreen
-    reactsTo RuntimeAdmitted
-
-    command GrantFederationRuntimeAccess {
-      grantId: UUID id generated technical
-      federationId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      allowedCapabilities: String[]
-      validFrom: DateTime
-      validUntil: DateTime?
-      policyVersion: String
-    }
-
-    event FederationRuntimeAccessGranted {
-      grantId: UUID id technical
-      federationId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      allowedCapabilities: String[]
-      validFrom: DateTime
-      validUntil: DateTime?
-      policyVersion: String
-    }
-
-    state Granted
-  }
-
-  slice RevokeFederationRuntimeAccess {
-    actor FederationOwner
-    ui FederationRuntimeGrantScreen confirm
-    reactsTo FederationRuntimeAccessGranted
-
-    command RevokeFederationRuntimeAccess {
-      grantId: UUID id technical
-      federationId: UUID
-      runtimeId: UUID
-      revocationReason: String
-      revokedAt: DateTime
-    }
-
-    event FederationRuntimeAccessRevoked {
-      grantId: UUID id technical
-      federationId: UUID
-      runtimeId: UUID
-      revocationReason: String
-      revokedAt: DateTime
-    }
-
-    state Revoked
+    state Detected
   }
 
   slice RuntimeIdentityCatalog {
     readmodel RuntimeIdentityCatalog[] {
       runtimeId: UUID id
-      runtimeAdmissionId: UUID
-      runtimeInstanceId: UUID
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
       organizationId: UUID
       organizationName: String? derived from OrganizationRegistered.organizationName by organizationId
       runtimeName: String
-      publicKey: String
-      keyFingerprint: String
-      keyVersion: Int
-      trustLevel: String dictionary "RUNTIME_TRUST_LEVEL"
-      admissionStatus: String
-      admittedAt: DateTime?
+      identityStatus: String
+      activatedAt: DateTime?
       revokedAt: DateTime?
-      quarantineReason: String?
       subscribe OrganizationRegistered
-      subscribe RuntimeAdmissionRequested
-      subscribe RuntimePublicKeyRegistered
-      subscribe RuntimeApprovedByOrganization
-      subscribe RuntimeIdentityVerified
-      subscribe RuntimeAdmissionRejected
-      subscribe RuntimeAdmitted
-      subscribe RuntimePublicKeyRotated
+      subscribe RuntimeIdentityActivated
       subscribe RuntimeIdentityRevoked
-      subscribe RuntimeQuarantined
     }
   }
 
   slice RuntimeCapabilityCatalog {
     readmodel RuntimeCapabilityCatalog[] {
-      runtimeCapabilityId: UUID id
-      runtimeId: UUID
-      capabilityType: String dictionary "RUNTIME_CAPABILITY_TYPE"
-      capabilityValue: String
-      evidenceType: String?
+      runtimeId: UUID id
+      capabilityTypes: String[] dictionary "RUNTIME_CAPABILITY_TYPE"
       capabilityStatus: String
-      observedAt: DateTime
-      verifiedAt: DateTime?
-      expiresAt: DateTime?
-      subscribe RuntimeCapabilityRegistered
-      subscribe RuntimeCapabilityVerified
-      subscribe RuntimeCapabilityRevoked
+      detectedAt: DateTime
+      subscribe RuntimeCapabilitiesDetected
     }
-  }
-
-  slice FederationRuntimeGrantCatalog {
-    readmodel FederationRuntimeGrantCatalog[] {
-      grantId: UUID id
-      federationId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      allowedCapabilities: String[]
-      grantStatus: String
-      policyVersion: String
-      validFrom: DateTime
-      validUntil: DateTime?
-      revokedAt: DateTime?
-      revocationReason: String?
-      subscribe FederationRuntimeAccessGranted
-      subscribe FederationRuntimeAccessRevoked
-    }
-  }
-
-  concept RuntimeAdmission {
-    state Requested
-    state PublicKeyRegistered
-    state OrganizationApproved
-    state PlatformVerified
-    state Rejected
-
-    slice RequestRuntimeAdmission
-    slice RegisterRuntimePublicKey
-    slice ApproveRuntimeByOrganization
-    slice VerifyRuntimeIdentity
   }
 
   concept RuntimeIdentity {
-    state Admitted
-    state KeyRotated
+    state Active
     state Revoked
-    state Quarantined
 
-    slice AdmitRuntime
-    slice RotateRuntimePublicKey
+    slice ActivateRuntimeIdentity
     slice RevokeRuntimeIdentity
-    slice QuarantineRuntime
     slice RuntimeIdentityCatalog
   }
 
   concept RuntimeCapability {
-    state Declared
-    state Verified
-    state Revoked
+    state Detected
 
-    slice RegisterRuntimeCapability
-    slice VerifyRuntimeCapability
+    slice DetectRuntimeCapabilities
     slice RuntimeCapabilityCatalog
-  }
-
-  concept FederationRuntimeGrant {
-    state Granted
-    state Revoked
-
-    slice GrantFederationRuntimeAccess
-    slice RevokeFederationRuntimeAccess
-    slice FederationRuntimeGrantCatalog
   }
 }
 
 context SecureAggregation {
-  note "Secure aggregation owns aggregation sessions and protocol state. It does not generate platform-held participant private keys or distribute raw key material. Runtime participants or an external secure aggregation provider produce protocol evidence and protected artifacts."
+  note "Secure aggregation owns homomorphic-encryption-based aggregation sessions. The platform owns the private key and publishes only encryption context metadata to runtime agents; raw key material, public key documents, and storage locations stay in SecureAggregationService or KMS adapter configuration."
 
-  risk "Aggregation can complete with insufficient masked updates or without protocol proof."
+  risk "Homomorphic encrypted updates protect individual parameters only when aggregation completes with enough participants; single-participant or very small cohorts can still expose local updates after decryption."
+  risk "Aggregation can complete with insufficient encrypted updates or with an encryption context that does not match the active round."
   metric secureAggregationCompletionLatency
 
   slice CreateSecureAggregationSession {
@@ -4768,9 +4396,10 @@ context SecureAggregation {
       secureAggregationSessionId: UUID id generated technical
       trainingJobId: UUID from SecureAggregationRequested.trainingJobId
       trainingRunConfigurationId: UUID from SecureAggregationRequested.trainingRunConfigurationId
+      featureSchemaId: UUID from SecureAggregationRequested.featureSchemaId
       roundId: UUID from SecureAggregationRequested.roundId
-      aggregationProvider: String from SecureAggregationRequested.aggregationProvider
       requiredParticipantCount: Int from SecureAggregationRequested.acceptedModelUpdateCount
+      acceptedRuntimeIds: UUID[] from SecureAggregationRequested.acceptedRuntimeIds
       createdAt: DateTime
     }
 
@@ -4778,105 +4407,160 @@ context SecureAggregation {
       secureAggregationSessionId: UUID id technical
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
-      aggregationProvider: String
       requiredParticipantCount: Int
+      acceptedRuntimeIds: UUID[]
       createdAt: DateTime
     }
 
     state Planned
   }
 
-  slice LockSecureAggregationParticipants {
+  slice SelectSecureAggregationParticipants {
     reactsTo SecureAggregationSessionCreated
+    port
 
-    automation LockParticipantsWhenSessionCreated {
+    automation SelectParticipantsWhenSessionCreated {
       on SecureAggregationSessionCreated
-      emits LockSecureAggregationParticipants
+      emits SelectSecureAggregationParticipants
     }
 
-    command LockSecureAggregationParticipants {
+    command SelectSecureAggregationParticipants {
       secureAggregationSessionId: UUID id technical
-      participantSnapshotRef: String
-      lockedParticipantCount: Int
-      lockedAt: DateTime
+      roundId: UUID from SecureAggregationSessionCreated.roundId
+      acceptedRuntimeIds: UUID[] from SecureAggregationSessionCreated.acceptedRuntimeIds
+      selectedRuntimeIds: UUID[]
+      selectedParticipantCount: Int
+      selectedAt: DateTime
     }
 
-    event SecureAggregationParticipantsLocked {
+    event SecureAggregationParticipantsSelected {
       secureAggregationSessionId: UUID id technical
-      participantSnapshotRef: String
-      lockedParticipantCount: Int
-      lockedAt: DateTime
+      roundId: UUID
+      acceptedRuntimeIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedParticipantCount: Int
+      selectedAt: DateTime
     }
 
-    state KeyAgreement
+    state ParticipantsSelected
   }
 
-  slice RecordParticipantKeyAgreement {
+  slice PrepareHomomorphicEncryptionContext {
     actor SecureAggregationService
-    reactsTo SecureAggregationParticipantsLocked
+    reactsTo SecureAggregationParticipantsSelected
+    port
 
-    command RecordParticipantKeyAgreement {
-      secureAggregationSessionId: UUID id technical
-      runtimeId: UUID
-      keyAgreementEvidenceRef: String
-      completedAt: DateTime
+    automation PrepareEncryptionContextWhenParticipantsSelected {
+      on SecureAggregationParticipantsSelected
+      emits PrepareHomomorphicEncryptionContext
     }
 
-    event ParticipantKeyAgreementCompleted {
+    command PrepareHomomorphicEncryptionContext {
       secureAggregationSessionId: UUID id technical
-      runtimeId: UUID
-      keyAgreementEvidenceRef: String
-      completedAt: DateTime
+      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String
+      encryptedParameterScale: Int
+      preparedAt: DateTime
     }
 
-    state CollectingMaskedUpdates
+    event HomomorphicEncryptionContextPrepared {
+      secureAggregationSessionId: UUID id technical
+      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String
+      encryptedParameterScale: Int
+      preparedAt: DateTime
+    }
+
+    state EncryptionContextPrepared
   }
 
-  slice RecordMaskedModelUpdate {
+  slice ConfirmParticipantEncryptionContext {
+    actor RuntimeAgent
+    reactsTo HomomorphicEncryptionContextPrepared
+    port
+
+    command ConfirmParticipantEncryptionContext {
+      secureAggregationSessionId: UUID id technical
+      runtimeId: UUID
+      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME" from HomomorphicEncryptionContextPrepared.encryptionScheme
+      publicKeyVersion: String from HomomorphicEncryptionContextPrepared.publicKeyVersion
+      confirmedAt: DateTime
+    }
+
+    event ParticipantEncryptionContextConfirmed {
+      secureAggregationSessionId: UUID id technical
+      runtimeId: UUID
+      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String
+      confirmedAt: DateTime
+    }
+
+    state CollectingEncryptedUpdates
+  }
+
+  slice RecordEncryptedModelUpdate {
     actor SecureAggregationService
     reactsTo ModelUpdateSubmissionAccepted
 
-    command RecordMaskedModelUpdate {
+    command RecordEncryptedModelUpdate {
       secureAggregationSessionId: UUID id technical
       submissionId: UUID
       runtimeId: UUID
-      artifactDigest: String
+      encryptedUpdateDigest: String
       receivedAt: DateTime
     }
 
-    event MaskedModelUpdateReceived {
+    event EncryptedModelUpdateReceived {
       secureAggregationSessionId: UUID id technical
       submissionId: UUID
       runtimeId: UUID
-      artifactDigest: String
+      encryptedUpdateDigest: String
       receivedAt: DateTime
     }
   }
 
-  slice CompleteSecureAggregationSession {
+  slice CompleteHomomorphicAggregationSession {
     actor SecureAggregationService
-    reactsTo MaskedModelUpdateReceived
+    reactsTo EncryptedModelUpdateReceived
+    port
 
-    command CompleteSecureAggregationSession {
+    automation CompleteAggregationWhenEncryptedUpdatesReady {
+      on EncryptedModelUpdateReceived
+      condition receivedEncryptedUpdateCount >= selectedParticipantCount
+      emits CompleteHomomorphicAggregationSession
+    }
+
+    command CompleteHomomorphicAggregationSession {
       secureAggregationSessionId: UUID id technical
-      trainingJobId: UUID
-      roundId: UUID
+      trainingJobId: UUID from SecureAggregationSessionCreated.trainingJobId
+      trainingRunConfigurationId: UUID from SecureAggregationSessionCreated.trainingRunConfigurationId
+      featureSchemaId: UUID from SecureAggregationSessionCreated.featureSchemaId
+      roundId: UUID from SecureAggregationSessionCreated.roundId
       aggregatedModelVersionId: UUID
       modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
       modelHash: String
-      aggregationProofRef: String
+      modelSignatureRef: String?
+      decryptedAt: DateTime
       completedAt: DateTime
     }
 
     event SecureAggregationCompleted {
       secureAggregationSessionId: UUID id technical
       trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
       modelArtifactRef: String
+      modelRepositoryRef: String
+      modelFormat: String
       modelHash: String
-      aggregationProofRef: String
+      modelSignatureRef: String?
+      decryptedAt: DateTime
       completedAt: DateTime
     }
 
@@ -4907,24 +4591,37 @@ context SecureAggregation {
       secureAggregationSessionId: UUID id
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
       roundId: UUID
-      aggregationProvider: String
       requiredParticipantCount: Int
-      lockedParticipantCount: Int?
-      receivedMaskedUpdateCount: Int
+      acceptedRuntimeIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedParticipantCount: Int?
+      encryptionContextPrepared: Boolean
+      encryptionContextConfirmedCount: Int
+      receivedEncryptedUpdateCount: Int
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      encryptedParameterScale: Int?
       aggregatedModelVersionId: UUID?
       modelArtifactRef: String?
+      modelRepositoryRef: String?
+      modelFormat: String?
       modelHash: String?
-      aggregationProofRef: String?
+      modelSignatureRef: String?
       state: SecureAggregationSession.State
       failureReason: String?
       createdAt: DateTime
+      selectedAt: DateTime?
+      encryptionContextPreparedAt: DateTime?
+      decryptedAt: DateTime?
       completedAt: DateTime?
       failedAt: DateTime?
       subscribe SecureAggregationSessionCreated
-      subscribe SecureAggregationParticipantsLocked
-      subscribe ParticipantKeyAgreementCompleted
-      subscribe MaskedModelUpdateReceived
+      subscribe SecureAggregationParticipantsSelected
+      subscribe HomomorphicEncryptionContextPrepared
+      subscribe ParticipantEncryptionContextConfirmed
+      subscribe EncryptedModelUpdateReceived
       subscribe SecureAggregationCompleted
       subscribe SecureAggregationFailed
     }
@@ -4932,16 +4629,18 @@ context SecureAggregation {
 
   concept SecureAggregationSession {
     state Planned
-    state KeyAgreement
-    state CollectingMaskedUpdates
+    state ParticipantsSelected
+    state EncryptionContextPrepared
+    state CollectingEncryptedUpdates
     state Completed
     state Failed
 
     slice CreateSecureAggregationSession
-    slice LockSecureAggregationParticipants
-    slice RecordParticipantKeyAgreement
-    slice RecordMaskedModelUpdate
-    slice CompleteSecureAggregationSession
+    slice SelectSecureAggregationParticipants
+    slice PrepareHomomorphicEncryptionContext
+    slice ConfirmParticipantEncryptionContext
+    slice RecordEncryptedModelUpdate
+    slice CompleteHomomorphicAggregationSession
     slice FailSecureAggregationSession
     slice SecureAggregationSessionCatalog
   }
@@ -5358,29 +5057,24 @@ context SecureAggregation {
 
   slice ReceiveParticipantExecutionPlan {
     startsLifecycle
-    reactsTo ParticipantExecutionPlanIssued
+    reactsTo ParticipantExecutionPlanDispatched
 
-    automation ReceiveExecutionPlanWhenIssued {
-      on ParticipantExecutionPlanIssued
+    automation ReceiveExecutionPlanWhenDispatched {
+      on ParticipantExecutionPlanDispatched
       emits ReceiveParticipantExecutionPlan
     }
 
     command ReceiveParticipantExecutionPlan {
-      executionPlanId: UUID id technical from ParticipantExecutionPlanIssued.executionPlanId
-      executionSessionId: UUID from ParticipantExecutionPlanIssued.executionSessionId
-      trainingJobId: UUID from ParticipantExecutionPlanIssued.trainingJobId
-      trainingRunConfigurationId: UUID from ParticipantExecutionPlanIssued.trainingRunConfigurationId
-      featureSchemaId: UUID from ParticipantExecutionPlanIssued.featureSchemaId
-      roundId: UUID from ParticipantExecutionPlanIssued.roundId
-      roundNumber: Int from ParticipantExecutionPlanIssued.roundNumber
-      runtimeId: UUID from ParticipantExecutionPlanIssued.runtimeId
-      organizationId: UUID from ParticipantExecutionPlanIssued.organizationId
-      baseModelArtifactRef: String from ParticipantExecutionPlanIssued.baseModelArtifactRef
-      baseModelDigest: String from ParticipantExecutionPlanIssued.baseModelDigest
-      aggregationPublicKey: String? from ParticipantExecutionPlanIssued.aggregationPublicKey
-      nonce: String from ParticipantExecutionPlanIssued.nonce
-      expiresAt: DateTime from ParticipantExecutionPlanIssued.expiresAt
-      signature: String from ParticipantExecutionPlanIssued.signature
+      executionPlanId: UUID id technical from ParticipantExecutionPlanDispatched.executionPlanId
+      executionSessionId: UUID from ParticipantExecutionPlanDispatched.executionSessionId
+      trainingJobId: UUID from ParticipantExecutionPlanDispatched.trainingJobId
+      trainingRunConfigurationId: UUID from ParticipantExecutionPlanDispatched.trainingRunConfigurationId
+      featureSchemaId: UUID from ParticipantExecutionPlanDispatched.featureSchemaId
+      roundId: UUID from ParticipantExecutionPlanDispatched.roundId
+      roundNumber: Int from ParticipantExecutionPlanDispatched.roundNumber
+      runtimeId: UUID from ParticipantExecutionPlanDispatched.runtimeId
+      organizationId: UUID from ParticipantExecutionPlanDispatched.organizationId
+      baseModelVersionId: UUID from ParticipantExecutionPlanDispatched.baseModelVersionId
       receivedAt: DateTime
     }
 
@@ -5394,12 +5088,7 @@ context SecureAggregation {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
-      baseModelArtifactRef: String
-      baseModelDigest: String
-      aggregationPublicKey: String?
-      nonce: String
-      expiresAt: DateTime
-      signature: String
+      baseModelVersionId: UUID
       receivedAt: DateTime
     }
 
@@ -5478,8 +5167,7 @@ context SecureAggregation {
       runtimeId: UUID from ExecutionPlanAccepted.runtimeId
       organizationId: UUID derived from ExecutionPlanReceived.organizationId by executionPlanId
       featureSchemaId: UUID derived from ExecutionPlanReceived.featureSchemaId by executionPlanId
-      baseModelArtifactRef: String derived from ExecutionPlanReceived.baseModelArtifactRef by executionPlanId
-      baseModelDigest: String derived from ExecutionPlanReceived.baseModelDigest by executionPlanId
+      baseModelVersionId: UUID derived from ExecutionPlanReceived.baseModelVersionId by executionPlanId
       startedAt: DateTime
     }
 
@@ -5494,8 +5182,7 @@ context SecureAggregation {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
-      baseModelArtifactRef: String
-      baseModelDigest: String
+      baseModelVersionId: UUID
       startedAt: DateTime
     }
 
@@ -5615,8 +5302,7 @@ context SecureAggregation {
       runtimeId: UUID
       state: RoundExecution.State
       featureSchemaId: UUID?
-      baseModelArtifactRef: String?
-      baseModelDigest: String?
+      baseModelVersionId: UUID?
       updateArtifactId: UUID?
       artifactRef: String?
       artifactDigest: String?
@@ -5630,7 +5316,7 @@ context SecureAggregation {
       submittedAt: DateTime?
       failureReason: String?
       rejectionReason: String?
-      subscribe ParticipantExecutionPlanIssued
+      subscribe ParticipantExecutionPlanDispatched
       subscribe ExecutionPlanReceived
       subscribe ExecutionPlanAccepted
       subscribe ExecutionPlanRejected
@@ -5796,12 +5482,12 @@ context SecureAggregation {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
-      orchestratorNodeName: String
-      providerNodeId: String?
-      nodeRole: String              // CONTROL_PLANE / WORKER
+      runtimeNodeName: String
+      infrastructureNodeId: String?
+      runtimeNodeRole: String
       nodeReady: Boolean
-      kubeletVersion: String?
-      containerRuntimeVersion: String?
+      runtimeEngineVersion: String?
+      containerEngineVersion: String?
       operatingSystem: String?
       architecture: String
       inventoryHash: String
@@ -5813,12 +5499,12 @@ context SecureAggregation {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
-      orchestratorNodeName: String
-      providerNodeId: String?
-      nodeRole: String
+      runtimeNodeName: String
+      infrastructureNodeId: String?
+      runtimeNodeRole: String
       nodeReady: Boolean
-      kubeletVersion: String?
-      containerRuntimeVersion: String?
+      runtimeEngineVersion: String?
+      containerEngineVersion: String?
       operatingSystem: String?
       architecture: String
       inventoryHash: String
@@ -5838,12 +5524,12 @@ context SecureAggregation {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the agent runtime node inventory catalog."
       }
-      orchestratorNodeName: String
-      providerNodeId: String?
-      nodeRole: String
+      runtimeNodeName: String
+      infrastructureNodeId: String?
+      runtimeNodeRole: String
       nodeReady: Boolean
-      kubeletVersion: String?
-      containerRuntimeVersion: String?
+      runtimeEngineVersion: String?
+      containerEngineVersion: String?
       operatingSystem: String?
       architecture: String
       inventoryHash: String
@@ -5865,7 +5551,7 @@ context SecureAggregation {
       nodeId: UUID id
       runtimeAgentId: UUID
       runtimeInfrastructureId: UUID?
-      orchestratorNodeName: String?
+      runtimeNodeName: String?
       nodeReady: Boolean
       allocatableCpuCores: Int
       allocatableMemoryGb: Int
@@ -5876,8 +5562,8 @@ context SecureAggregation {
       availableCpuCores: Int
       availableMemoryGb: Int
       availableGpuCount: Int
-      runningPodCount: Int
-      podCapacity: Int
+      runningWorkloadCount: Int
+      workloadCapacity: Int
       observedAt: DateTime
       telemetryRetentionPolicy: String
     }

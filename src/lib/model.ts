@@ -45,6 +45,7 @@ export interface EmElement {
   name: string;
   fields: EmField[];
   listElement?: boolean;
+  todo?: boolean;
   sliceId?: string;
   aggregateId?: string;
   sourceRange?: MedolSourceRange;

@@ -7,6 +7,7 @@ import {
   isBinaryExpr,
   isBooleanLiteral,
   isCommand,
+  isCondition,
   isDictionaryProvider,
   isStartsLifecycleMarker,
   isConcept,
@@ -688,6 +689,7 @@ const parseElement = (
     fields: parseElementFields(node),
     ...withSourceRange(node),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
+    ...(isReadModel(node) && node.todo ? { todo: true } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),
     ...(isReadModel(node) ? parseReadModelDictionaryProvider(node) : {})
@@ -845,7 +847,17 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAu
 
   if (isAutomation(node)) {
     (node.elements ?? []).filter(isAutomationTrigger).forEach((trigger, index) => {
-      if (trigger.event?.$refText) metadata[index === 0 ? 'on' : `on${index + 1}`] = trigger.event.$refText;
+      const prefix = index === 0 ? '' : `${index + 1}`;
+      if (trigger.todo?.$refText) {
+        metadata[`on${prefix}`] = trigger.todo.$refText;
+        metadata[`on${prefix}Kind`] = 'todo';
+      } else if (trigger.event?.$refText) {
+        metadata[`on${prefix}`] = trigger.event.$refText;
+        metadata[`on${prefix}Kind`] = 'event';
+      }
+    });
+    (node.elements ?? []).filter(isCondition).forEach((condition, index) => {
+      metadata[index === 0 ? 'condition' : `condition${index + 1}`] = formatLiteral(condition.expression);
     });
     (node.elements ?? []).filter((element) => element.$type === 'Emits').forEach((emits, index) => {
       if (emits.command?.$refText) metadata[index === 0 ? 'emits' : `emits${index + 1}`] = emits.command.$refText;
@@ -884,7 +896,11 @@ const collectElementEdges = (
 
   if (isAutomation(node)) {
     for (const trigger of (node.elements ?? []).filter(isAutomationTrigger)) {
-      if (trigger.event?.$refText) edges.push(edge(`ref/event/${trigger.event.$refText}`, sourceId, 'triggers'));
+      if (trigger.todo?.$refText) {
+        edges.push(edge(`ref/readmodel/${trigger.todo.$refText}`, sourceId, 'triggers'));
+      } else if (trigger.event?.$refText) {
+        edges.push(edge(`ref/event/${trigger.event.$refText}`, sourceId, 'triggers'));
+      }
     }
     for (const emits of (node.elements ?? []).filter((element) => element.$type === 'Emits')) {
       if (emits.command?.$refText) edges.push(edge(sourceId, `ref/command/${emits.command.$refText}`, 'emits'));

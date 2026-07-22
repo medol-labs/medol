@@ -1655,6 +1655,16 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
           },
           {
             "$type": "Assignment",
+            "feature": "todo",
+            "operator": "?=",
+            "terminal": {
+              "$type": "Keyword",
+              "value": "todo"
+            },
+            "cardinality": "?"
+          },
+          {
+            "$type": "Assignment",
             "feature": "name",
             "operator": "=",
             "terminal": {
@@ -1986,24 +1996,58 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "value": "on"
           },
           {
-            "$type": "Assignment",
-            "feature": "event",
-            "operator": "=",
-            "terminal": {
-              "$type": "CrossReference",
-              "type": {
-                "$ref": "#/rules@34"
+            "$type": "Alternatives",
+            "elements": [
+              {
+                "$type": "Group",
+                "elements": [
+                  {
+                    "$type": "Keyword",
+                    "value": "todo"
+                  },
+                  {
+                    "$type": "Assignment",
+                    "feature": "todo",
+                    "operator": "=",
+                    "terminal": {
+                      "$type": "CrossReference",
+                      "type": {
+                        "$ref": "#/rules@35"
+                      },
+                      "terminal": {
+                        "$type": "RuleCall",
+                        "rule": {
+                          "$ref": "#/rules@101"
+                        },
+                        "arguments": []
+                      },
+                      "deprecatedSyntax": false,
+                      "isMulti": false
+                    }
+                  }
+                ]
               },
-              "terminal": {
-                "$type": "RuleCall",
-                "rule": {
-                  "$ref": "#/rules@101"
-                },
-                "arguments": []
-              },
-              "deprecatedSyntax": false,
-              "isMulti": false
-            }
+              {
+                "$type": "Assignment",
+                "feature": "event",
+                "operator": "=",
+                "terminal": {
+                  "$type": "CrossReference",
+                  "type": {
+                    "$ref": "#/rules@34"
+                  },
+                  "terminal": {
+                    "$type": "RuleCall",
+                    "rule": {
+                      "$ref": "#/rules@101"
+                    },
+                    "arguments": []
+                  },
+                  "deprecatedSyntax": false,
+                  "isMulti": false
+                }
+              }
+            ]
           }
         ]
       },

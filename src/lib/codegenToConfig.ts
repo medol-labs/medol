@@ -47,6 +47,8 @@ interface ConfigElement {
   description: string;
   aggregate?: string;
   listElement?: boolean;
+  todo?: boolean;
+  metadata?: Record<string, string>;
   aggregateDependencies?: string[];
   dependencies: Array<{
     id: string;
@@ -228,6 +230,8 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   description: '',
   aggregate: element.aggregate?.name,
   ...(element.type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
+  ...(element.type === 'READMODEL' && element.todo ? { todo: true } : {}),
+  ...(element.metadata ? { metadata: element.metadata } : {}),
   ...(element.aggregate ? { aggregateDependencies: [element.aggregate.title] } : {}),
   dependencies: element.dependencies.map(toConfigDependency),
   createsAggregate: element.startsLifecycle ?? false,
