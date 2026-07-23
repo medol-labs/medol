@@ -87,6 +87,7 @@
 - [ ] 跨上下文事件交互- Automation
 - [ ] fl 补充模型血缘建模 lineage
 - [ ] 平台与 Runtime Agent  mTLS
+- [ ] 单轮训练失败重试策略完善，平台侧发起
 
 ##
 
