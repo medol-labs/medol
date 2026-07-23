@@ -941,12 +941,10 @@ context RuntimeProvisioning {
 
     command RegisterRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInstallationPlanCreated.runtimeInfrastructureId
-      installedAt: DateTime
     }
 
     event RuntimeInfrastructureRegistered {
       runtimeInfrastructureId: UUID id technical
-      installedAt: DateTime
     }
 
     state Registered
@@ -967,8 +965,6 @@ context RuntimeProvisioning {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInstallationPlanCreated.agentInstallMode by runtimeInfrastructureId
       verificationPassed: Boolean
-      verifiedAt: DateTime?
-      failedAt: DateTime?
       observedNodeCount: Int
       failureReason: String?
     }
@@ -976,13 +972,11 @@ context RuntimeProvisioning {
     event RuntimeInfrastructureVerified {
       runtimeInfrastructureId: UUID id technical
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
-      verifiedAt: DateTime
       observedNodeCount: Int
     }
 
     event RuntimeInfrastructureVerificationFailed {
       runtimeInfrastructureId: UUID id technical
-      failedAt: DateTime
       observedNodeCount: Int
       failureReason: String
     }
@@ -1037,21 +1031,16 @@ context RuntimeProvisioning {
     command DeployRuntimeAgent {
       runtimeAgentId: UUID generated technical
       runtimeInfrastructureId: UUID id technical
-      requestedAt: DateTime
     }
 
     event RuntimeAgentInstallationSucceeded {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
       agentVersion: String
-      startedAt: DateTime
-      readyAt: DateTime
     }
 
     event RuntimeAgentInstallationFailed {
       runtimeInfrastructureId: UUID id technical
-      startedAt: DateTime
-      failedAt: DateTime
       failureReason: String
     }
 
@@ -1094,23 +1083,16 @@ context RuntimeProvisioning {
       runtimeInfrastructureId: UUID id technical
       currentRuntimeInfrastructureState: RuntimeInfrastructure.State derived from RuntimeInfrastructureAccessView.state by runtimeInfrastructureId
       retryReason: String
-      requestedAt: DateTime
     }
 
     event RuntimeAgentDeploymentRetrySucceeded {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
       agentVersion: String
-      startedAt: DateTime
-      requestedAt: DateTime
-      readyAt: DateTime
     }
 
     event RuntimeAgentDeploymentRetryFailed {
       runtimeInfrastructureId: UUID id technical
-      startedAt: DateTime
-      requestedAt: DateTime
-      failedAt: DateTime
       failureReason: String
     }
 
@@ -1174,13 +1156,11 @@ context RuntimeProvisioning {
     command RecordRuntimeConnectionEstablished {
       runtimeInfrastructureId: UUID id technical from AgentRuntimeConnectionEstablished.runtimeInfrastructureId
       runtimeAgentId: UUID from AgentRuntimeConnectionEstablished.runtimeAgentId
-      connectedAt: DateTime from AgentRuntimeConnectionEstablished.connectedAt
     }
 
     event RuntimeConnectionEstablished {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
-      connectedAt: DateTime
     }
 
     state Connected
@@ -1419,7 +1399,6 @@ context DatasetGovernance {
       featureDomain: String
       supersededVersion: String
       supersessionReason: String?
-      supersededAt: DateTime
     }
   
     specification "Supersede Published Schema With Newer Version" {
@@ -1467,7 +1446,6 @@ context DatasetGovernance {
         from FeatureSchema.version
         rule "Expose the recommended schema version for catalog projection."
       }
-      recommendedAt: DateTime
       recommendationNote: String?
     }
   
@@ -1588,15 +1566,58 @@ context DatasetGovernance {
       featureSchemaId: UUID from AgentDatasetMetadataReported.featureSchemaId
       sampleCount: Int from AgentDatasetMetadataReported.sampleCount
       featureCount: Int from AgentDatasetMetadataReported.featureCount
-      schemaCompatible: Boolean from AgentDatasetMetadataReported.schemaCompatible
-      labelCompatible: Boolean from AgentDatasetMetadataReported.labelCompatible
-      missingValueRate: Decimal from AgentDatasetMetadataReported.missingValueRate
-      duplicateRate: Decimal from AgentDatasetMetadataReported.duplicateRate
-      qualityScore: Decimal from AgentDatasetMetadataReported.qualityScore
-      nonIidScore: Decimal from AgentDatasetMetadataReported.nonIidScore
+      schemaCompatible: Boolean? from AgentDatasetMetadataReported.schemaCompatible
+      labelCompatible: Boolean? from AgentDatasetMetadataReported.labelCompatible
+      missingValueRate: Decimal? from AgentDatasetMetadataReported.missingValueRate
+      duplicateRate: Decimal? from AgentDatasetMetadataReported.duplicateRate
+      qualityScore: Decimal? from AgentDatasetMetadataReported.qualityScore
+      nonIidScore: Decimal? from AgentDatasetMetadataReported.nonIidScore
       classBalanceScore: Decimal? from AgentDatasetMetadataReported.classBalanceScore
-      statisticsRef: String? from AgentDatasetMetadataReported.statisticsRef
-      profiledAt: DateTime from AgentDatasetMetadataReported.profiledAt
+    }
+
+    event DatasetMetadataReprofiled {
+      metadataReportId: UUID id technical
+      datasetId: UUID
+      organizationId: UUID
+      runtimeId: UUID
+      featureSchemaId: UUID
+      sampleCount: Int
+      featureCount: Int
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      missingValueRate: Decimal?
+      duplicateRate: Decimal?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
+      classBalanceScore: Decimal?
+    }
+
+    state MetadataReported
+  }
+
+  slice RecordRuntimeDatasetReprofiledMetadata {
+    reactsTo AgentDatasetReprofiled
+
+    automation RecordDatasetMetadataWhenAgentReprofiled {
+      on AgentDatasetReprofiled
+      emits RecordRuntimeDatasetReprofiledMetadata
+    }
+
+    command RecordRuntimeDatasetReprofiledMetadata {
+      metadataReportId: UUID id technical from AgentDatasetReprofiled.metadataReportId
+      datasetId: UUID from AgentDatasetReprofiled.datasetId
+      organizationId: UUID from AgentDatasetReprofiled.organizationId
+      runtimeId: UUID from AgentDatasetReprofiled.runtimeId
+      featureSchemaId: UUID from AgentDatasetReprofiled.featureSchemaId
+      sampleCount: Int from AgentDatasetReprofiled.sampleCount
+      featureCount: Int from AgentDatasetReprofiled.featureCount
+      schemaCompatible: Boolean? from AgentDatasetReprofiled.schemaCompatible
+      labelCompatible: Boolean? from AgentDatasetReprofiled.labelCompatible
+      missingValueRate: Decimal? from AgentDatasetReprofiled.missingValueRate
+      duplicateRate: Decimal? from AgentDatasetReprofiled.duplicateRate
+      qualityScore: Decimal? from AgentDatasetReprofiled.qualityScore
+      nonIidScore: Decimal? from AgentDatasetReprofiled.nonIidScore
+      classBalanceScore: Decimal? from AgentDatasetReprofiled.classBalanceScore
     }
 
     event DatasetMetadataReported {
@@ -1607,15 +1628,13 @@ context DatasetGovernance {
       featureSchemaId: UUID
       sampleCount: Int
       featureCount: Int
-      schemaCompatible: Boolean
-      labelCompatible: Boolean
-      missingValueRate: Decimal
-      duplicateRate: Decimal
-      qualityScore: Decimal
-      nonIidScore: Decimal
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      missingValueRate: Decimal?
+      duplicateRate: Decimal?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
       classBalanceScore: Decimal?
-      statisticsRef: String?
-      profiledAt: DateTime
     }
 
     state MetadataReported
@@ -1769,7 +1788,6 @@ context DatasetGovernance {
       qualityScore: Decimal?
       nonIidScore: Decimal?
       metadataReportId: UUID?
-      statisticsRef: String?
       metadataStatus: String
       approvalStatus: String
       approved: Boolean
@@ -1778,6 +1796,7 @@ context DatasetGovernance {
       subscribe FeatureSchemaDefined
       subscribe DatasetDeclared
       subscribe DatasetMetadataReported
+      subscribe DatasetMetadataReprofiled
       subscribe DatasetContractValidated
       subscribe DatasetContractValidationFailed
       subscribe DatasetRejectedForTraining
@@ -1826,12 +1845,10 @@ context DatasetGovernance {
       nonIidScore: Decimal?
       classBalanceScore: Decimal?
       metadataReportId: UUID?
-      statisticsRef: String?
       datasetAccessValidationId: UUID?
       readable: Boolean?
       schemaReadable: Boolean?
       sampleBatchReadable: Boolean?
-      validationReportId: UUID?
       lastProfiledAt: DateTime?
       lastAccessValidatedAt: DateTime?
       lastRuntimeHeartbeatAt: DateTime?
@@ -1840,12 +1857,14 @@ context DatasetGovernance {
       subscribe FeatureSchemaDefined
       subscribe DatasetDeclared
       subscribe DatasetMetadataReported
+      subscribe DatasetMetadataReprofiled
       subscribe DatasetContractValidated
       subscribe DatasetContractValidationFailed
       subscribe DatasetRejectedForTraining
       subscribe DatasetApprovedForTraining
       subscribe DatasetTrainingApprovalRevoked
       subscribe AgentDatasetAccessValidated
+      subscribe AgentDatasetAccessValidationFailed
       subscribe RuntimeConnectionEstablished
       subscribe RuntimeAgentOfflineDetected
       subscribe RuntimeAgentRecovered
@@ -2941,7 +2960,6 @@ context TrainingOrchestration {
         from TrainingRunConfiguration.initialModelVersionId, TrainingRoundCompleted.aggregatedModelVersionId
         rule "Round one uses the initial model selected by the training configuration; later rounds use the aggregated model from the previous completed round."
       }
-      generatedAt: DateTime
     }
 
     event ParticipantExecutionPlanGenerated {
@@ -2955,7 +2973,6 @@ context TrainingOrchestration {
       runtimeId: UUID
       organizationId: UUID
       baseModelVersionId: UUID
-      generatedAt: DateTime
     }
 
     state PlanGenerated
@@ -2981,7 +2998,6 @@ context TrainingOrchestration {
       runtimeId: UUID from ParticipantExecutionPlanGenerated.runtimeId
       organizationId: UUID from ParticipantExecutionPlanGenerated.organizationId
       baseModelVersionId: UUID from ParticipantExecutionPlanGenerated.baseModelVersionId
-      dispatchedAt: DateTime
     }
 
     event ParticipantExecutionPlanDispatched {
@@ -2995,7 +3011,6 @@ context TrainingOrchestration {
       runtimeId: UUID
       organizationId: UUID
       baseModelVersionId: UUID
-      dispatchedAt: DateTime
     }
 
     state PlanDispatched
@@ -3020,7 +3035,6 @@ context TrainingOrchestration {
       artifactRef: String
       artifactDigest: String
       trainingLoss: Decimal
-      submittedAt: DateTime
     }
 
     event ModelUpdateSubmissionReceived {
@@ -3038,7 +3052,6 @@ context TrainingOrchestration {
       artifactRef: String
       artifactDigest: String
       trainingLoss: Decimal
-      submittedAt: DateTime
     }
 
     state Received
@@ -3061,7 +3074,6 @@ context TrainingOrchestration {
       roundId: UUID from ModelUpdateSubmissionReceived.roundId
       runtimeId: UUID from ModelUpdateSubmissionReceived.runtimeId
       anomalyScore: Decimal generated technical
-      evaluatedAt: DateTime
     }
 
     event ModelUpdateSubmissionAccepted {
@@ -3073,7 +3085,6 @@ context TrainingOrchestration {
       roundId: UUID
       runtimeId: UUID
       anomalyScore: Decimal
-      evaluatedAt: DateTime
     }
 
     event ModelUpdateSubmissionRejected {
@@ -3085,7 +3096,6 @@ context TrainingOrchestration {
       updateArtifactId: UUID from ModelUpdateSubmissionReceived.updateArtifactId
       anomalyScore: Decimal
       rejectionReason: String generated technical
-      evaluatedAt: DateTime
     }
 
     state Evaluated
@@ -3153,11 +3163,8 @@ context TrainingOrchestration {
       roundId: UUID from SecureAggregationCompleted.roundId
       secureAggregationSessionId: UUID from SecureAggregationCompleted.secureAggregationSessionId
       aggregatedModelVersionId: UUID from SecureAggregationCompleted.aggregatedModelVersionId
-      modelArtifactRef: String from SecureAggregationCompleted.modelArtifactRef
-      modelRepositoryRef: String from SecureAggregationCompleted.modelRepositoryRef
       modelFormat: String from SecureAggregationCompleted.modelFormat
       modelHash: String from SecureAggregationCompleted.modelHash
-      modelSignatureRef: String? from SecureAggregationCompleted.modelSignatureRef
     }
 
     event GlobalModelUpdated {
@@ -3167,11 +3174,8 @@ context TrainingOrchestration {
       roundId: UUID
       secureAggregationSessionId: UUID
       aggregatedModelVersionId: UUID
-      modelArtifactRef: String
-      modelRepositoryRef: String
       modelFormat: String
       modelHash: String
-      modelSignatureRef: String?
     }
 
     state EvaluatingGlobalModel
@@ -3186,11 +3190,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      modelArtifactRef: String from GlobalModelUpdated.modelArtifactRef
-      modelRepositoryRef: String from GlobalModelUpdated.modelRepositoryRef
       modelFormat: String from GlobalModelUpdated.modelFormat
       modelHash: String from GlobalModelUpdated.modelHash
-      modelSignatureRef: String? from GlobalModelUpdated.modelSignatureRef
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3201,11 +3202,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      modelArtifactRef: String
-      modelRepositoryRef: String
       modelFormat: String
       modelHash: String
-      modelSignatureRef: String?
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3225,11 +3223,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      modelArtifactRef: String from GlobalModelEvaluationSubmitted.modelArtifactRef
-      modelRepositoryRef: String from GlobalModelEvaluationSubmitted.modelRepositoryRef
       modelFormat: String from GlobalModelEvaluationSubmitted.modelFormat
       modelHash: String from GlobalModelEvaluationSubmitted.modelHash
-      modelSignatureRef: String? from GlobalModelEvaluationSubmitted.modelSignatureRef
       globalAccuracy: Decimal
     }
 
@@ -3239,11 +3234,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      modelArtifactRef: String
-      modelRepositoryRef: String
       modelFormat: String
       modelHash: String
-      modelSignatureRef: String?
       globalAccuracy: Decimal
     }
 
@@ -3301,6 +3293,24 @@ context TrainingOrchestration {
 
     automation FailRoundWhenRuntimeExecutionFailureBreaksQuorum {
       on RoundExecutionFailed
+      condition roundQuorumLost == true
+      emits FailTrainingRound
+    }
+
+    automation FailRoundWhenRuntimeExecutionStartFailureBreaksQuorum {
+      on RoundExecutionStartFailed
+      condition roundQuorumLost == true
+      emits FailTrainingRound
+    }
+
+    automation FailRoundWhenRuntimeExecutionStartRetryFailureBreaksQuorum {
+      on RoundExecutionStartRetryFailed
+      condition roundQuorumLost == true
+      emits FailTrainingRound
+    }
+
+    automation FailRoundWhenRuntimeExecutionRetryFailureBreaksQuorum {
+      on RoundExecutionRuntimeRetryFailed
       condition roundQuorumLost == true
       emits FailTrainingRound
     }
@@ -3368,6 +3378,8 @@ context TrainingOrchestration {
       pendingUpdateCount: Int
       failedRoundExecutionCount: Int
       completedRoundExecutionCount: Int
+      retriedRoundExecutionCount: Int
+      failedRoundExecutionRetryCount: Int
       quorumMet: Boolean
       quorumStatus: String
       minimumNodesPerRound: Int?
@@ -3390,7 +3402,6 @@ context TrainingOrchestration {
       artifactRefs: String[]
       rejectedUpdateReasons: String[]
       aggregatedModelVersionId: UUID?
-      aggregatedModelArtifactRef: String?
       globalAccuracy: Decimal?
       globalFairnessScore: Decimal?
       failureReason: String?
@@ -3402,8 +3413,13 @@ context TrainingOrchestration {
       subscribe ParticipantExecutionPlanGenerated
       subscribe ParticipantExecutionPlanDispatched
       subscribe RoundExecutionStarted
+      subscribe RoundExecutionStartFailed
+      subscribe RoundExecutionStartRetryStarted
+      subscribe RoundExecutionStartRetryFailed
       subscribe RoundExecutionCompleted
       subscribe RoundExecutionFailed
+      subscribe RoundExecutionRuntimeRetryStarted
+      subscribe RoundExecutionRuntimeRetryFailed
       subscribe ModelUpdateSubmissionReceived
       subscribe ModelUpdateSubmissionAccepted
       subscribe ModelUpdateSubmissionRejected
@@ -3768,14 +3784,12 @@ context RuntimeMonitoring {
     command DetectRuntimeAgentOffline {
       nodeId: UUID id technical
       runtimeAgentId: UUID
-      lastHeartbeatAt: DateTime
       offlineReason: String
     }
 
     event RuntimeAgentOfflineDetected {
       nodeId: UUID id technical
       runtimeAgentId: UUID
-      lastHeartbeatAt: DateTime
       offlineReason: String
     }
 
@@ -3860,7 +3874,6 @@ context RuntimeMonitoring {
       operatingSystem: String?
       architecture: String
       inventoryHash: String
-      discoveredAt: DateTime
     }
 
     event RuntimeNodeInventoryReported {
@@ -3878,7 +3891,6 @@ context RuntimeMonitoring {
       operatingSystem: String?
       architecture: String
       inventoryHash: String
-      discoveredAt: DateTime
     }
 
     state Reported
@@ -4108,13 +4120,11 @@ context RuntimeMonitoring {
 
     command AcknowledgeTrainingAlert {
       alertId: UUID id technical
-      acknowledgedAt: DateTime
       acknowledgementNote: String?
     }
 
     event TrainingAlertAcknowledged {
       alertId: UUID id technical
-      acknowledgedAt: DateTime
       acknowledgementNote: String?
     }
 
@@ -4128,13 +4138,11 @@ context RuntimeMonitoring {
 
     command ResolveTrainingAlert {
       alertId: UUID id technical
-      resolvedAt: DateTime
       resolutionSummary: String
     }
 
     event TrainingAlertResolved {
       alertId: UUID id technical
-      resolvedAt: DateTime
       resolutionSummary: String
     }
 
@@ -4271,7 +4279,6 @@ context RuntimeGovernance {
       runtimeAgentId: UUID from RuntimeAgentInstallationSucceeded.runtimeAgentId
       organizationId: UUID derived from RuntimeInstallationPlanCreated.organizationId by runtimeInfrastructureId
       runtimeName: String derived from RuntimeInstallationPlanCreated.runtimeName by runtimeInfrastructureId
-      activatedAt: DateTime
     }
 
     event RuntimeIdentityActivated {
@@ -4280,7 +4287,6 @@ context RuntimeGovernance {
       runtimeAgentId: UUID
       organizationId: UUID
       runtimeName: String
-      activatedAt: DateTime
     }
 
     state Active
@@ -4294,13 +4300,11 @@ context RuntimeGovernance {
     command RevokeRuntimeIdentity {
       runtimeId: UUID id technical
       revocationReason: String
-      revokedAt: DateTime
     }
 
     event RuntimeIdentityRevoked {
       runtimeId: UUID id technical
       revocationReason: String
-      revokedAt: DateTime
     }
 
     state Revoked
@@ -4320,13 +4324,11 @@ context RuntimeGovernance {
     command DetectRuntimeCapabilities {
       runtimeId: UUID id technical from RuntimeIdentityActivated.runtimeId
       capabilityTypes: String[] dictionary "RUNTIME_CAPABILITY_TYPE"
-      detectedAt: DateTime
     }
 
     event RuntimeCapabilitiesDetected {
       runtimeId: UUID id technical
       capabilityTypes: String[] dictionary "RUNTIME_CAPABILITY_TYPE"
-      detectedAt: DateTime
     }
 
     state Detected
@@ -4400,7 +4402,6 @@ context SecureAggregation {
       roundId: UUID from SecureAggregationRequested.roundId
       requiredParticipantCount: Int from SecureAggregationRequested.acceptedModelUpdateCount
       acceptedRuntimeIds: UUID[] from SecureAggregationRequested.acceptedRuntimeIds
-      createdAt: DateTime
     }
 
     event SecureAggregationSessionCreated {
@@ -4411,7 +4412,6 @@ context SecureAggregation {
       roundId: UUID
       requiredParticipantCount: Int
       acceptedRuntimeIds: UUID[]
-      createdAt: DateTime
     }
 
     state Planned
@@ -4432,7 +4432,6 @@ context SecureAggregation {
       acceptedRuntimeIds: UUID[] from SecureAggregationSessionCreated.acceptedRuntimeIds
       selectedRuntimeIds: UUID[]
       selectedParticipantCount: Int
-      selectedAt: DateTime
     }
 
     event SecureAggregationParticipantsSelected {
@@ -4441,7 +4440,6 @@ context SecureAggregation {
       acceptedRuntimeIds: UUID[]
       selectedRuntimeIds: UUID[]
       selectedParticipantCount: Int
-      selectedAt: DateTime
     }
 
     state ParticipantsSelected
@@ -4459,10 +4457,11 @@ context SecureAggregation {
 
     command PrepareHomomorphicEncryptionContext {
       secureAggregationSessionId: UUID id technical
+      // PAILLIER
       encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
       publicKeyVersion: String
+      // 浮点参数转整数再加密时使用的缩放倍数/精度约定
       encryptedParameterScale: Int
-      preparedAt: DateTime
     }
 
     event HomomorphicEncryptionContextPrepared {
@@ -4470,34 +4469,9 @@ context SecureAggregation {
       encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
       publicKeyVersion: String
       encryptedParameterScale: Int
-      preparedAt: DateTime
     }
 
     state EncryptionContextPrepared
-  }
-
-  slice ConfirmParticipantEncryptionContext {
-    actor RuntimeAgent
-    reactsTo HomomorphicEncryptionContextPrepared
-    port
-
-    command ConfirmParticipantEncryptionContext {
-      secureAggregationSessionId: UUID id technical
-      runtimeId: UUID
-      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME" from HomomorphicEncryptionContextPrepared.encryptionScheme
-      publicKeyVersion: String from HomomorphicEncryptionContextPrepared.publicKeyVersion
-      confirmedAt: DateTime
-    }
-
-    event ParticipantEncryptionContextConfirmed {
-      secureAggregationSessionId: UUID id technical
-      runtimeId: UUID
-      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
-      publicKeyVersion: String
-      confirmedAt: DateTime
-    }
-
-    state CollectingEncryptedUpdates
   }
 
   slice RecordEncryptedModelUpdate {
@@ -4509,7 +4483,6 @@ context SecureAggregation {
       submissionId: UUID
       runtimeId: UUID
       encryptedUpdateDigest: String
-      receivedAt: DateTime
     }
 
     event EncryptedModelUpdateReceived {
@@ -4517,7 +4490,6 @@ context SecureAggregation {
       submissionId: UUID
       runtimeId: UUID
       encryptedUpdateDigest: String
-      receivedAt: DateTime
     }
   }
 
@@ -4538,14 +4510,9 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID from SecureAggregationSessionCreated.trainingRunConfigurationId
       featureSchemaId: UUID from SecureAggregationSessionCreated.featureSchemaId
       roundId: UUID from SecureAggregationSessionCreated.roundId
-      aggregatedModelVersionId: UUID
-      modelArtifactRef: String
-      modelRepositoryRef: String
+      aggregatedModelVersionId: UUID generated technical
       modelFormat: String
       modelHash: String
-      modelSignatureRef: String?
-      decryptedAt: DateTime
-      completedAt: DateTime
     }
 
     event SecureAggregationCompleted {
@@ -4555,13 +4522,8 @@ context SecureAggregation {
       featureSchemaId: UUID
       roundId: UUID
       aggregatedModelVersionId: UUID
-      modelArtifactRef: String
-      modelRepositoryRef: String
       modelFormat: String
       modelHash: String
-      modelSignatureRef: String?
-      decryptedAt: DateTime
-      completedAt: DateTime
     }
 
     state Completed
@@ -4574,13 +4536,11 @@ context SecureAggregation {
     command FailSecureAggregationSession {
       secureAggregationSessionId: UUID id technical
       failureReason: String
-      failedAt: DateTime
     }
 
     event SecureAggregationFailed {
       secureAggregationSessionId: UUID id technical
       failureReason: String
-      failedAt: DateTime
     }
 
     state Failed
@@ -4598,17 +4558,13 @@ context SecureAggregation {
       selectedRuntimeIds: UUID[]
       selectedParticipantCount: Int?
       encryptionContextPrepared: Boolean
-      encryptionContextConfirmedCount: Int
       receivedEncryptedUpdateCount: Int
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
       publicKeyVersion: String?
       encryptedParameterScale: Int?
       aggregatedModelVersionId: UUID?
-      modelArtifactRef: String?
-      modelRepositoryRef: String?
       modelFormat: String?
       modelHash: String?
-      modelSignatureRef: String?
       state: SecureAggregationSession.State
       failureReason: String?
       createdAt: DateTime
@@ -4620,7 +4576,6 @@ context SecureAggregation {
       subscribe SecureAggregationSessionCreated
       subscribe SecureAggregationParticipantsSelected
       subscribe HomomorphicEncryptionContextPrepared
-      subscribe ParticipantEncryptionContextConfirmed
       subscribe EncryptedModelUpdateReceived
       subscribe SecureAggregationCompleted
       subscribe SecureAggregationFailed
@@ -4631,14 +4586,12 @@ context SecureAggregation {
     state Planned
     state ParticipantsSelected
     state EncryptionContextPrepared
-    state CollectingEncryptedUpdates
     state Completed
     state Failed
 
     slice CreateSecureAggregationSession
     slice SelectSecureAggregationParticipants
     slice PrepareHomomorphicEncryptionContext
-    slice ConfirmParticipantEncryptionContext
     slice RecordEncryptedModelUpdate
     slice CompleteHomomorphicAggregationSession
     slice FailSecureAggregationSession
@@ -4683,11 +4636,36 @@ context SecureAggregation {
       emits SubmitAgentLocalModelUpdate
     }
 
+    integration RetriedRoundRuntimeEngine {
+      source RoundExecution
+      target RuntimeEngine
+      reactsTo RoundExecutionStartRetryStarted
+      emits CompleteRoundExecution
+      emits FailRoundExecution
+      emits SubmitAgentLocalModelUpdate
+    }
+
+    integration RuntimeFailureRetriedRoundRuntimeEngine {
+      source RoundExecution
+      target RuntimeEngine
+      reactsTo RoundExecutionRuntimeRetryStarted
+      emits CompleteRoundExecution
+      emits FailRoundExecution
+      emits SubmitAgentLocalModelUpdate
+    }
+
     integration PlatformDatasetMetadataReporting {
       source RuntimeDatasetMetadata
       target DatasetGovernance
       reactsTo AgentDatasetMetadataReported
       emits RecordRuntimeDatasetMetadata
+    }
+
+    integration PlatformDatasetReprofiledMetadataReporting {
+      source RuntimeDatasetMetadata
+      target DatasetGovernance
+      reactsTo AgentDatasetReprofiled
+      emits RecordRuntimeDatasetReprofiledMetadata
     }
 
     integration PlatformRoundUpdateReporting {
@@ -4711,242 +4689,170 @@ context SecureAggregation {
       emits RecordRuntimeNodeInventory
     }
 
-  slice RegisterAgentDataConnector {
-    startsLifecycle
-    actor RuntimeAgent
-    reactsTo RuntimeConnectionEstablished
-
-    automation RegisterConnectorWhenRuntimeConnected {
-      on RuntimeConnectionEstablished
-      emits RegisterAgentDataConnector
-    }
-
-    command RegisterAgentDataConnector {
-      dataConnectorId: UUID id generated technical
-      runtimeAgentId: UUID
-      connectorName: String
-      connectorType: String
-      connectorRef: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      supportedDataFormats: String[]
-      agentConnectorHandle: String
-      localConnectionConfigRef: String?
-      localCredentialRef: String?
-      localMountPath: String?
-    }
-
-    event AgentDataConnectorRegistered {
-      dataConnectorId: UUID id technical
-      runtimeAgentId: UUID
-      connectorName: String
-      connectorType: String
-      connectorRef: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      supportedDataFormats: String[]
-      agentConnectorHandle: String
-      localConnectionConfigRef: String?
-      localCredentialRef: String?
-      localMountPath: String?
-      registeredAt: DateTime
-    }
-
-    state Registered
-  }
-
-  slice AgentDataConnectorCatalog {
-    readmodel AgentDataConnectorCatalog[] {
-      dataConnectorId: UUID id
-      runtimeAgentId: UUID
-      connectorName: String
-      connectorType: String
-      connectorRef: String
-      credentialRef: String
-      secretRefType: String
-      storageLocationRef: String
-      supportedDataFormats: String[]
-      agentConnectorHandle: String
-      localConnectionConfigRef: String?
-      localCredentialRef: String?
-      localMountPath: String?
-      registeredAt: DateTime
-      subscribe AgentDataConnectorRegistered
-    }
-  }
-
-  concept AgentDataConnector {
-    state Registered
-
-    slice RegisterAgentDataConnector
-    slice AgentDataConnectorCatalog
-  }
-
-  slice ProbeAgentDataConnectorAccess {
-    startsLifecycle
-    reactsTo AgentDataConnectorRegistered
-
-    automation ProbeConnectorAccessAfterRegistration {
-      on AgentDataConnectorRegistered
-      emits ProbeAgentDataConnectorAccess
-    }
-
-    command ProbeAgentDataConnectorAccess {
-      agentDataConnectorProbeId: UUID id generated technical
-      dataConnectorId: UUID
-      runtimeAgentId: UUID
-      validationMode: String
-    }
-
-    event AgentDataConnectorAccessProbed {
-      agentDataConnectorProbeId: UUID id technical
-      dataConnectorId: UUID
-      runtimeId: UUID
-      readable: Boolean
-      writable: Boolean
-      validationReportId: UUID
-      verifiedAt: DateTime
-    }
-
-    state Probed
-  }
-
-  slice AgentDataConnectorAccessProbeCatalog {
-    readmodel AgentDataConnectorAccessProbeCatalog[] {
-      agentDataConnectorProbeId: UUID id
-      dataConnectorId: UUID
-      runtimeAgentId: UUID
-      connectorName: String? derived {
-        from AgentDataConnectorRegistered.connectorName
-        rule "Lookup by dataConnectorId and denormalize the data connector display name into the access probe catalog."
-      }
-      readable: Boolean
-      writable: Boolean
-      validationReportId: UUID
-      verifiedAt: DateTime
-      subscribe AgentDataConnectorRegistered
-      subscribe AgentDataConnectorAccessProbed
-    }
-  }
-
-  concept AgentDataConnectorAccessProbe {
-    state Probed
-
-    slice ProbeAgentDataConnectorAccess
-    slice AgentDataConnectorAccessProbeCatalog
-  }
-
-  slice ConfigureAgentDatasetAccessProfile {
+  slice ConfigureRuntimeDatasetBinding {
     startsLifecycle
     actor NodeOperator
-    ui AgentDatasetAccessProfileScreen
-    reactsTo AgentDataConnectorRegistered
+    ui RuntimeDatasetBindingScreen
+    reactsTo DatasetDeclared
 
-    command ConfigureAgentDatasetAccessProfile {
-      agentDatasetAccessProfileId: UUID id generated technical
-      datasetId: UUID
-      runtimeAgentId: UUID
-      dataConnectorId: UUID
-      agentDataAccessHandle: String
-      localConnectionConfigRef: String?
-      localCredentialRef: String?
-      localMountPath: String?
-      dataFormat: String
-      readerPlugin: String
-      readMode: String
-      materializationMode: String
+    command ConfigureRuntimeDatasetBinding {
+      runtimeDatasetBindingId: UUID id generated technical
+      datasetId: UUID from DatasetDeclared.datasetId
+      organizationId: UUID from DatasetDeclared.organizationId
+      runtimeId: UUID
+      dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
+      host: String?
+      port: Int?
+      url: String?
+      databaseName: String?
+      schemaName: String?
+      tableName: String?
+      filePath: String?
+      objectBucket: String?
+      objectPrefix: String?
+      dataFormat: String dictionary "DATA_FORMAT"
+      // 访问密码/密钥 名
+      credentialSecretName: String?
     }
 
-    event AgentDatasetAccessProfileConfigured {
-      agentDatasetAccessProfileId: UUID id technical
+    event RuntimeDatasetBindingConfigured {
+      runtimeDatasetBindingId: UUID id technical
       datasetId: UUID
-      runtimeAgentId: UUID
-      dataConnectorId: UUID
-      agentDataAccessHandle: String
-      localConnectionConfigRef: String?
-      localCredentialRef: String?
-      localMountPath: String?
-      dataFormat: String
-      readerPlugin: String
-      readMode: String
-      materializationMode: String
+      organizationId: UUID
+      runtimeId: UUID
+      dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
+      host: String?
+      port: Int?
+      url: String?
+      databaseName: String?
+      schemaName: String?
+      tableName: String?
+      filePath: String?
+      objectBucket: String?
+      objectPrefix: String?
+      dataFormat: String dictionary "DATA_FORMAT"
+      credentialSecretName: String?
     }
 
     state Configured
   }
 
-  slice AgentDatasetAccessProfileCatalog {
-    readmodel AgentDatasetAccessProfileCatalog[] {
-      agentDatasetAccessProfileId: UUID id
+  slice RuntimeDatasetBindingCatalog {
+    readmodel RuntimeDatasetBindingCatalog[] {
+      runtimeDatasetBindingId: UUID id
       datasetId: UUID
-      runtimeAgentId: UUID
-      dataConnectorId: UUID
+      organizationId: UUID
+      runtimeId: UUID
       datasetName: String? derived {
         from DatasetDeclared.datasetName
-        rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset access profile catalog."
+        rule "Lookup by datasetId and denormalize the dataset display name into the local runtime dataset binding catalog."
       }
-      connectorName: String? derived {
-        from AgentDataConnectorRegistered.connectorName
-        rule "Lookup by dataConnectorId and denormalize the data connector display name into the agent dataset access profile catalog."
-      }
-      agentDataAccessHandle: String
-      localConnectionConfigRef: String?
-      localCredentialRef: String?
-      localMountPath: String?
-      dataFormat: String
-      readerPlugin: String
-      readMode: String
-      materializationMode: String
+      dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
+      host: String?
+      port: Int?
+      url: String?
+      databaseName: String?
+      schemaName: String?
+      tableName: String?
+      filePath: String?
+      objectBucket: String?
+      objectPrefix: String?
+      dataFormat: String dictionary "DATA_FORMAT"
+      credentialSecretName: String?
       configuredAt: DateTime
       subscribe DatasetDeclared
-      subscribe AgentDataConnectorRegistered
-      subscribe AgentDatasetAccessProfileConfigured
+      subscribe RuntimeDatasetBindingConfigured
     }
   }
 
-  concept AgentDatasetAccessProfile {
+  concept RuntimeDatasetBinding {
     state Configured
 
-    slice ConfigureAgentDatasetAccessProfile
-    slice AgentDatasetAccessProfileCatalog
+    slice ConfigureRuntimeDatasetBinding
+    slice RuntimeDatasetBindingCatalog
   }
 
   slice ProfileAgentDataset {
     startsLifecycle
-    reactsTo AgentDatasetAccessProfileConfigured
+    actor RuntimeAgent
+    reactsTo AgentDatasetAccessValidated
+    // 获取连接，连接具体数据库，分析统计数据，需要具体的统计分析方法
+    port
 
-    automation ProfileDatasetWhenAccessProfileConfigured {
-      on AgentDatasetAccessProfileConfigured
+    automation ProfileDatasetWhenAccessValidated {
+      on AgentDatasetAccessValidated
       emits ProfileAgentDataset
     }
 
     command ProfileAgentDataset {
       metadataReportId: UUID id generated technical
-      datasetId: UUID from AgentDatasetAccessProfileConfigured.datasetId
-      organizationId: UUID derived from DatasetDeclared.organizationId by datasetId
-      runtimeId: UUID from AgentDatasetAccessProfileConfigured.runtimeAgentId
-      featureSchemaId: UUID derived from DatasetDeclared.featureSchemaId by datasetId
+      runtimeDatasetBindingId: UUID from AgentDatasetAccessValidated.runtimeDatasetBindingId
     }
 
     event AgentDatasetMetadataReported {
       metadataReportId: UUID id technical
-      datasetId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      featureSchemaId: UUID
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from AgentDatasetAccessValidated.datasetId
+      organizationId: UUID derived from RuntimeDatasetBindingConfigured.organizationId by runtimeDatasetBindingId
+      runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
+      featureSchemaId: UUID derived from DatasetDeclared.featureSchemaId by datasetId
       sampleCount: Int
       featureCount: Int
-      schemaCompatible: Boolean
-      labelCompatible: Boolean
-      missingValueRate: Decimal
-      duplicateRate: Decimal
-      qualityScore: Decimal
-      nonIidScore: Decimal
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      missingValueRate: Decimal?
+      duplicateRate: Decimal?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
       classBalanceScore: Decimal?
-      statisticsRef: String?
-      profiledAt: DateTime
+    }
+
+    event AgentDatasetProfilingFailed {
+      metadataReportId: UUID id technical
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from AgentDatasetAccessValidated.datasetId
+      runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
+      failureReason: String
+    }
+
+    state Reported
+  }
+
+  slice ReprofileAgentDataset {
+    actor NodeOperator
+    ui RuntimeDatasetBindingScreen
+    reactsTo AgentDatasetProfilingFailed
+    port
+
+    command ReprofileAgentDataset {
+      metadataReportId: UUID id generated technical
+      runtimeDatasetBindingId: UUID from AgentDatasetProfilingFailed.runtimeDatasetBindingId
+    }
+
+    event AgentDatasetReprofiled {
+      metadataReportId: UUID id technical
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from AgentDatasetProfilingFailed.datasetId
+      organizationId: UUID derived from RuntimeDatasetBindingConfigured.organizationId by runtimeDatasetBindingId
+      runtimeId: UUID from AgentDatasetProfilingFailed.runtimeId
+      featureSchemaId: UUID derived from DatasetDeclared.featureSchemaId by datasetId
+      sampleCount: Int
+      featureCount: Int
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      missingValueRate: Decimal?
+      duplicateRate: Decimal?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
+      classBalanceScore: Decimal?
+    }
+
+    event AgentDatasetReprofilingFailed {
+      metadataReportId: UUID id technical
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from AgentDatasetProfilingFailed.datasetId
+      runtimeId: UUID from AgentDatasetProfilingFailed.runtimeId
+      failureReason: String
     }
 
     state Reported
@@ -4977,19 +4883,23 @@ context SecureAggregation {
       }
       sampleCount: Int
       featureCount: Int
-      schemaCompatible: Boolean
-      labelCompatible: Boolean
-      missingValueRate: Decimal
-      duplicateRate: Decimal
-      qualityScore: Decimal
-      nonIidScore: Decimal
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      missingValueRate: Decimal?
+      duplicateRate: Decimal?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
       classBalanceScore: Decimal?
-      statisticsRef: String?
-      profiledAt: DateTime
+      profilingStatus: String
+      failureReason: String?
+      profiledAt: DateTime?
       subscribe DatasetDeclared
       subscribe OrganizationRegistered
       subscribe FeatureSchemaDefined
       subscribe AgentDatasetMetadataReported
+      subscribe AgentDatasetReprofiled
+      subscribe AgentDatasetProfilingFailed
+      subscribe AgentDatasetReprofilingFailed
     }
   }
 
@@ -4997,41 +4907,47 @@ context SecureAggregation {
     state Reported
 
     slice ProfileAgentDataset
+    slice ReprofileAgentDataset
     slice RuntimeDatasetMetadataCatalog
   }
 
   slice ValidateAgentDatasetAccess {
     startsLifecycle
-    reactsTo AgentDatasetAccessProfileConfigured
-
-    automation ValidateDatasetAccessWhenProfileConfigured {
-      on AgentDatasetAccessProfileConfigured
-      emits ValidateAgentDatasetAccess
-    }
+    actor NodeOperator
+    ui RuntimeDatasetBindingScreen
+    reactsTo RuntimeDatasetBindingConfigured
+    port
 
     command ValidateAgentDatasetAccess {
       datasetAccessValidationId: UUID id generated technical
-      datasetId: UUID from AgentDatasetAccessProfileConfigured.datasetId
-      runtimeId: UUID from AgentDatasetAccessProfileConfigured.runtimeAgentId
+      runtimeDatasetBindingId: UUID from RuntimeDatasetBindingConfigured.runtimeDatasetBindingId
     }
 
     event AgentDatasetAccessValidated {
       datasetAccessValidationId: UUID id technical
-      datasetId: UUID
-      runtimeId: UUID
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
+      runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
-      validationReportId: UUID
-      validatedAt: DateTime
     }
 
-    state Validated
+    event AgentDatasetAccessValidationFailed {
+      datasetAccessValidationId: UUID id technical
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
+      runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
+      failureReason: String
+    }
+
+    state Checked
   }
 
   slice AgentDatasetAccessValidationCatalog {
     readmodel AgentDatasetAccessValidationCatalog[] {
       datasetAccessValidationId: UUID id
+      runtimeDatasetBindingId: UUID
       datasetId: UUID
       runtimeId: UUID
       datasetName: String? derived {
@@ -5041,15 +4957,17 @@ context SecureAggregation {
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
-      validationReportId: UUID
+      validationStatus: String
+      failureReason: String?
       validatedAt: DateTime
       subscribe DatasetDeclared
       subscribe AgentDatasetAccessValidated
+      subscribe AgentDatasetAccessValidationFailed
     }
   }
 
   concept AgentDatasetAccessValidation {
-    state Validated
+    state Checked
 
     slice ValidateAgentDatasetAccess
     slice AgentDatasetAccessValidationCatalog
@@ -5075,7 +4993,6 @@ context SecureAggregation {
       runtimeId: UUID from ParticipantExecutionPlanDispatched.runtimeId
       organizationId: UUID from ParticipantExecutionPlanDispatched.organizationId
       baseModelVersionId: UUID from ParticipantExecutionPlanDispatched.baseModelVersionId
-      receivedAt: DateTime
     }
 
     event ExecutionPlanReceived {
@@ -5089,7 +5006,6 @@ context SecureAggregation {
       runtimeId: UUID
       organizationId: UUID
       baseModelVersionId: UUID
-      receivedAt: DateTime
     }
 
     state PlanReceived
@@ -5097,10 +5013,11 @@ context SecureAggregation {
 
   slice AcceptExecutionPlan {
     reactsTo ExecutionPlanReceived
+    port
 
-    automation AcceptExecutionPlanWhenLocalPolicyPassed {
+    automation AcceptExecutionPlanWhenLocalRequirementsSatisfied {
       on ExecutionPlanReceived
-      condition localExecutionPolicyPassed == true
+      condition localExecutionRequirementsSatisfied == true
       emits AcceptExecutionPlan
     }
 
@@ -5109,7 +5026,14 @@ context SecureAggregation {
       executionSessionId: UUID from ExecutionPlanReceived.executionSessionId
       trainingJobId: UUID from ExecutionPlanReceived.trainingJobId
       runtimeId: UUID from ExecutionPlanReceived.runtimeId
-      acceptedAt: DateTime
+      localExecutionRequirementsSatisfied: Boolean
+      runtimeIdentityMatched: Boolean
+      runtimeDatasetBindingAvailable: Boolean
+      datasetAccessValidated: Boolean
+      baseModelAvailable: Boolean
+      trainingConfigurationSupported: Boolean
+      runtimeResourceAvailable: Boolean
+      runtimeAgentIdle: Boolean
     }
 
     event ExecutionPlanAccepted {
@@ -5117,7 +5041,14 @@ context SecureAggregation {
       executionSessionId: UUID
       trainingJobId: UUID
       runtimeId: UUID
-      acceptedAt: DateTime
+      localExecutionRequirementsSatisfied: Boolean
+      runtimeIdentityMatched: Boolean
+      runtimeDatasetBindingAvailable: Boolean
+      datasetAccessValidated: Boolean
+      baseModelAvailable: Boolean
+      trainingConfigurationSupported: Boolean
+      runtimeResourceAvailable: Boolean
+      runtimeAgentIdle: Boolean
     }
 
     state PlanAccepted
@@ -5126,14 +5057,28 @@ context SecureAggregation {
   slice RejectExecutionPlan {
     actor RuntimeAgent
     reactsTo ExecutionPlanReceived
+    port
+
+    automation RejectExecutionPlanWhenLocalRequirementsFailed {
+      on ExecutionPlanReceived
+      condition localExecutionRequirementsSatisfied == false
+      emits RejectExecutionPlan
+    }
 
     command RejectExecutionPlan {
       executionPlanId: UUID id technical
       executionSessionId: UUID from ExecutionPlanReceived.executionSessionId
       trainingJobId: UUID from ExecutionPlanReceived.trainingJobId
       runtimeId: UUID from ExecutionPlanReceived.runtimeId
-      rejectionReason: String
-      rejectedAt: DateTime
+      localExecutionRequirementsSatisfied: Boolean
+      runtimeIdentityMatched: Boolean
+      runtimeDatasetBindingAvailable: Boolean
+      datasetAccessValidated: Boolean
+      baseModelAvailable: Boolean
+      trainingConfigurationSupported: Boolean
+      runtimeResourceAvailable: Boolean
+      runtimeAgentIdle: Boolean
+      rejectionReasons: String[]
     }
 
     event ExecutionPlanRejected {
@@ -5141,8 +5086,15 @@ context SecureAggregation {
       executionSessionId: UUID
       trainingJobId: UUID
       runtimeId: UUID
-      rejectionReason: String
-      rejectedAt: DateTime
+      localExecutionRequirementsSatisfied: Boolean
+      runtimeIdentityMatched: Boolean
+      runtimeDatasetBindingAvailable: Boolean
+      datasetAccessValidated: Boolean
+      baseModelAvailable: Boolean
+      trainingConfigurationSupported: Boolean
+      runtimeResourceAvailable: Boolean
+      runtimeAgentIdle: Boolean
+      rejectionReasons: String[]
     }
 
     state PlanRejected
@@ -5150,6 +5102,7 @@ context SecureAggregation {
 
   slice StartRoundExecution {
     reactsTo ExecutionPlanAccepted
+    port
 
     automation StartRoundExecutionWhenPlanAccepted {
       on ExecutionPlanAccepted
@@ -5168,7 +5121,7 @@ context SecureAggregation {
       organizationId: UUID derived from ExecutionPlanReceived.organizationId by executionPlanId
       featureSchemaId: UUID derived from ExecutionPlanReceived.featureSchemaId by executionPlanId
       baseModelVersionId: UUID derived from ExecutionPlanReceived.baseModelVersionId by executionPlanId
-      startedAt: DateTime
+      runtimeEngineJobId: String
     }
 
     event RoundExecutionStarted {
@@ -5183,7 +5136,23 @@ context SecureAggregation {
       organizationId: UUID
       featureSchemaId: UUID
       baseModelVersionId: UUID
-      startedAt: DateTime
+      runtimeEngineJobId: String
+    }
+
+    event RoundExecutionStartFailed {
+      roundExecutionId: UUID id technical
+      executionSessionId: UUID
+      executionPlanId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+      runtimeId: UUID
+      organizationId: UUID
+      featureSchemaId: UUID
+      baseModelVersionId: UUID
+      runtimeEngineJobId: String?
+      failureReason: String
     }
 
     state Running
@@ -5194,13 +5163,13 @@ context SecureAggregation {
 
     command CompleteRoundExecution {
       roundExecutionId: UUID id technical
-      executionSessionId: UUID from RoundExecutionStarted.executionSessionId
-      executionPlanId: UUID from RoundExecutionStarted.executionPlanId
-      trainingJobId: UUID from RoundExecutionStarted.trainingJobId
-      trainingRunConfigurationId: UUID from RoundExecutionStarted.trainingRunConfigurationId
-      roundId: UUID from RoundExecutionStarted.roundId
-      runtimeId: UUID from RoundExecutionStarted.runtimeId
-      completedAt: DateTime
+      executionSessionId: UUID
+      executionPlanId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      runtimeId: UUID
+      runtimeEngineJobId: String
     }
 
     event RoundExecutionCompleted {
@@ -5211,7 +5180,7 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID
       roundId: UUID
       runtimeId: UUID
-      completedAt: DateTime
+      runtimeEngineJobId: String
     }
 
     state Completed
@@ -5222,14 +5191,14 @@ context SecureAggregation {
 
     command FailRoundExecution {
       roundExecutionId: UUID id technical
-      executionSessionId: UUID from RoundExecutionStarted.executionSessionId
-      executionPlanId: UUID from RoundExecutionStarted.executionPlanId
-      trainingJobId: UUID from RoundExecutionStarted.trainingJobId
-      trainingRunConfigurationId: UUID from RoundExecutionStarted.trainingRunConfigurationId
-      roundId: UUID from RoundExecutionStarted.roundId
-      runtimeId: UUID from RoundExecutionStarted.runtimeId
+      executionSessionId: UUID
+      executionPlanId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      runtimeId: UUID
+      runtimeEngineJobId: String?
       failureReason: String
-      failedAt: DateTime
     }
 
     event RoundExecutionFailed {
@@ -5240,15 +5209,137 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID
       roundId: UUID
       runtimeId: UUID
+      runtimeEngineJobId: String?
       failureReason: String
-      failedAt: DateTime
     }
 
     state Failed
   }
 
+  slice RetryRoundExecutionAfterStartFailure {
+    actor NodeOperator
+    ui RoundExecutionScreen
+    reactsTo RoundExecutionStartFailed
+    port
+
+    command RetryRoundExecutionAfterStartFailure {
+      roundExecutionId: UUID id technical
+      executionSessionId: UUID from RoundExecutionStartFailed.executionSessionId
+      executionPlanId: UUID from RoundExecutionStartFailed.executionPlanId
+      trainingJobId: UUID from RoundExecutionStartFailed.trainingJobId
+      trainingRunConfigurationId: UUID from RoundExecutionStartFailed.trainingRunConfigurationId
+      roundId: UUID from RoundExecutionStartFailed.roundId
+      roundNumber: Int from RoundExecutionStartFailed.roundNumber
+      runtimeId: UUID from RoundExecutionStartFailed.runtimeId
+      organizationId: UUID from RoundExecutionStartFailed.organizationId
+      featureSchemaId: UUID from RoundExecutionStartFailed.featureSchemaId
+      baseModelVersionId: UUID from RoundExecutionStartFailed.baseModelVersionId
+      runtimeEngineJobId: String
+      retryReason: String
+    }
+
+    event RoundExecutionStartRetryStarted {
+      roundExecutionId: UUID id technical
+      executionSessionId: UUID
+      executionPlanId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+      runtimeId: UUID
+      organizationId: UUID
+      featureSchemaId: UUID
+      baseModelVersionId: UUID
+      runtimeEngineJobId: String
+      retryReason: String
+    }
+
+    event RoundExecutionStartRetryFailed {
+      roundExecutionId: UUID id technical
+      executionSessionId: UUID
+      executionPlanId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+      runtimeId: UUID
+      organizationId: UUID
+      featureSchemaId: UUID
+      baseModelVersionId: UUID
+      runtimeEngineJobId: String?
+      retryReason: String
+      failureReason: String
+    }
+
+    state Retried
+  }
+
+  slice RetryRoundExecutionAfterRuntimeFailure {
+    actor NodeOperator
+    ui RoundExecutionScreen
+    reactsTo RoundExecutionFailed
+    port
+
+    command RetryRoundExecutionAfterRuntimeFailure {
+      roundExecutionId: UUID id technical
+      executionSessionId: UUID from RoundExecutionFailed.executionSessionId
+      executionPlanId: UUID from RoundExecutionFailed.executionPlanId
+      trainingJobId: UUID from RoundExecutionFailed.trainingJobId
+      trainingRunConfigurationId: UUID from RoundExecutionFailed.trainingRunConfigurationId
+      roundId: UUID from RoundExecutionFailed.roundId
+      roundNumber: Int derived from RoundExecutionStarted.roundNumber by roundExecutionId
+      runtimeId: UUID from RoundExecutionFailed.runtimeId
+      organizationId: UUID derived from RoundExecutionStarted.organizationId by roundExecutionId
+      featureSchemaId: UUID derived from RoundExecutionStarted.featureSchemaId by roundExecutionId
+      baseModelVersionId: UUID derived from RoundExecutionStarted.baseModelVersionId by roundExecutionId
+      runtimeEngineJobId: String
+      retryReason: String
+    }
+
+    event RoundExecutionRuntimeRetryStarted {
+      roundExecutionId: UUID id technical
+      executionSessionId: UUID
+      executionPlanId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+      runtimeId: UUID
+      organizationId: UUID
+      featureSchemaId: UUID
+      baseModelVersionId: UUID
+      runtimeEngineJobId: String
+      retryReason: String
+    }
+
+    event RoundExecutionRuntimeRetryFailed {
+      roundExecutionId: UUID id technical
+      executionSessionId: UUID
+      executionPlanId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+      runtimeId: UUID
+      organizationId: UUID
+      featureSchemaId: UUID
+      baseModelVersionId: UUID
+      runtimeEngineJobId: String?
+      retryReason: String
+      failureReason: String
+    }
+
+    state Retried
+  }
+
   slice SubmitAgentLocalModelUpdate {
     reactsTo RoundExecutionCompleted
+    port
+
+    automation SubmitLocalModelUpdateWhenRoundExecutionCompleted {
+      on RoundExecutionCompleted
+      emits SubmitAgentLocalModelUpdate
+    }
 
     command SubmitAgentLocalModelUpdate {
       modelUpdateSubmissionId: UUID id generated technical
@@ -5265,7 +5356,6 @@ context SecureAggregation {
       artifactRef: String
       artifactDigest: String
       trainingLoss: Decimal
-      submittedAt: DateTime
     }
 
     event AgentLocalModelUpdateSubmitted {
@@ -5283,10 +5373,123 @@ context SecureAggregation {
       artifactRef: String
       artifactDigest: String
       trainingLoss: Decimal
-      submittedAt: DateTime
     }
 
     state UpdateSubmitted
+  }
+
+  slice ReleaseRuntimeEngineJobAfterCompletion {
+    reactsTo RoundExecutionCompleted
+    port
+
+    automation ReleaseRuntimeEngineJobWhenRoundExecutionCompleted {
+      on RoundExecutionCompleted
+      emits ReleaseRuntimeEngineJobAfterCompletion
+    }
+
+    command ReleaseRuntimeEngineJobAfterCompletion {
+      roundExecutionId: UUID id technical from RoundExecutionCompleted.roundExecutionId
+      runtimeEngineJobId: String from RoundExecutionCompleted.runtimeEngineJobId
+    }
+
+    event RuntimeEngineJobReleased {
+      roundExecutionId: UUID id technical
+      runtimeEngineJobId: String
+    }
+
+    state RuntimeEngineReleased
+  }
+
+  slice ReleaseRuntimeEngineJobAfterFailure {
+    reactsTo RoundExecutionFailed
+    port
+
+    automation ReleaseRuntimeEngineJobWhenRoundExecutionFailed {
+      on RoundExecutionFailed
+      emits ReleaseRuntimeEngineJobAfterFailure
+    }
+
+    command ReleaseRuntimeEngineJobAfterFailure {
+      roundExecutionId: UUID id technical from RoundExecutionFailed.roundExecutionId
+      runtimeEngineJobId: String? from RoundExecutionFailed.runtimeEngineJobId
+    }
+
+    event RuntimeEngineJobReleaseFailedOrSkipped {
+      roundExecutionId: UUID id technical
+      runtimeEngineJobId: String?
+      failureReason: String?
+    }
+
+    state RuntimeEngineReleaseHandled
+  }
+
+  slice ReleaseRuntimeEngineJobAfterStartFailure {
+    reactsTo RoundExecutionStartFailed
+    port
+
+    automation ReleaseRuntimeEngineJobWhenStartFailed {
+      on RoundExecutionStartFailed
+      emits ReleaseRuntimeEngineJobAfterStartFailure
+    }
+
+    command ReleaseRuntimeEngineJobAfterStartFailure {
+      roundExecutionId: UUID id technical from RoundExecutionStartFailed.roundExecutionId
+      runtimeEngineJobId: String? from RoundExecutionStartFailed.runtimeEngineJobId
+    }
+
+    event RuntimeEngineJobReleaseFailedOrSkippedAfterStartFailure {
+      roundExecutionId: UUID id technical
+      runtimeEngineJobId: String?
+      failureReason: String?
+    }
+
+    state RuntimeEngineReleaseHandled
+  }
+
+  slice ReleaseRuntimeEngineJobAfterRetryFailure {
+    reactsTo RoundExecutionStartRetryFailed
+    port
+
+    automation ReleaseRuntimeEngineJobWhenStartRetryFailed {
+      on RoundExecutionStartRetryFailed
+      emits ReleaseRuntimeEngineJobAfterRetryFailure
+    }
+
+    command ReleaseRuntimeEngineJobAfterRetryFailure {
+      roundExecutionId: UUID id technical from RoundExecutionStartRetryFailed.roundExecutionId
+      runtimeEngineJobId: String? from RoundExecutionStartRetryFailed.runtimeEngineJobId
+    }
+
+    event RuntimeEngineJobReleaseFailedOrSkippedAfterRetry {
+      roundExecutionId: UUID id technical
+      runtimeEngineJobId: String?
+      failureReason: String?
+    }
+
+    state RuntimeEngineReleaseHandled
+  }
+
+  slice ReleaseRuntimeEngineJobAfterRuntimeRetryFailure {
+    reactsTo RoundExecutionRuntimeRetryFailed
+    port
+
+    automation ReleaseRuntimeEngineJobWhenRuntimeRetryFailed {
+      on RoundExecutionRuntimeRetryFailed
+      emits ReleaseRuntimeEngineJobAfterRuntimeRetryFailure
+    }
+
+    command ReleaseRuntimeEngineJobAfterRuntimeRetryFailure {
+      roundExecutionId: UUID id technical from RoundExecutionRuntimeRetryFailed.roundExecutionId
+      runtimeEngineJobId: String? from RoundExecutionRuntimeRetryFailed.runtimeEngineJobId
+    }
+
+    event RuntimeEngineJobReleaseFailedOrSkippedAfterRuntimeRetry {
+      roundExecutionId: UUID id technical
+      runtimeEngineJobId: String?
+      failureReason: String?
+    }
+
+    state RuntimeEngineReleaseHandled
   }
 
   slice RoundExecutionCatalog {
@@ -5303,6 +5506,15 @@ context SecureAggregation {
       state: RoundExecution.State
       featureSchemaId: UUID?
       baseModelVersionId: UUID?
+      runtimeEngineJobId: String?
+      localExecutionRequirementsSatisfied: Boolean?
+      runtimeIdentityMatched: Boolean?
+      runtimeDatasetBindingAvailable: Boolean?
+      datasetAccessValidated: Boolean?
+      baseModelAvailable: Boolean?
+      trainingConfigurationSupported: Boolean?
+      runtimeResourceAvailable: Boolean?
+      runtimeAgentIdle: Boolean?
       updateArtifactId: UUID?
       artifactRef: String?
       artifactDigest: String?
@@ -5315,15 +5527,28 @@ context SecureAggregation {
       failedAt: DateTime?
       submittedAt: DateTime?
       failureReason: String?
-      rejectionReason: String?
+      retryReason: String?
+      runtimeEngineReleased: Boolean?
+      runtimeEngineReleaseFailureReason: String?
+      rejectionReasons: String[]
       subscribe ParticipantExecutionPlanDispatched
       subscribe ExecutionPlanReceived
       subscribe ExecutionPlanAccepted
       subscribe ExecutionPlanRejected
       subscribe RoundExecutionStarted
+      subscribe RoundExecutionStartFailed
+      subscribe RoundExecutionStartRetryStarted
+      subscribe RoundExecutionStartRetryFailed
       subscribe RoundExecutionCompleted
       subscribe RoundExecutionFailed
+      subscribe RoundExecutionRuntimeRetryStarted
+      subscribe RoundExecutionRuntimeRetryFailed
       subscribe AgentLocalModelUpdateSubmitted
+      subscribe RuntimeEngineJobReleased
+      subscribe RuntimeEngineJobReleaseFailedOrSkipped
+      subscribe RuntimeEngineJobReleaseFailedOrSkippedAfterStartFailure
+      subscribe RuntimeEngineJobReleaseFailedOrSkippedAfterRetry
+      subscribe RuntimeEngineJobReleaseFailedOrSkippedAfterRuntimeRetry
     }
   }
 
@@ -5332,9 +5557,13 @@ context SecureAggregation {
     state PlanAccepted
     state PlanRejected
     state Running
+    state StartFailed
+    state Retried
     state Completed
     state Failed
     state UpdateSubmitted
+    state RuntimeEngineReleased
+    state RuntimeEngineReleaseHandled
 
     slice ReceiveParticipantExecutionPlan
     slice AcceptExecutionPlan
@@ -5342,93 +5571,137 @@ context SecureAggregation {
     slice StartRoundExecution
     slice CompleteRoundExecution
     slice FailRoundExecution
+    slice RetryRoundExecutionAfterStartFailure
+    slice RetryRoundExecutionAfterRuntimeFailure
     slice SubmitAgentLocalModelUpdate
+    slice ReleaseRuntimeEngineJobAfterCompletion
+    slice ReleaseRuntimeEngineJobAfterFailure
+    slice ReleaseRuntimeEngineJobAfterStartFailure
+    slice ReleaseRuntimeEngineJobAfterRetryFailure
+    slice ReleaseRuntimeEngineJobAfterRuntimeRetryFailure
     slice RoundExecutionCatalog
   }
 
-  slice RecordRuntimeInstanceStarted {
+  slice ReportRuntimeAgentStarted {
     startsLifecycle
 
     actor RuntimeAgent
 
-    command RecordRuntimeInstanceStarted {
+    command ReportRuntimeAgentStarted {
       runtimeAgentId: UUID id technical
       runtimeInfrastructureId: UUID
       agentVersion: String
-      podName: String?
-      imageRef: String
-      startedAt: DateTime
     }
 
-    event RuntimeInstanceStarted {
+    event RuntimeAgentStarted {
       runtimeAgentId: UUID id technical
       runtimeInfrastructureId: UUID
       agentVersion: String
-      podName: String?
-      imageRef: String
-      startedAt: DateTime
     }
 
     state Started
   }
 
+
   slice ReportRuntimeInstanceSelfCheckPassed {
     actor RuntimeAgent
-    reactsTo RuntimeInstanceStarted
+    reactsTo RuntimeAgentStarted
+    port
 
     automation ReportReadyAfterConfigurationFetchAndSelfCheck {
-      on RuntimeInstanceStarted
-      condition runtimeAgentReadyProbePassed == true
+      on RuntimeAgentStarted
+      condition runtimeAgentSelfCheckPassed == true
       emits ReportRuntimeInstanceSelfCheckPassed
     }
 
     command ReportRuntimeInstanceSelfCheckPassed {
-      runtimeAgentId: UUID id technical from RuntimeInstanceStarted.runtimeAgentId
-      runtimeInfrastructureId: UUID from RuntimeInstanceStarted.runtimeInfrastructureId
-      agentVersion: String from RuntimeInstanceStarted.agentVersion
-      startedAt: DateTime from RuntimeInstanceStarted.startedAt
-      readyAt: DateTime
+      runtimeAgentId: UUID id technical from RuntimeAgentStarted.runtimeAgentId
+      runtimeInfrastructureId: UUID from RuntimeAgentStarted.runtimeInfrastructureId
+      agentVersion: String from RuntimeAgentStarted.agentVersion
+      runtimeAgentSelfCheckPassed: Boolean
+      configurationLoaded: Boolean
+      secretStoreAccessible: Boolean
+      runtimeEngineAdapterReady: Boolean
+      modelRepositoryClientReady: Boolean
+      localDatasetBindingStoreReady: Boolean
+      workingDirectoryWritable: Boolean
     }
 
     event RuntimeInstanceSelfCheckPassed {
       runtimeAgentId: UUID id technical
       runtimeInfrastructureId: UUID
       agentVersion: String
-      startedAt: DateTime
-      readyAt: DateTime
+      runtimeAgentSelfCheckPassed: Boolean
+      configurationLoaded: Boolean
+      secretStoreAccessible: Boolean
+      runtimeEngineAdapterReady: Boolean
+      modelRepositoryClientReady: Boolean
+      localDatasetBindingStoreReady: Boolean
+      workingDirectoryWritable: Boolean
     }
 
     state Ready
+  }
+
+  slice RuntimeAgentLifecycleCatalog {
+    readmodel RuntimeAgentLifecycleCatalog[] {
+      runtimeAgentId: UUID id
+      runtimeInfrastructureId: UUID
+      agentVersion: String
+      lifecycleStatus: String
+      runtimeAgentSelfCheckPassed: Boolean?
+      configurationLoaded: Boolean?
+      secretStoreAccessible: Boolean?
+      runtimeEngineAdapterReady: Boolean?
+      modelRepositoryClientReady: Boolean?
+      localDatasetBindingStoreReady: Boolean?
+      workingDirectoryWritable: Boolean?
+      startedAt: DateTime?
+      readyAt: DateTime?
+      subscribe RuntimeAgentStarted
+      subscribe RuntimeInstanceSelfCheckPassed
+    }
   }
 
   concept RuntimeAgentLifecycle {
     state Started
     state Ready
 
-    slice RecordRuntimeInstanceStarted
+    slice ReportRuntimeAgentStarted
     slice ReportRuntimeInstanceSelfCheckPassed
+    slice RuntimeAgentLifecycleCatalog
   }
 
   slice ReportRuntimeInstanceConnected {
     startsLifecycle
     reactsTo RuntimeInstanceSelfCheckPassed
+    // 访问平台健康检查接口？
+    port
 
     automation ReportRuntimeInstanceConnectedAfterSelfCheck {
       on RuntimeInstanceSelfCheckPassed
-      condition runtimeInfrastructureReachable == true
+      condition runtimePlatformConnectionReady == true
       emits ReportRuntimeInstanceConnected
     }
 
     command ReportRuntimeInstanceConnected {
       runtimeInfrastructureId: UUID id technical from RuntimeInstanceSelfCheckPassed.runtimeInfrastructureId
       runtimeAgentId: UUID from RuntimeInstanceSelfCheckPassed.runtimeAgentId
-      connectedAt: DateTime
+      runtimePlatformConnectionReady: Boolean
+      platformApiReachable: Boolean
+      agentAuthenticationSucceeded: Boolean
+      controlChannelEstablished: Boolean
+      heartbeatAccepted: Boolean
     }
 
     event AgentRuntimeConnectionEstablished {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
-      connectedAt: DateTime
+      runtimePlatformConnectionReady: Boolean
+      platformApiReachable: Boolean
+      agentAuthenticationSucceeded: Boolean
+      controlChannelEstablished: Boolean
+      heartbeatAccepted: Boolean
     }
 
     state Connected
@@ -5438,6 +5711,11 @@ context SecureAggregation {
     readmodel AgentRuntimeInfrastructureConnectionCatalog[] {
       runtimeInfrastructureId: UUID id
       runtimeAgentId: UUID
+      runtimePlatformConnectionReady: Boolean
+      platformApiReachable: Boolean
+      agentAuthenticationSucceeded: Boolean
+      controlChannelEstablished: Boolean
+      heartbeatAccepted: Boolean
       connectedAt: DateTime
       subscribe AgentRuntimeConnectionEstablished
     }
@@ -5491,7 +5769,6 @@ context SecureAggregation {
       operatingSystem: String?
       architecture: String
       inventoryHash: String
-      discoveredAt: DateTime
     }
 
     event AgentRuntimeNodeInventoryReported {
@@ -5508,7 +5785,6 @@ context SecureAggregation {
       operatingSystem: String?
       architecture: String
       inventoryHash: String
-      discoveredAt: DateTime
     }
 
     state Reported
