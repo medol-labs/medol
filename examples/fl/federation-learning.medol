@@ -4598,11 +4598,11 @@ context SecureAggregation {
     slice SecureAggregationSessionCatalog
   }
 }
-  deployment FLDictionaryBackend {
+  deployment FederationLearningDictionary {
     includes DictionaryMaintenance
   }
 
-  deployment FLPlatformBackend {
+  deployment FederationLearningPlatform {
     includes OrganizationManagement
     includes FederationManagement
     includes DatasetGovernance
@@ -4615,7 +4615,7 @@ context SecureAggregation {
     includes RuntimeProvisioning
   }
 
-  deployment FLRuntimeAgent {
+  deployment FederationLearningRuntimeAgent {
     includes RuntimeAgentOperations
   }
 

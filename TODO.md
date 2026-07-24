@@ -86,8 +86,17 @@
 - [ ] 建模怎么表达对一批数据做同一件事
 - [ ] 跨上下文事件交互- Automation
 - [ ] fl 补充模型血缘建模 lineage
-- [ ] 平台与 Runtime Agent  mTLS
-- [ ] 单轮训练失败重试策略完善，平台侧发起
+- [ ] 平台与 Runtime Agent mTLS
+
+##
+
+- [ ] FL
+  - [ ] 单轮训练失败重试策略完善，平台侧发起
+  - [ ] Organization Directory 创建时间
+  - [ ] Register Runtime Infrastructure Package 字段信息明确
+  - [ ] 安装上传、下载功能
+  - [ ] Register Runtime Infrastructure 没有额外字段，只需要一下确认弹框就行，不用跳到 form 页
+  - [ ] 定义 port 但未实现的，生成代码时附带 占位代码，阻止业务进行
 
 ##
 
