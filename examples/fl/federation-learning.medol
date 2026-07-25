@@ -1246,7 +1246,7 @@ context RuntimeProvisioning {
 }
 
 context DatasetGovernance {
-  note "Dataset governance separates feature schemas, organization-declared dataset records, runtime-agent-reported dataset metadata, dataset access validation evidence, and train evaluation bundles. Runtime agents own data connectors, local access profiles, and credentials inside participant infrastructure."
+  note "Dataset governance separates feature schemas, platform-recorded runtime dataset metadata, dataset access validation evidence, and train evaluation bundles. Runtime agents own dataset declarations, data connectors, local access profiles, and credentials inside participant infrastructure."
 
   risk "Datasets may be approved despite schema drift, privacy sensitivity, or non IID skew that invalidates training assumptions."
   risk "Validated dataset access can remain selectable after governance revocation unless blocked explicitly."
@@ -1516,40 +1516,6 @@ context DatasetGovernance {
     slice CurrentRecommendedFeatureSchemaCatalog
   }
 
-  slice DeclareDataset {
-    startsLifecycle
-
-    tags {
-      organizationId
-      featureSchemaId
-      datasetName
-    }
-
-    actor DataOwner
-    ui DatasetRegistrationScreen
-    reactsTo FeatureSchemaPublished
-  
-    command DeclareDataset {
-      datasetId: UUID id generated technical
-      organizationId: UUID
-      featureSchemaId: UUID
-      datasetName: String
-      datasetType: String
-      datasetUsage: String
-    }
-  
-    event DatasetDeclared {
-      datasetId: UUID id technical
-      organizationId: UUID
-      featureSchemaId: UUID
-      datasetName: String
-      datasetType: String
-      datasetUsage: String
-    }
-  
-    state Registered
-  }
-
   slice RecordRuntimeDatasetMetadata {
     reactsTo AgentDatasetMetadataReported
 
@@ -1638,6 +1604,51 @@ context DatasetGovernance {
     }
 
     state MetadataReported
+  }
+
+  slice RuntimeDatasetMetadataCatalog {
+    readmodel RuntimeDatasetMetadataCatalog[] {
+      metadataReportId: UUID id
+      datasetId: UUID
+      organizationId: UUID
+      runtimeId: UUID
+      featureSchemaId: UUID
+      datasetName: String? derived {
+        from DatasetDeclared.datasetName
+        rule "Lookup by datasetId and denormalize the dataset display name into the platform runtime dataset metadata catalog."
+      }
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the platform runtime dataset metadata catalog."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the platform runtime dataset metadata catalog."
+      }
+      featureSchemaVersion: String? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the platform runtime dataset metadata catalog."
+      }
+      sampleCount: Int
+      featureCount: Int
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      missingValueRate: Decimal?
+      duplicateRate: Decimal?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
+      classBalanceScore: Decimal?
+      profilingStatus: String
+      failureReason: String?
+      profiledAt: DateTime?
+      subscribe DatasetDeclared
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
+      subscribe AgentDatasetMetadataReported
+      subscribe AgentDatasetReprofiled
+      subscribe AgentDatasetProfilingFailed
+      subscribe AgentDatasetReprofilingFailed
+    }
   }
 
   slice ValidateDatasetContract {
@@ -1872,21 +1883,25 @@ context DatasetGovernance {
   }
 
   concept Dataset {
-    state Registered
-    state MetadataReported
     state ContractValidationCompleted
     state Approved
     state Rejected
     state ApprovalRevoked
 
-    slice DeclareDataset
-    slice RecordRuntimeDatasetMetadata
     slice ValidateDatasetContract
     slice RejectDatasetForTraining
     slice ApproveDatasetForTraining
     slice RevokeDatasetTrainingApproval
     slice DatasetCapability
     slice DatasetReadiness
+  }
+
+  concept RuntimeDatasetMetadata {
+    state MetadataReported
+
+    slice RecordRuntimeDatasetMetadata
+    slice RecordRuntimeDatasetReprofiledMetadata
+    slice RuntimeDatasetMetadataCatalog
   }
 
   value FeatureDefinition {
@@ -4598,26 +4613,6 @@ context SecureAggregation {
     slice SecureAggregationSessionCatalog
   }
 }
-  deployment FederationLearningDictionary {
-    includes DictionaryMaintenance
-  }
-
-  deployment FederationLearningPlatform {
-    includes OrganizationManagement
-    includes FederationManagement
-    includes DatasetGovernance
-    includes ModelRepository
-    includes TrainingOrchestration
-    includes ModelLifecycle
-    includes RuntimeMonitoring
-    includes RuntimeGovernance
-    includes SecureAggregation
-    includes RuntimeProvisioning
-  }
-
-  deployment FederationLearningRuntimeAgent {
-    includes RuntimeAgentOperations
-  }
 
   context RuntimeAgentOperations {
     note "Runtime agent operations is a separate deployable that runs inside participant infrastructure and executes dispatched training jobs with local data and local secrets."
@@ -4655,14 +4650,14 @@ context SecureAggregation {
     }
 
     integration PlatformDatasetMetadataReporting {
-      source RuntimeDatasetMetadata
+      source AgentDatasetProfile
       target DatasetGovernance
       reactsTo AgentDatasetMetadataReported
       emits RecordRuntimeDatasetMetadata
     }
 
     integration PlatformDatasetReprofiledMetadataReporting {
-      source RuntimeDatasetMetadata
+      source AgentDatasetProfile
       target DatasetGovernance
       reactsTo AgentDatasetReprofiled
       emits RecordRuntimeDatasetReprofiledMetadata
@@ -4688,6 +4683,40 @@ context SecureAggregation {
       reactsTo AgentRuntimeNodeInventoryReported
       emits RecordRuntimeNodeInventory
     }
+
+  slice DeclareDataset {
+    startsLifecycle
+
+    tags {
+      organizationId
+      featureSchemaId
+      datasetName
+    }
+
+    actor DataOwner
+    ui DatasetRegistrationScreen
+    reactsTo FeatureSchemaPublished
+
+    command DeclareDataset {
+      datasetId: UUID id generated technical
+      organizationId: UUID
+      featureSchemaId: UUID
+      datasetName: String
+      datasetType: String
+      datasetUsage: String
+    }
+
+    event DatasetDeclared {
+      datasetId: UUID id technical
+      organizationId: UUID
+      featureSchemaId: UUID
+      datasetName: String
+      datasetType: String
+      datasetUsage: String
+    }
+
+    state Registered
+  }
 
   slice ConfigureRuntimeDatasetBinding {
     startsLifecycle
@@ -4770,6 +4799,12 @@ context SecureAggregation {
 
     slice ConfigureRuntimeDatasetBinding
     slice RuntimeDatasetBindingCatalog
+  }
+
+  concept Dataset {
+    state Registered
+
+    slice DeclareDataset
   }
 
   slice ProfileAgentDataset {
@@ -4858,57 +4893,11 @@ context SecureAggregation {
     state Reported
   }
 
-  slice RuntimeDatasetMetadataCatalog {
-    readmodel RuntimeDatasetMetadataCatalog[] {
-      metadataReportId: UUID id
-      datasetId: UUID
-      organizationId: UUID
-      runtimeId: UUID
-      featureSchemaId: UUID
-      datasetName: String? derived {
-        from DatasetDeclared.datasetName
-        rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset metadata catalog."
-      }
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the agent dataset metadata catalog."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the agent dataset metadata catalog."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the agent dataset metadata catalog."
-      }
-      sampleCount: Int
-      featureCount: Int
-      schemaCompatible: Boolean?
-      labelCompatible: Boolean?
-      missingValueRate: Decimal?
-      duplicateRate: Decimal?
-      qualityScore: Decimal?
-      nonIidScore: Decimal?
-      classBalanceScore: Decimal?
-      profilingStatus: String
-      failureReason: String?
-      profiledAt: DateTime?
-      subscribe DatasetDeclared
-      subscribe OrganizationRegistered
-      subscribe FeatureSchemaDefined
-      subscribe AgentDatasetMetadataReported
-      subscribe AgentDatasetReprofiled
-      subscribe AgentDatasetProfilingFailed
-      subscribe AgentDatasetReprofilingFailed
-    }
-  }
-
-  concept RuntimeDatasetMetadata {
+  concept AgentDatasetProfile {
     state Reported
 
     slice ProfileAgentDataset
     slice ReprofileAgentDataset
-    slice RuntimeDatasetMetadataCatalog
   }
 
   slice ValidateAgentDatasetAccess {
@@ -5850,5 +5839,26 @@ context SecureAggregation {
   }
 
 
+  }
+
+  deployment FederationLearningDictionary {
+    includes DictionaryMaintenance
+  }
+
+  deployment FederationLearningPlatform {
+    includes OrganizationManagement
+    includes FederationManagement
+    includes DatasetGovernance
+    includes ModelRepository
+    includes TrainingOrchestration
+    includes ModelLifecycle
+    includes RuntimeMonitoring
+    includes RuntimeGovernance
+    includes SecureAggregation
+    includes RuntimeProvisioning
+  }
+
+  deployment FederationLearningRuntimeAgent {
+    includes RuntimeAgentOperations
   }
 }
