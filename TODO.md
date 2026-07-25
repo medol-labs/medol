@@ -6,17 +6,17 @@
   - 状态已处理，其它字段 command、event、ui 除生成外一一对应，
 - state 语法支持多字段，默认 state DONE,支持多个 state trustState NO
 - specification throw exception
-- [x] 字段可为空标识
+- [X] 字段可为空标识
   - 已有- 类型后加?
-- [X]自定义字段类型-嵌套子类
-- [X]数组字段类型
+- [X] 自定义字段类型-嵌套子类
+- [X] 数组字段类型
 - ast 自定义业务逻辑表达，描述根据命令计算出事件信息? 命令输入后业务逻辑,留个占位函数？GWT 测试驱动？AI写？
-- [X]性能优化，现在运行项目后设备卡顿,dsl稍长后就会变卡
+- [X] 性能优化，现在运行项目后设备卡顿,dsl稍长后就会变卡
 - 样例数据
-- [X]hotspot 作用
-- [X]要做一个 agent ，了解 DSL 后调用大模型回答问题
+- [X] hotspot 作用
+- [X] 要做一个 agent ，了解 DSL 后调用大模型回答问题
 - [x] INTERNAL EXTERNAL 表达调用外部系统或方法
-- [X]DSL 支持加备注
+- [X] DSL 支持加备注
 - [x] FL 业务 - feature schema 与 dataset 是否是一个聚合
 - [x] policy?
   - 事件自动触发
@@ -60,7 +60,7 @@
 - [ ] UI 端生成对接设计工具 Figma/v0 等
   - [ ] 交由 Code Agent 基于 medol 建模做设计，综合考虑整体系统
 - [ ] ai 生成用户旅程，再结合文生视频工具，生成系统使用引导视频
-- [ ] 建模中的 Ref 到底填什么，用户怎么能知道怎么填
+- [X] 建模中的 Ref 到底填什么，用户怎么能知道怎么填
 - [x] 代码生成时，对 automation 前端不需要生成命令入口
 - [ ] 前端页面菜单优化，菜单名称长时无法看清具体菜单，交互有问题
 - [ ] Axon Framework 5 的生成没有 slice 选择了
@@ -69,8 +69,8 @@
 - [ ] 代码生成后覆盖问题：decision 等大概率需要调整部分，同过实现类区分，默认脚手架生成实现类，业务完善（agent、人工）建新的实现类
 - [ ] 生成模拟数据部分，再进一步调整完善，需要快速提供测试数据，需要 ai 提供思路
 - [ ] 外部系统对接，建模中缺少外部系统声明
-- [ ] Event Strore(DCB) 解决方案
-  - [ ] 适配 Umadb
+- [X] Event Strore(DCB) 解决方案
+  - [X] 适配 Umadb
 - [ ] Review fl 建模
   - [ ] 所有 command event 不需要显示包含 xxcommandAt xxcommandBy
   - [ ] 本身 ID 不需要 tags 再加
@@ -87,6 +87,9 @@
 - [ ] 跨上下文事件交互- Automation
 - [ ] fl 补充模型血缘建模 lineage
 - [ ] 平台与 Runtime Agent mTLS
+- [ ] umadb 投影 projector 慢
+- [ ] 提交成功提示信息优化
+- [ ] 值对象展示 - feature schema
 
 ##
 
@@ -97,6 +100,9 @@
   - [ ] 安装上传、下载功能
   - [ ] Register Runtime Infrastructure 没有额外字段，只需要一下确认弹框就行，不用跳到 form 页
   - [ ] 定义 port 但未实现的，生成代码时附带 占位代码，阻止业务进行
+  - [ ] Register Runtime Infrastructure 不允许重复提交，非新增， axon 怎么控制
+  - [ ] install plan 不必要有这么多信息
+  - [ ] register runtijme infa 失败后的重试按钮在哪呢
 
 ##
 
