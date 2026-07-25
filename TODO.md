@@ -103,6 +103,7 @@
   - [ ] Register Runtime Infrastructure 不允许重复提交，非新增， axon 怎么控制
   - [ ] install plan 不必要有这么多信息
   - [ ] register runtijme infa 失败后的重试按钮在哪呢
+  - [ ] Create Runtime Installation Plan 中 expected node count 不对，这个是指什么数量，有什么意义
 
 ##
 

@@ -1517,6 +1517,7 @@ context DatasetGovernance {
   }
 
   slice RecordRuntimeDatasetMetadata {
+    startsLifecycle
     reactsTo AgentDatasetMetadataReported
 
     automation RecordDatasetMetadataWhenAgentReported {
@@ -1541,7 +1542,7 @@ context DatasetGovernance {
       classBalanceScore: Decimal? from AgentDatasetMetadataReported.classBalanceScore
     }
 
-    event DatasetMetadataReprofiled {
+    event DatasetMetadataReported {
       metadataReportId: UUID id technical
       datasetId: UUID
       organizationId: UUID
@@ -1586,7 +1587,7 @@ context DatasetGovernance {
       classBalanceScore: Decimal? from AgentDatasetReprofiled.classBalanceScore
     }
 
-    event DatasetMetadataReported {
+    event DatasetMetadataReprofiled {
       metadataReportId: UUID id technical
       datasetId: UUID
       organizationId: UUID
@@ -1649,251 +1650,6 @@ context DatasetGovernance {
       subscribe AgentDatasetProfilingFailed
       subscribe AgentDatasetReprofilingFailed
     }
-  }
-
-  slice ValidateDatasetContract {
-    reactsTo DatasetMetadataReported
-    port
-  
-    automation ValidateDatasetContractAutomatically {
-      on DatasetMetadataReported
-      emits ValidateDatasetContract
-    }
-  
-    command ValidateDatasetContract {
-      datasetId: UUID id technical from DatasetMetadataReported.datasetId
-      metadataReportId: UUID from DatasetMetadataReported.metadataReportId
-      featureSchemaId: UUID from DatasetMetadataReported.featureSchemaId
-    }
-
-    event DatasetContractValidated {
-      datasetId: UUID id technical
-      featureSchemaId: UUID
-      metadataReportId: UUID
-      schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
-      labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
-      qualityScore: Decimal from DatasetMetadataReported.qualityScore
-      nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
-    }
-
-    event DatasetContractValidationFailed {
-      datasetId: UUID id technical
-      featureSchemaId: UUID
-      metadataReportId: UUID
-      schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
-      labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
-      qualityScore: Decimal from DatasetMetadataReported.qualityScore
-      nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
-      failureReason: String generated technical
-    }
-
-    state ContractValidationCompleted
-  }
-
-  slice RejectDatasetForTraining {
-    actor ComplianceOfficer
-    ui DatasetApprovalScreen
-    reactsTo DatasetContractValidated
-
-    command RejectDatasetForTraining {
-      datasetId: UUID id technical
-      rejectionReason: String
-    }
-
-    event DatasetRejectedForTraining {
-      datasetId: UUID id technical
-      rejectionReason: String
-    }
-
-    state Rejected
-  }
-
-  slice ApproveDatasetForTraining {
-    actor ComplianceOfficer
-    ui DatasetApprovalScreen
-    reactsTo DatasetContractValidated
-
-    command ApproveDatasetForTraining {
-      datasetId: UUID id technical
-    }
-
-    event DatasetApprovedForTraining {
-      datasetId: UUID id technical
-      organizationId: UUID derived {
-        from Dataset.organizationId
-        rule "Carry the owning organization for organization-level approved dataset counts."
-      }
-    }
-
-    specification "Only Validated Quality Datasets Are Approved" {
-      rule """
-        A dataset can be approved only after contract validation succeeds with acceptable quality and schema compatibility.
-      """
-
-      scenario "Approve Validated Dataset" {
-        given DatasetContractValidated {
-          datasetId = "dataset-1"
-          schemaCompatible = true
-          labelCompatible = true
-          qualityScore = 0.86
-        }
-        when ApproveDatasetForTraining {
-          datasetId = "dataset-1"
-        }
-        then DatasetApprovedForTraining
-      }
-
-      scenario "Reject Approval Before Contract Validation" {
-        when ApproveDatasetForTraining {
-          datasetId = "dataset-2"
-        }
-        then reject "Dataset Contract Validation Required"
-      }
-    }
-
-    state Approved
-  }
-
-  slice RevokeDatasetTrainingApproval {
-    actor ComplianceOfficer
-    ui DatasetApprovalScreen
-    reactsTo DatasetApprovedForTraining
-
-    command RevokeDatasetTrainingApproval {
-      datasetId: UUID id technical
-      revokeReason: String
-    }
-
-    event DatasetTrainingApprovalRevoked {
-      datasetId: UUID id technical
-      revokeReason: String
-    }
-
-    state ApprovalRevoked
-  }
-
-  slice DatasetCapability {
-    readmodel DatasetCapability[] {
-      datasetId: UUID id
-      organizationId: UUID
-      runtimeId: UUID?
-      featureSchemaId: UUID
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the dataset capability catalog."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset capability catalog."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset capability catalog."
-      }
-      datasetName: String
-      datasetUsage: String
-      sampleCount: Int?
-      featureCount: Int?
-      schemaCompatible: Boolean?
-      labelCompatible: Boolean?
-      qualityScore: Decimal?
-      nonIidScore: Decimal?
-      metadataReportId: UUID?
-      metadataStatus: String
-      approvalStatus: String
-      approved: Boolean
-      lastProfiledAt: DateTime?
-      subscribe OrganizationRegistered
-      subscribe FeatureSchemaDefined
-      subscribe DatasetDeclared
-      subscribe DatasetMetadataReported
-      subscribe DatasetMetadataReprofiled
-      subscribe DatasetContractValidated
-      subscribe DatasetContractValidationFailed
-      subscribe DatasetRejectedForTraining
-      subscribe DatasetApprovedForTraining
-      subscribe DatasetTrainingApprovalRevoked
-    }
-  }
-
-  slice DatasetReadiness {
-    readmodel DatasetReadiness[] {
-      datasetId: UUID id
-      organizationId: UUID
-      runtimeId: UUID?
-      featureSchemaId: UUID
-      datasetName: String
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the dataset readiness view."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset readiness view."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset readiness view."
-      }
-      datasetUsage: String
-      metadataStatus: String
-      contractStatus: String
-      approvalStatus: String
-      accessStatus: String
-      runtimeStatus: String
-      overallReadiness: String
-      readyForTraining: Boolean
-      canBeSelectedForTraining: Boolean
-      readinessScore: Int
-      missingRequirements: String[]
-      blockingReasons: String[]
-      warnings: String[]
-      sampleCount: Int?
-      featureCount: Int?
-      schemaCompatible: Boolean?
-      labelCompatible: Boolean?
-      qualityScore: Decimal?
-      nonIidScore: Decimal?
-      classBalanceScore: Decimal?
-      metadataReportId: UUID?
-      datasetAccessValidationId: UUID?
-      readable: Boolean?
-      schemaReadable: Boolean?
-      sampleBatchReadable: Boolean?
-      lastProfiledAt: DateTime?
-      lastAccessValidatedAt: DateTime?
-      lastRuntimeHeartbeatAt: DateTime?
-      lastUpdatedAt: DateTime?
-      subscribe OrganizationRegistered
-      subscribe FeatureSchemaDefined
-      subscribe DatasetDeclared
-      subscribe DatasetMetadataReported
-      subscribe DatasetMetadataReprofiled
-      subscribe DatasetContractValidated
-      subscribe DatasetContractValidationFailed
-      subscribe DatasetRejectedForTraining
-      subscribe DatasetApprovedForTraining
-      subscribe DatasetTrainingApprovalRevoked
-      subscribe AgentDatasetAccessValidated
-      subscribe AgentDatasetAccessValidationFailed
-      subscribe RuntimeConnectionEstablished
-      subscribe RuntimeAgentOfflineDetected
-      subscribe RuntimeAgentRecovered
-    }
-  }
-
-  concept Dataset {
-    state ContractValidationCompleted
-    state Approved
-    state Rejected
-    state ApprovalRevoked
-
-    slice ValidateDatasetContract
-    slice RejectDatasetForTraining
-    slice ApproveDatasetForTraining
-    slice RevokeDatasetTrainingApproval
-    slice DatasetCapability
-    slice DatasetReadiness
   }
 
   concept RuntimeDatasetMetadata {
@@ -4803,8 +4559,18 @@ context SecureAggregation {
 
   concept Dataset {
     state Registered
+    state ContractValidationCompleted
+    state Approved
+    state Rejected
+    state ApprovalRevoked
 
     slice DeclareDataset
+    slice ValidateDatasetContract
+    slice RejectDatasetForTraining
+    slice ApproveDatasetForTraining
+    slice RevokeDatasetTrainingApproval
+    slice DatasetCapability
+    slice DatasetReadiness
   }
 
   slice ProfileAgentDataset {
@@ -4898,6 +4664,237 @@ context SecureAggregation {
 
     slice ProfileAgentDataset
     slice ReprofileAgentDataset
+  }
+
+  slice ValidateDatasetContract {
+    reactsTo DatasetMetadataReported
+    port
+
+    automation ValidateDatasetContractAutomatically {
+      on DatasetMetadataReported
+      emits ValidateDatasetContract
+    }
+
+    command ValidateDatasetContract {
+      datasetId: UUID id technical from DatasetMetadataReported.datasetId
+      metadataReportId: UUID from DatasetMetadataReported.metadataReportId
+      featureSchemaId: UUID from DatasetMetadataReported.featureSchemaId
+    }
+
+    event DatasetContractValidated {
+      datasetId: UUID id technical
+      featureSchemaId: UUID
+      metadataReportId: UUID
+      schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
+      labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
+      qualityScore: Decimal from DatasetMetadataReported.qualityScore
+      nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
+    }
+
+    event DatasetContractValidationFailed {
+      datasetId: UUID id technical
+      featureSchemaId: UUID
+      metadataReportId: UUID
+      schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
+      labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
+      qualityScore: Decimal from DatasetMetadataReported.qualityScore
+      nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
+      failureReason: String generated technical
+    }
+
+    state ContractValidationCompleted
+  }
+
+  slice RejectDatasetForTraining {
+    actor ComplianceOfficer
+    ui DatasetApprovalScreen
+    reactsTo DatasetContractValidated
+
+    command RejectDatasetForTraining {
+      datasetId: UUID id technical
+      rejectionReason: String
+    }
+
+    event DatasetRejectedForTraining {
+      datasetId: UUID id technical
+      rejectionReason: String
+    }
+
+    state Rejected
+  }
+
+  slice ApproveDatasetForTraining {
+    actor ComplianceOfficer
+    ui DatasetApprovalScreen
+    reactsTo DatasetContractValidated
+
+    command ApproveDatasetForTraining {
+      datasetId: UUID id technical
+    }
+
+    event DatasetApprovedForTraining {
+      datasetId: UUID id technical
+      organizationId: UUID derived {
+        from Dataset.organizationId
+        rule "Carry the owning organization for organization-level approved dataset counts."
+      }
+    }
+
+    specification "Only Validated Quality Datasets Are Approved" {
+      rule """
+        A dataset can be approved only after contract validation succeeds with acceptable quality and schema compatibility.
+      """
+
+      scenario "Approve Validated Dataset" {
+        given DatasetContractValidated {
+          datasetId = "dataset-1"
+          schemaCompatible = true
+          labelCompatible = true
+          qualityScore = 0.86
+        }
+        when ApproveDatasetForTraining {
+          datasetId = "dataset-1"
+        }
+        then DatasetApprovedForTraining
+      }
+
+      scenario "Reject Approval Before Contract Validation" {
+        when ApproveDatasetForTraining {
+          datasetId = "dataset-2"
+        }
+        then reject "Dataset Contract Validation Required"
+      }
+    }
+
+    state Approved
+  }
+
+  slice RevokeDatasetTrainingApproval {
+    actor ComplianceOfficer
+    ui DatasetApprovalScreen
+    reactsTo DatasetApprovedForTraining
+
+    command RevokeDatasetTrainingApproval {
+      datasetId: UUID id technical
+      revokeReason: String
+    }
+
+    event DatasetTrainingApprovalRevoked {
+      datasetId: UUID id technical
+      revokeReason: String
+    }
+
+    state ApprovalRevoked
+  }
+
+  slice DatasetCapability {
+    readmodel DatasetCapability[] {
+      datasetId: UUID id
+      organizationId: UUID
+      runtimeId: UUID?
+      featureSchemaId: UUID
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the dataset capability catalog."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset capability catalog."
+      }
+      featureSchemaVersion: String? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset capability catalog."
+      }
+      datasetName: String
+      datasetUsage: String
+      sampleCount: Int?
+      featureCount: Int?
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
+      metadataReportId: UUID?
+      metadataStatus: String
+      approvalStatus: String
+      approved: Boolean
+      lastProfiledAt: DateTime?
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
+      subscribe DatasetDeclared
+      subscribe DatasetMetadataReported
+      subscribe DatasetMetadataReprofiled
+      subscribe DatasetContractValidated
+      subscribe DatasetContractValidationFailed
+      subscribe DatasetRejectedForTraining
+      subscribe DatasetApprovedForTraining
+      subscribe DatasetTrainingApprovalRevoked
+    }
+  }
+
+  slice DatasetReadiness {
+    readmodel DatasetReadiness[] {
+      datasetId: UUID id
+      organizationId: UUID
+      runtimeId: UUID?
+      featureSchemaId: UUID
+      datasetName: String
+      organizationName: String? derived {
+        from OrganizationRegistered.organizationName
+        rule "Lookup by organizationId and denormalize the organization display name into the dataset readiness view."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset readiness view."
+      }
+      featureSchemaVersion: String? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset readiness view."
+      }
+      datasetUsage: String
+      metadataStatus: String
+      contractStatus: String
+      approvalStatus: String
+      accessStatus: String
+      runtimeStatus: String
+      overallReadiness: String
+      readyForTraining: Boolean
+      canBeSelectedForTraining: Boolean
+      readinessScore: Int
+      missingRequirements: String[]
+      blockingReasons: String[]
+      warnings: String[]
+      sampleCount: Int?
+      featureCount: Int?
+      schemaCompatible: Boolean?
+      labelCompatible: Boolean?
+      qualityScore: Decimal?
+      nonIidScore: Decimal?
+      classBalanceScore: Decimal?
+      metadataReportId: UUID?
+      datasetAccessValidationId: UUID?
+      readable: Boolean?
+      schemaReadable: Boolean?
+      sampleBatchReadable: Boolean?
+      lastProfiledAt: DateTime?
+      lastAccessValidatedAt: DateTime?
+      lastRuntimeHeartbeatAt: DateTime?
+      lastUpdatedAt: DateTime?
+      subscribe OrganizationRegistered
+      subscribe FeatureSchemaDefined
+      subscribe DatasetDeclared
+      subscribe DatasetMetadataReported
+      subscribe DatasetMetadataReprofiled
+      subscribe DatasetContractValidated
+      subscribe DatasetContractValidationFailed
+      subscribe DatasetRejectedForTraining
+      subscribe DatasetApprovedForTraining
+      subscribe DatasetTrainingApprovalRevoked
+      subscribe AgentDatasetAccessValidated
+      subscribe AgentDatasetAccessValidationFailed
+      subscribe RuntimeConnectionEstablished
+      subscribe RuntimeAgentOfflineDetected
+      subscribe RuntimeAgentRecovered
+    }
   }
 
   slice ValidateAgentDatasetAccess {
