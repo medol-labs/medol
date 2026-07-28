@@ -71,6 +71,7 @@
 - [ ] 外部系统对接，建模中缺少外部系统声明
 - [X] Event Strore(DCB) 解决方案
   - [X] 适配 Umadb
+  - [ ] Umadb 管理平台
 - [ ] Review fl 建模
   - [ ] 所有 command event 不需要显示包含 xxcommandAt xxcommandBy
   - [ ] 本身 ID 不需要 tags 再加
@@ -90,6 +91,14 @@
 - [ ] umadb 投影 projector 慢
 - [ ] 提交成功提示信息优化
 - [ ] 值对象展示 - feature schema
+- [ ] 跨部署单元的事件依赖
+  - [ ] 事件发起方监听调用监听方自定义事件接口
+- [ ] readmodel 更新时机，现在是有事件就会落库，是否需要控制主要事件更新才落库。如： RuntimeDatasetBindingCatalog， RuntimeDatasetBindingConfigured 后才是有用信息，现在声明 dataset 后就有数据
+- [ ] Read model 字段长度根据名字推断为 text，添加 text 类型或者指定长度
+- [ ] Read model projector 里根据字段名推断失败状态和失败原因
+  -  保留“直接同名字段赋值”和“stateChange 明确状态赋值”，去掉 failureReason / FailedAt / failed state 的名字猜测。以后如果需要自动生成，应在建模里显式表达事件到 read model 字段的映射或 projection rule。
+- [ ] Automation 中命令是否要携带关键信息，供 adapter 使用，解决查询投影的异步问题或者应该依赖 TODO list 触发
+
 
 ##
 
