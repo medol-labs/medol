@@ -4370,75 +4370,75 @@ context SecureAggregation {
   }
 }
 
-  context RuntimeAgentOperations {
-    note "Runtime agent operations is a separate deployable that runs inside participant infrastructure and executes dispatched training jobs with local data and local secrets."
+context RuntimeAgentOperations {
+  note "Runtime agent operations is a separate deployable that runs inside participant infrastructure and executes dispatched training jobs with local data and local secrets."
 
-    risk "Agent jobs can leak local credentials if secret references are materialized outside the participant boundary."
-    risk "Runtime engine jobs can remain running after platform cancellation unless local job lifecycle is tracked explicitly."
-    metric agentRuntimeJobFailureRate
-    metric agentRuntimeJobStartupLatency
+  risk "Agent jobs can leak local credentials if secret references are materialized outside the participant boundary."
+  risk "Runtime engine jobs can remain running after platform cancellation unless local job lifecycle is tracked explicitly."
+  metric agentRuntimeJobFailureRate
+  metric agentRuntimeJobStartupLatency
 
-    integration RoundRuntimeEngine {
-      source RoundExecution
-      target RuntimeEngine
-      reactsTo RoundExecutionStarted
-      emits CompleteRoundExecution
-      emits FailRoundExecution
-      emits SubmitAgentLocalModelUpdate
-    }
+  integration RoundRuntimeEngine {
+    source RoundExecution
+    target RuntimeEngine
+    reactsTo RoundExecutionStarted
+    emits CompleteRoundExecution
+    emits FailRoundExecution
+    emits SubmitAgentLocalModelUpdate
+  }
 
-    integration RetriedRoundRuntimeEngine {
-      source RoundExecution
-      target RuntimeEngine
-      reactsTo RoundExecutionStartRetryStarted
-      emits CompleteRoundExecution
-      emits FailRoundExecution
-      emits SubmitAgentLocalModelUpdate
-    }
+  integration RetriedRoundRuntimeEngine {
+    source RoundExecution
+    target RuntimeEngine
+    reactsTo RoundExecutionStartRetryStarted
+    emits CompleteRoundExecution
+    emits FailRoundExecution
+    emits SubmitAgentLocalModelUpdate
+  }
 
-    integration RuntimeFailureRetriedRoundRuntimeEngine {
-      source RoundExecution
-      target RuntimeEngine
-      reactsTo RoundExecutionRuntimeRetryStarted
-      emits CompleteRoundExecution
-      emits FailRoundExecution
-      emits SubmitAgentLocalModelUpdate
-    }
+  integration RuntimeFailureRetriedRoundRuntimeEngine {
+    source RoundExecution
+    target RuntimeEngine
+    reactsTo RoundExecutionRuntimeRetryStarted
+    emits CompleteRoundExecution
+    emits FailRoundExecution
+    emits SubmitAgentLocalModelUpdate
+  }
 
-    integration PlatformDatasetMetadataReporting {
-      source AgentDatasetProfile
-      target DatasetGovernance
-      reactsTo AgentDatasetMetadataReported
-      emits RecordRuntimeDatasetMetadata
-    }
+  integration PlatformDatasetMetadataReporting {
+    source AgentDatasetProfile
+    target DatasetGovernance
+    reactsTo AgentDatasetMetadataReported
+    emits RecordRuntimeDatasetMetadata
+  }
 
-    integration PlatformDatasetReprofiledMetadataReporting {
-      source AgentDatasetProfile
-      target DatasetGovernance
-      reactsTo AgentDatasetReprofiled
-      emits RecordRuntimeDatasetReprofiledMetadata
-    }
+  integration PlatformDatasetReprofiledMetadataReporting {
+    source AgentDatasetProfile
+    target DatasetGovernance
+    reactsTo AgentDatasetReprofiled
+    emits RecordRuntimeDatasetReprofiledMetadata
+  }
 
-    integration PlatformRoundUpdateReporting {
-      source RoundExecution
-      target TrainingOrchestration
-      reactsTo AgentLocalModelUpdateSubmitted
-      emits SubmitModelUpdateSubmission
-    }
+  integration PlatformRoundUpdateReporting {
+    source RoundExecution
+    target TrainingOrchestration
+    reactsTo AgentLocalModelUpdateSubmitted
+    emits SubmitModelUpdateSubmission
+  }
 
-    integration PlatformRuntimeInfrastructureConnectionReporting {
-      source AgentRuntimeInfrastructureConnection
-      target RuntimeProvisioning
-      reactsTo AgentRuntimeConnectionEstablished
-      emits RecordRuntimeConnectionEstablished
-    }
+  integration PlatformRuntimeInfrastructureConnectionReporting {
+    source AgentRuntimeInfrastructureConnection
+    target RuntimeProvisioning
+    reactsTo AgentRuntimeConnectionEstablished
+    emits RecordRuntimeConnectionEstablished
+  }
 
-    integration PlatformRuntimeNodeInventoryReporting {
-      source AgentRuntimeNodeInventory
-      target RuntimeMonitoring
-      reactsTo AgentRuntimeNodeInventoryReported
-      emits RecordRuntimeNodeInventory
-    }
+  integration PlatformRuntimeNodeInventoryReporting {
+    source AgentRuntimeNodeInventory
+    target RuntimeMonitoring
+    reactsTo AgentRuntimeNodeInventoryReported
+    emits RecordRuntimeNodeInventory
+  }
 
   slice DeclareDataset {
     startsLifecycle
@@ -4573,6 +4573,175 @@ context SecureAggregation {
     slice DatasetReadiness
   }
 
+  slice ValidateAgentDatasetAccess {
+    startsLifecycle
+    actor RuntimeAgent
+    reactsTo RuntimeDatasetBindingConfigured
+    port
+
+    automation ValidateAgentDatasetAccessWhenBindingConfigured {
+      on RuntimeDatasetBindingConfigured
+      emits ValidateAgentDatasetAccess
+    }
+
+    command ValidateAgentDatasetAccess {
+      datasetAccessValidationId: UUID id generated technical
+      runtimeDatasetBindingId: UUID from RuntimeDatasetBindingConfigured.runtimeDatasetBindingId
+      datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
+      runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
+      dataSourceType: String from RuntimeDatasetBindingConfigured.dataSourceType
+      host: String? from RuntimeDatasetBindingConfigured.host
+      port: Int? from RuntimeDatasetBindingConfigured.port
+      url: String? from RuntimeDatasetBindingConfigured.url
+      databaseName: String? from RuntimeDatasetBindingConfigured.databaseName
+      schemaName: String? from RuntimeDatasetBindingConfigured.schemaName
+      tableName: String? from RuntimeDatasetBindingConfigured.tableName
+      filePath: String? from RuntimeDatasetBindingConfigured.filePath
+      objectBucket: String? from RuntimeDatasetBindingConfigured.objectBucket
+      objectPrefix: String? from RuntimeDatasetBindingConfigured.objectPrefix
+      dataFormat: String from RuntimeDatasetBindingConfigured.dataFormat
+      credentialSecretName: String? from RuntimeDatasetBindingConfigured.credentialSecretName
+    }
+
+    event AgentDatasetAccessValidated {
+      datasetAccessValidationId: UUID id technical
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
+      runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
+      readable: Boolean
+      schemaReadable: Boolean
+      sampleBatchReadable: Boolean
+    }
+
+    event AgentDatasetAccessValidationFailed {
+      datasetAccessValidationId: UUID id technical
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
+      runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
+      failureReason: String
+    }
+
+    specification "Agent Dataset Access Validation Outcome" {
+      rule """
+        The runtime agent validates that the configured local dataset binding is readable and can expose schema and sample batches before profiling starts.
+      """
+
+      scenario "Agent Dataset Access Validated" {
+        when ValidateAgentDatasetAccess {
+          datasetAccessValidationId = "11111111-1111-4111-8111-111111111111"
+          runtimeDatasetBindingId = "22222222-2222-4222-8222-222222222222"
+          datasetId = "33333333-3333-4333-8333-333333333333"
+          runtimeId = "44444444-4444-4444-8444-444444444444"
+          dataSourceType = "FILE"
+          filePath = "/data/credit-risk.csv"
+          dataFormat = "CSV"
+        }
+        then AgentDatasetAccessValidated
+      }
+
+      scenario "Agent Dataset Access Validation Failed" {
+        when ValidateAgentDatasetAccess {
+          datasetAccessValidationId = "33333333-3333-4333-8333-333333333333"
+          runtimeDatasetBindingId = "44444444-4444-4444-8444-444444444444"
+          datasetId = "55555555-5555-4555-8555-555555555555"
+          runtimeId = "66666666-6666-4666-8666-666666666666"
+          dataSourceType = "FILE"
+          filePath = "/data/missing.csv"
+          dataFormat = "CSV"
+        }
+        then AgentDatasetAccessValidationFailed
+      }
+    }
+
+    state Checked
+  }
+
+  slice RevalidateAgentDatasetAccess {
+    actor NodeOperator
+    ui RuntimeDatasetBindingScreen
+    reactsTo AgentDatasetAccessValidationFailed
+    port
+
+    command RevalidateAgentDatasetAccess {
+      datasetAccessValidationId: UUID id generated technical
+      runtimeDatasetBindingId: UUID from AgentDatasetAccessValidationFailed.runtimeDatasetBindingId
+    }
+
+    event AgentDatasetAccessRevalidated {
+      datasetAccessValidationId: UUID id technical
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from AgentDatasetAccessValidationFailed.datasetId
+      runtimeId: UUID from AgentDatasetAccessValidationFailed.runtimeId
+      readable: Boolean
+      schemaReadable: Boolean
+      sampleBatchReadable: Boolean
+    }
+
+    event AgentDatasetAccessRevalidationFailed {
+      datasetAccessValidationId: UUID id technical
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID from AgentDatasetAccessValidationFailed.datasetId
+      runtimeId: UUID from AgentDatasetAccessValidationFailed.runtimeId
+      failureReason: String
+    }
+
+    specification "Agent Dataset Access Revalidation Outcome" {
+      rule """
+        Node operators can manually retry dataset access validation after correcting local credentials or data source configuration.
+      """
+
+      scenario "Agent Dataset Access Revalidated" {
+        when RevalidateAgentDatasetAccess {
+          datasetAccessValidationId = "55555555-5555-4555-8555-555555555555"
+          runtimeDatasetBindingId = "22222222-2222-4222-8222-222222222222"
+        }
+        then AgentDatasetAccessRevalidated
+      }
+
+      scenario "Agent Dataset Access Revalidation Failed" {
+        when RevalidateAgentDatasetAccess {
+          datasetAccessValidationId = "66666666-6666-4666-8666-666666666666"
+          runtimeDatasetBindingId = "44444444-4444-4444-8444-444444444444"
+        }
+        then AgentDatasetAccessRevalidationFailed
+      }
+    }
+
+    state Checked
+  }
+
+  slice AgentDatasetAccessValidationCatalog {
+    readmodel AgentDatasetAccessValidationCatalog[] {
+      datasetAccessValidationId: UUID id
+      runtimeDatasetBindingId: UUID
+      datasetId: UUID
+      runtimeId: UUID
+      datasetName: String? derived {
+        from DatasetDeclared.datasetName
+        rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset access validation catalog."
+      }
+      readable: Boolean
+      schemaReadable: Boolean
+      sampleBatchReadable: Boolean
+      validationStatus: String
+      failureReason: String?
+      validatedAt: DateTime
+      subscribe DatasetDeclared
+      subscribe AgentDatasetAccessValidated
+      subscribe AgentDatasetAccessValidationFailed
+      subscribe AgentDatasetAccessRevalidated
+      subscribe AgentDatasetAccessRevalidationFailed
+    }
+  }
+
+  concept AgentDatasetAccessValidation {
+    state Checked
+
+    slice ValidateAgentDatasetAccess
+    slice RevalidateAgentDatasetAccess
+    slice AgentDatasetAccessValidationCatalog
+  }
+
   slice ProfileAgentDataset {
     startsLifecycle
     actor RuntimeAgent
@@ -4582,6 +4751,11 @@ context SecureAggregation {
 
     automation ProfileDatasetWhenAccessValidated {
       on AgentDatasetAccessValidated
+      emits ProfileAgentDataset
+    }
+
+    automation ProfileDatasetWhenAccessRevalidated {
+      on AgentDatasetAccessRevalidated
       emits ProfileAgentDataset
     }
 
@@ -4667,39 +4841,63 @@ context SecureAggregation {
   }
 
   slice ValidateDatasetContract {
-    reactsTo DatasetMetadataReported
+    reactsTo AgentDatasetMetadataReported
     port
 
     automation ValidateDatasetContractAutomatically {
-      on DatasetMetadataReported
+      on AgentDatasetMetadataReported
       emits ValidateDatasetContract
     }
 
     command ValidateDatasetContract {
-      datasetId: UUID id technical from DatasetMetadataReported.datasetId
-      metadataReportId: UUID from DatasetMetadataReported.metadataReportId
-      featureSchemaId: UUID from DatasetMetadataReported.featureSchemaId
+      datasetId: UUID id technical from AgentDatasetMetadataReported.datasetId
+      metadataReportId: UUID from AgentDatasetMetadataReported.metadataReportId
+      featureSchemaId: UUID from AgentDatasetMetadataReported.featureSchemaId
     }
 
     event DatasetContractValidated {
       datasetId: UUID id technical
       featureSchemaId: UUID
       metadataReportId: UUID
-      schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
-      labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
-      qualityScore: Decimal from DatasetMetadataReported.qualityScore
-      nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
+      schemaCompatible: Boolean from AgentDatasetMetadataReported.schemaCompatible
+      labelCompatible: Boolean from AgentDatasetMetadataReported.labelCompatible
+      qualityScore: Decimal from AgentDatasetMetadataReported.qualityScore
+      nonIidScore: Decimal from AgentDatasetMetadataReported.nonIidScore
     }
 
     event DatasetContractValidationFailed {
       datasetId: UUID id technical
       featureSchemaId: UUID
       metadataReportId: UUID
-      schemaCompatible: Boolean from DatasetMetadataReported.schemaCompatible
-      labelCompatible: Boolean from DatasetMetadataReported.labelCompatible
-      qualityScore: Decimal from DatasetMetadataReported.qualityScore
-      nonIidScore: Decimal from DatasetMetadataReported.nonIidScore
+      schemaCompatible: Boolean from AgentDatasetMetadataReported.schemaCompatible
+      labelCompatible: Boolean from AgentDatasetMetadataReported.labelCompatible
+      qualityScore: Decimal from AgentDatasetMetadataReported.qualityScore
+      nonIidScore: Decimal from AgentDatasetMetadataReported.nonIidScore
       failureReason: String generated technical
+    }
+
+    specification "Dataset Contract Validation Outcome" {
+      rule """
+        Dataset contract validation succeeds only when the reported dataset metadata is compatible with the expected feature schema and label contract.
+      """
+
+      scenario "Dataset Contract Validation Succeeded" {
+        when ValidateDatasetContract {
+          datasetId = "dataset-1"
+          metadataReportId = "metadata-report-1"
+          featureSchemaId = "feature-schema-1"
+        }
+        then DatasetContractValidated
+      }
+
+      scenario "Dataset Contract Validation Failed" {
+        when ValidateDatasetContract {
+          datasetId = "dataset-2"
+          metadataReportId = "metadata-report-2"
+          featureSchemaId = "feature-schema-1"
+        }
+        then DatasetContractValidationFailed
+      }
     }
 
     state ContractValidationCompleted
@@ -4891,72 +5089,12 @@ context SecureAggregation {
       subscribe DatasetTrainingApprovalRevoked
       subscribe AgentDatasetAccessValidated
       subscribe AgentDatasetAccessValidationFailed
+      subscribe AgentDatasetAccessRevalidated
+      subscribe AgentDatasetAccessRevalidationFailed
       subscribe RuntimeConnectionEstablished
       subscribe RuntimeAgentOfflineDetected
       subscribe RuntimeAgentRecovered
     }
-  }
-
-  slice ValidateAgentDatasetAccess {
-    startsLifecycle
-    actor NodeOperator
-    ui RuntimeDatasetBindingScreen
-    reactsTo RuntimeDatasetBindingConfigured
-    port
-
-    command ValidateAgentDatasetAccess {
-      datasetAccessValidationId: UUID id generated technical
-      runtimeDatasetBindingId: UUID from RuntimeDatasetBindingConfigured.runtimeDatasetBindingId
-    }
-
-    event AgentDatasetAccessValidated {
-      datasetAccessValidationId: UUID id technical
-      runtimeDatasetBindingId: UUID
-      datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
-      runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
-      readable: Boolean
-      schemaReadable: Boolean
-      sampleBatchReadable: Boolean
-    }
-
-    event AgentDatasetAccessValidationFailed {
-      datasetAccessValidationId: UUID id technical
-      runtimeDatasetBindingId: UUID
-      datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
-      runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
-      failureReason: String
-    }
-
-    state Checked
-  }
-
-  slice AgentDatasetAccessValidationCatalog {
-    readmodel AgentDatasetAccessValidationCatalog[] {
-      datasetAccessValidationId: UUID id
-      runtimeDatasetBindingId: UUID
-      datasetId: UUID
-      runtimeId: UUID
-      datasetName: String? derived {
-        from DatasetDeclared.datasetName
-        rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset access validation catalog."
-      }
-      readable: Boolean
-      schemaReadable: Boolean
-      sampleBatchReadable: Boolean
-      validationStatus: String
-      failureReason: String?
-      validatedAt: DateTime
-      subscribe DatasetDeclared
-      subscribe AgentDatasetAccessValidated
-      subscribe AgentDatasetAccessValidationFailed
-    }
-  }
-
-  concept AgentDatasetAccessValidation {
-    state Checked
-
-    slice ValidateAgentDatasetAccess
-    slice AgentDatasetAccessValidationCatalog
   }
 
   slice ReceiveParticipantExecutionPlan {
