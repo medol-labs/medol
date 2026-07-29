@@ -941,10 +941,12 @@ context RuntimeProvisioning {
 
     command RegisterRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInstallationPlanCreated.runtimeInfrastructureId
+      runtimeAgentId: UUID generated technical
     }
 
     event RuntimeInfrastructureRegistered {
       runtimeInfrastructureId: UUID id technical
+      runtimeAgentId: UUID technical
     }
 
     state Registered
@@ -963,6 +965,7 @@ context RuntimeProvisioning {
 
     command VerifyRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
+      runtimeAgentId: UUID technical from RuntimeInfrastructureRegistered.runtimeAgentId
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInstallationPlanCreated.agentInstallMode by runtimeInfrastructureId
       verificationPassed: Boolean
       observedNodeCount: Int
@@ -971,6 +974,7 @@ context RuntimeProvisioning {
 
     event RuntimeInfrastructureVerified {
       runtimeInfrastructureId: UUID id technical
+      runtimeAgentId: UUID technical
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       observedNodeCount: Int
     }
@@ -1029,7 +1033,7 @@ context RuntimeProvisioning {
     }
 
     command DeployRuntimeAgent {
-      runtimeAgentId: UUID generated technical
+      runtimeAgentId: UUID technical from RuntimeInfrastructureVerified.runtimeAgentId
       runtimeInfrastructureId: UUID id technical
     }
 
@@ -1079,7 +1083,7 @@ context RuntimeProvisioning {
     port
 
     command RetryRuntimeAgentDeployment {
-      runtimeAgentId: UUID generated technical
+      runtimeAgentId: UUID technical derived from RuntimeInfrastructureAccessView.runtimeAgentId by runtimeInfrastructureId
       runtimeInfrastructureId: UUID id technical
       currentRuntimeInfrastructureState: RuntimeInfrastructure.State derived from RuntimeInfrastructureAccessView.state by runtimeInfrastructureId
       retryReason: String
@@ -1156,11 +1160,17 @@ context RuntimeProvisioning {
     command RecordRuntimeConnectionEstablished {
       runtimeInfrastructureId: UUID id technical from AgentRuntimeConnectionEstablished.runtimeInfrastructureId
       runtimeAgentId: UUID from AgentRuntimeConnectionEstablished.runtimeAgentId
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInstallationPlanCreated.agentInstallMode by runtimeInfrastructureId
+      organizationId: UUID derived from RuntimeInstallationPlanCreated.organizationId by runtimeInfrastructureId
+      runtimeName: String derived from RuntimeInstallationPlanCreated.runtimeName by runtimeInfrastructureId
     }
 
     event RuntimeConnectionEstablished {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      organizationId: UUID
+      runtimeName: String
     }
 
     state Connected
@@ -4038,16 +4048,23 @@ context RuntimeGovernance {
     actor PlatformAdmin
     ui RuntimeInstallationPlanScreen
     reactsTo RuntimeAgentInstallationSucceeded
+    reactsTo RuntimeConnectionEstablished
 
     automation ActivateRuntimeIdentityWhenAgentInstalled {
       on RuntimeAgentInstallationSucceeded
       emits ActivateRuntimeIdentity
     }
 
+    automation ActivateRuntimeIdentityWhenManualRuntimeConnected {
+      on RuntimeConnectionEstablished
+      condition agentInstallMode == "MANUAL_GUIDED"
+      emits ActivateRuntimeIdentity
+    }
+
     command ActivateRuntimeIdentity {
       runtimeId: UUID id generated technical
-      runtimeInfrastructureId: UUID from RuntimeAgentInstallationSucceeded.runtimeInfrastructureId
-      runtimeAgentId: UUID from RuntimeAgentInstallationSucceeded.runtimeAgentId
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
       organizationId: UUID derived from RuntimeInstallationPlanCreated.organizationId by runtimeInfrastructureId
       runtimeName: String derived from RuntimeInstallationPlanCreated.runtimeName by runtimeInfrastructureId
     }
@@ -5706,15 +5723,63 @@ context RuntimeAgentOperations {
     slice RoundExecutionCatalog
   }
 
-  slice ReportRuntimeAgentStarted {
+  slice LoadRuntimeAgentBootstrapConfiguration {
     startsLifecycle
 
     actor RuntimeAgent
+    port
 
-    command ReportRuntimeAgentStarted {
+    command LoadRuntimeAgentBootstrapConfiguration {
+      bootstrapRequestId: UUID id generated technical
+    }
+
+    event RuntimeAgentBootstrapConfigurationLoaded {
       runtimeAgentId: UUID id technical
       runtimeInfrastructureId: UUID
       agentVersion: String
+      bootstrapConfigurationLoaded: Boolean
+    }
+
+    event RuntimeAgentBootstrapConfigurationLoadFailed {
+      bootstrapRequestId: UUID id technical
+      failureReason: String
+    }
+
+    state BootstrapLoaded
+
+    specification "Runtime Agent Startup Bootstrap Configuration" {
+      rule """
+        Runtime agent startup begins by loading bootstrap configuration from environment variables, mounted files, or platform-issued startup material. The configuration must provide the stable runtimeAgentId generated when RuntimeInfrastructure was registered, the matching runtimeInfrastructureId, and the agent version. A successful load starts the runtime-agent lifecycle; a missing or invalid configuration records a bootstrap failure and must not create a new random runtimeAgentId.
+      """
+
+      scenario "Load Runtime Agent Bootstrap Configuration" {
+        when LoadRuntimeAgentBootstrapConfiguration {
+        }
+        then RuntimeAgentBootstrapConfigurationLoaded
+      }
+
+      scenario "Reject Missing Runtime Agent Bootstrap Configuration" {
+        when LoadRuntimeAgentBootstrapConfiguration {
+        }
+        then RuntimeAgentBootstrapConfigurationLoadFailed
+      }
+    }
+  }
+
+  slice ReportRuntimeAgentStarted {
+    reactsTo RuntimeAgentBootstrapConfigurationLoaded
+
+    actor RuntimeAgent
+
+    automation ReportRuntimeAgentStartedWhenBootstrapConfigurationLoaded {
+      on RuntimeAgentBootstrapConfigurationLoaded
+      emits ReportRuntimeAgentStarted
+    }
+
+    command ReportRuntimeAgentStarted {
+      runtimeAgentId: UUID id technical from RuntimeAgentBootstrapConfigurationLoaded.runtimeAgentId
+      runtimeInfrastructureId: UUID from RuntimeAgentBootstrapConfigurationLoaded.runtimeInfrastructureId
+      agentVersion: String from RuntimeAgentBootstrapConfigurationLoaded.agentVersion
     }
 
     event RuntimeAgentStarted {
@@ -5773,6 +5838,8 @@ context RuntimeAgentOperations {
       runtimeInfrastructureId: UUID
       agentVersion: String
       lifecycleStatus: String
+      bootstrapConfigurationLoaded: Boolean?
+      bootstrapFailureReason: String?
       runtimeAgentSelfCheckPassed: Boolean?
       configurationLoaded: Boolean?
       secretStoreAccessible: Boolean?
@@ -5780,17 +5847,23 @@ context RuntimeAgentOperations {
       modelRepositoryClientReady: Boolean?
       localDatasetBindingStoreReady: Boolean?
       workingDirectoryWritable: Boolean?
+      bootstrappedAt: DateTime?
+      bootstrapFailedAt: DateTime?
       startedAt: DateTime?
       readyAt: DateTime?
+      subscribe RuntimeAgentBootstrapConfigurationLoaded
+      subscribe RuntimeAgentBootstrapConfigurationLoadFailed
       subscribe RuntimeAgentStarted
       subscribe RuntimeInstanceSelfCheckPassed
     }
   }
 
   concept RuntimeAgentLifecycle {
+    state BootstrapLoaded
     state Started
     state Ready
 
+    slice LoadRuntimeAgentBootstrapConfiguration
     slice ReportRuntimeAgentStarted
     slice ReportRuntimeInstanceSelfCheckPassed
     slice RuntimeAgentLifecycleCatalog
