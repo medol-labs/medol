@@ -98,6 +98,9 @@
 - [ ] Read model projector 里根据字段名推断失败状态和失败原因
   -  保留“直接同名字段赋值”和“stateChange 明确状态赋值”，去掉 failureReason / FailedAt / failed state 的名字猜测。以后如果需要自动生成，应在建模里显式表达事件到 read model 字段的映射或 projection rule。
 - [ ] Automation 中命令是否要携带关键信息，供 adapter 使用，解决查询投影的异步问题或者应该依赖 TODO list 触发
+- [ ] 生成软著材料
+- [ ] 测试完善文档生成翻译等功能
+- [ ] 是否所有 port 都有成功失败两种 Event，针对某些失败要考虑技术上的重试，最终失败才抛出业务异常走人工补偿
 
 
 ##
@@ -113,7 +116,13 @@
   - [ ] install plan 不必要有这么多信息
   - [ ] register runtijme infa 失败后的重试按钮在哪呢
   - [ ] Create Runtime Installation Plan 中 expected node count 不对，这个是指什么数量，有什么意义
-
+  - [ ] 手动部署 agent ，runtime id 怎么来，现在手动和自动部署选项没生效
+  - [ ] Runtime infrastructure access views 下的 register runtime infastructure 有问题
+  - [ ] Profile AgentDataset 建模完善加 spec，生成 port
+  - [ ] ValidateDatasetContract 又是什么，与ValidateAgentDatasetAccess 区别
+  - [ ] 参考 FedML
+    -  https://chatgpt.com/g/g-p-6966527cb3b4819184dfea9640b8124c-what-is-it/c/6a69caf2-7c78-83ec-bcf3-77529fbd175e
+ 
 ##
 
 建议 DSL 使用时遵守：
