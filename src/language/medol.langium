@@ -372,6 +372,7 @@ FieldAttribute returns string:
     | 'generated'
     | 'technical'
     | 'query'
+    | 'display'
 ;
 
 FieldMapping:

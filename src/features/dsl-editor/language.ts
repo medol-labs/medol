@@ -54,6 +54,7 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
       'fields',
       'from',
       'derived',
+      'display',
       'rule',
       'example',
       'subscribes',

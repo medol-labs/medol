@@ -13,6 +13,7 @@ interface ConfigField {
   generated?: boolean;
   technicalAttribute?: boolean;
   query?: boolean;
+  display?: boolean;
   derived?: boolean;
   mappings?: Array<string | ConfigFieldMapping>;
 }
@@ -509,7 +510,8 @@ const formatField = (field: ConfigField): string => {
     field.idAttribute ? 'id' : '',
     field.generated ? 'generated' : '',
     field.technicalAttribute ? 'technical' : '',
-    field.query ? 'query' : ''
+    field.query ? 'query' : '',
+    field.display ? 'display' : ''
   ].filter(Boolean);
   const prefix = `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;
   const dictionary = field.dictionary ? ` dictionary ${quote(field.dictionary)}` : '';

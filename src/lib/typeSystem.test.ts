@@ -79,6 +79,47 @@ test('parses optional list fields and preserves codegen cardinality', () => {
   assert.match(roundTripDsl, /shape: Int\[\]\?/);
 });
 
+test('parses display field attribute and preserves it for code generation', () => {
+  const model = parseMedol(`
+    context Catalogs {
+      slice DatasetCatalog {
+        readmodel DatasetCapability[] {
+          datasetId: UUID id technical
+          organizationName: String
+          datasetName: String display
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const field = model.contexts[0].slices[0].elements[0].fields.find((item) => item.name === 'datasetName');
+  assert(field);
+  assert(field.attributes.includes('display'));
+
+  const codegen = modelToCodegenModel(model);
+  const codegenField = codegen.slices[0].readmodels[0].fields.find((item) => item.name === 'datasetName');
+  assert.equal(codegenField?.display, true);
+
+  const roundTripDsl = configToDsl({
+    context: 'Catalogs',
+    slices: [{
+      title: 'DatasetCatalog',
+      readmodels: [{
+        title: 'DatasetCapability',
+        fields: [{
+          name: 'datasetName',
+          type: 'String',
+          cardinality: 'Single',
+          optional: false,
+          display: true
+        }]
+      }]
+    }]
+  });
+  assert.match(roundTripDsl, /datasetName: String display/);
+});
+
 test('parses slice port marker and preserves it for code generation', () => {
   const model = parseMedol(`
     context Runtime {

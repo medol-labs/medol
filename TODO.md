@@ -101,6 +101,13 @@
 - [ ] 生成软著材料
 - [ ] 测试完善文档生成翻译等功能
 - [ ] 是否所有 port 都有成功失败两种 Event，针对某些失败要考虑技术上的重试，最终失败才抛出业务异常走人工补偿
+- [ ] 状态生成与更新逻辑梳理调试
+- [ ] medo 一直显示 saving
+- [ ] 事件处理结果要能看到，包括成功与失败，
+  - [ ] 设计交互 UI，展示进度？ 
+- [ ] Event 应该包含后续消费、审计、投影和重放需要的完整关联信息。
+  - [ ] 用户提交 command 中指定 id， handler 从对应 state 中获取相关信息
+  - [ ] automation 复制信息
 
 
 ##
@@ -122,6 +129,12 @@
   - [ ] ValidateDatasetContract 又是什么，与ValidateAgentDatasetAccess 区别
   - [ ] 参考 FedML
     -  https://chatgpt.com/g/g-p-6966527cb3b4819184dfea9640b8124c-what-is-it/c/6a69caf2-7c78-83ec-bcf3-77529fbd175e
+  - [ ] 重新设计思考 Agent 手动部署逻辑
+    - [ ] 补全 ReportRuntimeInstanceSelfCheckPassed 建模
+  - [ ] 项目启动有时会报错  mvn <args> -rf :shared-kernel
+  - [ ] 数据集绑定之后重新触发验证
+    - [ ] 绑定数据集数量？
+
  
 ##
 

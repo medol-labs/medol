@@ -122,7 +122,7 @@ context OrganizationManagement {
 
     readmodel OrganizationDirectory[] {
       organizationId: UUID id
-      organizationName: String
+      organizationName: String display
       organizationType: OrganizationType
       state: Organization.State
       approvedDatasetCount: Int
@@ -262,7 +262,7 @@ context FederationManagement {
 
     readmodel FederationOverview[] {
       federationId: UUID id
-      federationName: String
+      federationName: String display
       state: Federation.State
       minimumParticipantCount: Int
       activeMemberCount: Int
@@ -696,7 +696,7 @@ context DictionaryMaintenance {
       dictionaryId: UUID
       dictionaryCode: DictionaryCode query
       valueCode: DictionaryValueCode
-      displayName: String
+      displayName: String display
       displayOrder: DisplayOrder?
       description: String?
       active: Boolean query
@@ -853,7 +853,7 @@ context RuntimeProvisioning {
         rule "Lookup by organizationId and denormalize the organization display name into the runtime installation plan catalog."
       }
       runtimeInfrastructurePackageId: UUID
-      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageName: String? display derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
       runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
       runtimeName: String
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
@@ -1492,7 +1492,7 @@ context DatasetGovernance {
   slice FeatureSchemaCatalog {
     readmodel FeatureSchemaCatalog[] {
       featureSchemaId: UUID id
-      featureDomain: String
+      featureDomain: String display
       version: String
       dataModality: String dictionary "FEATURE_SCHEMA_DATA_MODALITY"
       features: FeatureDefinition[]
@@ -2153,7 +2153,7 @@ context TrainingOrchestration {
       federationId: UUID
       featureSchemaId: UUID
       initialModelVersionId: UUID
-      federationName: String? derived {
+      federationName: String? display derived {
         from FederationCreated.federationName
         rule "Lookup by federationId and denormalize the federation display name into the training run configuration catalog."
       }
@@ -4129,7 +4129,7 @@ context RuntimeGovernance {
       runtimeAgentId: UUID
       organizationId: UUID
       organizationName: String? derived from OrganizationRegistered.organizationName by organizationId
-      runtimeName: String
+      runtimeName: String display
       identityStatus: String
       activatedAt: DateTime?
       revokedAt: DateTime?
@@ -4497,6 +4497,11 @@ context RuntimeAgentOperations {
     ui RuntimeDatasetBindingScreen
     reactsTo DatasetDeclared
 
+    tags {
+      datasetId
+      runtimeId
+    }
+
     command ConfigureRuntimeDatasetBinding {
       runtimeDatasetBindingId: UUID id generated technical
       datasetId: UUID from DatasetDeclared.datasetId
@@ -4537,6 +4542,28 @@ context RuntimeAgentOperations {
     }
 
     state Configured
+
+    specification "Runtime Dataset Binding Unique Per Runtime Dataset" {
+      rule """
+        A runtime dataset binding represents the current local data source configuration for one dataset on one runtime. The same dataset may be bound on different runtimes, and the same runtime may bind different datasets, but one runtime cannot configure multiple current bindings for the same dataset. Reconfiguration should use an explicit reconfigure/update flow instead of creating another binding for the same runtimeId and datasetId.
+      """
+
+      expression {
+        unique (RuntimeDatasetBinding.runtimeId, RuntimeDatasetBinding.datasetId)
+      }
+
+      scenario "Reject Duplicate Runtime Dataset Binding" {
+        given RuntimeDatasetBindingConfigured {
+          runtimeId = "runtime-1"
+          datasetId = "dataset-1"
+        }
+        when ConfigureRuntimeDatasetBinding {
+          runtimeId = "runtime-1"
+          datasetId = "dataset-1"
+        }
+        then reject "Runtime Dataset Binding Already Exists"
+      }
+    }
   }
 
   slice RuntimeDatasetBindingCatalog {
@@ -4545,7 +4572,7 @@ context RuntimeAgentOperations {
       datasetId: UUID
       organizationId: UUID
       runtimeId: UUID
-      datasetName: String? derived {
+      datasetName: String? display derived {
         from DatasetDeclared.datasetName
         rule "Lookup by datasetId and denormalize the dataset display name into the local runtime dataset binding catalog."
       }
@@ -5020,7 +5047,7 @@ context RuntimeAgentOperations {
         from FeatureSchemaDefined.version
         rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset capability catalog."
       }
-      datasetName: String
+      datasetName: String display
       datasetUsage: String
       sampleCount: Int?
       featureCount: Int?
@@ -5052,7 +5079,7 @@ context RuntimeAgentOperations {
       organizationId: UUID
       runtimeId: UUID?
       featureSchemaId: UUID
-      datasetName: String
+      datasetName: String display
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the dataset readiness view."
@@ -5795,7 +5822,6 @@ context RuntimeAgentOperations {
   slice ReportRuntimeInstanceSelfCheckPassed {
     actor RuntimeAgent
     reactsTo RuntimeAgentStarted
-    port
 
     automation ReportReadyAfterConfigurationFetchAndSelfCheck {
       on RuntimeAgentStarted
@@ -5872,12 +5898,11 @@ context RuntimeAgentOperations {
   slice ReportRuntimeInstanceConnected {
     startsLifecycle
     reactsTo RuntimeInstanceSelfCheckPassed
-    // 访问平台健康检查接口？
+    // Calls platform POST /runtimeinfrastructure/recordruntimeconnectionestablished to notify that the runtime agent is online.
     port
 
     automation ReportRuntimeInstanceConnectedAfterSelfCheck {
       on RuntimeInstanceSelfCheckPassed
-      condition runtimePlatformConnectionReady == true
       emits ReportRuntimeInstanceConnected
     }
 
@@ -5891,6 +5916,18 @@ context RuntimeAgentOperations {
       heartbeatAccepted: Boolean
     }
 
+    event AgentRuntimeConnectionReportFailed {
+      runtimeInfrastructureId: UUID id technical
+      runtimeAgentId: UUID
+      runtimePlatformConnectionReady: Boolean
+      platformApiReachable: Boolean
+      agentAuthenticationSucceeded: Boolean
+      controlChannelEstablished: Boolean
+      heartbeatAccepted: Boolean
+      failureReason: String
+      retryable: Boolean?
+    }
+
     event AgentRuntimeConnectionEstablished {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
@@ -5902,6 +5939,46 @@ context RuntimeAgentOperations {
     }
 
     state Connected
+
+    specification "Runtime Agent Platform Connection Reporting Outcome" {
+      rule """
+        After the runtime instance self-check passes, the runtime agent reports its connection status to the platform by calling POST /runtimeinfrastructure/recordruntimeconnectionestablished. The platform records RuntimeConnectionEstablished only after that command succeeds. The local agent must record AgentRuntimeConnectionReportFailed when the platform API is unreachable, authentication fails, the control channel cannot be established, the heartbeat is rejected, or the platform command is rejected.
+      """
+
+      scenario "Report Runtime Instance Connected" {
+        given RuntimeInstanceSelfCheckPassed {
+          runtimeInfrastructureId = "runtime-infra-1"
+          runtimeAgentId = "runtime-agent-1"
+        }
+        when ReportRuntimeInstanceConnected {
+          runtimeInfrastructureId = "runtime-infra-1"
+          runtimeAgentId = "runtime-agent-1"
+          runtimePlatformConnectionReady = true
+          platformApiReachable = true
+          agentAuthenticationSucceeded = true
+          controlChannelEstablished = true
+          heartbeatAccepted = true
+        }
+        then AgentRuntimeConnectionEstablished
+      }
+
+      scenario "Report Runtime Instance Connection Failed" {
+        given RuntimeInstanceSelfCheckPassed {
+          runtimeInfrastructureId = "runtime-infra-2"
+          runtimeAgentId = "runtime-agent-2"
+        }
+        when ReportRuntimeInstanceConnected {
+          runtimeInfrastructureId = "runtime-infra-2"
+          runtimeAgentId = "runtime-agent-2"
+          runtimePlatformConnectionReady = false
+          platformApiReachable = false
+          agentAuthenticationSucceeded = false
+          controlChannelEstablished = false
+          heartbeatAccepted = false
+        }
+        then AgentRuntimeConnectionReportFailed
+      }
+    }
   }
 
   slice AgentRuntimeInfrastructureConnectionCatalog {
@@ -5914,12 +5991,17 @@ context RuntimeAgentOperations {
       controlChannelEstablished: Boolean
       heartbeatAccepted: Boolean
       connectedAt: DateTime
+      connectionReportFailedAt: DateTime?
+      connectionReportFailureReason: String?
+      connectionReportRetryable: Boolean?
       subscribe AgentRuntimeConnectionEstablished
+      subscribe AgentRuntimeConnectionReportFailed
     }
   }
 
   concept AgentRuntimeInfrastructureConnection {
     state Connected
+    state ConnectionReportFailed
 
     slice ReportRuntimeInstanceConnected
     slice AgentRuntimeInfrastructureConnectionCatalog

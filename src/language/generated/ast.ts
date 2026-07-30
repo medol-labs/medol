@@ -58,6 +58,7 @@ export type MedolKeywordNames =
     | "dialog"
     | "dictionary"
     | "dictionaryProvider"
+    | "display"
     | "domain"
     | "drawer"
     | "emits"
@@ -742,10 +743,10 @@ export function isField(item: unknown): item is Field {
     return reflection.isInstance(item, Field.$type);
 }
 
-export type FieldAttribute = 'generated' | 'id' | 'query' | 'technical';
+export type FieldAttribute = 'display' | 'generated' | 'id' | 'query' | 'technical';
 
 export function isFieldAttribute(item: unknown): item is FieldAttribute {
-    return item === 'id' || item === 'generated' || item === 'technical' || item === 'query';
+    return item === 'id' || item === 'generated' || item === 'technical' || item === 'query' || item === 'display';
 }
 
 export interface FieldDerivation extends langium.AstNode {

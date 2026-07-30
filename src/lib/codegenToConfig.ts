@@ -23,6 +23,7 @@ interface ConfigField {
   generated: boolean;
   technicalAttribute: boolean;
   query: boolean;
+  display: boolean;
   mappings?: ConfigFieldMapping[];
   subfields: [];
 }
@@ -305,6 +306,7 @@ const toConfigField = (field: CodegenField): ConfigField => ({
   generated: field.generated,
   technicalAttribute: field.technicalAttribute,
   query: field.query,
+  display: field.display,
   ...(field.source ? { mappings: [toConfigFieldMapping(field.source)] } : {}),
   subfields: []
 });

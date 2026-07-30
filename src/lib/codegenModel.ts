@@ -187,6 +187,7 @@ export interface CodegenField {
   generated: boolean;
   technicalAttribute: boolean;
   query: boolean;
+  display: boolean;
   source?: CodegenFieldSource;
 }
 
@@ -761,6 +762,7 @@ const toCodegenField = (field: EmField): CodegenField => ({
   generated: field.attributes.includes('generated'),
   technicalAttribute: field.attributes.includes('technical'),
   query: field.attributes.includes('query'),
+  display: field.attributes.includes('display'),
   ...(field.mapping ? { source: toCodegenFieldSource(field.mapping) } : {})
 });
 
