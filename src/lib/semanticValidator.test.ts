@@ -246,6 +246,37 @@ test('reports invalid specification operands and examples', () => {
   assert(diagnostics.some((message) => message.includes('Unresolved then reference event MissingEvent')));
 });
 
+test('supports specification scenarios that end with an execution error', () => {
+  const model = medolToCodegenModel(`
+    context RuntimeAgent {
+      slice DeclareDataset {
+        port
+        command DeclareDataset {
+          datasetId: UUID
+        }
+        event DatasetDeclared {
+          datasetId: UUID
+        }
+        specification "Feature Schema Snapshot Required" {
+          scenario "Feature Schema Load Failed" {
+            when DeclareDataset {
+              datasetId = "11111111-1111-4111-8111-111111111111"
+            }
+            then error "Feature Schema Load Failed"
+          }
+        }
+      }
+    }
+  `);
+
+  const specification = model.slices[0].specifications[0];
+  assert.equal(Array.isArray(specification.then), false);
+  if (!Array.isArray(specification.then)) {
+    assert.equal(specification.then.outcome, 'ERROR');
+    assert.equal(specification.then.description, 'Feature Schema Load Failed');
+  }
+});
+
 test('requires rejecting scenarios to demonstrate unique and assert violations', () => {
   const diagnostics = diagnosticsFor(`
     context Rules {

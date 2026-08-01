@@ -64,6 +64,7 @@ export type MedolKeywordNames =
     | "emits"
     | "endpoint"
     | "enum"
+    | "error"
     | "event"
     | "example"
     | "expression"
@@ -1417,12 +1418,14 @@ export function isTarget(item: unknown): item is Target {
 export interface Then extends langium.AstNode {
     readonly $container: Scenario | Specification;
     readonly $type: 'Then';
+    error?: string;
     event?: langium.Reference<Event>;
     rejection?: string;
 }
 
 export const Then = {
     $type: 'Then',
+    error: 'error',
     event: 'event',
     rejection: 'rejection'
 } as const;
@@ -2659,6 +2662,9 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Then: {
             name: Then.$type,
             properties: {
+                error: {
+                    name: Then.error
+                },
                 event: {
                     name: Then.event,
                     referenceType: Event.$type

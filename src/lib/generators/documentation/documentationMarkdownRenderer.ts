@@ -224,6 +224,8 @@ const appendWorkflow = (lines: string[], workflow: DocumentationWorkflow): void 
     for (const specification of workflow.specifications) {
       const result = specification.reject
         ? `reject "${specification.reject}"`
+        : specification.error
+          ? `error "${specification.error}"`
         : specification.then
           ? humanize(specification.then)
           : 'unspecified result';

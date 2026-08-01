@@ -2729,6 +2729,27 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
                     }
                   }
                 ]
+              },
+              {
+                "$type": "Group",
+                "elements": [
+                  {
+                    "$type": "Keyword",
+                    "value": "error"
+                  },
+                  {
+                    "$type": "Assignment",
+                    "feature": "error",
+                    "operator": "=",
+                    "terminal": {
+                      "$type": "RuleCall",
+                      "rule": {
+                        "$ref": "#/rules@103"
+                      },
+                      "arguments": []
+                    }
+                  }
+                ]
               }
             ]
           }

@@ -84,6 +84,7 @@ interface ConfigSpecificationError {
   id: string;
   description: string;
   type: 'SPEC_ERROR';
+  outcome?: 'REJECT' | 'ERROR';
   fields: [];
 }
 
@@ -279,6 +280,7 @@ const toConfigSpecification = (specification: CodegenSpecification): ConfigSpeci
         id: specification.then.id || stableId('spec-reject', specification.id),
         description: specification.then.description,
         type: 'SPEC_ERROR',
+        ...(specification.then.outcome ? { outcome: specification.then.outcome } : {}),
         fields: []
       },
   comments: [],

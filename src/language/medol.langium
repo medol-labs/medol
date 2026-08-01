@@ -322,7 +322,7 @@ When:
 ;
 
 Then:
-    'then' (event=[Event:ID] | 'reject' rejection=STRING)
+    'then' (event=[Event:ID] | 'reject' rejection=STRING | 'error' error=STRING)
 ;
 
 Example:

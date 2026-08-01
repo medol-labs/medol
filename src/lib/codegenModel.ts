@@ -272,6 +272,7 @@ export interface CodegenSpecificationReject {
   title: string;
   id: string;
   description: string;
+  outcome?: 'REJECT' | 'ERROR';
 }
 
 export const modelToCodegenModel = (model: EmModel): CodegenModel => {
@@ -685,6 +686,7 @@ const toCodegenSpecification = (
   const when = metadata.when ? elementsByReference.get(`command:${metadata.when}`) : undefined;
   const then = metadata.then ? elementsByReference.get(`event:${metadata.then}`) : undefined;
   const thenReject = metadata.thenReject;
+  const thenError = metadata.thenError;
   const examples = specExamples(metadata);
   const expressions = Object.entries(metadata)
     .filter(([key]) => /^expression\d+$/.test(key))
@@ -708,9 +710,17 @@ const toCodegenSpecification = (
         ? {
             title: 'Rejected',
             id: stableId('spec-reject', element.id),
-            description: thenReject
+            description: thenReject,
+            outcome: 'REJECT'
           }
-        : {
+        : thenError
+          ? {
+            title: 'Error',
+            id: stableId('spec-error', element.id),
+            description: thenError,
+            outcome: 'ERROR'
+          }
+          : {
             title: humanize(element.name),
             id: stableId('spec-reject', element.id),
             description: ''

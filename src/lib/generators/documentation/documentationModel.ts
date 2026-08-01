@@ -85,6 +85,7 @@ export interface DocumentationSpecification {
   when?: string;
   then?: string;
   reject?: string;
+  error?: string;
   examples: Record<string, string>;
 }
 

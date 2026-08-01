@@ -77,6 +77,7 @@ interface ConfigSpecificationError {
   title?: string;
   description?: string;
   type?: 'SPEC_ERROR';
+  outcome?: 'REJECT' | 'ERROR';
 }
 
 interface ConfigSpecification {
@@ -408,7 +409,9 @@ const appendSpecificationBody = (
   }
   appendSpecificationWhen(lines, when, indent);
   if (!Array.isArray(specification.then) && specification.then?.type === 'SPEC_ERROR') {
-    lines.push(`${pad(indent)}then reject ${quote(specification.then.description || specification.then.title || 'Rejected by domain rule')}`);
+    const keyword = specification.then.outcome === 'ERROR' ? 'error' : 'reject';
+    const fallback = keyword === 'error' ? 'Execution failed' : 'Rejected by domain rule';
+    lines.push(`${pad(indent)}then ${keyword} ${quote(specification.then.description || specification.then.title || fallback)}`);
   } else {
     lines.push(`${pad(indent)}then ${toDslId(then.title, 'Event')}`);
   }

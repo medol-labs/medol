@@ -249,6 +249,8 @@ const buildAcceptanceScenarios = (
       when: specification.when ? humanize(specification.when) : slice.command ? humanize(slice.command.name) : humanize(slice.name),
       then: specification.reject
         ? `${zh ? '拒绝' : 'Reject'}: ${specification.reject}`
+        : specification.error
+          ? `${zh ? '错误' : 'Error'}: ${specification.error}`
         : specification.then
           ? humanize(specification.then)
           : formatResult(slice, language),

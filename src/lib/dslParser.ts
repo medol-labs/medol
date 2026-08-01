@@ -615,6 +615,7 @@ const parseScenarioMetadata = (
   if (scenario.when?.command?.$refText) metadata.when = scenario.when.command.$refText;
   if (scenario.then?.event?.$refText) metadata.then = scenario.then.event.$refText;
   if (scenario.then?.rejection) metadata.thenReject = scenario.then.rejection;
+  if (scenario.then?.error) metadata.thenError = scenario.then.error;
   for (const assignment of scenario.when?.condition?.assignments ?? []) {
     metadata[`example:${assignment.field}`] = formatLiteral(assignment.value);
   }
@@ -875,6 +876,7 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAu
     if (node.when?.command?.$refText) metadata.when = node.when.command.$refText;
     if (node.then?.event?.$refText) metadata.then = node.then.event.$refText;
     if (node.then?.rejection) metadata.thenReject = node.then.rejection;
+    if (node.then?.error) metadata.thenError = node.then.error;
     for (const assignment of node.when?.condition?.assignments ?? []) {
       metadata[`example:${assignment.field}`] = formatLiteral(assignment.value);
     }

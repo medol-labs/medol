@@ -108,6 +108,7 @@
 - [ ] Event 应该包含后续消费、审计、投影和重放需要的完整关联信息。
   - [ ] 用户提交 command 中指定 id， handler 从对应 state 中获取相关信息
   - [ ] automation 复制信息
+- [ ] 前端按钮只有中间生效
 
 
 ##
@@ -134,6 +135,9 @@
   - [ ] 项目启动有时会报错  mvn <args> -rf :shared-kernel
   - [ ] 数据集绑定之后重新触发验证
     - [ ] 绑定数据集数量？
+  - [ ] 多次启动 load 后 runtime id 出现了多个
+  - [ ] 现在看日志一个命令、事件处理了多次，确认是否有问题
+  - [ ] data binding ContractValidationFailed 怎么重新执行
 
  
 ##

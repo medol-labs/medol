@@ -185,4 +185,5 @@ const isTranslatableMetadata = (key: string): boolean =>
 const isNarrativeMetadata = (key: string): boolean =>
   key === 'rule'
   || key === 'thenReject'
+  || key === 'thenError'
   || key === 'description';
