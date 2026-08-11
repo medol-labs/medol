@@ -876,6 +876,7 @@ context RuntimeProvisioning {
       subscribe OrganizationRegistered
       subscribe RuntimeInfrastructurePackageRegistered
       subscribe RuntimeInstallationPlanCreated
+      subscribe RuntimeInfrastructurePlanned
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
@@ -933,14 +934,36 @@ context RuntimeProvisioning {
     }
   }
 
-  slice RegisterRuntimeInfrastructure {
+  slice PlanRuntimeInfrastructure {
     startsLifecycle
 
-    actor RuntimeInstaller
+    actor PlatformAdmin
     reactsTo RuntimeInstallationPlanCreated
 
-    command RegisterRuntimeInfrastructure {
+    automation PlanRuntimeInfrastructureWhenInstallationPlanCreated {
+      on RuntimeInstallationPlanCreated
+      emits PlanRuntimeInfrastructure
+    }
+
+    command PlanRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInstallationPlanCreated.runtimeInfrastructureId
+      runtimeInstallationPlanId: UUID technical from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
+    }
+
+    event RuntimeInfrastructurePlanned {
+      runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
+    }
+
+    state Planned
+  }
+
+  slice RegisterRuntimeInfrastructure {
+    actor RuntimeInstaller
+    reactsTo RuntimeInfrastructurePlanned
+
+    command RegisterRuntimeInfrastructure {
+      runtimeInfrastructureId: UUID id technical from RuntimeInfrastructurePlanned.runtimeInfrastructureId
       runtimeAgentId: UUID generated technical
     }
 
@@ -1211,6 +1234,7 @@ context RuntimeProvisioning {
       subscribe OrganizationRegistered
       subscribe RuntimeInfrastructurePackageRegistered
       subscribe RuntimeInstallationPlanCreated
+      subscribe RuntimeInfrastructurePlanned
       subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
@@ -1238,6 +1262,7 @@ context RuntimeProvisioning {
   }
 
   concept RuntimeInfrastructure {
+    state Planned
     state Registered
     state Verified
     state VerificationFailed
@@ -1246,6 +1271,7 @@ context RuntimeProvisioning {
     state Offline
     state Connected
 
+    slice PlanRuntimeInfrastructure
     slice RegisterRuntimeInfrastructure
     slice VerifyRuntimeInfrastructure
     slice DeployRuntimeAgent
@@ -2312,7 +2338,7 @@ context TrainingOrchestration {
   slice TrainingParticipantEligibility {
     reactsTo TrainingJobSubmitted
 
-    readmodel todo TrainingParticipantEligibility[] {
+    readmodel TrainingParticipantEligibility[] {
       trainingJobId: UUID id
       federationId: UUID
       organizationId: UUID
@@ -2561,10 +2587,10 @@ context TrainingOrchestration {
     startsLifecycle
     reactsTo TrainingJobSubmitted
 
-    // TODO port/adapter ?
+    // TODO Confirm whether initial participant selection should be triggered by TrainingJobSubmitted directly
+    // or by a future eligibility-ready domain event after TrainingParticipantEligibility is fully projected.
     automation SelectInitialRoundParticipantsWhenTrainingSubmitted {
-      on todo TrainingParticipantEligibility
-      condition selectionReady == true
+      on TrainingJobSubmitted
       emits SelectTrainingRoundParticipants
     }
 

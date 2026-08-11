@@ -138,6 +138,7 @@
   - [ ] 多次启动 load 后 runtime id 出现了多个
   - [ ] 现在看日志一个命令、事件处理了多次，确认是否有问题
   - [ ] data binding ContractValidationFailed 怎么重新执行
+  - [ ] runtime agent 注册需要维护 endpoint，平台侧才可以识别具体调用端口
 
  
 ##
