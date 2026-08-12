@@ -6,17 +6,17 @@
   - 状态已处理，其它字段 command、event、ui 除生成外一一对应，
 - state 语法支持多字段，默认 state DONE,支持多个 state trustState NO
 - specification throw exception
-- [X] 字段可为空标识
+- [x] 字段可为空标识
   - 已有- 类型后加?
-- [X] 自定义字段类型-嵌套子类
-- [X] 数组字段类型
+- [x] 自定义字段类型-嵌套子类
+- [x] 数组字段类型
 - ast 自定义业务逻辑表达，描述根据命令计算出事件信息? 命令输入后业务逻辑,留个占位函数？GWT 测试驱动？AI写？
-- [X] 性能优化，现在运行项目后设备卡顿,dsl稍长后就会变卡
+- [x] 性能优化，现在运行项目后设备卡顿,dsl稍长后就会变卡
 - 样例数据
-- [X] hotspot 作用
-- [X] 要做一个 agent ，了解 DSL 后调用大模型回答问题
+- [x] hotspot 作用
+- [x] 要做一个 agent ，了解 DSL 后调用大模型回答问题
 - [x] INTERNAL EXTERNAL 表达调用外部系统或方法
-- [X] DSL 支持加备注
+- [x] DSL 支持加备注
 - [x] FL 业务 - feature schema 与 dataset 是否是一个聚合
 - [x] policy?
   - 事件自动触发
@@ -60,7 +60,7 @@
 - [ ] UI 端生成对接设计工具 Figma/v0 等
   - [ ] 交由 Code Agent 基于 medol 建模做设计，综合考虑整体系统
 - [ ] ai 生成用户旅程，再结合文生视频工具，生成系统使用引导视频
-- [X] 建模中的 Ref 到底填什么，用户怎么能知道怎么填
+- [x] 建模中的 Ref 到底填什么，用户怎么能知道怎么填
 - [x] 代码生成时，对 automation 前端不需要生成命令入口
 - [ ] 前端页面菜单优化，菜单名称长时无法看清具体菜单，交互有问题
 - [ ] Axon Framework 5 的生成没有 slice 选择了
@@ -69,8 +69,8 @@
 - [ ] 代码生成后覆盖问题：decision 等大概率需要调整部分，同过实现类区分，默认脚手架生成实现类，业务完善（agent、人工）建新的实现类
 - [ ] 生成模拟数据部分，再进一步调整完善，需要快速提供测试数据，需要 ai 提供思路
 - [ ] 外部系统对接，建模中缺少外部系统声明
-- [X] Event Strore(DCB) 解决方案
-  - [X] 适配 Umadb
+- [x] Event Strore(DCB) 解决方案
+  - [x] 适配 Umadb
   - [ ] Umadb 管理平台
 - [ ] Review fl 建模
   - [ ] 所有 command event 不需要显示包含 xxcommandAt xxcommandBy
@@ -96,7 +96,7 @@
 - [ ] readmodel 更新时机，现在是有事件就会落库，是否需要控制主要事件更新才落库。如： RuntimeDatasetBindingCatalog， RuntimeDatasetBindingConfigured 后才是有用信息，现在声明 dataset 后就有数据
 - [ ] Read model 字段长度根据名字推断为 text，添加 text 类型或者指定长度
 - [ ] Read model projector 里根据字段名推断失败状态和失败原因
-  -  保留“直接同名字段赋值”和“stateChange 明确状态赋值”，去掉 failureReason / FailedAt / failed state 的名字猜测。以后如果需要自动生成，应在建模里显式表达事件到 read model 字段的映射或 projection rule。
+  - 保留“直接同名字段赋值”和“stateChange 明确状态赋值”，去掉 failureReason / FailedAt / failed state 的名字猜测。以后如果需要自动生成，应在建模里显式表达事件到 read model 字段的映射或 projection rule。
 - [ ] Automation 中命令是否要携带关键信息，供 adapter 使用，解决查询投影的异步问题或者应该依赖 TODO list 触发
 - [ ] 生成软著材料
 - [ ] 测试完善文档生成翻译等功能
@@ -104,12 +104,11 @@
 - [ ] 状态生成与更新逻辑梳理调试
 - [ ] medo 一直显示 saving
 - [ ] 事件处理结果要能看到，包括成功与失败，
-  - [ ] 设计交互 UI，展示进度？ 
+  - [ ] 设计交互 UI，展示进度？
 - [ ] Event 应该包含后续消费、审计、投影和重放需要的完整关联信息。
   - [ ] 用户提交 command 中指定 id， handler 从对应 state 中获取相关信息
   - [ ] automation 复制信息
 - [ ] 前端按钮只有中间生效
-
 
 ##
 
@@ -129,18 +128,20 @@
   - [ ] Profile AgentDataset 建模完善加 spec，生成 port
   - [ ] ValidateDatasetContract 又是什么，与ValidateAgentDatasetAccess 区别
   - [ ] 参考 FedML
-    -  https://chatgpt.com/g/g-p-6966527cb3b4819184dfea9640b8124c-what-is-it/c/6a69caf2-7c78-83ec-bcf3-77529fbd175e
+    - https://chatgpt.com/g/g-p-6966527cb3b4819184dfea9640b8124c-what-is-it/c/6a69caf2-7c78-83ec-bcf3-77529fbd175e
   - [ ] 重新设计思考 Agent 手动部署逻辑
     - [ ] 补全 ReportRuntimeInstanceSelfCheckPassed 建模
-  - [ ] 项目启动有时会报错  mvn <args> -rf :shared-kernel
+  - [ ] 项目启动有时会报错 mvn <args> -rf :shared-kernel
   - [ ] 数据集绑定之后重新触发验证
     - [ ] 绑定数据集数量？
   - [ ] 多次启动 load 后 runtime id 出现了多个
   - [ ] 现在看日志一个命令、事件处理了多次，确认是否有问题
   - [ ] data binding ContractValidationFailed 怎么重新执行
   - [ ] runtime agent 注册需要维护 endpoint，平台侧才可以识别具体调用端口
+  - [ ] load runtime agent bootstrap configuration 失败后用户看不到任何信息
+  - [ ] Register Runtime Infrastructure 不对，要指定具体的 plan 进行 register
+  - [ ] Define Training Run Configuration 里 initial model version id
 
- 
 ##
 
 建议 DSL 使用时遵守：
