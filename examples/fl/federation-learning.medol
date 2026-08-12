@@ -2586,6 +2586,7 @@ context TrainingOrchestration {
   slice SelectTrainingRoundParticipants {
     startsLifecycle
     reactsTo TrainingJobSubmitted
+    port
 
     // TODO Confirm whether initial participant selection should be triggered by TrainingJobSubmitted directly
     // or by a future eligibility-ready domain event after TrainingParticipantEligibility is fully projected.
