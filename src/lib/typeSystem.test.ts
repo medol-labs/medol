@@ -120,6 +120,45 @@ test('parses display field attribute and preserves it for code generation', () =
   assert.match(roundTripDsl, /datasetName: String display/);
 });
 
+test('parses file field attribute and preserves it for code generation', () => {
+  const model = parseMedol(`
+    context ModelRepository {
+      slice RegisterModelArtifact {
+        command RegisterModelArtifact {
+          sourceLocation: String? file
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const field = model.contexts[0].slices[0].elements[0].fields.find((item) => item.name === 'sourceLocation');
+  assert(field);
+  assert(field.attributes.includes('file'));
+
+  const codegen = modelToCodegenModel(model);
+  const codegenField = codegen.slices[0].commands[0].fields.find((item) => item.name === 'sourceLocation');
+  assert.equal(codegenField?.file, true);
+
+  const roundTripDsl = configToDsl({
+    context: 'ModelRepository',
+    slices: [{
+      title: 'RegisterModelArtifact',
+      commands: [{
+        title: 'RegisterModelArtifact',
+        fields: [{
+          name: 'sourceLocation',
+          type: 'String',
+          cardinality: 'Single',
+          optional: true,
+          file: true
+        }]
+      }]
+    }]
+  });
+  assert.match(roundTripDsl, /sourceLocation: String\? file/);
+});
+
 test('parses slice port marker and preserves it for code generation', () => {
   const model = parseMedol(`
     context Runtime {

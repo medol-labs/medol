@@ -24,6 +24,7 @@ interface ConfigField {
   technicalAttribute: boolean;
   query: boolean;
   display: boolean;
+  file: boolean;
   mappings?: ConfigFieldMapping[];
   subfields: [];
 }
@@ -309,6 +310,7 @@ const toConfigField = (field: CodegenField): ConfigField => ({
   technicalAttribute: field.technicalAttribute,
   query: field.query,
   display: field.display,
+  file: field.file,
   ...(field.source ? { mappings: [toConfigFieldMapping(field.source)] } : {}),
   subfields: []
 });

@@ -733,6 +733,261 @@ context DictionaryMaintenance {
   }
 }
 
+context FileUpload {
+  note "File upload owns short-lived staged file references used by generated forms and backend adapters. Business commands store the staged file location returned by this context, not a browser-local file path."
+
+  risk "Staged files can leak sensitive model or dataset content if retention, ownership, and content validation are not enforced."
+  risk "Business commands can fail later if staged files expire before the consuming adapter imports them."
+  metric stagedFileUploadLatency
+  metric stagedFileImportFailureRate
+
+  slice StageFileUpload {
+    startsLifecycle
+    port
+
+    actor PlatformUser
+    ui FileUploadDialog
+
+    command StageFileUpload {
+      stagedFileId: UUID id generated technical
+      originalFileName: String display
+      contentType: String?
+      sizeBytes: Int?
+      purpose: String
+    }
+
+    event FileUploadStaged {
+      stagedFileId: UUID id technical
+      originalFileName: String display
+      contentType: String?
+      sizeBytes: Int?
+      purpose: String
+      stagedFileLocation: String
+      checksum: String?
+      expiresAt: DateTime
+    }
+
+    event FileUploadRejected {
+      stagedFileId: UUID id technical
+      originalFileName: String display
+      contentType: String?
+      sizeBytes: Int?
+      purpose: String
+      failureReason: String
+    }
+
+    state Staged
+
+    specification "Uploaded File Is Staged Before Business Command Submission" {
+      rule """
+        A file field in a generated form first stages the selected browser file through the FileUpload deployment. The upload adapter stores the file in server-side temporary storage, computes optional checksum metadata, assigns a stagedFileLocation, and returns that location to the form. Business commands submit the stagedFileLocation as a string reference and consuming adapters import the file from server-side staging.
+      """
+
+      scenario "Stage Upload For Model Import" {
+        when StageFileUpload {
+          stagedFileId = "staged-file-1"
+          originalFileName = "credit-risk-initial.onnx"
+          contentType = "application/octet-stream"
+          sizeBytes = 1024
+          purpose = "MODEL_ARTIFACT_IMPORT"
+        }
+        then FileUploadStaged
+      }
+
+      scenario "Reject Unsupported Upload" {
+        when StageFileUpload {
+          stagedFileId = "staged-file-2"
+          originalFileName = "credit-risk-initial.exe"
+          contentType = "application/octet-stream"
+          sizeBytes = 1024
+          purpose = "MODEL_ARTIFACT_IMPORT"
+        }
+        then FileUploadRejected
+      }
+    }
+  }
+
+  slice MarkStagedFileConsumed {
+    actor PlatformService
+    reactsTo FileUploadStaged
+
+    command MarkStagedFileConsumed {
+      stagedFileId: UUID id technical
+      consumedByContext: String
+      consumedByCommand: String
+      consumedByCommandId: UUID?
+    }
+
+    event StagedFileConsumed {
+      stagedFileId: UUID id technical
+      consumedByContext: String
+      consumedByCommand: String
+      consumedByCommandId: UUID?
+    }
+
+    state Consumed
+
+    specification "Consumed Staged File Is No Longer User Discardable" {
+      rule """
+        A staged file is marked consumed when a business adapter has imported it into durable business storage, such as a model registry. After consumption, users cannot discard the staged file because the business command has already relied on it. Physical cleanup of the temporary object is handled by retention policy.
+      """
+
+      scenario "Mark File Consumed By Model Import" {
+        given FileUploadStaged {
+          stagedFileId = "staged-file-1"
+        }
+        when MarkStagedFileConsumed {
+          stagedFileId = "staged-file-1"
+          consumedByContext = "ModelRepository"
+          consumedByCommand = "RegisterModelArtifact"
+        }
+        then StagedFileConsumed
+      }
+    }
+  }
+
+  slice DiscardStagedFile {
+    actor PlatformUser
+    ui FileUploadDialog
+    reactsTo FileUploadStaged
+
+    command DiscardStagedFile {
+      stagedFileId: UUID id technical
+      discardReason: String?
+    }
+
+    event StagedFileDiscarded {
+      stagedFileId: UUID id technical
+      discardReason: String?
+    }
+
+    state Discarded
+
+    specification "Only Unconsumed Staged Files Can Be Discarded" {
+      rule """
+        A user can discard a staged file while it has not been consumed by a business command. Discarding records the intent to remove the temporary file and prevents later business commands from using that staged location.
+      """
+
+      scenario "Discard Unconsumed Staged File" {
+        given FileUploadStaged {
+          stagedFileId = "staged-file-1"
+        }
+        when DiscardStagedFile {
+          stagedFileId = "staged-file-1"
+          discardReason = "Wrong file selected."
+        }
+        then StagedFileDiscarded
+      }
+
+      scenario "Reject Discard After Consumption" {
+        given StagedFileConsumed {
+          stagedFileId = "staged-file-2"
+        }
+        when DiscardStagedFile {
+          stagedFileId = "staged-file-2"
+        }
+        then reject "Staged File Already Consumed"
+      }
+    }
+  }
+
+  slice ExpireStagedFile {
+    reactsTo FileUploadStaged
+
+    automation ExpireStagedFileWhenRetentionElapsed {
+      on FileUploadStaged
+      condition stagedFileExpired == true
+      emits ExpireStagedFile
+    }
+
+    command ExpireStagedFile {
+      stagedFileId: UUID id technical
+      expiredAt: DateTime
+      expirationReason: String
+    }
+
+    event StagedFileExpired {
+      stagedFileId: UUID id technical
+      expiredAt: DateTime
+      expirationReason: String
+    }
+
+    state Expired
+
+    specification "Expired Staged File Cannot Be Consumed" {
+      rule """
+        A staged file expires when its retention window elapses before any business command consumes it. Expiration prevents later use of the staged location and allows storage cleanup to remove the temporary object.
+      """
+
+      scenario "Expire Unconsumed Staged File" {
+        given FileUploadStaged {
+          stagedFileId = "staged-file-1"
+        }
+        when ExpireStagedFile {
+          stagedFileId = "staged-file-1"
+          expirationReason = "Retention window elapsed."
+        }
+        then StagedFileExpired
+      }
+
+      scenario "Reject Consumption After Expiration" {
+        given StagedFileExpired {
+          stagedFileId = "staged-file-2"
+        }
+        when MarkStagedFileConsumed {
+          stagedFileId = "staged-file-2"
+          consumedByContext = "ModelRepository"
+          consumedByCommand = "RegisterModelArtifact"
+        }
+        then reject "Staged File Expired"
+      }
+    }
+  }
+
+  slice StagedFileCatalog {
+    readmodel StagedFileCatalog[] {
+      stagedFileId: UUID id
+      originalFileName: String display
+      contentType: String?
+      sizeBytes: Int?
+      purpose: String query
+      stagedFileLocation: String
+      checksum: String?
+      state: StagedFile.State
+      stagedAt: DateTime?
+      consumedAt: DateTime?
+      consumedByContext: String?
+      consumedByCommand: String?
+      consumedByCommandId: UUID?
+      discardedAt: DateTime?
+      discardReason: String?
+      expiresAt: DateTime?
+      expiredAt: DateTime?
+      expirationReason: String?
+      failureReason: String?
+      subscribe FileUploadStaged
+      subscribe FileUploadRejected
+      subscribe StagedFileConsumed
+      subscribe StagedFileDiscarded
+      subscribe StagedFileExpired
+    }
+  }
+
+  concept StagedFile {
+    state Staged
+    state Consumed
+    state Discarded
+    state Expired
+    state Rejected
+
+    slice StageFileUpload
+    slice MarkStagedFileConsumed
+    slice DiscardStagedFile
+    slice ExpireStagedFile
+    slice StagedFileCatalog
+  }
+}
+
 context RuntimeProvisioning {
   note "Runtime onboarding owns runtime installation planning, bootstrap configuration, runtime environment registration, agent installation, readiness, connection reporting, and access revocation. K3s, Kubernetes, Docker Compose, and host process runtimes are installation targets, not separate domain concepts."
   note "Runtime bootstrap and agent installation material is support configuration, not domain state: the platform backend adapter reads platform.runtime.bootstrap.publicBaseAddress, platform.runtime.agent.platformApiBaseAddress, platform.runtime.agent.controlApiBaseAddress, platform.runtime.agent.containerRegistry, platform.runtime.agent.trustBundleSecretName, and platform.runtime.agent.accessGrantSecretPrefix from deployment config or a secret store. Commands, events, and read models keep only runtimeInstallationPlanId, runtimeInfrastructurePackageId, and generated access grant IDs."
@@ -1747,7 +2002,7 @@ context ModelRepository {
       modelName: String display
       modelVersion: String
       sourceType: String
-      sourceLocation: String?
+      sourceLocation: String? file
       modelFormat: String?
     }
 
@@ -1768,7 +2023,7 @@ context ModelRepository {
 
     specification "Model Artifact Must Be Pullable And Verifiable" {
       rule """
-        Registering a model artifact is a port-backed import operation. modelName identifies the logical model and modelVersion identifies the business version under that model; the pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. The adapter uploads or imports the source model into the managed model registry, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelArtifactUri identifies the concrete pullable artifact for that version.
+        Registering a model artifact is a port-backed import operation. modelName identifies the logical model and modelVersion identifies the business version under that model; the pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. For uploaded files, sourceLocation is the stagedFileLocation returned by FileUpload, not a browser-local file path. The adapter imports the staged source model into the managed model registry, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelArtifactUri identifies the concrete pullable artifact for that version.
 
         unique (ModelArtifact.modelName, ModelArtifact.modelVersion)
       """
@@ -6602,6 +6857,7 @@ context RuntimeAgentOperations {
 
   deployment FederationLearningDictionary {
     includes DictionaryMaintenance
+    includes FileUpload
   }
 
   deployment FederationLearningPlatform {

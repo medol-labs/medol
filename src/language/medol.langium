@@ -373,6 +373,7 @@ FieldAttribute returns string:
     | 'technical'
     | 'query'
     | 'display'
+    | 'file'
 ;
 
 FieldMapping:
