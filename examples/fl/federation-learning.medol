@@ -5454,9 +5454,8 @@ context RuntimeAgentOperations {
     reactsTo ExecutionPlanReceived
     port
 
-    automation AcceptExecutionPlanWhenLocalRequirementsSatisfied {
+    automation AcceptExecutionPlanWhenExecutionPlanReceived {
       on ExecutionPlanReceived
-      condition localExecutionRequirementsSatisfied == true
       emits AcceptExecutionPlan
     }
 
@@ -5464,22 +5463,26 @@ context RuntimeAgentOperations {
       executionPlanId: UUID id technical from ExecutionPlanReceived.executionPlanId
       executionSessionId: UUID from ExecutionPlanReceived.executionSessionId
       trainingJobId: UUID from ExecutionPlanReceived.trainingJobId
+      trainingRunConfigurationId: UUID from ExecutionPlanReceived.trainingRunConfigurationId
+      featureSchemaId: UUID from ExecutionPlanReceived.featureSchemaId
+      roundId: UUID from ExecutionPlanReceived.roundId
+      roundNumber: Int from ExecutionPlanReceived.roundNumber
       runtimeId: UUID from ExecutionPlanReceived.runtimeId
-      localExecutionRequirementsSatisfied: Boolean
-      runtimeIdentityMatched: Boolean
-      runtimeDatasetBindingAvailable: Boolean
-      datasetAccessValidated: Boolean
-      baseModelAvailable: Boolean
-      trainingConfigurationSupported: Boolean
-      runtimeResourceAvailable: Boolean
-      runtimeAgentIdle: Boolean
+      organizationId: UUID from ExecutionPlanReceived.organizationId
+      baseModelVersionId: UUID from ExecutionPlanReceived.baseModelVersionId
     }
 
     event ExecutionPlanAccepted {
       executionPlanId: UUID id technical
       executionSessionId: UUID
       trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
+      roundNumber: Int
       runtimeId: UUID
+      organizationId: UUID
+      baseModelVersionId: UUID
       localExecutionRequirementsSatisfied: Boolean
       runtimeIdentityMatched: Boolean
       runtimeDatasetBindingAvailable: Boolean
@@ -5488,43 +5491,19 @@ context RuntimeAgentOperations {
       trainingConfigurationSupported: Boolean
       runtimeResourceAvailable: Boolean
       runtimeAgentIdle: Boolean
-    }
-
-    state PlanAccepted
-  }
-
-  slice RejectExecutionPlan {
-    actor RuntimeAgent
-    reactsTo ExecutionPlanReceived
-    port
-
-    automation RejectExecutionPlanWhenLocalRequirementsFailed {
-      on ExecutionPlanReceived
-      condition localExecutionRequirementsSatisfied == false
-      emits RejectExecutionPlan
-    }
-
-    command RejectExecutionPlan {
-      executionPlanId: UUID id technical
-      executionSessionId: UUID from ExecutionPlanReceived.executionSessionId
-      trainingJobId: UUID from ExecutionPlanReceived.trainingJobId
-      runtimeId: UUID from ExecutionPlanReceived.runtimeId
-      localExecutionRequirementsSatisfied: Boolean
-      runtimeIdentityMatched: Boolean
-      runtimeDatasetBindingAvailable: Boolean
-      datasetAccessValidated: Boolean
-      baseModelAvailable: Boolean
-      trainingConfigurationSupported: Boolean
-      runtimeResourceAvailable: Boolean
-      runtimeAgentIdle: Boolean
-      rejectionReasons: String[]
     }
 
     event ExecutionPlanRejected {
       executionPlanId: UUID id technical
       executionSessionId: UUID
       trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
+      roundNumber: Int
       runtimeId: UUID
+      organizationId: UUID
+      baseModelVersionId: UUID
       localExecutionRequirementsSatisfied: Boolean
       runtimeIdentityMatched: Boolean
       runtimeDatasetBindingAvailable: Boolean
@@ -5536,7 +5515,33 @@ context RuntimeAgentOperations {
       rejectionReasons: String[]
     }
 
-    state PlanRejected
+    state PlanAccepted
+
+    specification "Execution Plan Local Acceptance Outcome" {
+      rule """
+        When a participant execution plan is received, the runtime agent performs a local readiness check before starting any training work. The check verifies that the plan targets this runtime, the required dataset binding exists, dataset access has already been validated, the base model is available, the requested training configuration is supported, sufficient local resources are available, and the runtime agent is idle. The port records exactly one outcome: ExecutionPlanAccepted when all local requirements are satisfied, or ExecutionPlanRejected with rejection reasons when any requirement fails.
+      """
+
+      scenario "Execution Plan Accepted" {
+        given ExecutionPlanReceived {
+          executionPlanId = "execution-plan-1"
+        }
+        when AcceptExecutionPlan {
+          executionPlanId = "execution-plan-1"
+        }
+        then ExecutionPlanAccepted
+      }
+
+      scenario "Execution Plan Rejected" {
+        given ExecutionPlanReceived {
+          executionPlanId = "execution-plan-2"
+        }
+        when AcceptExecutionPlan {
+          executionPlanId = "execution-plan-2"
+        }
+        then ExecutionPlanRejected
+      }
+    }
   }
 
   slice StartRoundExecution {
@@ -5553,13 +5558,13 @@ context RuntimeAgentOperations {
       executionSessionId: UUID from ExecutionPlanAccepted.executionSessionId
       executionPlanId: UUID from ExecutionPlanAccepted.executionPlanId
       trainingJobId: UUID from ExecutionPlanAccepted.trainingJobId
-      trainingRunConfigurationId: UUID derived from ExecutionPlanReceived.trainingRunConfigurationId by executionPlanId
-      roundId: UUID derived from ExecutionPlanReceived.roundId by executionPlanId
-      roundNumber: Int derived from ExecutionPlanReceived.roundNumber by executionPlanId
+      trainingRunConfigurationId: UUID from ExecutionPlanAccepted.trainingRunConfigurationId
+      roundId: UUID from ExecutionPlanAccepted.roundId
+      roundNumber: Int from ExecutionPlanAccepted.roundNumber
       runtimeId: UUID from ExecutionPlanAccepted.runtimeId
-      organizationId: UUID derived from ExecutionPlanReceived.organizationId by executionPlanId
-      featureSchemaId: UUID derived from ExecutionPlanReceived.featureSchemaId by executionPlanId
-      baseModelVersionId: UUID derived from ExecutionPlanReceived.baseModelVersionId by executionPlanId
+      organizationId: UUID from ExecutionPlanAccepted.organizationId
+      featureSchemaId: UUID from ExecutionPlanAccepted.featureSchemaId
+      baseModelVersionId: UUID from ExecutionPlanAccepted.baseModelVersionId
       runtimeEngineJobId: String
     }
 
@@ -5595,6 +5600,32 @@ context RuntimeAgentOperations {
     }
 
     state Running
+
+    specification "Round Execution Runtime Engine Start Outcome" {
+      rule """
+        Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.
+      """
+
+      scenario "Round Execution Started" {
+        given ExecutionPlanAccepted {
+          executionPlanId = "execution-plan-1"
+        }
+        when StartRoundExecution {
+          executionPlanId = "execution-plan-1"
+        }
+        then RoundExecutionStarted
+      }
+
+      scenario "Round Execution Start Failed" {
+        given ExecutionPlanAccepted {
+          executionPlanId = "execution-plan-2"
+        }
+        when StartRoundExecution {
+          executionPlanId = "execution-plan-2"
+        }
+        then RoundExecutionStartFailed
+      }
+    }
   }
 
   slice CompleteRoundExecution {
@@ -6006,7 +6037,6 @@ context RuntimeAgentOperations {
 
     slice ReceiveParticipantExecutionPlan
     slice AcceptExecutionPlan
-    slice RejectExecutionPlan
     slice StartRoundExecution
     slice CompleteRoundExecution
     slice FailRoundExecution
