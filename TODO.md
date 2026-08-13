@@ -109,6 +109,7 @@
   - [ ] 用户提交 command 中指定 id， handler 从对应 state 中获取相关信息
   - [ ] automation 复制信息
 - [ ] 前端按钮只有中间生效
+- [ ] 怎么调试排查问题
 
 ##
 
@@ -141,6 +142,9 @@
   - [ ] load runtime agent bootstrap configuration 失败后用户看不到任何信息
   - [ ] Register Runtime Infrastructure 不对，要指定具体的 plan 进行 register
   - [ ] Define Training Run Configuration 里 initial model version id
+  - [ ] StartRoundWhenParticipantsSelectedProcessor 业务逻辑不满足，没有地方能查看
+  - [ ] 一个 feature 多个 dataset
+  - [ ] 任务失败，需要重新发起功能
 
 ##
 
