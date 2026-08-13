@@ -1723,56 +1723,64 @@ context DatasetGovernance {
 }
 
 context ModelRepository {
-  note "Model repository owns pullable model artifact references used by training orchestration and runtime agents."
+  note "Model repository owns model identity and immutable, pullable model artifact locations used by training orchestration and runtime agents."
 
-  risk "Runtime agents can pull stale or tampered models if artifact hashes and repository references are not snapshotted with the training run."
+  risk "Runtime agents can pull stale or tampered models if artifact URI, digest, registry, format, and signature are not snapshotted with the training run."
   risk "Aggregated round models can lose lineage if their producing training job and round are not recorded."
   metric modelArtifactRegistrationLatency
   metric modelArtifactPullFailureRate
 
   slice RegisterModelArtifact {
     startsLifecycle
+    port
 
     actor MLOpsEngineer
     ui ModelRepositoryScreen
+    
+    tags {
+      modelName
+      modelVersion
+    }
 
     command RegisterModelArtifact {
-      modelVersionId: UUID id generated technical
-      modelArtifactRef: String
-      modelRepositoryRef: String
-      modelFormat: String
-      modelHash: String
-      modelSignatureRef: String?
-      modelSizeBytes: Int?
+      modelId: UUID id generated technical
+      modelName: String display
+      modelVersion: String
       sourceType: String
+      sourceLocation: String?
+      modelFormat: String?
     }
 
     event ModelArtifactRegistered {
-      modelVersionId: UUID id technical
-      modelArtifactRef: String
-      modelRepositoryRef: String
-      modelFormat: String
-      modelHash: String
-      modelSignatureRef: String?
-      modelSizeBytes: Int?
+      modelId: UUID id technical
+      modelName: String display
+      modelVersion: String
       sourceType: String
+      modelArtifactUri: String
+      modelRegistryRef: String
+      modelFormat: String
+      modelArtifactDigest: String
+      modelSignatureUri: String?
+      modelSizeBytes: Int?
     }
 
     state Registered
 
     specification "Model Artifact Must Be Pullable And Verifiable" {
       rule """
-        A model artifact registered for training must include a repository reference, an artifact reference, a model format, and a content hash so runtime agents can pull and verify it.
+        Registering a model artifact is a port-backed import operation. modelName identifies the logical model and modelVersion identifies the business version under that model; the pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. The adapter uploads or imports the source model into the managed model registry, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelArtifactUri identifies the concrete pullable artifact for that version.
+
+        unique (ModelArtifact.modelName, ModelArtifact.modelVersion)
       """
 
       scenario "Register Pullable Model Artifact" {
         when RegisterModelArtifact {
-          modelVersionId = "model-1"
-          modelRepositoryRef = "model-repo"
-          modelArtifactRef = "models/model-1"
+          modelId = "model-1"
+          modelName = "credit-risk"
+          modelVersion = "v1"
+          sourceType = "UPLOAD"
+          sourceLocation = "upload://credit-risk-initial.onnx"
           modelFormat = "ONNX"
-          modelHash = "sha256:abc"
-          sourceType = "INITIAL"
         }
         then ModelArtifactRegistered
       }
@@ -1781,14 +1789,16 @@ context ModelRepository {
 
   slice ModelArtifactCatalog {
     readmodel ModelArtifactCatalog[] {
-      modelVersionId: UUID id
-      modelArtifactRef: String
-      modelRepositoryRef: String
-      modelFormat: String
-      modelHash: String
-      modelSignatureRef: String?
-      modelSizeBytes: Int?
+      modelId: UUID id
+      modelName: String display
+      modelVersion: String
       sourceType: String?
+      modelArtifactUri: String
+      modelRegistryRef: String
+      modelFormat: String
+      modelArtifactDigest: String
+      modelSignatureUri: String?
+      modelSizeBytes: Int?
       trainingJobId: UUID?
       roundId: UUID?
       trainingJobObjective: String? derived {
@@ -1851,7 +1861,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id generated technical
       federationId: UUID
       featureSchemaId: UUID
-      initialModelVersionId: UUID
+      initialModelId: UUID
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -1877,25 +1887,33 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id technical
       federationId: UUID
       featureSchemaId: UUID
-      initialModelVersionId: UUID
+      initialModelId: UUID
+      initialModelName: String derived {
+        from ModelArtifact.modelName
+        rule "Snapshot the logical model display name selected by the initial model."
+      }
+      initialModelVersion: String derived {
+        from ModelArtifact.modelVersion
+        rule "Snapshot the business version label selected by the initial model."
+      }
       initialModelArtifactUri: String derived {
-        from ModelArtifact.modelArtifactRef
+        from ModelArtifact.modelArtifactUri
         rule "Snapshot the initial model artifact URI selected from the model repository."
       }
-      initialModelRepositoryName: String derived {
-        from ModelArtifact.modelRepositoryRef
-        rule "Snapshot the model repository name so runtime agents can identify where the initial global model is managed."
+      initialModelRegistryRef: String derived {
+        from ModelArtifact.modelRegistryRef
+        rule "Snapshot the model registry reference so runtime agents can identify where the initial global model is managed."
       }
       initialModelFormat: String derived {
         from ModelArtifact.modelFormat
         rule "Snapshot the model format needed by the runtime engine."
       }
-      initialModelHash: String derived {
-        from ModelArtifact.modelHash
-        rule "Snapshot the content hash used by runtime agents to verify the pulled model."
+      initialModelArtifactDigest: String derived {
+        from ModelArtifact.modelArtifactDigest
+        rule "Snapshot the artifact digest used by runtime agents to verify the pulled model."
       }
       initialModelSignatureUri: String? derived {
-        from ModelArtifact.modelSignatureRef
+        from ModelArtifact.modelSignatureUri
         rule "Snapshot the optional signature URI used to verify model provenance."
       }
       strategyName: String dictionary "TRAINING_STRATEGY"
@@ -1923,7 +1941,7 @@ context TrainingOrchestration {
 
     specification "Training Configuration Must Be Runnable" {
       rule """
-        A training run configuration is accepted only when the selected federation, feature schema, and initial model version exist; the round budget, quorum, timeouts, and local training parameters are positive; and differential privacy parameters are complete when differential privacy is enabled.
+        A training run configuration is accepted only when the selected federation, feature schema, and initial model exist; the round budget, quorum, timeouts, and local training parameters are positive; and differential privacy parameters are complete when differential privacy is enabled.
       """
 
       scenario "Define Runnable Configuration" {
@@ -1931,7 +1949,7 @@ context TrainingOrchestration {
           trainingRunConfigurationId = "cfg-1"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
-          initialModelVersionId = "model-1"
+          initialModelId = "model-1"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 10
@@ -1956,7 +1974,7 @@ context TrainingOrchestration {
           trainingRunConfigurationId = "cfg-2"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
-          initialModelVersionId = "model-1"
+          initialModelId = "model-1"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 0
@@ -1981,7 +1999,7 @@ context TrainingOrchestration {
           trainingRunConfigurationId = "cfg-3"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
-          initialModelVersionId = "model-1"
+          initialModelId = "model-1"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 10
@@ -2012,7 +2030,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id technical
       federationId: UUID
       featureSchemaId: UUID
-      initialModelVersionId: UUID
+      initialModelId: UUID
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -2039,25 +2057,33 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id technical
       federationId: UUID
       featureSchemaId: UUID
-      initialModelVersionId: UUID
+      initialModelId: UUID
+      initialModelName: String derived {
+        from ModelArtifact.modelName
+        rule "Snapshot the updated logical model display name selected by the initial model."
+      }
+      initialModelVersion: String derived {
+        from ModelArtifact.modelVersion
+        rule "Snapshot the updated business version label selected by the initial model."
+      }
       initialModelArtifactUri: String derived {
-        from ModelArtifact.modelArtifactRef
+        from ModelArtifact.modelArtifactUri
         rule "Snapshot the updated initial model artifact URI selected from the model repository."
       }
-      initialModelRepositoryName: String derived {
-        from ModelArtifact.modelRepositoryRef
-        rule "Snapshot the updated model repository name so runtime agents can identify where the initial global model is managed."
+      initialModelRegistryRef: String derived {
+        from ModelArtifact.modelRegistryRef
+        rule "Snapshot the updated model registry reference so runtime agents can identify where the initial global model is managed."
       }
       initialModelFormat: String derived {
         from ModelArtifact.modelFormat
         rule "Snapshot the updated model format needed by the runtime engine."
       }
-      initialModelHash: String derived {
-        from ModelArtifact.modelHash
-        rule "Snapshot the updated content hash used by runtime agents to verify the pulled model."
+      initialModelArtifactDigest: String derived {
+        from ModelArtifact.modelArtifactDigest
+        rule "Snapshot the updated artifact digest used by runtime agents to verify the pulled model."
       }
       initialModelSignatureUri: String? derived {
-        from ModelArtifact.modelSignatureRef
+        from ModelArtifact.modelSignatureUri
         rule "Snapshot the updated optional signature URI used to verify model provenance."
       }
       strategyName: String dictionary "TRAINING_STRATEGY"
@@ -2097,7 +2123,7 @@ context TrainingOrchestration {
           trainingRunConfigurationId = "cfg-1"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
-          initialModelVersionId = "model-2"
+          initialModelId = "model-2"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 20
@@ -2126,7 +2152,7 @@ context TrainingOrchestration {
           trainingRunConfigurationId = "cfg-2"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
-          initialModelVersionId = "model-2"
+          initialModelId = "model-2"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 20
@@ -2178,7 +2204,9 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id
       federationId: UUID
       featureSchemaId: UUID
-      initialModelVersionId: UUID
+      initialModelId: UUID
+      initialModelName: String display
+      initialModelVersion: String
       federationName: String? display derived {
         from FederationCreated.federationName
         rule "Lookup by federationId and denormalize the federation display name into the training run configuration catalog."
@@ -2192,9 +2220,9 @@ context TrainingOrchestration {
         rule "Lookup by featureSchemaId and denormalize the feature schema version into the training run configuration catalog."
       }
       initialModelArtifactUri: String
-      initialModelRepositoryName: String
+      initialModelRegistryRef: String
       initialModelFormat: String
-      initialModelHash: String
+      initialModelArtifactDigest: String
       initialModelSignatureUri: String?
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
@@ -2258,6 +2286,10 @@ context TrainingOrchestration {
     event TrainingJobCreated {
       trainingJobId: UUID id technical
       federationId: UUID
+      initialModelId: UUID derived {
+        from TrainingRunConfiguration.initialModelId
+        rule "Carry the initial model selected by the training run configuration."
+      }
       featureSchemaId: UUID derived {
         from TrainingRunConfiguration.featureSchemaId
         rule "Use the feature schema selected in the runnable training run configuration."
@@ -2489,14 +2521,14 @@ context TrainingOrchestration {
     command CompleteTrainingJob {
       trainingJobId: UUID id technical
       finalRoundId: UUID
-      finalModelVersionId: UUID
+      finalModelId: UUID
       stopReason: String
     }
 
     event TrainingJobCompleted {
       trainingJobId: UUID id technical
       finalRoundId: UUID
-      finalModelVersionId: UUID
+      finalModelId: UUID
       stopReason: String
     }
 
@@ -2543,7 +2575,7 @@ context TrainingOrchestration {
       maxRounds: Int
       roundProgressPercent: Int
       globalAccuracy: Decimal?
-      finalModelVersionId: UUID?
+      finalModelId: UUID?
       stopReason: String?
       subscribe FederationCreated
       subscribe FeatureSchemaDefined
@@ -2764,9 +2796,29 @@ context TrainingOrchestration {
         from TrainingRoundStarted.selectedParticipants.organizationId
         rule "Carry the organization paired with the selected runtime in the participant snapshot."
       }
-      baseModelVersionId: UUID derived {
-        from TrainingRunConfiguration.initialModelVersionId, TrainingRoundCompleted.aggregatedModelVersionId
+      baseModelId: UUID derived {
+        from TrainingRunConfiguration.initialModelId, TrainingRoundCompleted.aggregatedModelId
         rule "Round one uses the initial model selected by the training configuration; later rounds use the aggregated model from the previous completed round."
+      }
+      baseModelArtifactUri: String derived {
+        from TrainingRunConfiguration.initialModelArtifactUri, TrainingRoundCompleted.aggregatedModelArtifactUri
+        rule "Snapshot the pullable artifact URI for the base model used by this participant execution plan."
+      }
+      baseModelRegistryRef: String derived {
+        from TrainingRunConfiguration.initialModelRegistryRef, TrainingRoundCompleted.aggregatedModelRegistryRef
+        rule "Snapshot the model registry reference that owns the base model artifact."
+      }
+      baseModelFormat: String derived {
+        from TrainingRunConfiguration.initialModelFormat, TrainingRoundCompleted.modelFormat
+        rule "Snapshot the model format required by the runtime engine."
+      }
+      baseModelArtifactDigest: String derived {
+        from TrainingRunConfiguration.initialModelArtifactDigest, TrainingRoundCompleted.modelArtifactDigest
+        rule "Snapshot the artifact digest used by runtime agents to verify the base model."
+      }
+      baseModelSignatureUri: String? derived {
+        from TrainingRunConfiguration.initialModelSignatureUri, TrainingRoundCompleted.aggregatedModelSignatureUri
+        rule "Snapshot the optional signature URI for the base model used by this participant execution plan."
       }
     }
 
@@ -2780,10 +2832,52 @@ context TrainingOrchestration {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
+      baseModelArtifactUri: String
+      baseModelRegistryRef: String
+      baseModelFormat: String
+      baseModelArtifactDigest: String
+      baseModelSignatureUri: String?
     }
 
     state PlanGenerated
+
+    specification "Participant Execution Plan Carries Base Model Artifact Snapshot" {
+      rule """
+        A participant execution plan must carry the immutable base model artifact snapshot needed by the runtime agent: model identity, pullable artifact URI, registry reference, model format, artifact digest, and optional signature URI. Runtime agents must not infer or query these values later from a mutable model repository view. Round one uses the initial model snapshot from the training run configuration; later rounds use the aggregated model snapshot recorded when the previous training round completed.
+      """
+
+      scenario "Generate Initial Round Plan With Initial Model Snapshot" {
+        given TrainingRoundStarted {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+          roundNumber = 1
+        }
+        when GenerateParticipantExecutionPlan {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+          roundNumber = 1
+        }
+        then ParticipantExecutionPlanGenerated
+      }
+
+      scenario "Generate Later Round Plan With Aggregated Model Snapshot" {
+        given TrainingRoundCompleted {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+          aggregatedModelId = "model-round-1"
+          aggregatedModelArtifactUri = "oci://registry.example.com/fl/model-round-1@sha256:def"
+          aggregatedModelRegistryRef = "oci://registry.example.com/fl"
+          modelArtifactDigest = "sha256:def"
+        }
+        when GenerateParticipantExecutionPlan {
+          trainingJobId = "job-1"
+          roundId = "round-2"
+          roundNumber = 2
+        }
+        then ParticipantExecutionPlanGenerated
+      }
+    }
   }
 
   slice DispatchParticipantExecutionPlan {
@@ -2805,7 +2899,12 @@ context TrainingOrchestration {
       roundNumber: Int from ParticipantExecutionPlanGenerated.roundNumber
       runtimeId: UUID from ParticipantExecutionPlanGenerated.runtimeId
       organizationId: UUID from ParticipantExecutionPlanGenerated.organizationId
-      baseModelVersionId: UUID from ParticipantExecutionPlanGenerated.baseModelVersionId
+      baseModelId: UUID from ParticipantExecutionPlanGenerated.baseModelId
+      baseModelArtifactUri: String from ParticipantExecutionPlanGenerated.baseModelArtifactUri
+      baseModelRegistryRef: String from ParticipantExecutionPlanGenerated.baseModelRegistryRef
+      baseModelFormat: String from ParticipantExecutionPlanGenerated.baseModelFormat
+      baseModelArtifactDigest: String from ParticipantExecutionPlanGenerated.baseModelArtifactDigest
+      baseModelSignatureUri: String? from ParticipantExecutionPlanGenerated.baseModelSignatureUri
     }
 
     event ParticipantExecutionPlanDispatched {
@@ -2818,7 +2917,12 @@ context TrainingOrchestration {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
+      baseModelArtifactUri: String
+      baseModelRegistryRef: String
+      baseModelFormat: String
+      baseModelArtifactDigest: String
+      baseModelSignatureUri: String?
     }
 
     state PlanDispatched
@@ -2838,7 +2942,7 @@ context TrainingOrchestration {
       roundExecutionId: UUID from AgentLocalModelUpdateSubmitted.roundExecutionId
       runtimeId: UUID from AgentLocalModelUpdateSubmitted.runtimeId
       featureSchemaId: UUID
-      localModelVersionId: UUID
+      localModelId: UUID
       updateArtifactId: UUID
       artifactRef: String
       artifactDigest: String
@@ -2855,7 +2959,7 @@ context TrainingOrchestration {
       roundExecutionId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
-      localModelVersionId: UUID
+      localModelId: UUID
       updateArtifactId: UUID
       artifactRef: String
       artifactDigest: String
@@ -2970,9 +3074,12 @@ context TrainingOrchestration {
       featureSchemaId: UUID from SecureAggregationCompleted.featureSchemaId
       roundId: UUID from SecureAggregationCompleted.roundId
       secureAggregationSessionId: UUID from SecureAggregationCompleted.secureAggregationSessionId
-      aggregatedModelVersionId: UUID from SecureAggregationCompleted.aggregatedModelVersionId
+      aggregatedModelId: UUID from SecureAggregationCompleted.aggregatedModelId
+      aggregatedModelArtifactUri: String from SecureAggregationCompleted.aggregatedModelArtifactUri
+      aggregatedModelRegistryRef: String from SecureAggregationCompleted.aggregatedModelRegistryRef
       modelFormat: String from SecureAggregationCompleted.modelFormat
-      modelHash: String from SecureAggregationCompleted.modelHash
+      modelArtifactDigest: String from SecureAggregationCompleted.modelArtifactDigest
+      aggregatedModelSignatureUri: String? from SecureAggregationCompleted.aggregatedModelSignatureUri
     }
 
     event GlobalModelUpdated {
@@ -2981,9 +3088,12 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       secureAggregationSessionId: UUID
-      aggregatedModelVersionId: UUID
+      aggregatedModelId: UUID
+      aggregatedModelArtifactUri: String
+      aggregatedModelRegistryRef: String
       modelFormat: String
-      modelHash: String
+      modelArtifactDigest: String
+      aggregatedModelSignatureUri: String?
     }
 
     state EvaluatingGlobalModel
@@ -2997,9 +3107,12 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
-      aggregatedModelVersionId: UUID
+      aggregatedModelId: UUID
+      aggregatedModelArtifactUri: String from GlobalModelUpdated.aggregatedModelArtifactUri
+      aggregatedModelRegistryRef: String from GlobalModelUpdated.aggregatedModelRegistryRef
       modelFormat: String from GlobalModelUpdated.modelFormat
-      modelHash: String from GlobalModelUpdated.modelHash
+      modelArtifactDigest: String from GlobalModelUpdated.modelArtifactDigest
+      aggregatedModelSignatureUri: String? from GlobalModelUpdated.aggregatedModelSignatureUri
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3009,9 +3122,12 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
-      aggregatedModelVersionId: UUID
+      aggregatedModelId: UUID
+      aggregatedModelArtifactUri: String
+      aggregatedModelRegistryRef: String
       modelFormat: String
-      modelHash: String
+      modelArtifactDigest: String
+      aggregatedModelSignatureUri: String?
       globalAccuracy: Decimal
       globalFairnessScore: Decimal
     }
@@ -3030,9 +3146,12 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
-      aggregatedModelVersionId: UUID
+      aggregatedModelId: UUID
+      aggregatedModelArtifactUri: String from GlobalModelEvaluationSubmitted.aggregatedModelArtifactUri
+      aggregatedModelRegistryRef: String from GlobalModelEvaluationSubmitted.aggregatedModelRegistryRef
       modelFormat: String from GlobalModelEvaluationSubmitted.modelFormat
-      modelHash: String from GlobalModelEvaluationSubmitted.modelHash
+      modelArtifactDigest: String from GlobalModelEvaluationSubmitted.modelArtifactDigest
+      aggregatedModelSignatureUri: String? from GlobalModelEvaluationSubmitted.aggregatedModelSignatureUri
       globalAccuracy: Decimal
     }
 
@@ -3041,9 +3160,12 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
-      aggregatedModelVersionId: UUID
+      aggregatedModelId: UUID
+      aggregatedModelArtifactUri: String
+      aggregatedModelRegistryRef: String
       modelFormat: String
-      modelHash: String
+      modelArtifactDigest: String
+      aggregatedModelSignatureUri: String?
       globalAccuracy: Decimal
     }
 
@@ -3059,14 +3181,14 @@ context TrainingOrchestration {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
           roundId = "round-1"
-          aggregatedModelVersionId = "model-1"
+          aggregatedModelId = "model-1"
           globalAccuracy = 0.91
         }
         when CompleteTrainingRound {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
           roundId = "round-1"
-          aggregatedModelVersionId = "model-1"
+          aggregatedModelId = "model-1"
           globalAccuracy = 0.91
         }
         then TrainingRoundCompleted
@@ -3077,13 +3199,13 @@ context TrainingOrchestration {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
           roundId = "round-1"
-          aggregatedModelVersionId = "model-1"
+          aggregatedModelId = "model-1"
         }
         when CompleteTrainingRound {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
           roundId = "round-1"
-          aggregatedModelVersionId = "model-1"
+          aggregatedModelId = "model-1"
         }
         then reject "Global Model Evaluation Required"
       }
@@ -3206,10 +3328,10 @@ context TrainingOrchestration {
       evaluationSubmittedAt: DateTime?
       completedAt: DateTime?
       failedAt: DateTime?
-      baseModelVersionId: UUID?
+      baseModelId: UUID?
       artifactRefs: String[]
       rejectedUpdateReasons: String[]
-      aggregatedModelVersionId: UUID?
+      aggregatedModelId: UUID?
       globalAccuracy: Decimal?
       globalFairnessScore: Decimal?
       failureReason: String?
@@ -3287,21 +3409,21 @@ context ModelLifecycle {
     }
 
     command RegisterCandidateModel {
-      modelVersionId: UUID id technical
+      modelId: UUID id technical
       trainingJobId: UUID
       finalRoundId: UUID
       modelArtifactId: UUID
-      modelHash: String
+      modelArtifactDigest: String
       evaluationReportId: UUID
       finalGlobalAccuracy: Decimal
     }
 
     event ModelCandidateRegistered {
-      modelVersionId: UUID id technical
+      modelId: UUID id technical
       trainingJobId: UUID
       finalRoundId: UUID
       modelArtifactId: UUID
-      modelHash: String
+      modelArtifactDigest: String
       evaluationReportId: UUID
       finalGlobalAccuracy: Decimal
     }
@@ -3315,25 +3437,25 @@ context ModelLifecycle {
     reactsTo ModelCandidateRegistered
 
     command RecordModelEvaluationPackage {
-      modelVersionId: UUID id technical
+      modelId: UUID id technical
       trainingJobId: UUID
       evaluationReportId: UUID
       experimentId: UUID
       hyperparameterSnapshotId: UUID
       reproducibilityManifestId: UUID
       modelCardId: UUID
-      baselineModelVersionId: UUID?
+      baselineModelId: UUID?
     }
 
     event ModelEvaluationPackageRecorded {
-      modelVersionId: UUID id technical from RecordModelEvaluationPackage.modelVersionId
+      modelId: UUID id technical from RecordModelEvaluationPackage.modelId
       trainingJobId: UUID from RecordModelEvaluationPackage.trainingJobId
       evaluationReportId: UUID from RecordModelEvaluationPackage.evaluationReportId
       experimentId: UUID from RecordModelEvaluationPackage.experimentId
       hyperparameterSnapshotId: UUID from RecordModelEvaluationPackage.hyperparameterSnapshotId
       reproducibilityManifestId: UUID from RecordModelEvaluationPackage.reproducibilityManifestId
       modelCardId: UUID from RecordModelEvaluationPackage.modelCardId
-      baselineModelVersionId: UUID? from RecordModelEvaluationPackage.baselineModelVersionId
+      baselineModelId: UUID? from RecordModelEvaluationPackage.baselineModelId
     }
 
     state EvaluationPackaged
@@ -3345,11 +3467,11 @@ context ModelLifecycle {
 
       scenario "Record Complete Evaluation Package" {
         given ModelCandidateRegistered {
-          modelVersionId = "model-1"
+          modelId = "model-1"
           evaluationReportId = "report-1"
         }
         when RecordModelEvaluationPackage {
-          modelVersionId = "model-1"
+          modelId = "model-1"
           reproducibilityManifestId = "manifest-1"
           modelCardId = "card-1"
         }
@@ -3364,12 +3486,12 @@ context ModelLifecycle {
     reactsTo ModelEvaluationPackageRecorded
 
     command ApproveModel {
-      modelVersionId: UUID id technical
+      modelId: UUID id technical
       approvalNote: String?
     }
 
     event ModelApproved {
-      modelVersionId: UUID id technical
+      modelId: UUID id technical
       approvalNote: String?
     }
 
@@ -3382,24 +3504,24 @@ context ModelLifecycle {
 
       scenario "Approve Evaluation Packaged Model" {
         given ModelEvaluationPackageRecorded {
-          modelVersionId = "model-1"
+          modelId = "model-1"
           evaluationReportId = "report-1"
           reproducibilityManifestId = "manifest-1"
           modelCardId = "card-1"
         }
         when ApproveModel {
-          modelVersionId = "model-1"
+          modelId = "model-1"
         }
         then ModelApproved
       }
 
       scenario "Reject Candidate Without Evaluation Package" {
         given ModelCandidateRegistered {
-          modelVersionId = "model-1"
+          modelId = "model-1"
           evaluationReportId = "report-1"
         }
         when ApproveModel {
-          modelVersionId = "model-1"
+          modelId = "model-1"
         }
         then reject "Model Evaluation Package Required"
       }
@@ -3412,13 +3534,13 @@ context ModelLifecycle {
     reactsTo ModelApproved
 
     command PromoteModelToProduction {
-      modelVersionId: UUID id technical
+      modelId: UUID id technical
       releaseChannel: String dictionary "MODEL_RELEASE_CHANNEL"
       productionStage: String dictionary "MODEL_PRODUCTION_STAGE"
     }
 
     event ModelPromotedToProduction {
-      modelVersionId: UUID id technical
+      modelId: UUID id technical
       releaseChannel: String dictionary "MODEL_RELEASE_CHANNEL"
       productionStage: String dictionary "MODEL_PRODUCTION_STAGE"
     }
@@ -3427,15 +3549,15 @@ context ModelLifecycle {
 
     specification "Only Approved Models Can Be Promoted To Production" {
       rule """
-        A model version can be promoted to production only after governance approval.
+        A model can be promoted to production only after governance approval.
       """
 
       scenario "Promote Approved Model" {
         given ModelApproved {
-          modelVersionId = "model-1"
+          modelId = "model-1"
         }
         when PromoteModelToProduction {
-          modelVersionId = "model-1"
+          modelId = "model-1"
           releaseChannel = "stable"
           productionStage = "production"
         }
@@ -3444,10 +3566,10 @@ context ModelLifecycle {
 
       scenario "Reject Unapproved Model Promotion" {
         given ModelEvaluationPackageRecorded {
-          modelVersionId = "model-1"
+          modelId = "model-1"
         }
         when PromoteModelToProduction {
-          modelVersionId = "model-1"
+          modelId = "model-1"
           releaseChannel = "stable"
           productionStage = "production"
         }
@@ -3456,66 +3578,66 @@ context ModelLifecycle {
     }
   }
 
-  slice RollbackModelVersion {
+  slice RollbackModel {
     actor ReleaseManager
     ui ModelReleaseScreen
     reactsTo ModelPromotedToProduction
 
-    command RollbackModelVersion {
-      modelVersionId: UUID id technical
-      previousModelVersionId: UUID
+    command RollbackModel {
+      modelId: UUID id technical
+      previousModelId: UUID
       rollbackReason: String
     }
 
-    event ModelVersionRolledBack {
-      modelVersionId: UUID id technical
-      previousModelVersionId: UUID
+    event ModelRolledBack {
+      modelId: UUID id technical
+      previousModelId: UUID
       rollbackReason: String
     }
 
     state RolledBack
   }
 
-  slice RetireModelVersion {
+  slice RetireModel {
     actor ReleaseManager
     ui ModelReleaseScreen
     reactsTo ModelPromotedToProduction
 
-    command RetireModelVersion {
-      modelVersionId: UUID id technical
+    command RetireModel {
+      modelId: UUID id technical
       retirementReason: String
     }
 
-    event ModelVersionRetired {
-      modelVersionId: UUID id technical
+    event ModelRetired {
+      modelId: UUID id technical
       retirementReason: String
     }
 
     state Retired
   }
 
-  slice ModelVersionCatalog {
-    readmodel ModelVersionCatalog[] {
-      modelVersionId: UUID id
+  slice ModelCatalog {
+    readmodel ModelCatalog[] {
+      modelId: UUID id
       trainingJobId: UUID
       finalRoundId: UUID
       modelArtifactId: UUID
       trainingJobObjective: String? derived {
         from TrainingJobCreated.objective
-        rule "Lookup by trainingJobId and denormalize the training job objective into the model version catalog."
+        rule "Lookup by trainingJobId and denormalize the training job objective into the model catalog."
       }
-      modelHash: String
+      modelArtifactDigest: String
       evaluationReportId: UUID
       finalGlobalAccuracy: Decimal
-      state: ModelVersion.State
+      state: Model.State
       releaseChannel: String? dictionary "MODEL_RELEASE_CHANNEL"
       productionStage: String? dictionary "MODEL_PRODUCTION_STAGE"
-      previousModelVersionId: UUID?
+      previousModelId: UUID?
       experimentId: UUID?
       hyperparameterSnapshotId: UUID?
       reproducibilityManifestId: UUID?
       modelCardId: UUID?
-      baselineModelVersionId: UUID?
+      baselineModelId: UUID?
       hasEvaluationPackage: Boolean
       approvalStatus: String
       releaseStatus: String
@@ -3531,12 +3653,12 @@ context ModelLifecycle {
       subscribe ModelEvaluationPackageRecorded
       subscribe ModelApproved
       subscribe ModelPromotedToProduction
-      subscribe ModelVersionRolledBack
-      subscribe ModelVersionRetired
+      subscribe ModelRolledBack
+      subscribe ModelRetired
     }
   }
 
-  concept ModelVersion {
+  concept Model {
     state Candidate
     state EvaluationPackaged
     state Approved
@@ -3548,9 +3670,9 @@ context ModelLifecycle {
     slice RecordModelEvaluationPackage
     slice ApproveModel
     slice PromoteModelToProduction
-    slice RollbackModelVersion
-    slice RetireModelVersion
-    slice ModelVersionCatalog
+    slice RollbackModel
+    slice RetireModel
+    slice ModelCatalog
   }
 }
 
@@ -4325,9 +4447,12 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID from SecureAggregationSessionCreated.trainingRunConfigurationId
       featureSchemaId: UUID from SecureAggregationSessionCreated.featureSchemaId
       roundId: UUID from SecureAggregationSessionCreated.roundId
-      aggregatedModelVersionId: UUID generated technical
+      aggregatedModelId: UUID generated technical
+      aggregatedModelArtifactUri: String
+      aggregatedModelRegistryRef: String
       modelFormat: String
-      modelHash: String
+      modelArtifactDigest: String
+      aggregatedModelSignatureUri: String?
     }
 
     event SecureAggregationCompleted {
@@ -4336,9 +4461,12 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
-      aggregatedModelVersionId: UUID
+      aggregatedModelId: UUID
+      aggregatedModelArtifactUri: String
+      aggregatedModelRegistryRef: String
       modelFormat: String
-      modelHash: String
+      modelArtifactDigest: String
+      aggregatedModelSignatureUri: String?
     }
 
     state Completed
@@ -4377,9 +4505,9 @@ context SecureAggregation {
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
       publicKeyVersion: String?
       encryptedParameterScale: Int?
-      aggregatedModelVersionId: UUID?
+      aggregatedModelId: UUID?
       modelFormat: String?
-      modelHash: String?
+      modelArtifactDigest: String?
       state: SecureAggregationSession.State
       failureReason: String?
       createdAt: DateTime
@@ -5431,7 +5559,12 @@ context RuntimeAgentOperations {
       roundNumber: Int from ParticipantExecutionPlanDispatched.roundNumber
       runtimeId: UUID from ParticipantExecutionPlanDispatched.runtimeId
       organizationId: UUID from ParticipantExecutionPlanDispatched.organizationId
-      baseModelVersionId: UUID from ParticipantExecutionPlanDispatched.baseModelVersionId
+      baseModelId: UUID from ParticipantExecutionPlanDispatched.baseModelId
+      baseModelArtifactUri: String from ParticipantExecutionPlanDispatched.baseModelArtifactUri
+      baseModelRegistryRef: String from ParticipantExecutionPlanDispatched.baseModelRegistryRef
+      baseModelFormat: String from ParticipantExecutionPlanDispatched.baseModelFormat
+      baseModelArtifactDigest: String from ParticipantExecutionPlanDispatched.baseModelArtifactDigest
+      baseModelSignatureUri: String? from ParticipantExecutionPlanDispatched.baseModelSignatureUri
     }
 
     event ExecutionPlanReceived {
@@ -5444,7 +5577,12 @@ context RuntimeAgentOperations {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
+      baseModelArtifactUri: String
+      baseModelRegistryRef: String
+      baseModelFormat: String
+      baseModelArtifactDigest: String
+      baseModelSignatureUri: String?
     }
 
     state PlanReceived
@@ -5469,7 +5607,12 @@ context RuntimeAgentOperations {
       roundNumber: Int from ExecutionPlanReceived.roundNumber
       runtimeId: UUID from ExecutionPlanReceived.runtimeId
       organizationId: UUID from ExecutionPlanReceived.organizationId
-      baseModelVersionId: UUID from ExecutionPlanReceived.baseModelVersionId
+      baseModelId: UUID from ExecutionPlanReceived.baseModelId
+      baseModelArtifactUri: String from ExecutionPlanReceived.baseModelArtifactUri
+      baseModelRegistryRef: String from ExecutionPlanReceived.baseModelRegistryRef
+      baseModelFormat: String from ExecutionPlanReceived.baseModelFormat
+      baseModelArtifactDigest: String from ExecutionPlanReceived.baseModelArtifactDigest
+      baseModelSignatureUri: String? from ExecutionPlanReceived.baseModelSignatureUri
     }
 
     event ExecutionPlanAccepted {
@@ -5482,7 +5625,12 @@ context RuntimeAgentOperations {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
+      baseModelArtifactUri: String
+      baseModelRegistryRef: String
+      baseModelFormat: String
+      baseModelArtifactDigest: String
+      baseModelSignatureUri: String?
       localExecutionRequirementsSatisfied: Boolean
       runtimeIdentityMatched: Boolean
       runtimeDatasetBindingAvailable: Boolean
@@ -5503,7 +5651,12 @@ context RuntimeAgentOperations {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
+      baseModelArtifactUri: String
+      baseModelRegistryRef: String
+      baseModelFormat: String
+      baseModelArtifactDigest: String
+      baseModelSignatureUri: String?
       localExecutionRequirementsSatisfied: Boolean
       runtimeIdentityMatched: Boolean
       runtimeDatasetBindingAvailable: Boolean
@@ -5564,7 +5717,12 @@ context RuntimeAgentOperations {
       runtimeId: UUID from ExecutionPlanAccepted.runtimeId
       organizationId: UUID from ExecutionPlanAccepted.organizationId
       featureSchemaId: UUID from ExecutionPlanAccepted.featureSchemaId
-      baseModelVersionId: UUID from ExecutionPlanAccepted.baseModelVersionId
+      baseModelId: UUID from ExecutionPlanAccepted.baseModelId
+      baseModelArtifactUri: String from ExecutionPlanAccepted.baseModelArtifactUri
+      baseModelRegistryRef: String from ExecutionPlanAccepted.baseModelRegistryRef
+      baseModelFormat: String from ExecutionPlanAccepted.baseModelFormat
+      baseModelArtifactDigest: String from ExecutionPlanAccepted.baseModelArtifactDigest
+      baseModelSignatureUri: String? from ExecutionPlanAccepted.baseModelSignatureUri
       runtimeEngineJobId: String
     }
 
@@ -5579,7 +5737,12 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
+      baseModelArtifactUri: String
+      baseModelRegistryRef: String
+      baseModelFormat: String
+      baseModelArtifactDigest: String
+      baseModelSignatureUri: String?
       runtimeEngineJobId: String
     }
 
@@ -5594,7 +5757,12 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
+      baseModelArtifactUri: String
+      baseModelRegistryRef: String
+      baseModelFormat: String
+      baseModelArtifactDigest: String
+      baseModelSignatureUri: String?
       runtimeEngineJobId: String?
       failureReason: String
     }
@@ -5703,7 +5871,7 @@ context RuntimeAgentOperations {
       runtimeId: UUID from RoundExecutionStartFailed.runtimeId
       organizationId: UUID from RoundExecutionStartFailed.organizationId
       featureSchemaId: UUID from RoundExecutionStartFailed.featureSchemaId
-      baseModelVersionId: UUID from RoundExecutionStartFailed.baseModelVersionId
+      baseModelId: UUID from RoundExecutionStartFailed.baseModelId
       runtimeEngineJobId: String
       retryReason: String
     }
@@ -5719,7 +5887,7 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
       runtimeEngineJobId: String
       retryReason: String
     }
@@ -5735,7 +5903,7 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
       runtimeEngineJobId: String?
       retryReason: String
       failureReason: String
@@ -5761,7 +5929,7 @@ context RuntimeAgentOperations {
       runtimeId: UUID from RoundExecutionFailed.runtimeId
       organizationId: UUID derived from RoundExecutionStarted.organizationId by roundExecutionId
       featureSchemaId: UUID derived from RoundExecutionStarted.featureSchemaId by roundExecutionId
-      baseModelVersionId: UUID derived from RoundExecutionStarted.baseModelVersionId by roundExecutionId
+      baseModelId: UUID derived from RoundExecutionStarted.baseModelId by roundExecutionId
       runtimeEngineJobId: String
       retryReason: String
     }
@@ -5777,7 +5945,7 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
       runtimeEngineJobId: String
       retryReason: String
     }
@@ -5793,7 +5961,7 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
-      baseModelVersionId: UUID
+      baseModelId: UUID
       runtimeEngineJobId: String?
       retryReason: String
       failureReason: String
@@ -5821,7 +5989,7 @@ context RuntimeAgentOperations {
       roundId: UUID from RoundExecutionCompleted.roundId
       runtimeId: UUID from RoundExecutionCompleted.runtimeId
       featureSchemaId: UUID derived from RoundExecutionStarted.featureSchemaId by roundExecutionId
-      localModelVersionId: UUID
+      localModelId: UUID
       updateArtifactId: UUID
       artifactRef: String
       artifactDigest: String
@@ -5838,7 +6006,7 @@ context RuntimeAgentOperations {
       roundId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
-      localModelVersionId: UUID
+      localModelId: UUID
       updateArtifactId: UUID
       artifactRef: String
       artifactDigest: String
@@ -5975,7 +6143,7 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       state: RoundExecution.State
       featureSchemaId: UUID?
-      baseModelVersionId: UUID?
+      baseModelId: UUID?
       runtimeEngineJobId: String?
       localExecutionRequirementsSatisfied: Boolean?
       runtimeIdentityMatched: Boolean?
