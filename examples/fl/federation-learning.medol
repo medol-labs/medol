@@ -734,7 +734,7 @@ context DictionaryMaintenance {
 }
 
 context FileUpload {
-  note "File upload owns short-lived staged file references used by generated forms and backend adapters. Business commands store the staged file location returned by this context, not a browser-local file path."
+  note "File upload owns short-lived staged file references used by generated forms and backend adapters. Business commands store the stagedFileId returned by this context, not a browser-local file path or storage location."
 
   risk "Staged files can leak sensitive model or dataset content if retention, ownership, and content validation are not enforced."
   risk "Business commands can fail later if staged files expire before the consuming adapter imports them."
@@ -743,16 +743,19 @@ context FileUpload {
 
   slice StageFileUpload {
     startsLifecycle
-    port
 
     actor PlatformUser
     ui FileUploadDialog
 
     command StageFileUpload {
       stagedFileId: UUID id generated technical
-      originalFileName: String display
-      contentType: String?
-      sizeBytes: Int?
+      uploadedFile: String uploadFile
+      originalFileName: String technical
+      contentType: String? technical
+      sizeBytes: Long? technical
+      stagedFileLocation: String technical
+      checksum: String? technical
+      expiresAt: DateTime technical
       purpose: String
     }
 
@@ -760,49 +763,33 @@ context FileUpload {
       stagedFileId: UUID id technical
       originalFileName: String display
       contentType: String?
-      sizeBytes: Int?
+      sizeBytes: Long?
       purpose: String
       stagedFileLocation: String
       checksum: String?
       expiresAt: DateTime
     }
 
-    event FileUploadRejected {
-      stagedFileId: UUID id technical
-      originalFileName: String display
-      contentType: String?
-      sizeBytes: Int?
-      purpose: String
-      failureReason: String
-    }
-
     state Staged
 
     specification "Uploaded File Is Staged Before Business Command Submission" {
       rule """
-        A file field in a generated form first stages the selected browser file through the FileUpload deployment. The upload adapter stores the file in server-side temporary storage, computes optional checksum metadata, assigns a stagedFileLocation, and returns that location to the form. Business commands submit the stagedFileLocation as a string reference and consuming adapters import the file from server-side staging.
+        A file field in a generated form first stages the selected browser file through the FileUpload deployment. The upload adapter stores the file in server-side temporary storage, computes optional checksum metadata, assigns a stagedFileLocation, and returns a stagedFileId to the form. Business commands submit the stagedFileId as a reference and consuming adapters query FileUpload metadata or content before importing the file into durable business storage.
       """
 
       scenario "Stage Upload For Model Import" {
         when StageFileUpload {
           stagedFileId = "staged-file-1"
+          uploadedFile = "file://credit-risk-initial.onnx"
           originalFileName = "credit-risk-initial.onnx"
           contentType = "application/octet-stream"
-          sizeBytes = 1024
+          sizeBytes = 2048
+          stagedFileLocation = "file://staged/staged-file-1/credit-risk-initial.onnx"
+          checksum = "sha256:model"
+          expiresAt = "2026-07-25T12:00:00"
           purpose = "MODEL_ARTIFACT_IMPORT"
         }
         then FileUploadStaged
-      }
-
-      scenario "Reject Unsupported Upload" {
-        when StageFileUpload {
-          stagedFileId = "staged-file-2"
-          originalFileName = "credit-risk-initial.exe"
-          contentType = "application/octet-stream"
-          sizeBytes = 1024
-          purpose = "MODEL_ARTIFACT_IMPORT"
-        }
-        then FileUploadRejected
       }
     }
   }
@@ -949,7 +936,7 @@ context FileUpload {
       stagedFileId: UUID id
       originalFileName: String display
       contentType: String?
-      sizeBytes: Int?
+      sizeBytes: Long?
       purpose: String query
       stagedFileLocation: String
       checksum: String?
@@ -964,9 +951,7 @@ context FileUpload {
       expiresAt: DateTime?
       expiredAt: DateTime?
       expirationReason: String?
-      failureReason: String?
       subscribe FileUploadStaged
-      subscribe FileUploadRejected
       subscribe StagedFileConsumed
       subscribe StagedFileDiscarded
       subscribe StagedFileExpired
@@ -978,7 +963,6 @@ context FileUpload {
     state Consumed
     state Discarded
     state Expired
-    state Rejected
 
     slice StageFileUpload
     slice MarkStagedFileConsumed
@@ -2002,7 +1986,7 @@ context ModelRepository {
       modelName: String display
       modelVersion: String
       sourceType: String
-      sourceLocation: String? file
+      stagedFileId: UUID? file
       modelFormat: String?
     }
 
@@ -2023,7 +2007,7 @@ context ModelRepository {
 
     specification "Model Artifact Must Be Pullable And Verifiable" {
       rule """
-        Registering a model artifact is a port-backed import operation. modelName identifies the logical model and modelVersion identifies the business version under that model; the pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. For uploaded files, sourceLocation is the stagedFileLocation returned by FileUpload, not a browser-local file path. The adapter imports the staged source model into the managed model registry, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelArtifactUri identifies the concrete pullable artifact for that version.
+        Registering a model artifact is a port-backed import operation. modelName identifies the logical model and modelVersion identifies the business version under that model; the pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. For uploaded files, stagedFileId references a file previously staged by FileUpload, not a browser-local file path. The adapter queries FileUpload metadata or content, imports the staged source model into the managed model registry, marks the staged file consumed after a successful import, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelArtifactUri identifies the concrete pullable artifact for that version.
 
         unique (ModelArtifact.modelName, ModelArtifact.modelVersion)
       """
@@ -2034,7 +2018,7 @@ context ModelRepository {
           modelName = "credit-risk"
           modelVersion = "v1"
           sourceType = "UPLOAD"
-          sourceLocation = "upload://credit-risk-initial.onnx"
+          stagedFileId = "staged-file-1"
           modelFormat = "ONNX"
         }
         then ModelArtifactRegistered
@@ -6855,7 +6839,7 @@ context RuntimeAgentOperations {
 
   }
 
-  deployment FederationLearningDictionary {
+  deployment FederationLearningSupport {
     includes DictionaryMaintenance
     includes FileUpload
   }

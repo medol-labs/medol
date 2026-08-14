@@ -126,6 +126,7 @@ export type MedolKeywordNames =
     | "type"
     | "ui"
     | "unique"
+    | "uploadFile"
     | "userJourney"
     | "value"
     | "view"
@@ -745,10 +746,10 @@ export function isField(item: unknown): item is Field {
     return reflection.isInstance(item, Field.$type);
 }
 
-export type FieldAttribute = 'display' | 'file' | 'generated' | 'id' | 'query' | 'technical';
+export type FieldAttribute = 'display' | 'file' | 'generated' | 'id' | 'query' | 'technical' | 'uploadFile';
 
 export function isFieldAttribute(item: unknown): item is FieldAttribute {
-    return item === 'id' || item === 'generated' || item === 'technical' || item === 'query' || item === 'display' || item === 'file';
+    return item === 'id' || item === 'generated' || item === 'technical' || item === 'query' || item === 'display' || item === 'uploadFile' || item === 'file';
 }
 
 export interface FieldDerivation extends langium.AstNode {

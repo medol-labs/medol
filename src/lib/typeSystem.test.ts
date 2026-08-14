@@ -159,6 +159,45 @@ test('parses file field attribute and preserves it for code generation', () => {
   assert.match(roundTripDsl, /sourceLocation: String\? file/);
 });
 
+test('parses uploadFile field attribute and preserves it for code generation', () => {
+  const model = parseMedol(`
+    context FileUpload {
+      slice StageFileUpload {
+        command StageFileUpload {
+          uploadedFile: String uploadFile
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const field = model.contexts[0].slices[0].elements[0].fields.find((item) => item.name === 'uploadedFile');
+  assert(field);
+  assert(field.attributes.includes('uploadFile'));
+
+  const codegen = modelToCodegenModel(model);
+  const codegenField = codegen.slices[0].commands[0].fields.find((item) => item.name === 'uploadedFile');
+  assert.equal(codegenField?.uploadFile, true);
+
+  const roundTripDsl = configToDsl({
+    context: 'FileUpload',
+    slices: [{
+      title: 'StageFileUpload',
+      commands: [{
+        title: 'StageFileUpload',
+        fields: [{
+          name: 'uploadedFile',
+          type: 'String',
+          cardinality: 'Single',
+          optional: false,
+          uploadFile: true
+        }]
+      }]
+    }]
+  });
+  assert.match(roundTripDsl, /uploadedFile: String uploadFile/);
+});
+
 test('parses slice port marker and preserves it for code generation', () => {
   const model = parseMedol(`
     context Runtime {

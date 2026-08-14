@@ -3125,6 +3125,10 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
           },
           {
             "$type": "Keyword",
+            "value": "uploadFile"
+          },
+          {
+            "$type": "Keyword",
             "value": "file"
           }
         ]

@@ -14,6 +14,7 @@ interface ConfigField {
   technicalAttribute?: boolean;
   query?: boolean;
   display?: boolean;
+  uploadFile?: boolean;
   file?: boolean;
   derived?: boolean;
   mappings?: Array<string | ConfigFieldMapping>;
@@ -516,6 +517,7 @@ const formatField = (field: ConfigField): string => {
     field.technicalAttribute ? 'technical' : '',
     field.query ? 'query' : '',
     field.display ? 'display' : '',
+    field.uploadFile ? 'uploadFile' : '',
     field.file ? 'file' : ''
   ].filter(Boolean);
   const prefix = `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;

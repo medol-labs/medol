@@ -56,6 +56,7 @@ export const registerMedolLanguage = (monaco: Monaco): void => {
       'from',
       'derived',
       'display',
+      'uploadFile',
       'file',
       'rule',
       'example',
