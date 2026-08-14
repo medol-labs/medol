@@ -1971,7 +1971,6 @@ context ModelRepository {
 
   slice RegisterModelArtifact {
     startsLifecycle
-    port
 
     actor MLOpsEngineer
     ui ModelRepositoryScreen
