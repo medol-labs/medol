@@ -1806,6 +1806,7 @@ context DatasetGovernance {
       organizationId: UUID from AgentDatasetMetadataReported.organizationId
       runtimeId: UUID from AgentDatasetMetadataReported.runtimeId
       featureSchemaId: UUID from AgentDatasetMetadataReported.featureSchemaId
+      datasetName: String from AgentDatasetMetadataReported.datasetName
       sampleCount: Int from AgentDatasetMetadataReported.sampleCount
       featureCount: Int from AgentDatasetMetadataReported.featureCount
       schemaCompatible: Boolean? from AgentDatasetMetadataReported.schemaCompatible
@@ -1823,6 +1824,7 @@ context DatasetGovernance {
       organizationId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
+      datasetName: String
       sampleCount: Int
       featureCount: Int
       schemaCompatible: Boolean?
@@ -1851,6 +1853,7 @@ context DatasetGovernance {
       organizationId: UUID from AgentDatasetReprofiled.organizationId
       runtimeId: UUID from AgentDatasetReprofiled.runtimeId
       featureSchemaId: UUID from AgentDatasetReprofiled.featureSchemaId
+      datasetName: String from AgentDatasetReprofiled.datasetName
       sampleCount: Int from AgentDatasetReprofiled.sampleCount
       featureCount: Int from AgentDatasetReprofiled.featureCount
       schemaCompatible: Boolean? from AgentDatasetReprofiled.schemaCompatible
@@ -1868,6 +1871,7 @@ context DatasetGovernance {
       organizationId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
+      datasetName: String
       sampleCount: Int
       featureCount: Int
       schemaCompatible: Boolean?
@@ -1889,10 +1893,7 @@ context DatasetGovernance {
       organizationId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
-      datasetName: String? derived {
-        from DatasetDeclared.datasetName
-        rule "Lookup by datasetId and denormalize the dataset display name into the platform runtime dataset metadata catalog."
-      }
+      datasetName: String? display
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the platform runtime dataset metadata catalog."
@@ -1917,11 +1918,10 @@ context DatasetGovernance {
       profilingStatus: String
       failureReason: String?
       profiledAt: DateTime?
-      subscribe DatasetDeclared
       subscribe OrganizationRegistered
       subscribe FeatureSchemaDefined
-      subscribe AgentDatasetMetadataReported
-      subscribe AgentDatasetReprofiled
+      subscribe DatasetMetadataReported
+      subscribe DatasetMetadataReprofiled
       subscribe AgentDatasetProfilingFailed
       subscribe AgentDatasetReprofilingFailed
     }
@@ -2423,8 +2423,8 @@ context TrainingOrchestration {
 
     command LockTrainingRunConfiguration {
       trainingRunConfigurationId: UUID id technical derived {
-        from TrainingJob.trainingRunConfigurationId
-        rule "Lock the configuration selected by the submitted training job."
+        from TrainingJobSubmitted.trainingRunConfigurationId
+        rule "Lock the configuration carried by the submitted training job event."
       }
       trainingJobId: UUID from TrainingJobSubmitted.trainingJobId
     }
@@ -2576,6 +2576,10 @@ context TrainingOrchestration {
 
     event TrainingJobSubmitted {
       trainingJobId: UUID id technical from SubmitTrainingJob.trainingJobId
+      trainingRunConfigurationId: UUID derived {
+        from TrainingJob.trainingRunConfigurationId
+        rule "Carry the submitted job's training run configuration so automation can lock the exact configuration instead of creating a new one."
+      }
     }
 
     state Submitted
@@ -4958,6 +4962,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from DatasetDeclared.datasetId
       organizationId: UUID from DatasetDeclared.organizationId
       featureSchemaId: UUID from DatasetDeclared.featureSchemaId
+      datasetName: String from DatasetDeclared.datasetName
       runtimeId: UUID
       dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
       host: String?
@@ -4979,6 +4984,7 @@ context RuntimeAgentOperations {
       datasetId: UUID
       organizationId: UUID
       featureSchemaId: UUID
+      datasetName: String
       runtimeId: UUID
       dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
       host: String?
@@ -5025,10 +5031,7 @@ context RuntimeAgentOperations {
       datasetId: UUID
       organizationId: UUID
       runtimeId: UUID
-      datasetName: String? display derived {
-        from DatasetDeclared.datasetName
-        rule "Lookup by datasetId and denormalize the dataset display name into the local runtime dataset binding catalog."
-      }
+      datasetName: String? display
       dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
       host: String?
       port: Int?
@@ -5088,6 +5091,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
       organizationId: UUID from RuntimeDatasetBindingConfigured.organizationId
       featureSchemaId: UUID from RuntimeDatasetBindingConfigured.featureSchemaId
+      datasetName: String from RuntimeDatasetBindingConfigured.datasetName
       runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
       dataSourceType: String from RuntimeDatasetBindingConfigured.dataSourceType
       host: String? from RuntimeDatasetBindingConfigured.host
@@ -5109,6 +5113,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
       organizationId: UUID from RuntimeDatasetBindingConfigured.organizationId
       featureSchemaId: UUID from RuntimeDatasetBindingConfigured.featureSchemaId
+      datasetName: String from RuntimeDatasetBindingConfigured.datasetName
       runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
       readable: Boolean
       schemaReadable: Boolean
@@ -5121,6 +5126,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
       organizationId: UUID from RuntimeDatasetBindingConfigured.organizationId
       featureSchemaId: UUID from RuntimeDatasetBindingConfigured.featureSchemaId
+      datasetName: String from RuntimeDatasetBindingConfigured.datasetName
       runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
       failureReason: String
     }
@@ -5181,6 +5187,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from AgentDatasetAccessValidationFailed.datasetId
       organizationId: UUID from AgentDatasetAccessValidationFailed.organizationId
       featureSchemaId: UUID from AgentDatasetAccessValidationFailed.featureSchemaId
+      datasetName: String from AgentDatasetAccessValidationFailed.datasetName
       runtimeId: UUID from AgentDatasetAccessValidationFailed.runtimeId
       readable: Boolean
       schemaReadable: Boolean
@@ -5193,6 +5200,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from AgentDatasetAccessValidationFailed.datasetId
       organizationId: UUID from AgentDatasetAccessValidationFailed.organizationId
       featureSchemaId: UUID from AgentDatasetAccessValidationFailed.featureSchemaId
+      datasetName: String from AgentDatasetAccessValidationFailed.datasetName
       runtimeId: UUID from AgentDatasetAccessValidationFailed.runtimeId
       failureReason: String
     }
@@ -5230,10 +5238,7 @@ context RuntimeAgentOperations {
       organizationId: UUID
       featureSchemaId: UUID
       runtimeId: UUID
-      datasetName: String? derived {
-        from DatasetDeclared.datasetName
-        rule "Lookup by datasetId and denormalize the dataset display name into the agent dataset access validation catalog."
-      }
+      datasetName: String?
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
@@ -5283,6 +5288,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from AgentDatasetAccessValidated.datasetId
       organizationId: UUID from AgentDatasetAccessValidated.organizationId
       featureSchemaId: UUID from AgentDatasetAccessValidated.featureSchemaId
+      datasetName: String from AgentDatasetAccessValidated.datasetName
       runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
     }
 
@@ -5293,6 +5299,7 @@ context RuntimeAgentOperations {
       organizationId: UUID from AgentDatasetAccessValidated.organizationId
       runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
       featureSchemaId: UUID from AgentDatasetAccessValidated.featureSchemaId
+      datasetName: String from AgentDatasetAccessValidated.datasetName
       sampleCount: Int
       featureCount: Int
       schemaCompatible: Boolean?
@@ -5310,6 +5317,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from AgentDatasetAccessValidated.datasetId
       organizationId: UUID from AgentDatasetAccessValidated.organizationId
       featureSchemaId: UUID from AgentDatasetAccessValidated.featureSchemaId
+      datasetName: String from AgentDatasetAccessValidated.datasetName
       runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
       failureReason: String
     }
@@ -5365,6 +5373,7 @@ context RuntimeAgentOperations {
       organizationId: UUID from AgentDatasetProfilingFailed.organizationId
       runtimeId: UUID from AgentDatasetProfilingFailed.runtimeId
       featureSchemaId: UUID from AgentDatasetProfilingFailed.featureSchemaId
+      datasetName: String from AgentDatasetProfilingFailed.datasetName
       sampleCount: Int
       featureCount: Int
       schemaCompatible: Boolean?
@@ -5382,6 +5391,7 @@ context RuntimeAgentOperations {
       datasetId: UUID from AgentDatasetProfilingFailed.datasetId
       organizationId: UUID from AgentDatasetProfilingFailed.organizationId
       featureSchemaId: UUID from AgentDatasetProfilingFailed.featureSchemaId
+      datasetName: String from AgentDatasetProfilingFailed.datasetName
       runtimeId: UUID from AgentDatasetProfilingFailed.runtimeId
       failureReason: String
     }
@@ -5455,20 +5465,20 @@ context RuntimeAgentOperations {
       datasetId: UUID id technical
       featureSchemaId: UUID
       metadataReportId: UUID
-      schemaCompatible: Boolean from AgentDatasetMetadataReported.schemaCompatible
-      labelCompatible: Boolean from AgentDatasetMetadataReported.labelCompatible
-      qualityScore: Decimal from AgentDatasetMetadataReported.qualityScore
-      nonIidScore: Decimal from AgentDatasetMetadataReported.nonIidScore
+      schemaCompatible: Boolean
+      labelCompatible: Boolean
+      qualityScore: Decimal
+      nonIidScore: Decimal
     }
 
     event DatasetContractValidationFailed {
       datasetId: UUID id technical
       featureSchemaId: UUID
       metadataReportId: UUID
-      schemaCompatible: Boolean from AgentDatasetMetadataReported.schemaCompatible
-      labelCompatible: Boolean from AgentDatasetMetadataReported.labelCompatible
-      qualityScore: Decimal from AgentDatasetMetadataReported.qualityScore
-      nonIidScore: Decimal from AgentDatasetMetadataReported.nonIidScore
+      schemaCompatible: Boolean
+      labelCompatible: Boolean
+      qualityScore: Decimal
+      nonIidScore: Decimal
       failureReason: String generated technical
     }
 
