@@ -2887,11 +2887,26 @@ context TrainingOrchestration {
       selectedRuntimeCount: Int
     }
 
+    event TrainingRoundParticipantSelectionFailed {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
+      roundNumber: Int
+      minimumNodesPerRound: Int
+      selectedOrganizationIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedParticipants: TrainingRoundParticipant[]
+      selectedOrganizationCount: Int
+      selectedRuntimeCount: Int
+      failureReason: String
+    }
+
     state ParticipantsSelected
 
     specification "Training Round Participants Are Snapshotted Per Round" {
       rule """
-        Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates domain facts, not readmodel state: submitted job, locked training configuration, active federation membership, active runtime identity, detected runtime capabilities, connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots.
+        Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates submitted job, locked training configuration, active federation membership, active runtime identity, detected runtime capabilities, connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots. If the selected runtime count is below quorum, the system records a failed participant selection event so the operator can fix runtime or dataset readiness and retry selection.
       """
 
       scenario "Select Participants When Runtime Pool Reaches Quorum" {
@@ -2911,7 +2926,42 @@ context TrainingOrchestration {
         when SelectTrainingRoundParticipants {
           trainingJobId = "job-1"
         }
-        then reject "Round Participant Quorum Required"
+        then TrainingRoundParticipantSelectionFailed
+      }
+    }
+  }
+
+  slice RetryTrainingRoundParticipantSelection {
+    actor TrainingOperator
+    ui TrainingJobDashboard confirm
+    reactsTo TrainingRoundParticipantSelectionFailed
+
+    command RetryTrainingRoundParticipantSelection {
+      trainingJobId: UUID id technical
+    }
+
+    event TrainingRoundParticipantSelectionRetryRequested {
+      trainingJobId: UUID id technical
+    }
+
+    automation SelectTrainingRoundParticipantsWhenRetryRequested {
+      on TrainingRoundParticipantSelectionRetryRequested
+      emits SelectTrainingRoundParticipants
+    }
+
+    specification "Retry Participant Selection After Readiness Changes" {
+      rule """
+        Operators can retry participant selection after federation members, runtime identities, runtime connectivity, or dataset metadata readiness change. Retry records an explicit request and reuses the normal SelectTrainingRoundParticipants policy instead of duplicating participant selection rules.
+      """
+
+      scenario "Retry Participant Selection" {
+        given TrainingRoundParticipantSelectionFailed {
+          trainingJobId = "job-1"
+        }
+        when RetryTrainingRoundParticipantSelection {
+          trainingJobId = "job-1"
+        }
+        then TrainingRoundParticipantSelectionRetryRequested
       }
     }
   }
@@ -3580,6 +3630,7 @@ context TrainingOrchestration {
       subscribe TrainingJobCreated
       subscribe FeatureSchemaDefined
       subscribe TrainingRoundParticipantsSelected
+      subscribe TrainingRoundParticipantSelectionFailed
       subscribe TrainingRoundStarted
       subscribe TrainingRoundStartFailed
       subscribe ParticipantExecutionPlanGenerated
@@ -3613,6 +3664,7 @@ context TrainingOrchestration {
     state Failed
 
     slice SelectTrainingRoundParticipants
+    slice RetryTrainingRoundParticipantSelection
     slice StartTrainingRound
     slice SubmitModelUpdateSubmission
     slice EvaluateModelUpdateSubmission
