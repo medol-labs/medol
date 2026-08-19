@@ -38,6 +38,7 @@ export type MedolKeywordNames =
     | "[]?"
     | "active"
     | "actor"
+    | "as"
     | "assert"
     | "automation"
     | "background"
@@ -61,6 +62,7 @@ export type MedolKeywordNames =
     | "display"
     | "domain"
     | "drawer"
+    | "each"
     | "emits"
     | "endpoint"
     | "enum"
@@ -72,6 +74,7 @@ export type MedolKeywordNames =
     | "false"
     | "field"
     | "file"
+    | "for"
     | "form"
     | "format"
     | "from"
@@ -99,6 +102,7 @@ export type MedolKeywordNames =
     | "order"
     | "policy"
     | "port"
+    | "portOutput"
     | "projection"
     | "protocol"
     | "query"
@@ -205,7 +209,7 @@ export function isAutomation(item: unknown): item is Automation {
     return reflection.isInstance(item, Automation.$type);
 }
 
-export type AutomationElement = AutomationTrigger | Condition | Emits;
+export type AutomationElement = AutomationTrigger | Condition | Emits | FanOut;
 
 export const AutomationElement = {
     $type: 'AutomationElement'
@@ -719,6 +723,23 @@ export function isExternalToken(item: unknown): item is ExternalToken {
     return reflection.isInstance(item, ExternalToken.$type);
 }
 
+export interface FanOut extends langium.AstNode {
+    readonly $container: Automation;
+    readonly $type: 'FanOut';
+    alias: string;
+    source: FieldSource;
+}
+
+export const FanOut = {
+    $type: 'FanOut',
+    alias: 'alias',
+    source: 'source'
+} as const;
+
+export function isFanOut(item: unknown): item is FanOut {
+    return reflection.isInstance(item, FanOut.$type);
+}
+
 export interface Field extends langium.AstNode {
     readonly $container: Command | Event | ReadModel | StructuredValueType;
     readonly $type: 'Field';
@@ -746,10 +767,10 @@ export function isField(item: unknown): item is Field {
     return reflection.isInstance(item, Field.$type);
 }
 
-export type FieldAttribute = 'display' | 'file' | 'generated' | 'id' | 'query' | 'technical' | 'uploadFile';
+export type FieldAttribute = 'display' | 'file' | 'generated' | 'id' | 'portOutput' | 'query' | 'technical' | 'uploadFile';
 
 export function isFieldAttribute(item: unknown): item is FieldAttribute {
-    return item === 'id' || item === 'generated' || item === 'technical' || item === 'query' || item === 'display' || item === 'uploadFile' || item === 'file';
+    return item === 'id' || item === 'generated' || item === 'technical' || item === 'query' || item === 'display' || item === 'uploadFile' || item === 'file' || item === 'portOutput';
 }
 
 export interface FieldDerivation extends langium.AstNode {
@@ -819,7 +840,7 @@ export function isFieldName(item: unknown): item is FieldName {
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | UniqueValidation;
+    readonly $container: AssertValidation | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1693,6 +1714,7 @@ export type MedolAstType = {
     ExternalKind: ExternalKind
     ExternalProtocol: ExternalProtocol
     ExternalToken: ExternalToken
+    FanOut: FanOut
     Field: Field
     FieldDerivation: FieldDerivation
     FieldDetails: FieldDetails
@@ -2153,6 +2175,18 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: []
+        },
+        FanOut: {
+            name: FanOut.$type,
+            properties: {
+                alias: {
+                    name: FanOut.alias
+                },
+                source: {
+                    name: FanOut.source
+                }
+            },
+            superTypes: [AutomationElement.$type]
         },
         Field: {
             name: Field.$type,

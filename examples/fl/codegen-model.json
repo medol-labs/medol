@@ -929,6 +929,11 @@
           "title": "Select Training Round Participants"
         },
         {
+          "id": "slice-3afb3435",
+          "name": "RetryTrainingRoundParticipantSelection",
+          "title": "Retry Training Round Participant Selection"
+        },
+        {
           "id": "slice-6a16fc72",
           "name": "StartTrainingRound",
           "title": "Start Training Round"
@@ -2883,6 +2888,11 @@
           "id": "slice-093e2668",
           "name": "SelectTrainingRoundParticipants",
           "title": "Select Training Round Participants"
+        },
+        {
+          "id": "slice-3afb3435",
+          "name": "RetryTrainingRoundParticipantSelection",
+          "title": "Retry Training Round Participant Selection"
         },
         {
           "id": "slice-6a16fc72",
@@ -7121,6 +7131,11 @@
       "id": "actor-778f24cc",
       "name": "ResearchLead",
       "title": "Research Lead"
+    },
+    {
+      "id": "actor-fbb712c9",
+      "name": "TrainingOperator",
+      "title": "Training Operator"
     },
     {
       "id": "actor-e0b3b07a",
@@ -20418,6 +20433,25 @@
               }
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetMetadataReported.datasetName"
+                ]
+              }
+            },
+            {
               "name": "sampleCount",
               "type": "Int",
               "cardinality": "Single",
@@ -20681,6 +20715,19 @@
               "file": false
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
               "name": "sampleCount",
               "type": "Int",
               "cardinality": "Single",
@@ -20804,6 +20851,12 @@
               "direction": "INBOUND",
               "title": "Record Runtime Dataset Metadata",
               "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-8dff3f72",
+              "direction": "OUTBOUND",
+              "title": "Runtime Dataset Metadata Catalog",
+              "elementType": "READMODEL"
             },
             {
               "id": "readmodel-9aa4f7c7",
@@ -20967,6 +21020,25 @@
                 "kind": "direct",
                 "from": [
                   "AgentDatasetReprofiled.featureSchemaId"
+                ]
+              }
+            },
+            {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetReprofiled.datasetName"
                 ]
               }
             },
@@ -21233,6 +21305,19 @@
               "file": false
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
               "name": "sampleCount",
               "type": "Int",
               "cardinality": "Single",
@@ -21356,6 +21441,12 @@
               "direction": "INBOUND",
               "title": "Record Runtime Dataset Reprofiled Metadata",
               "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-8dff3f72",
+              "direction": "OUTBOUND",
+              "title": "Runtime Dataset Metadata Catalog",
+              "elementType": "READMODEL"
             }
           ]
         }
@@ -21497,16 +21588,9 @@
               "generated": false,
               "technicalAttribute": false,
               "query": false,
-              "display": false,
+              "display": true,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "DatasetDeclared.datasetName"
-                ],
-                "rule": "Lookup by datasetId and denormalize the dataset display name into the platform runtime dataset metadata catalog."
-              }
+              "file": false
             },
             {
               "name": "organizationName",
@@ -21727,12 +21811,6 @@
           ],
           "dependencies": [
             {
-              "id": "event-b85fc68a",
-              "direction": "INBOUND",
-              "title": "Dataset Declared",
-              "elementType": "EVENT"
-            },
-            {
               "id": "event-6a7fde18",
               "direction": "INBOUND",
               "title": "Organization Registered",
@@ -21745,15 +21823,15 @@
               "elementType": "EVENT"
             },
             {
-              "id": "event-cbbad845",
+              "id": "event-62d7fe8f",
               "direction": "INBOUND",
-              "title": "Agent Dataset Metadata Reported",
+              "title": "Dataset Metadata Reported",
               "elementType": "EVENT"
             },
             {
-              "id": "event-ac7edd88",
+              "id": "event-a519cbfc",
               "direction": "INBOUND",
-              "title": "Agent Dataset Reprofiled",
+              "title": "Dataset Metadata Reprofiled",
               "elementType": "EVENT"
             },
             {
@@ -21793,7 +21871,6 @@
           "name": "modelVersion"
         }
       ],
-      "port": true,
       "concepts": [
         "ModelArtifact"
       ],
@@ -21899,8 +21976,7 @@
               "elementType": "EVENT"
             }
           ],
-          "startsLifecycle": true,
-          "port": true
+          "startsLifecycle": true
         }
       ],
       "events": [
@@ -25130,9 +25206,9 @@
               "source": {
                 "kind": "derived",
                 "from": [
-                  "TrainingJob.trainingRunConfigurationId"
+                  "TrainingJobSubmitted.trainingRunConfigurationId"
                 ],
-                "rule": "Lock the configuration selected by the submitted training job."
+                "rule": "Lock the configuration carried by the submitted training job event."
               }
             },
             {
@@ -26406,6 +26482,26 @@
                   "SubmitTrainingJob.trainingJobId"
                 ]
               }
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "TrainingJob.trainingRunConfigurationId"
+                ],
+                "rule": "Carry the submitted job's training run configuration so automation can lock the exact configuration instead of creating a new one."
+              }
             }
           ],
           "dependencies": [
@@ -26536,6 +26632,9 @@
                 {
                   "name": "trainingJobId",
                   "example": "job-1"
+                },
+                {
+                  "name": "trainingRunConfigurationId"
                 }
               ]
             }
@@ -28580,6 +28679,18 @@
               "direction": "OUTBOUND",
               "title": "Training Round Participants Selected",
               "elementType": "EVENT"
+            },
+            {
+              "id": "automation-28951fe8",
+              "direction": "INBOUND",
+              "title": "Select Training Round Participants When Retry Requested",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-4ace584a",
+              "direction": "OUTBOUND",
+              "title": "Training Round Participant Selection Failed",
+              "elementType": "EVENT"
             }
           ],
           "startsLifecycle": true,
@@ -28759,6 +28870,192 @@
               "elementType": "READMODEL"
             }
           ]
+        },
+        {
+          "id": "event-4ace584a",
+          "name": "TrainingRoundParticipantSelectionFailed",
+          "title": "Training Round Participant Selection Failed",
+          "type": "EVENT",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Select Training Round Participants",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "roundNumber",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "minimumNodesPerRound",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "selectedOrganizationIds",
+              "type": "UUID",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "selectedRuntimeIds",
+              "type": "UUID",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "selectedParticipants",
+              "type": "TrainingRoundParticipant",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "selectedOrganizationCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "selectedRuntimeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
+              "name": "failureReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-cd31996d",
+              "direction": "OUTBOUND",
+              "title": "Retry Training Round Participant Selection",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-b866abe9",
+              "direction": "OUTBOUND",
+              "title": "Training Round Progress",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "command-5362dd01",
+              "direction": "INBOUND",
+              "title": "Select Training Round Participants",
+              "elementType": "COMMAND"
+            }
+          ]
         }
       ],
       "readmodels": [],
@@ -28800,7 +29097,7 @@
           "sliceName": "Select Training Round Participants",
           "title": "Select Participants When Runtime Pool Reaches Quorum",
           "specification": "Training Round Participants Are Snapshotted Per Round",
-          "rule": "Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates domain facts, not readmodel state: submitted job, locked training configuration, active federation membership, active runtime identity, detected runtime capabilities, connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots.",
+          "rule": "Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates submitted job, locked training configuration, active federation membership, active runtime identity, detected runtime capabilities, connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots. If the selected runtime count is below quorum, the system records a failed participant selection event so the operator can fix runtime or dataset readiness and retry selection.",
           "expressions": [],
           "validates": [],
           "given": [
@@ -28812,6 +29109,9 @@
                 {
                   "name": "trainingJobId",
                   "example": "job-1"
+                },
+                {
+                  "name": "trainingRunConfigurationId"
                 }
               ]
             }
@@ -28879,7 +29179,7 @@
           "sliceName": "Select Training Round Participants",
           "title": "Reject Participant Snapshot Below Quorum",
           "specification": "Training Round Participants Are Snapshotted Per Round",
-          "rule": "Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates domain facts, not readmodel state: submitted job, locked training configuration, active federation membership, active runtime identity, detected runtime capabilities, connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots.",
+          "rule": "Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates submitted job, locked training configuration, active federation membership, active runtime identity, detected runtime capabilities, connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots. If the selected runtime count is below quorum, the system records a failed participant selection event so the operator can fix runtime or dataset readiness and retry selection.",
           "expressions": [],
           "validates": [],
           "given": [
@@ -28891,6 +29191,9 @@
                 {
                   "name": "trainingJobId",
                   "example": "job-1"
+                },
+                {
+                  "name": "trainingRunConfigurationId"
                 }
               ]
             }
@@ -28908,12 +29211,52 @@
               ]
             }
           ],
-          "then": {
-            "title": "Rejected",
-            "id": "spec-reject-adf9ba5b",
-            "description": "Round Participant Quorum Required",
-            "outcome": "REJECT"
-          }
+          "then": [
+            {
+              "title": "Training Round Participant Selection Failed",
+              "id": "event-4ace584a",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "trainingJobId",
+                  "example": "job-1"
+                },
+                {
+                  "name": "trainingRunConfigurationId"
+                },
+                {
+                  "name": "featureSchemaId"
+                },
+                {
+                  "name": "roundId"
+                },
+                {
+                  "name": "roundNumber"
+                },
+                {
+                  "name": "minimumNodesPerRound"
+                },
+                {
+                  "name": "selectedOrganizationIds"
+                },
+                {
+                  "name": "selectedRuntimeIds"
+                },
+                {
+                  "name": "selectedParticipants"
+                },
+                {
+                  "name": "selectedOrganizationCount"
+                },
+                {
+                  "name": "selectedRuntimeCount"
+                },
+                {
+                  "name": "failureReason"
+                }
+              ]
+            }
+          ]
         }
       ],
       "actors": [],
@@ -28925,8 +29268,252 @@
       }
     },
     {
-      "id": "slice-6a16fc72",
+      "id": "slice-3afb3435",
       "index": 69,
+      "name": "RetryTrainingRoundParticipantSelection",
+      "title": "Retry Training Round Participant Selection",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "tags": [],
+      "concepts": [
+        "TrainingRound"
+      ],
+      "commands": [
+        {
+          "id": "command-cd31996d",
+          "name": "RetryTrainingRoundParticipantSelection",
+          "title": "Retry Training Round Participant Selection",
+          "type": "COMMAND",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Retry Training Round Participant Selection",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-4ace584a",
+              "direction": "INBOUND",
+              "title": "Training Round Participant Selection Failed",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "screen-8d40d9f4",
+              "direction": "INBOUND",
+              "title": "Training Job Dashboard",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-75e88374",
+              "direction": "OUTBOUND",
+              "title": "Training Round Participant Selection Retry Requested",
+              "elementType": "EVENT"
+            }
+          ],
+          "ui": {
+            "type": "confirm"
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-75e88374",
+          "name": "TrainingRoundParticipantSelectionRetryRequested",
+          "title": "Training Round Participant Selection Retry Requested",
+          "type": "EVENT",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Retry Training Round Participant Selection",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "automation-28951fe8",
+              "direction": "OUTBOUND",
+              "title": "Select Training Round Participants When Retry Requested",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "command-cd31996d",
+              "direction": "INBOUND",
+              "title": "Retry Training Round Participant Selection",
+              "elementType": "COMMAND"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-8d40d9f4",
+          "name": "TrainingJobDashboard",
+          "title": "Training Job Dashboard",
+          "type": "SCREEN",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Retry Training Round Participant Selection",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "command-cd31996d",
+              "direction": "OUTBOUND",
+              "title": "Retry Training Round Participant Selection",
+              "elementType": "COMMAND"
+            }
+          ],
+          "ui": {
+            "type": "confirm"
+          }
+        }
+      ],
+      "processors": [
+        {
+          "id": "automation-28951fe8",
+          "name": "SelectTrainingRoundParticipantsWhenRetryRequested",
+          "title": "Select Training Round Participants When Retry Requested",
+          "type": "PROCESSOR",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Retry Training Round Participant Selection",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "event-75e88374",
+              "direction": "INBOUND",
+              "title": "Training Round Participant Selection Retry Requested",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-5362dd01",
+              "direction": "OUTBOUND",
+              "title": "Select Training Round Participants",
+              "elementType": "COMMAND"
+            }
+          ],
+          "metadata": {
+            "on": "TrainingRoundParticipantSelectionRetryRequested",
+            "onKind": "event",
+            "emits": "SelectTrainingRoundParticipants"
+          }
+        }
+      ],
+      "specifications": [
+        {
+          "id": "gwt-82a89737",
+          "chapter": "TrainingOrchestration",
+          "sliceName": "Retry Training Round Participant Selection",
+          "title": "Retry Participant Selection",
+          "specification": "Retry Participant Selection After Readiness Changes",
+          "rule": "Operators can retry participant selection after federation members, runtime identities, runtime connectivity, or dataset metadata readiness change. Retry records an explicit request and reuses the normal SelectTrainingRoundParticipants policy instead of duplicating participant selection rules.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "Training Round Participant Selection Failed",
+              "id": "event-4ace584a",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "trainingJobId",
+                  "example": "job-1"
+                },
+                {
+                  "name": "trainingRunConfigurationId"
+                },
+                {
+                  "name": "featureSchemaId"
+                },
+                {
+                  "name": "roundId"
+                },
+                {
+                  "name": "roundNumber"
+                },
+                {
+                  "name": "minimumNodesPerRound"
+                },
+                {
+                  "name": "selectedOrganizationIds"
+                },
+                {
+                  "name": "selectedRuntimeIds"
+                },
+                {
+                  "name": "selectedParticipants"
+                },
+                {
+                  "name": "selectedOrganizationCount"
+                },
+                {
+                  "name": "selectedRuntimeCount"
+                },
+                {
+                  "name": "failureReason"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Retry Training Round Participant Selection",
+              "id": "command-cd31996d",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "trainingJobId",
+                  "example": "job-1"
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "Training Round Participant Selection Retry Requested",
+              "id": "event-75e88374",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "trainingJobId",
+                  "example": "job-1"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actors": [
+        {
+          "id": "actor-fbb712c9",
+          "name": "TrainingOperator",
+          "title": "Training Operator"
+        }
+      ],
+      "hotspots": []
+    },
+    {
+      "id": "slice-6a16fc72",
+      "index": 70,
       "name": "StartTrainingRound",
       "title": "Start Training Round",
       "chapter": "TrainingOrchestration",
@@ -29903,7 +30490,7 @@
     },
     {
       "id": "slice-fabbea45",
-      "index": 70,
+      "index": 71,
       "name": "GenerateParticipantExecutionPlan",
       "title": "Generate Participant Execution Plan",
       "chapter": "TrainingOrchestration",
@@ -30055,11 +30642,10 @@
               "uploadFile": false,
               "file": false,
               "source": {
-                "kind": "derived",
+                "kind": "direct",
                 "from": [
-                  "TrainingRoundStarted.selectedParticipants.runtimeId"
-                ],
-                "rule": "Fan out one immutable execution plan per selected runtime in the selected participant snapshot."
+                  "participant.runtimeId"
+                ]
               }
             },
             {
@@ -30075,11 +30661,10 @@
               "uploadFile": false,
               "file": false,
               "source": {
-                "kind": "derived",
+                "kind": "direct",
                 "from": [
-                  "TrainingRoundStarted.selectedParticipants.organizationId"
-                ],
-                "rule": "Carry the organization paired with the selected runtime in the participant snapshot."
+                  "participant.organizationId"
+                ]
               }
             },
             {
@@ -30482,6 +31067,8 @@
             "on": "TrainingRoundStarted",
             "onKind": "event",
             "condition": "selectedRuntimeCount > 0",
+            "fanOutSource": "TrainingRoundStarted.selectedParticipants",
+            "fanOutAlias": "participant",
             "emits": "GenerateParticipantExecutionPlan"
           }
         }
@@ -30839,7 +31426,7 @@
     },
     {
       "id": "slice-04a9daf0",
-      "index": 71,
+      "index": 72,
       "name": "DispatchParticipantExecutionPlan",
       "title": "Dispatch Participant Execution Plan",
       "chapter": "TrainingOrchestration",
@@ -31437,7 +32024,7 @@
     },
     {
       "id": "slice-ff26cad0",
-      "index": 72,
+      "index": 73,
       "name": "SubmitModelUpdateSubmission",
       "title": "Submit Model Update Submission",
       "chapter": "TrainingOrchestration",
@@ -31918,7 +32505,7 @@
     },
     {
       "id": "slice-fc1ff76d",
-      "index": 73,
+      "index": 74,
       "name": "EvaluateModelUpdateSubmission",
       "title": "Evaluate Model Update Submission",
       "chapter": "TrainingOrchestration",
@@ -32567,7 +33154,7 @@
     },
     {
       "id": "slice-a46e905e",
-      "index": 74,
+      "index": 75,
       "name": "RequestSecureAggregation",
       "title": "Request Secure Aggregation",
       "chapter": "TrainingOrchestration",
@@ -32884,7 +33471,7 @@
     },
     {
       "id": "slice-c044ec34",
-      "index": 75,
+      "index": 76,
       "name": "CompleteSecureAggregation",
       "title": "Complete Secure Aggregation",
       "chapter": "TrainingOrchestration",
@@ -33323,7 +33910,7 @@
     },
     {
       "id": "slice-129ead8e",
-      "index": 76,
+      "index": 77,
       "name": "SubmitGlobalModelEvaluation",
       "title": "Submit Global Model Evaluation",
       "chapter": "TrainingOrchestration",
@@ -33741,7 +34328,7 @@
     },
     {
       "id": "slice-4a16b8df",
-      "index": 77,
+      "index": 78,
       "name": "CompleteTrainingRound",
       "title": "Complete Training Round",
       "chapter": "TrainingOrchestration",
@@ -34442,7 +35029,7 @@
     },
     {
       "id": "slice-8107a71a",
-      "index": 78,
+      "index": 79,
       "name": "FailTrainingRound",
       "title": "Fail Training Round",
       "chapter": "TrainingOrchestration",
@@ -34952,7 +35539,7 @@
     },
     {
       "id": "slice-158bd8b1",
-      "index": 79,
+      "index": 80,
       "name": "TrainingRoundProgress",
       "title": "Training Round Progress",
       "chapter": "TrainingOrchestration",
@@ -35664,6 +36251,12 @@
               "elementType": "EVENT"
             },
             {
+              "id": "event-4ace584a",
+              "direction": "INBOUND",
+              "title": "Training Round Participant Selection Failed",
+              "elementType": "EVENT"
+            },
+            {
               "id": "event-229f5549",
               "direction": "INBOUND",
               "title": "Training Round Started",
@@ -35795,7 +36388,7 @@
     },
     {
       "id": "slice-7806d9ed",
-      "index": 80,
+      "index": 81,
       "name": "RegisterCandidateModel",
       "title": "Register Candidate Model",
       "chapter": "ModelLifecycle",
@@ -36088,7 +36681,7 @@
     },
     {
       "id": "slice-c947b39a",
-      "index": 81,
+      "index": 82,
       "name": "RecordModelEvaluationPackage",
       "title": "Record Model Evaluation Package",
       "chapter": "ModelLifecycle",
@@ -36570,7 +37163,7 @@
     },
     {
       "id": "slice-a4c2bdcc",
-      "index": 82,
+      "index": 83,
       "name": "ApproveModel",
       "title": "Approve Model",
       "chapter": "ModelLifecycle",
@@ -36877,7 +37470,7 @@
     },
     {
       "id": "slice-e0aca431",
-      "index": 83,
+      "index": 84,
       "name": "PromoteModelToProduction",
       "title": "Promote Model To Production",
       "chapter": "ModelLifecycle",
@@ -37222,7 +37815,7 @@
     },
     {
       "id": "slice-33930733",
-      "index": 84,
+      "index": 85,
       "name": "RollbackModel",
       "title": "Rollback Model",
       "chapter": "ModelLifecycle",
@@ -37405,7 +37998,7 @@
     },
     {
       "id": "slice-9e8c0ad2",
-      "index": 85,
+      "index": 86,
       "name": "RetireModel",
       "title": "Retire Model",
       "chapter": "ModelLifecycle",
@@ -37562,7 +38155,7 @@
     },
     {
       "id": "slice-daa3e2fe",
-      "index": 86,
+      "index": 87,
       "name": "ModelCatalog",
       "title": "Model Catalog",
       "chapter": "ModelLifecycle",
@@ -37998,7 +38591,7 @@
     },
     {
       "id": "slice-97531d57",
-      "index": 87,
+      "index": 88,
       "name": "RuntimeTelemetryLatest",
       "title": "Runtime Telemetry Latest",
       "chapter": "RuntimeMonitoring",
@@ -38220,7 +38813,7 @@
     },
     {
       "id": "slice-d498ecb8",
-      "index": 88,
+      "index": 89,
       "name": "DetectRuntimeAgentOffline",
       "title": "Detect Runtime Agent Offline",
       "chapter": "RuntimeMonitoring",
@@ -38422,7 +39015,7 @@
     },
     {
       "id": "slice-fd282504",
-      "index": 89,
+      "index": 90,
       "name": "MarkRuntimeAgentRecovered",
       "title": "Mark Runtime Agent Recovered",
       "chapter": "RuntimeMonitoring",
@@ -38623,7 +39216,7 @@
     },
     {
       "id": "slice-7aeba98f",
-      "index": 90,
+      "index": 91,
       "name": "DetectRuntimeNodeResourcePressure",
       "title": "Detect Runtime Node Resource Pressure",
       "chapter": "RuntimeMonitoring",
@@ -38891,7 +39484,7 @@
     },
     {
       "id": "slice-3f7c280e",
-      "index": 91,
+      "index": 92,
       "name": "RecordRuntimeNodeInventory",
       "title": "Record Runtime Node Inventory",
       "chapter": "RuntimeMonitoring",
@@ -39372,7 +39965,7 @@
     },
     {
       "id": "slice-79929d9e",
-      "index": 92,
+      "index": 93,
       "name": "RuntimeNodeInventoryView",
       "title": "Runtime Node Inventory View",
       "chapter": "RuntimeMonitoring",
@@ -39678,7 +40271,7 @@
     },
     {
       "id": "slice-c5ab698a",
-      "index": 93,
+      "index": 94,
       "name": "RuntimeNodeResourceLatest",
       "title": "Runtime Node Resource Latest",
       "chapter": "RuntimeMonitoring",
@@ -39966,7 +40559,7 @@
     },
     {
       "id": "slice-17654acc",
-      "index": 94,
+      "index": 95,
       "name": "DetectRuntimeNodeCapacityChange",
       "title": "Detect Runtime Node Capacity Change",
       "chapter": "RuntimeMonitoring",
@@ -40254,7 +40847,7 @@
     },
     {
       "id": "slice-dc4e224d",
-      "index": 95,
+      "index": 96,
       "name": "RuntimeHealthDashboard",
       "title": "Runtime Health Dashboard",
       "chapter": "RuntimeMonitoring",
@@ -40597,7 +41190,7 @@
     },
     {
       "id": "slice-f43e8d0f",
-      "index": 96,
+      "index": 97,
       "name": "RaiseTrainingAlert",
       "title": "Raise Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -40862,7 +41455,7 @@
     },
     {
       "id": "slice-102e6798",
-      "index": 97,
+      "index": 98,
       "name": "TrainingAlertCatalog",
       "title": "Training Alert Catalog",
       "chapter": "RuntimeMonitoring",
@@ -41109,7 +41702,7 @@
     },
     {
       "id": "slice-63ac1487",
-      "index": 98,
+      "index": 99,
       "name": "AcknowledgeTrainingAlert",
       "title": "Acknowledge Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -41272,7 +41865,7 @@
     },
     {
       "id": "slice-c3edeeef",
-      "index": 99,
+      "index": 100,
       "name": "ResolveTrainingAlert",
       "title": "Resolve Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -41429,7 +42022,7 @@
     },
     {
       "id": "slice-bf4467da",
-      "index": 100,
+      "index": 101,
       "name": "AppendAuditTrail",
       "title": "Append Audit Trail",
       "chapter": "RuntimeMonitoring",
@@ -41970,7 +42563,7 @@
     },
     {
       "id": "slice-5556fb33",
-      "index": 101,
+      "index": 102,
       "name": "AuditRecordLog",
       "title": "Audit Record Log",
       "chapter": "RuntimeMonitoring",
@@ -42075,7 +42668,7 @@
     },
     {
       "id": "slice-6883883e",
-      "index": 102,
+      "index": 103,
       "name": "ActivateRuntimeIdentity",
       "title": "Activate Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -42425,7 +43018,7 @@
     },
     {
       "id": "slice-6949bdab",
-      "index": 103,
+      "index": 104,
       "name": "RevokeRuntimeIdentity",
       "title": "Revoke Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -42600,7 +43193,7 @@
     },
     {
       "id": "slice-267be0b4",
-      "index": 104,
+      "index": 105,
       "name": "DetectRuntimeCapabilities",
       "title": "Detect Runtime Capabilities",
       "chapter": "RuntimeGovernance",
@@ -42779,7 +43372,7 @@
     },
     {
       "id": "slice-53705008",
-      "index": 105,
+      "index": 106,
       "name": "RuntimeIdentityCatalog",
       "title": "Runtime Identity Catalog",
       "chapter": "RuntimeGovernance",
@@ -42961,7 +43554,7 @@
     },
     {
       "id": "slice-a09f6b28",
-      "index": 106,
+      "index": 107,
       "name": "RuntimeCapabilityCatalog",
       "title": "Runtime Capability Catalog",
       "chapter": "RuntimeGovernance",
@@ -43054,7 +43647,7 @@
     },
     {
       "id": "slice-0df6c6b1",
-      "index": 107,
+      "index": 108,
       "name": "CreateSecureAggregationSession",
       "title": "Create Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -43389,7 +43982,7 @@
     },
     {
       "id": "slice-af59eab5",
-      "index": 108,
+      "index": 109,
       "name": "SelectSecureAggregationParticipants",
       "title": "Select Secure Aggregation Participants",
       "chapter": "SecureAggregation",
@@ -43643,7 +44236,7 @@
     },
     {
       "id": "slice-a903d2aa",
-      "index": 109,
+      "index": 110,
       "name": "PrepareHomomorphicEncryptionContext",
       "title": "Prepare Homomorphic Encryption Context",
       "chapter": "SecureAggregation",
@@ -43861,7 +44454,7 @@
     },
     {
       "id": "slice-5d843deb",
-      "index": 110,
+      "index": 111,
       "name": "RecordEncryptedModelUpdate",
       "title": "Record Encrypted Model Update",
       "chapter": "SecureAggregation",
@@ -44047,7 +44640,7 @@
     },
     {
       "id": "slice-74fb7a88",
-      "index": 111,
+      "index": 112,
       "name": "CompleteHomomorphicAggregationSession",
       "title": "Complete Homomorphic Aggregation Session",
       "chapter": "SecureAggregation",
@@ -44476,7 +45069,7 @@
     },
     {
       "id": "slice-5c7bd7e5",
-      "index": 112,
+      "index": 113,
       "name": "FailSecureAggregationSession",
       "title": "Fail Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -44609,7 +45202,7 @@
     },
     {
       "id": "slice-ae5b24d8",
-      "index": 113,
+      "index": 114,
       "name": "SecureAggregationSessionCatalog",
       "title": "Secure Aggregation Session Catalog",
       "chapter": "SecureAggregation",
@@ -45005,7 +45598,7 @@
     },
     {
       "id": "slice-725195cc",
-      "index": 114,
+      "index": 115,
       "name": "DeclareDataset",
       "title": "Declare Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -45253,12 +45846,6 @@
           ],
           "dependencies": [
             {
-              "id": "readmodel-8dff3f72",
-              "direction": "OUTBOUND",
-              "title": "Runtime Dataset Metadata Catalog",
-              "elementType": "READMODEL"
-            },
-            {
               "id": "readmodel-9aa4f7c7",
               "direction": "OUTBOUND",
               "title": "Training Participant Eligibility",
@@ -45475,7 +46062,7 @@
     },
     {
       "id": "slice-5a2194a7",
-      "index": 115,
+      "index": 116,
       "name": "ConfigureRuntimeDatasetBinding",
       "title": "Configure Runtime Dataset Binding",
       "chapter": "RuntimeAgentOperations",
@@ -45567,6 +46154,25 @@
                 "kind": "direct",
                 "from": [
                   "DatasetDeclared.featureSchemaId"
+                ]
+              }
+            },
+            {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "DatasetDeclared.datasetName"
                 ]
               }
             },
@@ -45827,6 +46433,19 @@
               "file": false
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false
+            },
+            {
               "name": "runtimeId",
               "type": "UUID",
               "cardinality": "Single",
@@ -46075,6 +46694,9 @@
                   "name": "featureSchemaId"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "runtime-1"
                 },
@@ -46135,6 +46757,9 @@
                 },
                 {
                   "name": "featureSchemaId"
+                },
+                {
+                  "name": "datasetName"
                 },
                 {
                   "name": "runtimeId",
@@ -46203,7 +46828,7 @@
     },
     {
       "id": "slice-358d4122",
-      "index": 116,
+      "index": 117,
       "name": "RuntimeDatasetBindingCatalog",
       "title": "Runtime Dataset Binding Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -46286,14 +46911,7 @@
               "query": false,
               "display": true,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "DatasetDeclared.datasetName"
-                ],
-                "rule": "Lookup by datasetId and denormalize the dataset display name into the local runtime dataset binding catalog."
-              }
+              "file": false
             },
             {
               "name": "dataSourceType",
@@ -46492,7 +47110,7 @@
     },
     {
       "id": "slice-c31ba9a1",
-      "index": 117,
+      "index": 118,
       "name": "ValidateAgentDatasetAccess",
       "title": "Validate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -46597,6 +47215,25 @@
                 "kind": "direct",
                 "from": [
                   "RuntimeDatasetBindingConfigured.featureSchemaId"
+                ]
+              }
+            },
+            {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "RuntimeDatasetBindingConfigured.datasetName"
                 ]
               }
             },
@@ -46965,6 +47602,25 @@
               }
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "RuntimeDatasetBindingConfigured.datasetName"
+                ]
+              }
+            },
+            {
               "name": "runtimeId",
               "type": "UUID",
               "cardinality": "Single",
@@ -47148,6 +47804,25 @@
               }
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "RuntimeDatasetBindingConfigured.datasetName"
+                ]
+              }
+            },
+            {
               "name": "runtimeId",
               "type": "UUID",
               "cardinality": "Single",
@@ -47278,6 +47953,9 @@
                   "example": "88888888-8888-4888-8888-888888888888"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "44444444-4444-4444-8444-444444444444"
                 },
@@ -47350,6 +48028,9 @@
                   "example": "88888888-8888-4888-8888-888888888888"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "44444444-4444-4444-8444-444444444444"
                 },
@@ -47401,6 +48082,9 @@
                 {
                   "name": "featureSchemaId",
                   "example": "88888888-8888-4888-8888-888888888888"
+                },
+                {
+                  "name": "datasetName"
                 },
                 {
                   "name": "runtimeId",
@@ -47475,6 +48159,9 @@
                   "example": "88888888-8888-4888-8888-888888888888"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "66666666-6666-4666-8666-666666666666"
                 },
@@ -47502,7 +48189,7 @@
     },
     {
       "id": "slice-aa47e014",
-      "index": 118,
+      "index": 119,
       "name": "RevalidateAgentDatasetAccess",
       "title": "Revalidate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -47672,6 +48359,25 @@
                 "kind": "direct",
                 "from": [
                   "AgentDatasetAccessValidationFailed.featureSchemaId"
+                ]
+              }
+            },
+            {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetAccessValidationFailed.datasetName"
                 ]
               }
             },
@@ -47853,6 +48559,25 @@
               }
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetAccessValidationFailed.datasetName"
+                ]
+              }
+            },
+            {
               "name": "runtimeId",
               "type": "UUID",
               "cardinality": "Single",
@@ -47980,6 +48705,9 @@
                   "name": "featureSchemaId"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId"
                 },
                 {
@@ -48046,6 +48774,9 @@
                   "name": "featureSchemaId"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId"
                 },
                 {
@@ -48072,7 +48803,7 @@
     },
     {
       "id": "slice-ba3dc29b",
-      "index": 119,
+      "index": 120,
       "name": "AgentDatasetAccessValidationCatalog",
       "title": "Agent Dataset Access Validation Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -48181,14 +48912,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "DatasetDeclared.datasetName"
-                ],
-                "rule": "Lookup by datasetId and denormalize the dataset display name into the agent dataset access validation catalog."
-              }
+              "file": false
             },
             {
               "name": "readable",
@@ -48312,7 +49036,7 @@
     },
     {
       "id": "slice-f44b66bc",
-      "index": 120,
+      "index": 121,
       "name": "ProfileAgentDataset",
       "title": "Profile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -48421,6 +49145,25 @@
                 "kind": "direct",
                 "from": [
                   "AgentDatasetAccessValidated.featureSchemaId"
+                ]
+              }
+            },
+            {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetAccessValidated.datasetName"
                 ]
               }
             },
@@ -48586,6 +49329,25 @@
               }
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetAccessValidated.datasetName"
+                ]
+              }
+            },
+            {
               "name": "sampleCount",
               "type": "Int",
               "cardinality": "Single",
@@ -48711,12 +49473,6 @@
               "elementType": "PROCESSOR"
             },
             {
-              "id": "readmodel-8dff3f72",
-              "direction": "OUTBOUND",
-              "title": "Runtime Dataset Metadata Catalog",
-              "elementType": "READMODEL"
-            },
-            {
               "id": "command-9e8a213b",
               "direction": "INBOUND",
               "title": "Profile Agent Dataset",
@@ -48830,6 +49586,25 @@
                 "kind": "direct",
                 "from": [
                   "AgentDatasetAccessValidated.featureSchemaId"
+                ]
+              }
+            },
+            {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetAccessValidated.datasetName"
                 ]
               }
             },
@@ -48998,6 +49773,9 @@
                   "example": "55555555-5555-4555-8555-555555555555"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "66666666-6666-4666-8666-666666666666"
                 }
@@ -49033,6 +49811,9 @@
                 {
                   "name": "featureSchemaId",
                   "example": "55555555-5555-4555-8555-555555555555"
+                },
+                {
+                  "name": "datasetName"
                 },
                 {
                   "name": "sampleCount"
@@ -49102,6 +49883,9 @@
                   "example": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
                 }
@@ -49135,6 +49919,9 @@
                   "example": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
                 },
@@ -49162,7 +49949,7 @@
     },
     {
       "id": "slice-d6f2a3cf",
-      "index": 121,
+      "index": 122,
       "name": "ReprofileAgentDataset",
       "title": "Reprofile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -49355,6 +50142,25 @@
               }
             },
             {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetProfilingFailed.datasetName"
+                ]
+              }
+            },
+            {
               "name": "sampleCount",
               "type": "Int",
               "cardinality": "Single",
@@ -49480,12 +50286,6 @@
               "elementType": "PROCESSOR"
             },
             {
-              "id": "readmodel-8dff3f72",
-              "direction": "OUTBOUND",
-              "title": "Runtime Dataset Metadata Catalog",
-              "elementType": "READMODEL"
-            },
-            {
               "id": "command-0e2c68c7",
               "direction": "INBOUND",
               "title": "Reprofile Agent Dataset",
@@ -49593,6 +50393,25 @@
                 "kind": "direct",
                 "from": [
                   "AgentDatasetProfilingFailed.featureSchemaId"
+                ]
+              }
+            },
+            {
+              "name": "datasetName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetProfilingFailed.datasetName"
                 ]
               }
             },
@@ -49715,6 +50534,9 @@
                   "example": "55555555-5555-4555-8555-555555555555"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "66666666-6666-4666-8666-666666666666"
                 },
@@ -49767,6 +50589,9 @@
                 },
                 {
                   "name": "featureSchemaId"
+                },
+                {
+                  "name": "datasetName"
                 },
                 {
                   "name": "sampleCount"
@@ -49835,6 +50660,9 @@
                   "example": "55555555-5555-4555-8555-555555555555"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId",
                   "example": "66666666-6666-4666-8666-666666666666"
                 },
@@ -49886,6 +50714,9 @@
                   "name": "featureSchemaId"
                 },
                 {
+                  "name": "datasetName"
+                },
+                {
                   "name": "runtimeId"
                 },
                 {
@@ -49912,7 +50743,7 @@
     },
     {
       "id": "slice-2529cf36",
-      "index": 122,
+      "index": 123,
       "name": "ValidateDatasetContract",
       "title": "Validate Dataset Contract",
       "chapter": "RuntimeAgentOperations",
@@ -50071,13 +50902,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "direct",
-                "from": [
-                  "AgentDatasetMetadataReported.schemaCompatible"
-                ]
-              }
+              "file": false
             },
             {
               "name": "labelCompatible",
@@ -50090,13 +50915,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "direct",
-                "from": [
-                  "AgentDatasetMetadataReported.labelCompatible"
-                ]
-              }
+              "file": false
             },
             {
               "name": "qualityScore",
@@ -50109,13 +50928,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "direct",
-                "from": [
-                  "AgentDatasetMetadataReported.qualityScore"
-                ]
-              }
+              "file": false
             },
             {
               "name": "nonIidScore",
@@ -50128,13 +50941,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "direct",
-                "from": [
-                  "AgentDatasetMetadataReported.nonIidScore"
-                ]
-              }
+              "file": false
             }
           ],
           "dependencies": [
@@ -50234,13 +51041,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "direct",
-                "from": [
-                  "AgentDatasetMetadataReported.schemaCompatible"
-                ]
-              }
+              "file": false
             },
             {
               "name": "labelCompatible",
@@ -50253,13 +51054,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "direct",
-                "from": [
-                  "AgentDatasetMetadataReported.labelCompatible"
-                ]
-              }
+              "file": false
             },
             {
               "name": "qualityScore",
@@ -50272,13 +51067,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "direct",
-                "from": [
-                  "AgentDatasetMetadataReported.qualityScore"
-                ]
-              }
+              "file": false
             },
             {
               "name": "nonIidScore",
@@ -50291,13 +51080,7 @@
               "query": false,
               "display": false,
               "uploadFile": false,
-              "file": false,
-              "source": {
-                "kind": "direct",
-                "from": [
-                  "AgentDatasetMetadataReported.nonIidScore"
-                ]
-              }
+              "file": false
             },
             {
               "name": "failureReason",
@@ -50518,7 +51301,7 @@
     },
     {
       "id": "slice-2e18bcb1",
-      "index": 123,
+      "index": 124,
       "name": "RetryDatasetContractValidation",
       "title": "Retry Dataset Contract Validation",
       "chapter": "RuntimeAgentOperations",
@@ -51141,7 +51924,7 @@
     },
     {
       "id": "slice-d28aff88",
-      "index": 124,
+      "index": 125,
       "name": "RejectDatasetForTraining",
       "title": "Reject Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -51304,7 +52087,7 @@
     },
     {
       "id": "slice-284a72da",
-      "index": 125,
+      "index": 126,
       "name": "ApproveDatasetForTraining",
       "title": "Approve Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -51589,7 +52372,7 @@
     },
     {
       "id": "slice-847c2855",
-      "index": 126,
+      "index": 127,
       "name": "RevokeDatasetTrainingApproval",
       "title": "Revoke Dataset Training Approval",
       "chapter": "RuntimeAgentOperations",
@@ -51764,7 +52547,7 @@
     },
     {
       "id": "slice-30869f70",
-      "index": 127,
+      "index": 128,
       "name": "DatasetCapability",
       "title": "Dataset Capability",
       "chapter": "RuntimeAgentOperations",
@@ -52202,7 +52985,7 @@
     },
     {
       "id": "slice-ff9e2f26",
-      "index": 128,
+      "index": 129,
       "name": "DatasetReadiness",
       "title": "Dataset Readiness",
       "chapter": "RuntimeAgentOperations",
@@ -52864,7 +53647,7 @@
     },
     {
       "id": "slice-5bf739cd",
-      "index": 129,
+      "index": 130,
       "name": "ReceiveParticipantExecutionPlan",
       "title": "Receive Participant Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -53455,7 +54238,7 @@
     },
     {
       "id": "slice-64faaa9b",
-      "index": 130,
+      "index": 131,
       "name": "AcceptExecutionPlan",
       "title": "Accept Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -54895,7 +55678,7 @@
     },
     {
       "id": "slice-4d4016d0",
-      "index": 131,
+      "index": 132,
       "name": "StartRoundExecution",
       "title": "Start Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -56265,7 +57048,7 @@
     },
     {
       "id": "slice-b1a48287",
-      "index": 132,
+      "index": 133,
       "name": "CompleteRoundExecution",
       "title": "Complete Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -56566,7 +57349,7 @@
     },
     {
       "id": "slice-45c663e8",
-      "index": 133,
+      "index": 134,
       "name": "FailRoundExecution",
       "title": "Fail Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -56899,7 +57682,7 @@
     },
     {
       "id": "slice-ff352882",
-      "index": 134,
+      "index": 135,
       "name": "RetryRoundExecutionAfterStartFailure",
       "title": "Retry Round Execution After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -57628,7 +58411,7 @@
     },
     {
       "id": "slice-2cb34062",
-      "index": 135,
+      "index": 136,
       "name": "RetryRoundExecutionAfterRuntimeFailure",
       "title": "Retry Round Execution After Runtime Failure",
       "chapter": "RuntimeAgentOperations",
@@ -58385,7 +59168,7 @@
     },
     {
       "id": "slice-d54dcc12",
-      "index": 136,
+      "index": 137,
       "name": "SubmitAgentLocalModelUpdate",
       "title": "Submit Agent Local Model Update",
       "chapter": "RuntimeAgentOperations",
@@ -58916,7 +59699,7 @@
     },
     {
       "id": "slice-6485fdce",
-      "index": 137,
+      "index": 138,
       "name": "ReleaseRuntimeEngineJobAfterCompletion",
       "title": "Release Runtime Engine Job After Completion",
       "chapter": "RuntimeAgentOperations",
@@ -59086,7 +59869,7 @@
     },
     {
       "id": "slice-ef8420f2",
-      "index": 138,
+      "index": 139,
       "name": "ReleaseRuntimeEngineJobAfterFailure",
       "title": "Release Runtime Engine Job After Failure",
       "chapter": "RuntimeAgentOperations",
@@ -59269,7 +60052,7 @@
     },
     {
       "id": "slice-30156076",
-      "index": 139,
+      "index": 140,
       "name": "ReleaseRuntimeEngineJobAfterStartFailure",
       "title": "Release Runtime Engine Job After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -59452,7 +60235,7 @@
     },
     {
       "id": "slice-5d7a0380",
-      "index": 140,
+      "index": 141,
       "name": "ReleaseRuntimeEngineJobAfterRetryFailure",
       "title": "Release Runtime Engine Job After Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -59635,7 +60418,7 @@
     },
     {
       "id": "slice-bc1eac14",
-      "index": 141,
+      "index": 142,
       "name": "ReleaseRuntimeEngineJobAfterRuntimeRetryFailure",
       "title": "Release Runtime Engine Job After Runtime Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -59818,7 +60601,7 @@
     },
     {
       "id": "slice-eb00f5f7",
-      "index": 142,
+      "index": 143,
       "name": "RoundExecutionCatalog",
       "title": "Round Execution Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -60441,7 +61224,7 @@
     },
     {
       "id": "slice-d248addb",
-      "index": 143,
+      "index": 144,
       "name": "LoadRuntimeAgentBootstrapConfiguration",
       "title": "Load Runtime Agent Bootstrap Configuration",
       "chapter": "RuntimeAgentOperations",
@@ -60729,7 +61512,7 @@
     },
     {
       "id": "slice-c7d2df46",
-      "index": 144,
+      "index": 145,
       "name": "ReportRuntimeAgentStarted",
       "title": "Report Runtime Agent Started",
       "chapter": "RuntimeAgentOperations",
@@ -60941,7 +61724,7 @@
     },
     {
       "id": "slice-75635ed7",
-      "index": 145,
+      "index": 146,
       "name": "ReportRuntimeInstanceSelfCheckPassed",
       "title": "Report Runtime Instance Self Check Passed",
       "chapter": "RuntimeAgentOperations",
@@ -61336,7 +62119,7 @@
     },
     {
       "id": "slice-574f1d44",
-      "index": 146,
+      "index": 147,
       "name": "RuntimeAgentLifecycleCatalog",
       "title": "Runtime Agent Lifecycle Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -61615,7 +62398,7 @@
     },
     {
       "id": "slice-e5b0caa2",
-      "index": 147,
+      "index": 148,
       "name": "ReportRuntimeInstanceConnected",
       "title": "Report Runtime Instance Connected",
       "chapter": "RuntimeAgentOperations",
@@ -62326,7 +63109,7 @@
     },
     {
       "id": "slice-8d5d066d",
-      "index": 148,
+      "index": 149,
       "name": "AgentRuntimeInfrastructureConnectionCatalog",
       "title": "Agent Runtime Infrastructure Connection Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -62515,7 +63298,7 @@
     },
     {
       "id": "slice-ff0c55e7",
-      "index": 149,
+      "index": 150,
       "name": "AgentRuntimeTelemetryLatest",
       "title": "Agent Runtime Telemetry Latest",
       "chapter": "RuntimeAgentOperations",
@@ -62678,7 +63461,7 @@
     },
     {
       "id": "slice-d8eaacb9",
-      "index": 150,
+      "index": 151,
       "name": "ReportAgentRuntimeNodeInventory",
       "title": "Report Agent Runtime Node Inventory",
       "chapter": "RuntimeAgentOperations",
@@ -63120,7 +63903,7 @@
     },
     {
       "id": "slice-6a815e36",
-      "index": 151,
+      "index": 152,
       "name": "AgentRuntimeNodeInventoryCatalog",
       "title": "Agent Runtime Node Inventory Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -63368,7 +64151,7 @@
     },
     {
       "id": "slice-a56419ba",
-      "index": 152,
+      "index": 153,
       "name": "AgentRuntimeNodeResourceLatest",
       "title": "Agent Runtime Node Resource Latest",
       "chapter": "RuntimeAgentOperations",

@@ -20,6 +20,7 @@ import {
   isField,
   isFieldDerivation,
   isFieldSourceMapping,
+  isFanOut,
   isHotspot,
   isIntegration,
   isDecision,
@@ -859,6 +860,11 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAu
     });
     (node.elements ?? []).filter(isCondition).forEach((condition, index) => {
       metadata[index === 0 ? 'condition' : `condition${index + 1}`] = formatLiteral(condition.expression);
+    });
+    (node.elements ?? []).filter(isFanOut).forEach((fanOut, index) => {
+      const prefix = index === 0 ? '' : `${index + 1}`;
+      metadata[`fanOutSource${prefix}`] = formatFieldSource(fanOut.source);
+      metadata[`fanOutAlias${prefix}`] = fanOut.alias;
     });
     (node.elements ?? []).filter((element) => element.$type === 'Emits').forEach((emits, index) => {
       if (emits.command?.$refText) metadata[index === 0 ? 'emits' : `emits${index + 1}`] = emits.command.$refText;

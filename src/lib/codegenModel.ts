@@ -190,6 +190,7 @@ export interface CodegenField {
   display: boolean;
   uploadFile: boolean;
   file: boolean;
+  portOutput: boolean;
   source?: CodegenFieldSource;
 }
 
@@ -777,6 +778,7 @@ const toCodegenField = (field: EmField): CodegenField => ({
   display: field.attributes.includes('display'),
   uploadFile: field.attributes.includes('uploadFile'),
   file: field.attributes.includes('file'),
+  portOutput: field.attributes.includes('portOutput'),
   ...(field.mapping ? { source: toCodegenFieldSource(field.mapping) } : {})
 });
 

@@ -26,6 +26,7 @@ interface ConfigField {
   display: boolean;
   uploadFile: boolean;
   file: boolean;
+  portOutput: boolean;
   mappings?: ConfigFieldMapping[];
   subfields: [];
 }
@@ -313,6 +314,7 @@ const toConfigField = (field: CodegenField): ConfigField => ({
   display: field.display,
   uploadFile: field.uploadFile,
   file: field.file,
+  portOutput: field.portOutput,
   ...(field.source ? { mappings: [toConfigFieldMapping(field.source)] } : {}),
   subfields: []
 });

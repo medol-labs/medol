@@ -247,6 +247,7 @@ Automation:
 AutomationElement:
       AutomationTrigger
     | Condition
+    | FanOut
     | Emits
 ;
 
@@ -256,6 +257,10 @@ AutomationTrigger:
 
 Condition:
     'condition' expression=Expr
+;
+
+FanOut:
+    'for' 'each' source=FieldSource 'as' alias=ID
 ;
 
 Emits:
@@ -375,6 +380,7 @@ FieldAttribute returns string:
     | 'display'
     | 'uploadFile'
     | 'file'
+    | 'portOutput'
 ;
 
 FieldMapping:

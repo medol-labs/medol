@@ -111,6 +111,12 @@
 - [ ] 前端按钮只有中间生效
 - [ ] 怎么调试排查问题
 - [ ] 服务间调用失败重试、发现机制
+- [ ] decision 内注入多 concept state 逻辑怎么没了？
+  -  重要，要处理这种逻辑，另外印象中改过怎么丢了
+- [ ] 控制异常堆栈打印行数生成模板中，   exception-conversion-word: "%ex{10}"
+- [ ] 优化 ai agent 使用，减少 token 消耗，固定的问题整理 skill
+- [ ] 生成分页查询默认按时间排序
+- [ ] 多状态
 
 ##
 
@@ -146,6 +152,15 @@
   - [ ] StartRoundWhenParticipantsSelectedProcessor 业务逻辑不满足，没有地方能查看
   - [ ] 一个 feature 多个 dataset
   - [ ] 任务失败，需要重新发起功能
+  - [ ] 现派发任务 runtime agent ip 读取配置文件，这里逻辑要调整动态获取 id 
+  - [ ] GeneratePlanForSelectedRuntimeProcessor 应该循环节点分别发送？现在 runtime id 等信息没有正确传递，建模上应该怎么处理
+  循环发送多个事件还是怎么办。
+  - [ ] 梳理 adapter 与 domain decision 边界：当前部分 adapter 过重，典型例子是 `ReadModelTrainingRoundParticipantSelectionAdapter`，里面包含 joined member 为空、active runtime、dataset metadata compatible、组织/runtime 匹配、distinct、quorum 等判断。长期应调整为：
+    - adapter 只做 read model / 外部系统查询、基础技术过滤、数据快照组装、技术不可用返回。
+    - domain decision component 承载业务规则：参与方选择策略、quorum、每组织/每 runtime 选择规则、失败事件选择、重试策略。
+    - 建模上把 `SelectTrainingRoundParticipantsService` 这类“做业务选择”的 port 降级为 `LoadTrainingRoundParticipantSelectionSnapshot` 这类查询型 port，事件仍记录完整 selected participant snapshot。
+    - 生成器后续应支持这类 snapshot port + decision policy 的默认结构，避免业务规则沉入 infrastructure adapter。
+  - [ ] 完成 cancel pause job 等流程
 
 ##
 

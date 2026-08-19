@@ -198,6 +198,46 @@ test('parses uploadFile field attribute and preserves it for code generation', (
   assert.match(roundTripDsl, /uploadedFile: String uploadFile/);
 });
 
+test('parses portOutput field attribute and preserves it for code generation', () => {
+  const model = parseMedol(`
+    context RuntimeAgentOperations {
+      slice StartRoundExecution {
+        port
+        event RoundExecutionStarted {
+          runtimeEngineJobId: String portOutput
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const field = model.contexts[0].slices[0].elements[0].fields.find((item) => item.name === 'runtimeEngineJobId');
+  assert(field);
+  assert(field.attributes.includes('portOutput'));
+
+  const codegen = modelToCodegenModel(model);
+  const codegenField = codegen.slices[0].events[0].fields.find((item) => item.name === 'runtimeEngineJobId');
+  assert.equal(codegenField?.portOutput, true);
+
+  const roundTripDsl = configToDsl({
+    context: 'RuntimeAgentOperations',
+    slices: [{
+      title: 'StartRoundExecution',
+      events: [{
+        title: 'RoundExecutionStarted',
+        fields: [{
+          name: 'runtimeEngineJobId',
+          type: 'String',
+          cardinality: 'Single',
+          optional: false,
+          portOutput: true
+        }]
+      }]
+    }]
+  });
+  assert.match(roundTripDsl, /runtimeEngineJobId: String portOutput/);
+});
+
 test('parses slice port marker and preserves it for code generation', () => {
   const model = parseMedol(`
     context Runtime {

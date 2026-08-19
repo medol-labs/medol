@@ -16,6 +16,7 @@ interface ConfigField {
   display?: boolean;
   uploadFile?: boolean;
   file?: boolean;
+  portOutput?: boolean;
   derived?: boolean;
   mappings?: Array<string | ConfigFieldMapping>;
 }
@@ -320,6 +321,9 @@ const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void 
     if (processor.metadata?.condition) {
       lines.push(`${pad(elementIndent + 2)}condition ${processor.metadata.condition}`);
     }
+    if (processor.metadata?.fanOutSource && processor.metadata?.fanOutAlias) {
+      lines.push(`${pad(elementIndent + 2)}for each ${processor.metadata.fanOutSource} as ${processor.metadata.fanOutAlias}`);
+    }
     if (processor.metadata?.emits) {
       lines.push(`${pad(elementIndent + 2)}emits ${toDslId(processor.metadata.emits, 'Command')}`);
     }
@@ -518,7 +522,8 @@ const formatField = (field: ConfigField): string => {
     field.query ? 'query' : '',
     field.display ? 'display' : '',
     field.uploadFile ? 'uploadFile' : '',
-    field.file ? 'file' : ''
+    field.file ? 'file' : '',
+    field.portOutput ? 'portOutput' : ''
   ].filter(Boolean);
   const prefix = `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;
   const dictionary = field.dictionary ? ` dictionary ${quote(field.dictionary)}` : '';

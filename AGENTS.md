@@ -81,3 +81,18 @@ There is no aggregate `npm test` — pick the suite that covers the changed area
 ## Active task list
 
 The working backlog is in `TODO.md` (medol-only) and `outputs/事件驱动的医学联邦学习平台软著材料/` (downstream material). New features typically start in the TODO list before being implemented.
+
+## Federation Learning model rules
+
+- `examples/fl/federation-learning.medol` is the source of truth for the generated Federation Learning platform.
+- When generated backend/frontend behavior is wrong because the domain behavior is wrong, fix this MEDOL file first instead of patching generated code.
+- After changing the model, regenerate the codegen model from the `medol/` root:
+  ```bash
+  npm run medol:to-codegen-model -- examples/fl/federation-learning.medol > examples/fl/codegen-model.json
+  ```
+- User commands may contain only user-provided identifiers and inputs, but emitted events should contain full snapshots needed by downstream consumers and replay.
+- If an event field is derived from another concept state and generation cannot express it, fix the model/generator. Do not accept generated random UUIDs or empty strings as meaningful business data.
+- Use explicit MEDOL field keywords for file flow:
+  - `uploadFile` means the generated frontend uploads binary content to the support file-upload endpoint and sends the returned reference.
+  - `file` means the command carries an existing file reference string.
+- Keep `fl/` out of scope. It is an older generated federation-learning project and is currently not maintained.

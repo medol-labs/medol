@@ -38,6 +38,8 @@ Use this skill when creating, reviewing, or changing MEDOL models.
 - `state StateName` inside a slice marks the resulting state after that slice.
 - `Owner.State` is the generated lifecycle enum for a concept named `Owner`.
 - `startsLifecycle` marks the entry slice that begins a business concept lifecycle.
+- Field attributes include `id`, `generated`, `technical`, `query`, `display`, `uploadFile`, `file`, and `portOutput`.
+- Use `portOutput` on an event field in a `port` slice when the adapter produces that value and the event must record it from the port result.
 - `specification "Rule name" { rule """..."""? expression { validation* }? scenario "Example" { given* when then }+ }` defines a business rule and executable examples.
 - `then reject "description"` models expected business rejection outcomes.
 - `automation Name { condition expression emits CommandName }` captures automatic behavior.
@@ -65,7 +67,9 @@ Use this skill when creating, reviewing, or changing MEDOL models.
 - Use `field: Type derived` when the value is computed but the rule is not yet clear.
 - Use `field: Type derived from Source.field { rule "..." }` when computation inputs and rule are known.
 - Use field details `{ example "..." }` to provide representative values without changing field semantics.
-- Use attributes `id`, `generated`, `technical`, and `query` to clarify identity, generated values, non-business fields, and query parameters.
+- Use attributes to clarify field ownership and generation behavior:
+  `id` for identity, `generated` for application-generated command values, `technical` for implementation-facing fields, `query` for query parameters, `display` for UI selector labels, `uploadFile` for multipart upload content, `file` for staged file references, and `portOutput` for adapter-produced event fields.
+- Do not add command fields only to carry values that an adapter creates later. In a `port` slice, put those values on the resulting event and mark them `portOutput`.
 
 ## Patch Rules
 

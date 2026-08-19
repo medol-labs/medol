@@ -1,8 +1,10 @@
 import {
   isAssertValidation,
+  isAutomation,
   isBooleanLiteral,
   isCommand,
   isEnumType,
+  isFanOut,
   isNumberLiteral,
   isNullLiteral,
   isPortMarker,
@@ -480,6 +482,18 @@ const validateAstSlice = (
 
   for (const specification of (astSlice.elements ?? []).filter((element): element is Specification => element.$type === 'Specification')) {
     validateSpecification(specification, symbols, diagnostics);
+  }
+
+  for (const automation of (astSlice.elements ?? []).filter(isAutomation)) {
+    for (const fanOut of (automation.elements ?? []).filter(isFanOut)) {
+      const resolved = resolveFieldSource(fanOut.source, symbols);
+      const sourceText = fieldSourceText(fanOut.source);
+      if (!resolved) {
+        diagnostics.push(`Automation ${automation.name}: for each references unknown field path ${sourceText}.`);
+      } else if (resolved.cardinality !== 'List' && resolved.cardinality !== 'OptionalList') {
+        diagnostics.push(`Automation ${automation.name}: for each source ${sourceText} must be a list field.`);
+      }
+    }
   }
 };
 

@@ -3069,6 +3069,7 @@ context TrainingOrchestration {
     automation GeneratePlanForSelectedRuntime {
       on TrainingRoundStarted
       condition selectedRuntimeCount > 0
+      for each TrainingRoundStarted.selectedParticipants as participant
       emits GenerateParticipantExecutionPlan
     }
 
@@ -3080,14 +3081,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID from TrainingRoundStarted.featureSchemaId
       roundId: UUID from TrainingRoundStarted.roundId
       roundNumber: Int from TrainingRoundStarted.roundNumber
-      runtimeId: UUID derived {
-        from TrainingRoundStarted.selectedParticipants.runtimeId
-        rule "Fan out one immutable execution plan per selected runtime in the selected participant snapshot."
-      }
-      organizationId: UUID derived {
-        from TrainingRoundStarted.selectedParticipants.organizationId
-        rule "Carry the organization paired with the selected runtime in the participant snapshot."
-      }
+      runtimeId: UUID from participant.runtimeId
+      organizationId: UUID from participant.organizationId
       baseModelId: UUID derived {
         from TrainingRunConfiguration.initialModelId, TrainingRoundCompleted.aggregatedModelId
         rule "Round one uses the initial model selected by the training configuration; later rounds use the aggregated model from the previous completed round."
@@ -4873,8 +4868,14 @@ context RuntimeAgentOperations {
     source RoundExecution
     target RuntimeEngine
     reactsTo RoundExecutionStarted
+    emits ObserveRuntimeEngineJob
+  }
+
+  integration RoundRuntimeEngineObservation {
+    source RoundExecution
+    target RuntimeEngine
+    reactsTo RuntimeEngineJobObserved
     emits CompleteRoundExecution
-    emits FailRoundExecution
     emits SubmitAgentLocalModelUpdate
   }
 
@@ -4882,8 +4883,14 @@ context RuntimeAgentOperations {
     source RoundExecution
     target RuntimeEngine
     reactsTo RoundExecutionStartRetryStarted
+    emits ObserveRuntimeEngineJob
+  }
+
+  integration RetriedRoundRuntimeEngineObservation {
+    source RoundExecution
+    target RuntimeEngine
+    reactsTo RuntimeEngineJobObserved
     emits CompleteRoundExecution
-    emits FailRoundExecution
     emits SubmitAgentLocalModelUpdate
   }
 
@@ -4891,8 +4898,14 @@ context RuntimeAgentOperations {
     source RoundExecution
     target RuntimeEngine
     reactsTo RoundExecutionRuntimeRetryStarted
+    emits ObserveRuntimeEngineJob
+  }
+
+  integration RuntimeFailureRetriedRoundRuntimeEngineObservation {
+    source RoundExecution
+    target RuntimeEngine
+    reactsTo RuntimeEngineJobObserved
     emits CompleteRoundExecution
-    emits FailRoundExecution
     emits SubmitAgentLocalModelUpdate
   }
 
@@ -6023,7 +6036,6 @@ context RuntimeAgentOperations {
       baseModelFormat: String from ExecutionPlanAccepted.baseModelFormat
       baseModelArtifactDigest: String from ExecutionPlanAccepted.baseModelArtifactDigest
       baseModelSignatureUri: String? from ExecutionPlanAccepted.baseModelSignatureUri
-      runtimeEngineJobId: String
     }
 
     event RoundExecutionStarted {
@@ -6043,7 +6055,7 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
-      runtimeEngineJobId: String
+      runtimeEngineJobId: String portOutput
     }
 
     event RoundExecutionStartFailed {
@@ -6096,18 +6108,111 @@ context RuntimeAgentOperations {
     }
   }
 
-  slice CompleteRoundExecution {
+  slice ObserveRuntimeEngineJob {
     reactsTo RoundExecutionStarted
+    port
 
-    command CompleteRoundExecution {
+    automation ObserveRuntimeEngineJobWhenRoundExecutionStarted {
+      on RoundExecutionStarted
+      emits ObserveRuntimeEngineJob
+    }
+
+    command ObserveRuntimeEngineJob {
+      roundExecutionId: UUID id technical from RoundExecutionStarted.roundExecutionId
+      executionSessionId: UUID from RoundExecutionStarted.executionSessionId
+      executionPlanId: UUID from RoundExecutionStarted.executionPlanId
+      trainingJobId: UUID from RoundExecutionStarted.trainingJobId
+      trainingRunConfigurationId: UUID from RoundExecutionStarted.trainingRunConfigurationId
+      roundId: UUID from RoundExecutionStarted.roundId
+      roundNumber: Int from RoundExecutionStarted.roundNumber
+      runtimeId: UUID from RoundExecutionStarted.runtimeId
+      organizationId: UUID from RoundExecutionStarted.organizationId
+      featureSchemaId: UUID from RoundExecutionStarted.featureSchemaId
+      runtimeEngineJobId: String from RoundExecutionStarted.runtimeEngineJobId
+    }
+
+    event RuntimeEngineJobObserved {
       roundExecutionId: UUID id technical
       executionSessionId: UUID
       executionPlanId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
+      roundNumber: Int
       runtimeId: UUID
+      organizationId: UUID
+      featureSchemaId: UUID
       runtimeEngineJobId: String
+      observedStatus: String
+      failureReason: String?
+      localUpdateArtifactRef: String?
+      metricsArtifactRef: String?
+      trainingLoss: Decimal?
+    }
+
+    state Running
+
+    specification "Runtime Engine Job Observation Outcome" {
+      rule """
+        Observing a runtime engine job is an external status check. The adapter queries the runtime engine by runtimeEngineJobId and records RuntimeEngineJobObserved with observedStatus RUNNING, COMPLETED, or FAILED. Completion and failure domain state changes are triggered by follow-up automations instead of embedding runtime engine polling inside CompleteRoundExecution or FailRoundExecution.
+      """
+
+      scenario "Runtime Engine Job Observed Running" {
+        given RoundExecutionStarted {
+          roundExecutionId = "round-execution-1"
+        }
+        when ObserveRuntimeEngineJob {
+          roundExecutionId = "round-execution-1"
+        }
+        then RuntimeEngineJobObserved
+      }
+
+      scenario "Runtime Engine Job Observed Completed" {
+        given RoundExecutionStarted {
+          roundExecutionId = "round-execution-2"
+        }
+        when ObserveRuntimeEngineJob {
+          roundExecutionId = "round-execution-2"
+        }
+        then RuntimeEngineJobObserved
+      }
+
+      scenario "Runtime Engine Job Observed Failed" {
+        given RoundExecutionStarted {
+          roundExecutionId = "round-execution-3"
+        }
+        when ObserveRuntimeEngineJob {
+          roundExecutionId = "round-execution-3"
+        }
+        then RuntimeEngineJobObserved
+      }
+    }
+  }
+
+  slice CompleteRoundExecution {
+    reactsTo RuntimeEngineJobObserved
+
+    automation CompleteRoundExecutionWhenRuntimeEngineJobCompleted {
+      on RuntimeEngineJobObserved
+      condition observedStatus == "COMPLETED"
+      emits CompleteRoundExecution
+    }
+
+    command CompleteRoundExecution {
+      roundExecutionId: UUID id technical from RuntimeEngineJobObserved.roundExecutionId
+      executionSessionId: UUID from RuntimeEngineJobObserved.executionSessionId
+      executionPlanId: UUID from RuntimeEngineJobObserved.executionPlanId
+      trainingJobId: UUID from RuntimeEngineJobObserved.trainingJobId
+      trainingRunConfigurationId: UUID from RuntimeEngineJobObserved.trainingRunConfigurationId
+      roundId: UUID from RuntimeEngineJobObserved.roundId
+      roundNumber: Int from RuntimeEngineJobObserved.roundNumber
+      runtimeId: UUID from RuntimeEngineJobObserved.runtimeId
+      organizationId: UUID from RuntimeEngineJobObserved.organizationId
+      featureSchemaId: UUID from RuntimeEngineJobObserved.featureSchemaId
+      runtimeEngineJobId: String from RuntimeEngineJobObserved.runtimeEngineJobId
+      localUpdateArtifactRef: String? from RuntimeEngineJobObserved.localUpdateArtifactRef
+      metricsArtifactRef: String? from RuntimeEngineJobObserved.metricsArtifactRef
+      trainingLoss: Decimal? from RuntimeEngineJobObserved.trainingLoss
     }
 
     event RoundExecutionCompleted {
@@ -6117,26 +6222,41 @@ context RuntimeAgentOperations {
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
+      roundNumber: Int
       runtimeId: UUID
+      organizationId: UUID
+      featureSchemaId: UUID
       runtimeEngineJobId: String
+      localUpdateArtifactRef: String?
+      metricsArtifactRef: String?
+      trainingLoss: Decimal?
     }
 
     state Completed
   }
 
   slice FailRoundExecution {
-    reactsTo RoundExecutionStarted
+    reactsTo RuntimeEngineJobObserved
+
+    automation FailRoundExecutionWhenRuntimeEngineJobFailed {
+      on RuntimeEngineJobObserved
+      condition observedStatus == "FAILED"
+      emits FailRoundExecution
+    }
 
     command FailRoundExecution {
-      roundExecutionId: UUID id technical
-      executionSessionId: UUID
-      executionPlanId: UUID
-      trainingJobId: UUID
-      trainingRunConfigurationId: UUID
-      roundId: UUID
-      runtimeId: UUID
-      runtimeEngineJobId: String?
-      failureReason: String
+      roundExecutionId: UUID id technical from RuntimeEngineJobObserved.roundExecutionId
+      executionSessionId: UUID from RuntimeEngineJobObserved.executionSessionId
+      executionPlanId: UUID from RuntimeEngineJobObserved.executionPlanId
+      trainingJobId: UUID from RuntimeEngineJobObserved.trainingJobId
+      trainingRunConfigurationId: UUID from RuntimeEngineJobObserved.trainingRunConfigurationId
+      roundId: UUID from RuntimeEngineJobObserved.roundId
+      roundNumber: Int from RuntimeEngineJobObserved.roundNumber
+      runtimeId: UUID from RuntimeEngineJobObserved.runtimeId
+      organizationId: UUID from RuntimeEngineJobObserved.organizationId
+      featureSchemaId: UUID from RuntimeEngineJobObserved.featureSchemaId
+      runtimeEngineJobId: String? from RuntimeEngineJobObserved.runtimeEngineJobId
+      failureReason: String? from RuntimeEngineJobObserved.failureReason
     }
 
     event RoundExecutionFailed {
@@ -6146,9 +6266,12 @@ context RuntimeAgentOperations {
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
+      roundNumber: Int
       runtimeId: UUID
+      organizationId: UUID
+      featureSchemaId: UUID
       runtimeEngineJobId: String?
-      failureReason: String
+      failureReason: String?
     }
 
     state Failed
@@ -6288,12 +6411,12 @@ context RuntimeAgentOperations {
       trainingRunConfigurationId: UUID from RoundExecutionCompleted.trainingRunConfigurationId
       roundId: UUID from RoundExecutionCompleted.roundId
       runtimeId: UUID from RoundExecutionCompleted.runtimeId
-      featureSchemaId: UUID derived from RoundExecutionStarted.featureSchemaId by roundExecutionId
+      featureSchemaId: UUID from RoundExecutionCompleted.featureSchemaId
       localModelId: UUID
       updateArtifactId: UUID
-      artifactRef: String
+      artifactRef: String from RoundExecutionCompleted.localUpdateArtifactRef
       artifactDigest: String
-      trainingLoss: Decimal
+      trainingLoss: Decimal from RoundExecutionCompleted.trainingLoss
     }
 
     event AgentLocalModelUpdateSubmitted {
@@ -6445,6 +6568,10 @@ context RuntimeAgentOperations {
       featureSchemaId: UUID?
       baseModelId: UUID?
       runtimeEngineJobId: String?
+      runtimeEngineObservedStatus: String?
+      runtimeEngineObservationAt: DateTime?
+      localUpdateArtifactRef: String?
+      metricsArtifactRef: String?
       localExecutionRequirementsSatisfied: Boolean?
       runtimeIdentityMatched: Boolean?
       runtimeDatasetBindingAvailable: Boolean?
@@ -6475,6 +6602,7 @@ context RuntimeAgentOperations {
       subscribe ExecutionPlanRejected
       subscribe RoundExecutionStarted
       subscribe RoundExecutionStartFailed
+      subscribe RuntimeEngineJobObserved
       subscribe RoundExecutionStartRetryStarted
       subscribe RoundExecutionStartRetryFailed
       subscribe RoundExecutionCompleted
@@ -6506,6 +6634,7 @@ context RuntimeAgentOperations {
     slice ReceiveParticipantExecutionPlan
     slice AcceptExecutionPlan
     slice StartRoundExecution
+    slice ObserveRuntimeEngineJob
     slice CompleteRoundExecution
     slice FailRoundExecution
     slice RetryRoundExecutionAfterStartFailure
