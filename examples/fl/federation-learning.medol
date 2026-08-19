@@ -1425,6 +1425,8 @@ context RuntimeProvisioning {
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInstallationPlanCreated.agentInstallMode by runtimeInfrastructureId
       organizationId: UUID derived from RuntimeInstallationPlanCreated.organizationId by runtimeInfrastructureId
       runtimeName: String derived from RuntimeInstallationPlanCreated.runtimeName by runtimeInfrastructureId
+      runtimeAgentEndpoint: String from AgentRuntimeConnectionEstablished.runtimeAgentEndpoint
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE" from AgentRuntimeConnectionEstablished.endpointScope
     }
 
     event RuntimeConnectionEstablished {
@@ -1433,9 +1435,31 @@ context RuntimeProvisioning {
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       organizationId: UUID
       runtimeName: String
+      runtimeAgentEndpoint: String
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
     }
 
     state Connected
+  }
+
+  slice RuntimeAgentEndpointCatalog {
+    readmodel RuntimeAgentEndpointCatalog[] {
+      runtimeAgentId: UUID id
+      runtimeId: UUID?
+      runtimeInfrastructureId: UUID
+      organizationId: UUID
+      runtimeName: String
+      runtimeAgentEndpoint: String
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
+      connectionStatus: String
+      connectedAt: DateTime?
+      activatedAt: DateTime?
+      subscribe RuntimeConnectionEstablished
+      subscribe RuntimeIdentityActivated
+      subscribe RuntimeIdentityRevoked
+      subscribe RuntimeAgentOfflineDetected
+      subscribe RuntimeAgentRecovered
+    }
   }
 
   slice RuntimeInfrastructureAccessView {
@@ -1516,6 +1540,7 @@ context RuntimeProvisioning {
     slice DeployRuntimeAgent
     slice RetryRuntimeAgentDeployment
     slice RecordRuntimeConnectionEstablished
+    slice RuntimeAgentEndpointCatalog
     slice RuntimeInfrastructureAccessView
   }
 }
@@ -6807,6 +6832,8 @@ context RuntimeAgentOperations {
     command ReportRuntimeInstanceConnected {
       runtimeInfrastructureId: UUID id technical from RuntimeInstanceSelfCheckPassed.runtimeInfrastructureId
       runtimeAgentId: UUID from RuntimeInstanceSelfCheckPassed.runtimeAgentId
+      runtimeAgentEndpoint: String
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
       runtimePlatformConnectionReady: Boolean
       platformApiReachable: Boolean
       agentAuthenticationSucceeded: Boolean
@@ -6829,6 +6856,8 @@ context RuntimeAgentOperations {
     event AgentRuntimeConnectionEstablished {
       runtimeInfrastructureId: UUID id technical
       runtimeAgentId: UUID
+      runtimeAgentEndpoint: String
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
       runtimePlatformConnectionReady: Boolean
       platformApiReachable: Boolean
       agentAuthenticationSucceeded: Boolean
@@ -6851,6 +6880,8 @@ context RuntimeAgentOperations {
         when ReportRuntimeInstanceConnected {
           runtimeInfrastructureId = "runtime-infra-1"
           runtimeAgentId = "runtime-agent-1"
+          runtimeAgentEndpoint = "http://localhost:8082"
+          endpointScope = "LOCAL"
           runtimePlatformConnectionReady = true
           platformApiReachable = true
           agentAuthenticationSucceeded = true
@@ -6868,6 +6899,8 @@ context RuntimeAgentOperations {
         when ReportRuntimeInstanceConnected {
           runtimeInfrastructureId = "runtime-infra-2"
           runtimeAgentId = "runtime-agent-2"
+          runtimeAgentEndpoint = "http://localhost:8083"
+          endpointScope = "LOCAL"
           runtimePlatformConnectionReady = false
           platformApiReachable = false
           agentAuthenticationSucceeded = false
