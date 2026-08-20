@@ -27,6 +27,8 @@ export interface PrdActor {
 export interface PrdAggregate {
   id: string;
   name: string;
+  type?: 'aggregate' | 'concept';
+  context?: string;
   states: string[];
   sourceRefs: string[];
 }

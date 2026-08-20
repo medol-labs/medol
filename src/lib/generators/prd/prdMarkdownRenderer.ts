@@ -3,11 +3,188 @@ import type { DocumentationLanguage } from '../documentation/documentationModel'
 import type {
   PrdDocument,
   PrdField,
+  PrdAggregate,
   PrdSlice,
   PrdSpecification
 } from './prdModel';
 
 export const renderPrdMarkdown = (
+  document: PrdDocument,
+  language: DocumentationLanguage = 'en'
+): string => {
+  const zh = language === 'zh-CN';
+  const text = prdText[language];
+  const lines: string[] = [];
+
+  lines.push(`# ${document.title} ${text.titleSuffix}`);
+  lines.push('');
+  lines.push('<!-- em:section id="prd.section.overview" -->');
+  heading(lines, 2, text.backgroundAndGoals);
+  lines.push(document.overview);
+  lines.push('');
+  lines.push(text.goalLead);
+  lines.push('');
+  appendList(lines, text.goals);
+  lines.push('');
+  if (document.notes.length) {
+    heading(lines, 3, text.businessBackground);
+    appendList(lines, document.notes);
+    lines.push('');
+  }
+
+  lines.push('<!-- em:section id="prd.section.scope" -->');
+  heading(lines, 2, text.scopeAndBoundary);
+  lines.push(`**${text.businessScope}:** ${document.context.split(', ').map(humanize).join(', ')}`);
+  lines.push('');
+  lines.push(`**${text.coreObjects}:** ${document.aggregates.map((aggregate) => humanize(aggregate.name)).join(', ') || text.notModeled}`);
+  lines.push('');
+  lines.push(`**${text.roles}:** ${document.actors.map((actor) => humanize(actor.name)).join(', ') || text.notModeled}`);
+  lines.push('');
+  lines.push(text.scopeBoundaryNote);
+  lines.push('');
+
+  if (document.aggregates.length) {
+    lines.push('<!-- em:section id="prd.section.businessObjects" -->');
+    heading(lines, 2, text.businessObjectOverview);
+    lines.push(`| ${text.objectName} | ${text.ownerContext} | ${text.lifecycle} | ${text.relatedFeatures} |`);
+    lines.push('| --- | --- | --- | --- |');
+    for (const object of document.aggregates) {
+      const slices = document.slices.filter((slice) => slice.aggregate === object.name);
+      lines.push(`| ${cell(humanize(object.name))} | ${cell(object.context ? humanize(object.context) : '-')} | ${cell(formatLifecycle(object, language))} | ${cell(slices.map((slice) => humanize(slice.name)).join(', ') || text.notModeled)} |`);
+    }
+    lines.push('');
+  }
+
+  lines.push('<!-- em:section id="prd.section.featureInventory" -->');
+  heading(lines, 2, text.featureOverview);
+  for (const [context, slices] of groupBy(document.slices, (slice) => slice.context)) {
+    lines.push(`### ${humanize(context)}`);
+    lines.push('');
+    lines.push(text.featureOverviewIntro(slices.length));
+    lines.push('');
+    lines.push(zh
+      ? '| 功能 | 业务对象 | 类型 | 页面/入口 | 用户角色 | 用户价值/业务结果 |'
+      : '| Feature | Business Object | Type | UI / Entry | Role | User Value / Business Result |');
+    lines.push('| --- | --- | --- | --- | --- | --- |');
+    for (const slice of slices) {
+      lines.push(`| ${cell(humanize(slice.name))} | ${cell(humanize(slice.aggregate))} | ${cell(operationLabel(slice.operation, language))} | ${cell(formatUi(slice, language))} | ${cell(slice.actor ? humanize(slice.actor) : text.systemOrUnspecified)} | ${cell(formatResult(slice, language))} |`);
+    }
+    lines.push('');
+  }
+
+  lines.push('<!-- em:section id="prd.section.functionalRequirements" -->');
+  heading(lines, 2, text.functionalRequirements);
+  const groupedObjects = document.aggregates.filter((object) =>
+    document.slices.some((slice) => slice.aggregate === object.name)
+  );
+  if (groupedObjects.length) {
+    for (const object of groupedObjects) {
+      lines.push(`<!-- em:section id="prd.section.aggregate.${object.name}" source="${object.id}" -->`);
+      heading(lines, 3, humanize(object.name));
+      lines.push(`**${text.ownerContext}:** ${object.context ? humanize(object.context) : text.notModeled}`);
+      lines.push('');
+      lines.push(`**${text.lifecycle}:** ${formatLifecycle(object, language)}`);
+      lines.push('');
+      const slices = document.slices.filter((slice) => slice.aggregate === object.name);
+      for (const slice of slices) appendFeatureRequirement(lines, slice, language);
+    }
+  } else {
+    appendList(lines, document.slices.map((slice) => `${humanize(slice.name)}: ${formatResult(slice, language)}.`));
+    lines.push('');
+  }
+
+  lines.push('<!-- em:section id="prd.section.userExperience" -->');
+  heading(lines, 2, text.userExperience);
+  lines.push(zh
+    ? '| 页面/入口 | 所属功能 | 交互类型 | 主要输入 | 输出/展示 |'
+    : '| UI / Entry | Feature | Interaction | Primary Input | Output / Display |');
+  lines.push('| --- | --- | --- | --- | --- |');
+  for (const slice of document.slices) {
+    lines.push(`| ${cell(formatUi(slice, language))} | ${cell(humanize(slice.name))} | ${cell(operationLabel(slice.operation, language))} | ${cell(slice.command?.fields.map((field) => field.name).join(', ') || text.notApplicable)} | ${cell(slice.readModelNames.map(humanize).join(', ') || formatResult(slice, language))} |`);
+  }
+  lines.push('');
+
+  lines.push('<!-- em:section id="prd.section.acceptanceMatrix" -->');
+  heading(lines, 2, text.acceptanceMatrix);
+  lines.push(zh
+    ? '| 编号 | 功能 | 场景/前置条件 | 用户操作 | 预期结果 | 验收依据 |'
+    : '| ID | Feature | Scenario / Preconditions | User Action | Expected Result | Acceptance Basis |');
+  lines.push('| --- | --- | --- | --- | --- | --- |');
+  let acceptanceIndex = 1;
+  for (const slice of document.slices) {
+    const scenarios = buildAcceptanceScenarios(slice, language);
+    for (const scenario of scenarios) {
+      lines.push(`| AC-${String(acceptanceIndex).padStart(3, '0')} | ${cell(humanize(slice.name))} | ${cell(scenario.given)} | ${cell(scenario.when)} | ${cell(scenario.then)} | ${cell(scenario.source)} |`);
+      acceptanceIndex += 1;
+    }
+  }
+  lines.push('');
+
+  lines.push('<!-- em:section id="prd.section.dataDictionary" -->');
+  heading(lines, 2, text.dataAndRules);
+  const keyFields = document.dataDictionary.filter((field) =>
+    field.attributes.some((attribute) => ['id', 'query', 'optional'].includes(attribute))
+    || Boolean(field.example)
+    || Boolean(field.mapping)
+  );
+  if (keyFields.length) {
+    lines.push(zh
+      ? '| 所属元素 | 字段 | 类型 | 数量 | 属性 | 示例 | 来源/计算规则 |'
+      : '| Owner | Field | Type | Cardinality | Attributes | Example | Source / Rule |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+    for (const field of keyFields) {
+      lines.push(`| ${cell(humanize(field.owner))} | ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(field.mapping ?? '-')} |`);
+    }
+  } else {
+    lines.push(text.noKeyFields);
+  }
+  lines.push('');
+
+  lines.push('<!-- em:section id="prd.section.automations" -->');
+  heading(lines, 2, text.operationsAndIntegrations);
+  if (document.automations.length) {
+    lines.push(zh ? '| 名称 | 类型 | 触发与规则 |' : '| Name | Type | Trigger and Rules |');
+    lines.push('| --- | --- | --- |');
+    for (const automation of document.automations) {
+      const metadata = Object.entries(automation.metadata)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('; ');
+      lines.push(`| ${cell(humanize(automation.name))} | ${cell(humanize(automation.kind))} | ${cell(metadata || '-')} |`);
+    }
+  } else {
+    lines.push(text.noAutomation);
+  }
+  lines.push('');
+
+  lines.push('<!-- em:section id="prd.section.nonFunctional" -->');
+  heading(lines, 2, text.nonFunctionalRequirements);
+  appendList(lines, text.nonFunctionalChecklist);
+  if (document.metrics.length) {
+    lines.push('');
+    lines.push(`**${text.modelMetrics}**`);
+    lines.push('');
+    appendList(lines, document.metrics.map(humanize));
+  }
+  lines.push('');
+
+  lines.push('<!-- em:section id="prd.section.deliveryAcceptance" -->');
+  heading(lines, 2, text.deliveryAcceptance);
+  appendList(lines, text.deliveryChecklist);
+  lines.push('');
+
+  lines.push('<!-- em:section id="prd.section.openQuestions" -->');
+  heading(lines, 2, text.openQuestions);
+  appendList(
+    lines,
+    document.openQuestions.map((question) => zh ? localizeOpenQuestion(question) : question),
+    text.noOpenQuestions
+  );
+  lines.push('');
+
+  return lines.join('\n');
+};
+
+const renderLegacyPrdMarkdown = (
   document: PrdDocument,
   language: DocumentationLanguage = 'en'
 ): string => {
@@ -146,6 +323,49 @@ export const renderPrdMarkdown = (
   return lines.join('\n');
 };
 
+const appendFeatureRequirement = (
+  lines: string[],
+  slice: PrdSlice,
+  language: DocumentationLanguage
+): void => {
+  const text = prdText[language];
+  lines.push(`<!-- em:section id="prd.section.slice.${slice.name}" source="${slice.id}" -->`);
+  heading(lines, 4, `${humanize(slice.name)} · ${operationLabel(slice.operation, language)}`);
+  lines.push(`**${text.userStory}**`);
+  lines.push('');
+  lines.push(featureStory(slice, language));
+  lines.push('');
+  lines.push(`**${text.requirementDescription}**`);
+  lines.push('');
+  appendList(lines, [
+    `${text.entry}: ${formatUi(slice, language)}.`,
+    `${text.role}: ${slice.actor ? humanize(slice.actor) : text.systemOrUnspecified}.`,
+    `${text.businessObject}: ${humanize(slice.aggregate)}.`,
+    `${text.successResult}: ${formatResult(slice, language)}.`,
+    ...(slice.readModelNames.length
+      ? [`${text.displayResult}: ${slice.readModelNames.map(humanize).join(', ')}.`]
+      : [])
+  ]);
+  lines.push('');
+
+  appendFields(lines, text.inputFields, slice.command?.fields ?? [], language);
+  if (slice.specifications.length) {
+    appendRuleCoverage(lines, slice.specifications, language);
+    lines.push(`**${text.acceptanceScenarios}**`);
+    lines.push('');
+    appendSpecifications(lines, slice.specifications, language);
+  } else if (slice.command) {
+    lines.push(`> ${text.inferredAcceptanceWarning}`);
+    lines.push('');
+  }
+  if (slice.hotspots.length) {
+    lines.push(`**${text.productQuestions}**`);
+    lines.push('');
+    appendList(lines, slice.hotspots);
+    lines.push('');
+  }
+};
+
 const appendSlice = (
   lines: string[],
   slice: PrdSlice,
@@ -255,7 +475,7 @@ const buildAcceptanceScenarios = (
           ? humanize(specification.then)
           : formatResult(slice, language),
       source: [
-        `specification ${humanize(specification.name)}`,
+        `${zh ? '验收规则' : 'acceptance rule'} ${humanize(specification.name)}`,
         specification.validates.length
           ? `${zh ? '验证' : 'validates'} ${specification.validates.join('; ')}`
           : undefined
@@ -272,11 +492,11 @@ const buildAcceptanceScenarios = (
       : `${zh ? '用户访问' : 'User opens'} ${formatUi(slice, language)}`,
     then: formatResult(slice, language),
     source: [
-      slice.command ? `command ${humanize(slice.command.name)}` : undefined,
-      slice.event ? `event ${humanize(slice.event.name)}` : undefined,
-      slice.resultingState ? `state ${humanize(slice.resultingState)}` : undefined,
-      slice.readModelNames.length ? `readmodel ${slice.readModelNames.map(humanize).join(', ')}` : undefined
-    ].filter(Boolean).join('; ') || (zh ? 'slice 语义' : 'slice semantics')
+      slice.command ? `${zh ? '功能操作' : 'product action'} ${humanize(slice.command.name)}` : undefined,
+      slice.event ? `${zh ? '业务结果' : 'business result'} ${humanize(slice.event.name)}` : undefined,
+      slice.resultingState ? `${zh ? '状态' : 'state'} ${humanize(slice.resultingState)}` : undefined,
+      slice.readModelNames.length ? `${zh ? '展示视图' : 'display view'} ${slice.readModelNames.map(humanize).join(', ')}` : undefined
+    ].filter(Boolean).join('; ') || (zh ? '功能定义' : 'feature definition')
   }];
 };
 
@@ -294,9 +514,9 @@ const formatUi = (slice: PrdSlice, language: DocumentationLanguage): string => {
 const formatResult = (slice: PrdSlice, language: DocumentationLanguage): string => {
   const zh = language === 'zh-CN';
   const results = [
-    slice.startsLifecycle ? `${zh ? '启动生命周期' : 'Starts lifecycle'} ${humanize(slice.aggregate)}` : undefined,
-    slice.event ? `${zh ? '产生事件' : 'Produces'} ${humanize(slice.event.name)}` : undefined,
-    slice.resultingState ? `${zh ? '状态变为' : 'State becomes'} ${humanize(slice.resultingState)}` : undefined,
+    slice.startsLifecycle ? `${zh ? '创建或启用' : 'Creates or opens'} ${humanize(slice.aggregate)}` : undefined,
+    slice.event ? `${zh ? '完成业务结果' : 'Completes business result'} ${humanize(slice.event.name)}` : undefined,
+    slice.resultingState ? `${zh ? '业务状态更新为' : 'Business status becomes'} ${humanize(slice.resultingState)}` : undefined,
     slice.readModelNames.length ? `${zh ? '展示' : 'Displays'} ${slice.readModelNames.map(humanize).join(', ')}` : undefined
   ].filter(Boolean);
   return results.join('; ') || (zh ? '结果待业务确认' : 'Result requires business confirmation');
@@ -379,3 +599,215 @@ const appendList = (lines: string[], values: string[], emptyText?: string): void
 };
 
 const cell = (value: string): string => value.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+
+const formatLifecycle = (
+  object: PrdAggregate,
+  language: DocumentationLanguage
+): string => {
+  if (object.states.length) return object.states.map(humanize).join(' -> ');
+  return prdText[language].notModeled;
+};
+
+const featureStory = (
+  slice: PrdSlice,
+  language: DocumentationLanguage
+): string => {
+  const text = prdText[language];
+  const actor = slice.actor ? humanize(slice.actor) : text.targetUser;
+  if (language === 'zh-CN') {
+    return `作为${actor}，我希望通过${formatUi(slice, language)}完成${humanize(slice.name)}，以便${formatResult(slice, language)}。`;
+  }
+  return `As ${actor}, I want to complete ${humanize(slice.name)} through ${formatUi(slice, language)} so that ${formatResult(slice, language)}.`;
+};
+
+const groupBy = <T>(
+  items: T[],
+  keyOf: (item: T) => string
+): Array<[string, T[]]> => {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const key = keyOf(item);
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  return [...groups.entries()];
+};
+
+const prdText = {
+  en: {
+    titleSuffix: 'Product Requirements Document',
+    backgroundAndGoals: 'Background And Goals',
+    goalLead: 'This PRD is intended to align product scope, user value, delivery boundaries, and acceptance expectations before implementation begins.',
+    goals: [
+      'Clarify what business capabilities are included in the product scope and how users complete them.',
+      'Define the expected user entries, data inputs, business results, and display outputs for each capability.',
+      'Provide acceptance criteria that product, engineering, testing, and delivery stakeholders can review together.'
+    ],
+    businessBackground: 'Business Background',
+    scopeAndBoundary: 'Scope And Boundary',
+    businessScope: 'Business scope',
+    coreObjects: 'Core business objects',
+    roles: 'User roles',
+    scopeBoundaryNote: 'Items not represented as a capability, page, data view, rule, integration, or open question in this document should be treated as out of scope until they are explicitly confirmed.',
+    businessObjectOverview: 'Business Object Overview',
+    objectName: 'Business Object',
+    ownerContext: 'Owner Context',
+    lifecycle: 'Lifecycle',
+    relatedFeatures: 'Related Features',
+    featureOverview: 'Feature Overview',
+    featureOverviewIntro: (count: number) => `This module contains ${count} product capabilities. The table summarizes user-facing entries, operating roles, and expected business value.`,
+    functionalRequirements: 'Functional Requirements',
+    userExperience: 'User Experience And Entry Points',
+    acceptanceMatrix: 'Acceptance Matrix',
+    dataAndRules: 'Data And Business Rules',
+    operationsAndIntegrations: 'Operations And Integrations',
+    nonFunctionalRequirements: 'Non-Functional Requirements',
+    nonFunctionalChecklist: [
+      'Permission, tenant, and role boundaries must be confirmed for each user-facing operation.',
+      'Duplicate submission, retry, and idempotency behavior must be consistent for business operations that change state.',
+      'List and detail pages must provide stable loading, empty, error, and refresh behavior.',
+      'Audit, traceability, sensitive-data handling, and retention rules must be confirmed before production release.',
+      'Performance, capacity, and availability targets must be agreed with business and operations stakeholders.'
+    ],
+    modelMetrics: 'Modeled Product Metrics',
+    deliveryAcceptance: 'Delivery Acceptance Checklist',
+    deliveryChecklist: [
+      'Every feature listed in the scope has an accessible entry point or a confirmed system trigger.',
+      'Input fields, required constraints, optional fields, examples, and derived values match the approved requirement.',
+      'Successful operations produce the expected business result and visible status or data changes.',
+      'Display views support the required list, detail, filtering, and refresh behavior.',
+      'Business rejection messages, permission denial, concurrent changes, and retry outcomes are reviewed by product and QA.',
+      'Manual product edits to this PRD are reviewed before regenerating or releasing the document.'
+    ],
+    openQuestions: 'Open Questions',
+    noOpenQuestions: 'No open questions were generated.',
+    noKeyFields: 'No identifier, query, example, or mapping fields require separate documentation.',
+    noAutomation: 'No automation or integrations are explicitly modeled.',
+    notModeled: 'Not explicitly modeled',
+    notApplicable: '-',
+    systemOrUnspecified: 'System / unspecified',
+    targetUser: 'the target user',
+    userStory: 'User Story',
+    requirementDescription: 'Requirement Description',
+    entry: 'Entry',
+    role: 'Role',
+    businessObject: 'Business object',
+    successResult: 'Success result',
+    displayResult: 'Display result',
+    inputFields: 'Input Fields',
+    acceptanceScenarios: 'Acceptance Scenarios',
+    inferredAcceptanceWarning: 'Detailed acceptance rules are not explicitly specified for this feature. The acceptance matrix is inferred from the operation, expected business result, status change, and display output and should be confirmed during review.',
+    productQuestions: 'Product Questions'
+  },
+  'zh-CN': {
+    titleSuffix: '产品需求文档',
+    backgroundAndGoals: '产品背景与目标',
+    goalLead: '本文档用于在研发启动前统一产品范围、用户价值、交付边界与验收口径。',
+    goals: [
+      '明确本期产品包含哪些业务能力，以及用户通过哪些入口完成这些能力。',
+      '定义每个能力的主要输入、业务结果、页面展示和数据约束。',
+      '形成产品、研发、测试、交付可以共同评审的验收依据。'
+    ],
+    businessBackground: '业务背景',
+    scopeAndBoundary: '范围与边界',
+    businessScope: '业务范围',
+    coreObjects: '核心业务对象',
+    roles: '参与角色',
+    scopeBoundaryNote: '本文档未体现为功能、页面、数据视图、业务规则、集成或待确认事项的内容，默认不纳入本期范围，除非后续评审明确补充。',
+    businessObjectOverview: '业务对象概览',
+    objectName: '业务对象',
+    ownerContext: '归属模块',
+    lifecycle: '生命周期',
+    relatedFeatures: '关联功能',
+    featureOverview: '功能总览',
+    featureOverviewIntro: (count: number) => `本模块包含 ${count} 个产品能力。下表概括用户入口、使用角色和预期业务价值。`,
+    functionalRequirements: '功能需求',
+    userExperience: '用户体验与入口',
+    acceptanceMatrix: '验收矩阵',
+    dataAndRules: '数据与业务规则',
+    operationsAndIntegrations: '自动化与集成',
+    nonFunctionalRequirements: '非功能需求',
+    nonFunctionalChecklist: [
+      '每个面向用户的操作需要确认权限、租户和角色边界。',
+      '会改变业务状态的操作需要统一重复提交、重试和幂等策略。',
+      '列表和详情页面需要具备稳定的加载、空态、错误态和刷新行为。',
+      '审计追踪、敏感数据处理、数据留存与可追溯要求需要在上线前确认。',
+      '性能、容量和可用性目标需要由业务、研发和运维共同确认。'
+    ],
+    modelMetrics: '已建模产品指标',
+    deliveryAcceptance: '交付验收检查表',
+    deliveryChecklist: [
+      '范围内每个功能均有可访问的页面入口或已确认的系统触发方式。',
+      '输入字段、必填约束、可选字段、示例值和派生值与评审后的需求一致。',
+      '操作成功后能够产生预期业务结果，并体现为可见的状态或数据变化。',
+      '展示视图满足列表、详情、筛选、刷新等基础访问需求。',
+      '业务拒绝、权限拒绝、并发修改和重试结果需要经产品与测试确认。',
+      '人工修订过的 PRD 内容在重新生成或发布前需要完成差异评审。'
+    ],
+    openQuestions: '待确认事项',
+    noOpenQuestions: '暂无待确认事项。',
+    noKeyFields: '当前未定义需要单独说明的标识、查询、示例或映射字段。',
+    noAutomation: '当前未明确自动化或集成。',
+    notModeled: '尚未明确',
+    notApplicable: '-',
+    systemOrUnspecified: '系统/未明确',
+    targetUser: '目标用户',
+    userStory: '用户故事',
+    requirementDescription: '需求说明',
+    entry: '入口',
+    role: '角色',
+    businessObject: '业务对象',
+    successResult: '成功结果',
+    displayResult: '展示结果',
+    inputFields: '输入字段',
+    acceptanceScenarios: '验收场景',
+    inferredAcceptanceWarning: '该功能尚未定义明确的验收规则。当前验收矩阵依据操作、预期业务结果、状态变化和展示输出推导，需在评审时确认。',
+    productQuestions: '产品疑问'
+  }
+} satisfies Record<DocumentationLanguage, {
+  titleSuffix: string;
+  backgroundAndGoals: string;
+  goalLead: string;
+  goals: string[];
+  businessBackground: string;
+  scopeAndBoundary: string;
+  businessScope: string;
+  coreObjects: string;
+  roles: string;
+  scopeBoundaryNote: string;
+  businessObjectOverview: string;
+  objectName: string;
+  ownerContext: string;
+  lifecycle: string;
+  relatedFeatures: string;
+  featureOverview: string;
+  featureOverviewIntro: (count: number) => string;
+  functionalRequirements: string;
+  userExperience: string;
+  acceptanceMatrix: string;
+  dataAndRules: string;
+  operationsAndIntegrations: string;
+  nonFunctionalRequirements: string;
+  nonFunctionalChecklist: string[];
+  modelMetrics: string;
+  deliveryAcceptance: string;
+  deliveryChecklist: string[];
+  openQuestions: string;
+  noOpenQuestions: string;
+  noKeyFields: string;
+  noAutomation: string;
+  notModeled: string;
+  notApplicable: string;
+  systemOrUnspecified: string;
+  targetUser: string;
+  userStory: string;
+  requirementDescription: string;
+  entry: string;
+  role: string;
+  businessObject: string;
+  successResult: string;
+  displayResult: string;
+  inputFields: string;
+  acceptanceScenarios: string;
+  inferredAcceptanceWarning: string;
+  productQuestions: string;
+}>;

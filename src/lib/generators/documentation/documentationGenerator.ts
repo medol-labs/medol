@@ -8,6 +8,7 @@ import type {
   DocumentationField,
   DocumentationKind,
   DocumentationLanguage,
+  DocumentationValueType,
   DocumentationReadModel,
   DocumentationSpecification,
   GeneratedDocumentation
@@ -15,7 +16,8 @@ import type {
 import {
   renderDatabaseDesignMarkdown,
   renderProcessMarkdown,
-  renderSoftwareDesignMarkdown
+  renderSoftwareDesignMarkdown,
+  renderTestOutlineMarkdown
 } from './documentationMarkdownRenderer';
 import { localizeDocumentationMarkdown } from './documentationLocalization';
 import { coveredSpecificationExpressions } from '../../specificationCoverage';
@@ -37,11 +39,13 @@ export const generateDocumentation = (
   const baseMarkdown = kind === 'prd'
     ? renderPrdMarkdown(generatePrd(model, options).document, language)
     : kind === 'software-design'
-      ? renderSoftwareDesignMarkdown(bundle)
+      ? renderSoftwareDesignMarkdown(bundle, language)
       : kind === 'database-design'
         ? renderDatabaseDesignMarkdown(bundle, language)
-        : renderProcessMarkdown(bundle);
-  const markdown = language === 'zh-CN' && kind !== 'prd'
+        : kind === 'test-outline'
+          ? renderTestOutlineMarkdown(bundle, language)
+          : renderProcessMarkdown(bundle);
+  const markdown = language === 'zh-CN' && kind === 'process'
     ? localizeDocumentationMarkdown(baseMarkdown, kind)
     : baseMarkdown;
 
@@ -55,7 +59,8 @@ export const generateDocumentationBundle = (
   prd: generateDocumentation(model, 'prd', options),
   'software-design': generateDocumentation(model, 'software-design', options),
   'database-design': generateDocumentation(model, 'database-design', options),
-  process: generateDocumentation(model, 'process', options)
+  process: generateDocumentation(model, 'process', options),
+  'test-outline': generateDocumentation(model, 'test-outline', options)
 });
 
 export const buildDocumentationBundle = (
@@ -80,11 +85,30 @@ export const buildDocumentationBundle = (
     risks: context.risks,
     decisions: context.decisions,
     metrics: context.metrics,
-    aggregates: context.aggregates.map((aggregate) => ({
-      id: aggregate.id,
-      name: aggregate.name,
-      states: aggregate.states,
-      sliceNames: aggregate.slices.map((slice) => slice.name)
+    aggregates: [
+      ...context.aggregates.map((aggregate) => ({
+        id: aggregate.id,
+        name: aggregate.name,
+        type: 'aggregate' as const,
+        states: aggregate.states,
+        sliceNames: aggregate.slices.map((slice) => slice.name)
+      })),
+      ...context.concepts.map((concept) => ({
+        id: concept.id,
+        name: concept.name,
+        type: 'concept' as const,
+        states: concept.states,
+        sliceNames: concept.sliceNames
+      }))
+    ],
+    valueTypes: context.valueTypes.map(toDocumentationValueType),
+    externalSystems: (context.externalSystems ?? []).map((system) => ({
+      id: system.id,
+      name: system.name,
+      context: context.name,
+      ...(system.kind ? { kind: system.kind } : {}),
+      ...(system.protocol ? { protocol: system.protocol } : {}),
+      capabilities: system.capabilities
     }))
   }));
 
@@ -95,7 +119,7 @@ export const buildDocumentationBundle = (
       ),
       ...context.slices.map((slice) => toWorkflow(
         context.name,
-        context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => `Concept:${concept.name}`).join(', ') || 'Context',
+        context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name).join(', ') || 'Context',
         slice
       ))
     ]
@@ -143,7 +167,7 @@ export const buildDocumentationBundle = (
       ...context.slices.flatMap((slice) =>
         toDocumentationReadModels(
           context.name,
-          context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => `Concept:${concept.name}`).join(', ') || 'Context',
+          context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name).join(', ') || 'Context',
           slice
         )
       )
@@ -176,7 +200,7 @@ export const buildDocumentationBundle = (
   }
 
   const integrations = model.contexts.flatMap((context) =>
-    context.looseElements
+    (context.looseElements ?? [])
       .filter(isKind('integration'))
       .map((integration) => ({
         id: integration.id,
@@ -205,6 +229,15 @@ export const buildDocumentationBundle = (
     workflows,
     readmodels,
     integrations,
+    deployments: [
+      ...(model.deployments ?? []),
+      ...model.domains.flatMap((domain) => domain.deployments ?? [])
+    ].map((deployment) => ({
+      id: deployment.id,
+      name: deployment.name,
+      ...(deployment.domain ? { domain: deployment.domain } : {}),
+      contexts: deployment.contexts
+    })),
     diagnostics: model.diagnostics
   };
 };
@@ -231,6 +264,22 @@ const toDocumentationField = (field: EmField): DocumentationField => ({
         }
       }
     : {})
+});
+
+const toDocumentationValueType = (valueType: {
+  id: string;
+  name: string;
+  kind: DocumentationValueType['kind'];
+  baseType: string;
+  values: string[];
+  fields: EmField[];
+}): DocumentationValueType => ({
+  id: valueType.id,
+  name: valueType.name,
+  kind: valueType.kind,
+  baseType: valueType.baseType,
+  values: valueType.values,
+  fields: valueType.fields.map(toDocumentationField)
 });
 
 const toDocumentationSpecification = (element: EmElement): DocumentationSpecification => {
@@ -273,10 +322,12 @@ const documentTitle = (
     if (kind === 'prd') return `${title} 产品需求文档`;
     if (kind === 'software-design') return `${title} 软件设计`;
     if (kind === 'database-design') return `${title} 数据库设计`;
+    if (kind === 'test-outline') return `${title} 测试大纲`;
     return `${title} 业务流程`;
   }
   if (kind === 'prd') return `${title} Product Requirements and Acceptance`;
   if (kind === 'software-design') return `${title} Software Design`;
   if (kind === 'database-design') return `${title} Database Design`;
+  if (kind === 'test-outline') return `${title} Test Outline`;
   return `${title} Business Process`;
 };

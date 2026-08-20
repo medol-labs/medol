@@ -443,7 +443,9 @@ const labelKind = (kind: ModelingDocumentSummary['kind']): string => ({
   prd: 'PRD',
   'software-design': 'Software',
   'database-design': 'Database',
-  process: 'Process'
+  process: 'Process',
+  'test-outline': 'Test',
+  'model-translations': 'I18N'
 })[kind];
 
 const clamp = (value: number): number => Math.min(1, Math.max(0, value));

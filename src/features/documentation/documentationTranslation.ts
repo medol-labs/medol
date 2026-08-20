@@ -5,6 +5,8 @@ import type {
   EmModel,
   EmSlice
 } from '../../lib/model';
+import { humanize } from '../../lib/name';
+import type { ModelTranslations } from '../model-i18n/modelTranslation';
 
 export interface DocumentationTranslationCatalog {
   identifiers: string[];
@@ -124,6 +126,56 @@ export const translateDocumentationModel = (
   };
 };
 
+export const modelTranslationsToDocumentationTranslations = (
+  model: EmModel,
+  translations: ModelTranslations
+): DocumentationTranslations => {
+  const catalog = buildDocumentationTranslationCatalog(model);
+  const identifiers = Object.fromEntries(
+    catalog.identifiers
+      .map((identifier) => [
+        identifier,
+        lookupModelTranslation(identifier, translations)
+      ] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+  );
+  const narratives = Object.fromEntries(
+    catalog.narratives
+      .map((narrative) => [
+        narrative,
+        translations[narrative]?.trim()
+      ] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+  );
+
+  return { identifiers, narratives };
+};
+
+export const translateDocumentationModelWithModelTranslations = (
+  model: EmModel,
+  translations: ModelTranslations
+): EmModel =>
+  translateDocumentationModel(
+    model,
+    modelTranslationsToDocumentationTranslations(model, translations)
+  );
+
+export const lookupModelTranslation = (
+  value: string,
+  translations: ModelTranslations
+): string | undefined => {
+  const candidates = [
+    value,
+    humanize(value),
+    titleCase(value)
+  ];
+  for (const candidate of candidates) {
+    const translated = translations[candidate]?.trim();
+    if (translated && translated !== candidate) return translated;
+  }
+  return undefined;
+};
+
 const collectContext = (
   context: EmContext,
   identifiers: Set<string>,
@@ -187,3 +239,11 @@ const isNarrativeMetadata = (key: string): boolean =>
   || key === 'thenReject'
   || key === 'thenError'
   || key === 'description';
+
+const titleCase = (value: string): string =>
+  String(value ?? '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');

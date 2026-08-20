@@ -4,8 +4,14 @@ import type { EmModel } from '../../lib/model';
 import { generateDocumentation } from '../../lib/generators/documentation';
 import {
   buildDocumentationTranslationCatalog,
-  translateDocumentationModel
+  modelTranslationsToDocumentationTranslations,
+  translateDocumentationModel,
+  translateDocumentationModelWithModelTranslations
 } from './documentationTranslation';
+import {
+  buildModelTranslationUnits,
+  renderModelTranslationMarkdown
+} from '../model-i18n/modelTranslation';
 
 const model: EmModel = {
   domains: [{
@@ -169,4 +175,182 @@ test('translates presentation content while preserving source identifiers', () =
   assert.equal(command.metadata?.expression1, 'unique Account.email');
   assert.equal(command.metadata?.['example:email'], 'owner@example.com');
   assert.equal(command.metadata?.['givenExample:1:email'], 'existing@example.com');
+});
+
+test('builds context and slice scoped model translation units', () => {
+  const units = buildModelTranslationUnits(model);
+  const common = units.find((unit) => unit.kind === 'common');
+  const context = units.find((unit) => unit.id === 'context:context/account');
+  const slice = units.find((unit) => unit.id === 'slice:slice/register');
+
+  assert(common);
+  assert(context);
+  assert(slice);
+  assert(context.sourceRefs.includes('aggregate/account'));
+  assert(slice.sourceRefs.includes('slice/register'));
+  assert(context.sourceTexts.includes('Account Management'));
+  assert(context.sourceTexts.includes('Accounts are managed centrally.'));
+  assert(slice.sourceTexts.includes('Register Account'));
+  assert(slice.sourceTexts.includes('Normalize the email address.'));
+  assert(slice.sourceTexts.includes('Email already exists'));
+});
+
+test('renders locatable model translation markdown', () => {
+  const markdown = renderModelTranslationMarkdown({
+    model,
+    locale: 'zh-CN',
+    sourceHash: 'fnv1a-demo',
+    translations: {
+      'Account Management': '账户管理',
+      'Register Account': '注册账户',
+      'Normalize the email address.': '规范化邮箱地址。'
+    }
+  });
+
+  assert.match(markdown, /# 模型国际化术语表/);
+  assert.match(markdown, /<!-- em:section id="model-i18n\.context\.context_context_account" sources="context\/account aggregate\/account" -->/);
+  assert.match(markdown, /<!-- em:section id="model-i18n\.slice\.slice_slice_register" source="slice\/register" -->/);
+  assert.match(markdown, /\| Register Account \| 注册账户 \| 已翻译 \|/);
+  assert.match(markdown, /\| Email already exists \| - \| 待翻译 \|/);
+});
+
+test('maps stored model translations into documentation translations', () => {
+  const translations = modelTranslationsToDocumentationTranslations(model, {
+    'Account Platform': '账户平台',
+    'Account Management': '账户管理',
+    Account: '账户',
+    Active: '生效',
+    'Register Account': '注册账户',
+    'Normalize the email address.': '规范化邮箱地址。',
+    'An email address identifies one active account.': '一个邮箱地址仅标识一个有效账户。',
+    'Email already exists': '邮箱已存在',
+    'Accounts are managed centrally.': '账户统一管理。'
+  });
+  const translated = translateDocumentationModelWithModelTranslations(model, {
+    'Account Platform': '账户平台',
+    'Account Management': '账户管理',
+    Account: '账户',
+    Active: '生效',
+    'Register Account': '注册账户',
+    'Normalize the email address.': '规范化邮箱地址。',
+    'An email address identifies one active account.': '一个邮箱地址仅标识一个有效账户。',
+    'Email already exists': '邮箱已存在',
+    'Accounts are managed centrally.': '账户统一管理。'
+  });
+
+  assert.equal(translations.identifiers.AccountManagement, '账户管理');
+  assert.equal(translations.identifiers.RegisterAccount, '注册账户');
+  assert.equal(translations.narratives['Normalize the email address.'], '规范化邮箱地址。');
+  assert.equal(translated.contexts[0].name, '账户管理（AccountManagement）');
+  assert.equal(translated.contexts[0].aggregates[0].slices[0].name, '注册账户（RegisterAccount）');
+});
+
+test('generates a conventional Chinese PRD with concept business objects', () => {
+  const conceptModel: EmModel = {
+    domains: [{
+      id: 'domain/demo',
+      name: 'AccountPlatform',
+      contexts: [],
+      deployments: []
+    }],
+    deployments: [],
+    contexts: [{
+      id: 'context/account',
+      name: 'AccountManagement',
+      valueTypes: [],
+      concepts: [{
+        id: 'concept/account',
+        name: 'Account',
+        states: ['Registered', 'Active'],
+        sliceNames: ['RegisterAccount'],
+        sliceIds: ['slice/register']
+      }],
+      aggregates: [],
+      slices: [{
+        id: 'slice/register',
+        name: 'RegisterAccount',
+        resultingState: 'Registered',
+        startsLifecycle: true,
+        tags: [],
+        hotspots: [],
+        elements: [{
+          id: 'actor/admin',
+          kind: 'actor',
+          name: 'AccountAdmin',
+          fields: []
+        }, {
+          id: 'screen/register',
+          kind: 'screen',
+          name: 'AccountRegistrationScreen',
+          fields: [],
+          ui: { type: 'form' }
+        }, {
+          id: 'command/register',
+          kind: 'command',
+          name: 'RegisterAccount',
+          fields: [{
+            name: 'email',
+            type: 'String',
+            attributes: ['id']
+          }]
+        }, {
+          id: 'event/registered',
+          kind: 'event',
+          name: 'AccountRegistered',
+          fields: []
+        }]
+      }],
+      looseElements: [],
+      externalSystems: [],
+      notes: ['Accounts are created by administrators before activation.'],
+      risks: [],
+      decisions: [],
+      metrics: []
+    }],
+    edges: [],
+    diagnostics: [],
+    diagnosticDetails: []
+  };
+  conceptModel.domains[0].contexts = conceptModel.contexts;
+
+  const markdown = generateDocumentation(
+    conceptModel,
+    'prd',
+    { language: 'zh-CN' }
+  ).markdown;
+
+  assert.match(markdown, /## 产品背景与目标/);
+  assert.match(markdown, /## 功能需求/);
+  assert.match(markdown, /\*\*核心业务对象:\*\* Account/);
+  assert.doesNotMatch(markdown, /\*\*核心业务对象:\*\* -/);
+  assert.doesNotMatch(markdown, /Concept:Account|Event Modeling|MEDOL/);
+});
+
+test('generates comprehensive Chinese software design sections', () => {
+  const markdown = generateDocumentation(
+    model,
+    'software-design',
+    { language: 'zh-CN' }
+  ).markdown;
+
+  assert.match(markdown, /## 概要设计/);
+  assert.match(markdown, /## 详细设计/);
+  assert.match(markdown, /#### 业务对象设计/);
+  assert.match(markdown, /#### 应用服务与能力设计/);
+  assert.match(markdown, /## 接口与集成设计/);
+  assert.doesNotMatch(markdown, /Architecture Overview|Aggregate Design|Implementation Gaps/);
+});
+
+test('generates Chinese test outline documentation', () => {
+  const markdown = generateDocumentation(
+    model,
+    'test-outline',
+    { language: 'zh-CN' }
+  ).markdown;
+
+  assert.match(markdown, /# Account Platform 测试大纲/);
+  assert.match(markdown, /## 测试目标与范围/);
+  assert.match(markdown, /## 功能测试范围/);
+  assert.match(markdown, /## 业务规则与异常测试/);
+  assert.match(markdown, /## 准出标准/);
 });

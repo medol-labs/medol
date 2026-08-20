@@ -4,7 +4,8 @@ export type DocumentationKind =
   | 'prd'
   | 'software-design'
   | 'database-design'
-  | 'process';
+  | 'process'
+  | 'test-outline';
 
 export type DocumentationLanguage = 'en' | 'zh-CN';
 
@@ -16,6 +17,7 @@ export interface DocumentationBundle {
   workflows: DocumentationWorkflow[];
   readmodels: DocumentationReadModel[];
   integrations: DocumentationIntegration[];
+  deployments: DocumentationDeployment[];
   diagnostics: string[];
 }
 
@@ -30,9 +32,12 @@ export interface DocumentationContext {
   aggregates: Array<{
     id: string;
     name: string;
+    type: 'aggregate' | 'concept';
     states: string[];
     sliceNames: string[];
   }>;
+  valueTypes: DocumentationValueType[];
+  externalSystems: DocumentationExternalSystem[];
 }
 
 export interface DocumentationWorkflow {
@@ -109,6 +114,34 @@ export interface DocumentationIntegration {
   context: string;
   source?: string;
   target?: string;
+}
+
+export interface DocumentationDeployment {
+  id: string;
+  name: string;
+  domain?: string;
+  contexts: string[];
+}
+
+export interface DocumentationValueType {
+  id: string;
+  name: string;
+  kind: 'scalar' | 'enum' | 'object';
+  baseType: string;
+  values: string[];
+  fields: DocumentationField[];
+}
+
+export interface DocumentationExternalSystem {
+  id: string;
+  name: string;
+  context: string;
+  kind?: string;
+  protocol?: string;
+  capabilities: Array<{
+    type: 'command' | 'event';
+    name: string;
+  }>;
 }
 
 export interface GeneratedDocumentation {

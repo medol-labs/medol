@@ -83,7 +83,8 @@ export const useToolbarActions = ({
           dsl,
           kind,
           language: documentationLanguage,
-          enhanceWithAi: true
+          enhanceWithAi: true,
+          workspaceId: activeWorkspaceId
         });
         if (document.warning) console.warn(document.warning);
         const savedDocument = await createDocument({
@@ -106,8 +107,31 @@ export const useToolbarActions = ({
         const result = await generateModelTranslations({
           dsl,
           locale: documentationLanguage,
-          workspaceId: activeWorkspaceId
+          workspaceId: activeWorkspaceId,
+          unitLimit: 1,
+          onProgress: (progress) => {
+            const nextUnit = progress.pendingUnits?.[0];
+            setModelTranslationMessage(
+              progress.warning
+                ? progress.warning
+                : nextUnit
+                  ? `Translations ${progress.locale}: ${progress.translated}/${progress.total} stored · next ${nextUnit.name}`
+                  : `Translations ${progress.locale}: ${progress.translated}/${progress.total} stored`
+            );
+          }
         });
+        if (result.markdown && activeWorkspaceId) {
+          await createDocument({
+            title: result.title ?? `Model translations ${result.locale}`,
+            kind: 'model-translations',
+            language: documentationLanguage,
+            markdown: result.markdown,
+            sourceHash: medolSourceHash
+          });
+          onPreviewModeChange('documents');
+          onDocumentFocusSourceIdChange(undefined);
+          onDocumentNavigationToneChange('info');
+        }
         setModelTranslationMessage(
           result.warning
             ? result.warning

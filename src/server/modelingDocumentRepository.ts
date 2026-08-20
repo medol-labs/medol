@@ -1,14 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type {
   CreateModelingDocumentInput,
+  ModelingDocumentKind,
   ModelingDocument,
   ModelingDocumentSummary,
   UpdateModelingDocumentInput
 } from '../contracts/modelingDocument';
-import type {
-  DocumentationKind,
-  DocumentationLanguage
-} from '../lib/generators/documentation';
+import type { DocumentationLanguage } from '../lib/generators/documentation';
 import {
   addDocumentSectionReferences,
   extractDocumentSourceRefs,
@@ -25,7 +23,7 @@ interface DocumentRow {
   id: string;
   workspace_id: string;
   title: string;
-  kind: DocumentationKind;
+  kind: ModelingDocumentKind;
   language: DocumentationLanguage;
   markdown: string;
   generated_markdown: string | null;

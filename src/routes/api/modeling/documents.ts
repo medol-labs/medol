@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { hashMedolSource } from '../../../features/documentation/documentReferences';
 import { enhanceDocumentationWithAgent } from '../../../features/documentation/documentationAgent';
 import {
   generateDocumentation,
@@ -6,12 +7,14 @@ import {
   type DocumentationLanguage
 } from '../../../lib/generators/documentation';
 import { parseMedol } from '../../../lib/dslParser';
+import { readModelTranslations } from '../../../server/modelTranslationRepository';
 
 const documentKinds = new Set<DocumentationKind>([
   'prd',
   'software-design',
   'database-design',
-  'process'
+  'process',
+  'test-outline'
 ]);
 const maxDslLength = 2_000_000;
 const documentLanguages = new Set<DocumentationLanguage>(['en', 'zh-CN']);
@@ -26,6 +29,7 @@ export const Route = createFileRoute('/api/modeling/documents')({
           kind?: unknown;
           language?: unknown;
           enhanceWithAi?: unknown;
+          workspaceId?: unknown;
         };
         const medol = typeof body.medol === 'string' ? body.medol : body.dsl;
         if (typeof medol !== 'string') {
@@ -42,6 +46,7 @@ export const Route = createFileRoute('/api/modeling/documents')({
         }
 
         const language = body.language ?? 'en';
+        const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : undefined;
         const model = parseMedol(medol);
         const document = generateDocumentation(model, body.kind, {
           sourceText: medol,
@@ -57,7 +62,14 @@ export const Route = createFileRoute('/api/modeling/documents')({
         const enhanced = await enhanceDocumentationWithAgent({
           dsl: medol,
           model,
-          document
+          document,
+          modelTranslations: language === 'zh-CN'
+            ? readModelTranslations({
+                workspaceId,
+                sourceHash: hashMedolSource(medol),
+                locale: language
+              })
+            : undefined
         });
         return Response.json({
           ...document,

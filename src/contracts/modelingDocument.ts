@@ -3,11 +3,13 @@ import type {
   DocumentationLanguage
 } from '../lib/generators/documentation';
 
+export type ModelingDocumentKind = DocumentationKind | 'model-translations';
+
 export interface ModelingDocumentSummary {
   id: string;
   workspaceId: string;
   title: string;
-  kind: DocumentationKind;
+  kind: ModelingDocumentKind;
   language: DocumentationLanguage;
   sourceRefs: string[];
   sourceHash?: string;
@@ -31,7 +33,7 @@ export interface ModelingDocumentMergeSummary {
 export interface CreateModelingDocumentInput {
   workspaceId: string;
   title: string;
-  kind: DocumentationKind;
+  kind: ModelingDocumentKind;
   language: DocumentationLanguage;
   markdown: string;
   sourceHash?: string;

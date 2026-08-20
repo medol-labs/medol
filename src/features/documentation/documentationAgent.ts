@@ -4,11 +4,10 @@ import {
 } from '../../lib/generators/documentation';
 import type { EmModel } from '../../lib/model';
 import type { AgentUsage } from '../agent-chat/agentUsage';
+import type { ModelTranslations } from '../model-i18n/modelTranslation';
 import {
-  buildDocumentationTranslationCatalog,
-  translateDocumentationModel
+  translateDocumentationModelWithModelTranslations
 } from './documentationTranslation';
-import { requestDocumentationTranslations } from './documentationTranslationProvider';
 
 export interface DocumentationAgentResult {
   markdown: string;
@@ -21,6 +20,7 @@ export const enhanceDocumentationWithAgent = async (input: {
   dsl: string;
   model: EmModel;
   document: GeneratedDocumentation;
+  modelTranslations?: ModelTranslations;
 }): Promise<DocumentationAgentResult> => {
   if (input.document.language !== 'zh-CN') {
     return {
@@ -29,27 +29,18 @@ export const enhanceDocumentationWithAgent = async (input: {
     };
   }
 
-  const catalog = buildDocumentationTranslationCatalog(input.model);
-  if (!catalog.identifiers.length && !catalog.narratives.length) {
-    return {
-      markdown: input.document.markdown,
-      enhanced: false
-    };
-  }
-
-  const result = await requestDocumentationTranslations(catalog);
-  if (!result.translations) {
+  const modelTranslations = input.modelTranslations ?? {};
+  if (Object.keys(modelTranslations).length === 0) {
     return {
       markdown: input.document.markdown,
       enhanced: false,
-      ...(result.usage ? { usage: result.usage } : {}),
-      ...(result.warning ? { warning: result.warning } : {})
+      warning: '未找到模型国际化术语库，已使用基础中文模板。请先执行 Translate model 以获得统一术语。'
     };
   }
 
-  const translatedModel = translateDocumentationModel(
+  const translatedModel = translateDocumentationModelWithModelTranslations(
     input.model,
-    result.translations
+    modelTranslations
   );
   const translatedDocument = generateDocumentation(
     translatedModel,
@@ -63,7 +54,6 @@ export const enhanceDocumentationWithAgent = async (input: {
 
   return {
     markdown: translatedDocument.markdown,
-    enhanced: true,
-    ...(result.usage ? { usage: result.usage } : {})
+    enhanced: true
   };
 };

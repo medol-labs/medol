@@ -16,6 +16,7 @@ export const generateModelingDocument = async (input: {
   kind: DocumentationKind;
   language?: DocumentationLanguage;
   enhanceWithAi?: boolean;
+  workspaceId?: string;
   signal?: AbortSignal;
 }): Promise<DocumentationGenerationResult> => {
   const response = await fetch('/api/modeling/documents', {
@@ -25,7 +26,8 @@ export const generateModelingDocument = async (input: {
       medol: input.dsl,
       kind: input.kind,
       language: input.language ?? 'en',
-      enhanceWithAi: Boolean(input.enhanceWithAi)
+      enhanceWithAi: Boolean(input.enhanceWithAi),
+      workspaceId: input.workspaceId
     }),
     signal: input.signal
   });

@@ -64,7 +64,8 @@ slice 1 { command, event, GWT business rules }
 - Slice columns arranged left to right by timeline/order.
 - Lane-based rendering for UI, command, event, GWT, read model, automation, policy, and hotspot elements.
 - Agentic conversation with persisted history, project knowledge, MEDOL patch proposals, editor diff preview, and explicit apply.
-- Spec-driven generation of PRD, software design, database design, process, and acceptance material.
+- Spec-driven generation of PRD, software design, database design, process, test outline, and acceptance material.
+- Context/slice-scoped model internationalization with a reusable terminology glossary for generated code and documents.
 - Editable Markdown document workspace with live preview and workspace-scoped SQLite persistence.
 - MEDOL to `EmModel` JSON export for code generation.
 - MEDOL to normalized `CodegenModel` export for frontend and backend generators.
@@ -284,6 +285,18 @@ To inspect the codegen view directly:
 npm run medol:to-codegen-model -- examples/fl/federation-learning.medol
 ```
 
+## Model Internationalization
+
+The model translation workflow builds a reusable terminology catalog from the reviewed MEDOL model. It translates in small units instead of sending the whole model at once:
+
+- `Common` terms cover shared UI labels, actors, domains, and deployments.
+- each context has a context-level unit for module vocabulary, business objects, value types, notes, risks, decisions, metrics, and integrations.
+- each slice has its own unit for commands, events, read models, screens, processors, fields, hotspots, and business rules.
+
+The web toolkit processes one unit per request and stores completed entries immediately, so a large model can resume from the last saved translation if a provider warning or timeout happens. Each request includes a compact glossary of previously translated terms so later slices keep terminology consistent.
+
+After translation, the toolkit saves a `Model Translation Glossary` document in the Documents preview. The glossary is split by context and slice and includes MEDOL source references, so the explorer's document locator can jump from a model item to its translation table. Chinese PRD, software design, database design, process, and test outline generation read the stored model translations first and use the same terminology instead of translating a whole generated document in one large model call.
+
 ## Generate PRD Markdown
 
 ```bash
@@ -308,10 +321,11 @@ The PRD generator emits stable Markdown section markers and a trace JSON shape s
 
 The documentation generator builds a deterministic documentation model from `EmModel`, then renders:
 
-- PRD and functional requirements
-- software architecture and application flow design
+- conventional PRD and functional requirements
+- comprehensive software design with summary design and detailed design
 - read-model-oriented database design, including fields, keys, query candidates, source events, and mappings
 - end-to-end business process documentation with Mermaid overviews
+- test outline material covering functional, integration, data, non-functional, regression, and acceptance scope
 
 Generate one document:
 
@@ -325,13 +339,19 @@ Generate a Simplified Chinese document:
 npm run docs:generate -- examples/fl/federation-learning.medol --kind=prd --language=zh-CN
 ```
 
+Generate a test outline:
+
+```bash
+npm run docs:generate -- examples/fl/federation-learning.medol --kind=test-outline --language=zh-CN
+```
+
 Generate all document types:
 
 ```bash
 npm run docs:generate -- examples/fl/federation-learning.medol --kind=all
 ```
 
-Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose a document action and confirm it to save and open the result in Documents preview. For Simplified Chinese output, English domain vocabulary and business narratives are translated as a controlled terminology map before the deterministic document templates run. Identifiers remain traceable to their MEDOL source, and missing information is presented as notes or open questions rather than invented facts.
+Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose a document action and confirm it to save and open the result in Documents preview. For Simplified Chinese output in a workspace, run `Translate model` first; generated documents then read the stored model terminology before the deterministic document templates run. Identifiers remain traceable to their MEDOL source, and missing information is presented as notes or open questions rather than invented facts.
 
 The server endpoint is:
 
@@ -339,7 +359,7 @@ The server endpoint is:
 POST /api/modeling/documents
 ```
 
-It accepts `medol`, `kind`, optional `language` (`en` or `zh-CN`), and optional `enhanceWithAi`. The legacy request field `dsl` remains accepted for compatibility. Supported kinds are `prd`, `software-design`, `database-design`, and `process`. PRD output is organized as routine product and delivery material: feature/CRUD inventory, UI entry points, input constraints, business outcomes, acceptance matrix, delivery checklist, and open questions.
+It accepts `medol`, `kind`, optional `language` (`en` or `zh-CN`), and optional `enhanceWithAi`. The legacy request field `dsl` remains accepted for compatibility. Supported kinds are `prd`, `software-design`, `database-design`, `process`, and `test-outline`. PRD output is organized as routine product and delivery material: product background, scope, feature inventory, UI entry points, input constraints, business outcomes, acceptance matrix, delivery checklist, and open questions. Software design output is organized into summary design and detailed design, including module boundaries, workflow details, data design, interfaces, quality attributes, and implementation gaps.
 
 ## MEDOL Example
 

@@ -23,6 +23,12 @@ export interface ModelTranslationProviderResult {
 export const requestModelTranslations = async (input: {
   sourceTexts: string[];
   locale: string;
+  glossary?: ModelTranslations;
+  scope?: {
+    kind: string;
+    name: string;
+    contextName?: string;
+  };
 }): Promise<ModelTranslationProviderResult> => {
   const sourceTexts = input.sourceTexts.filter((text) => text.trim().length > 0);
   if (sourceTexts.length === 0) return { translations: {} };
@@ -39,7 +45,12 @@ export const requestModelTranslations = async (input: {
     return { warning: '模型翻译服务未配置，未生成新的翻译。' };
   }
 
-  const prompt = buildPrompt(sourceTexts, input.locale);
+  const prompt = buildPrompt({
+    sourceTexts,
+    locale: input.locale,
+    glossary: input.glossary,
+    scope: input.scope
+  });
   if (config.provider === 'openai') {
     if (!config.openai.apiKey) {
       return { warning: 'OpenAI 翻译服务未配置，未生成新的翻译。' };
@@ -155,6 +166,7 @@ export const requestModelTranslations = async (input: {
 const translationSystemPrompt = [
   'You are a senior localization specialist for domain modeling and enterprise software.',
   'Translate only the supplied English UI/domain strings into the requested locale.',
+  'When a glossary is supplied, reuse those translations exactly for the same source terms and keep related terminology consistent.',
   'Do not add, remove, infer, summarize, or reinterpret business facts.',
   'Keep identifiers, product names, acronyms, and established technical terms accurate.',
   'Return exactly one JSON object mapping every input string to its translated string.',
@@ -162,8 +174,24 @@ const translationSystemPrompt = [
   'Values must contain only the translation, without the English source in parentheses.'
 ].join('\n');
 
-const buildPrompt = (sourceTexts: string[], locale: string): string =>
-  JSON.stringify({ locale, sourceTexts });
+const buildPrompt = (input: {
+  sourceTexts: string[];
+  locale: string;
+  glossary?: ModelTranslations;
+  scope?: {
+    kind: string;
+    name: string;
+    contextName?: string;
+  };
+}): string =>
+  JSON.stringify({
+    locale: input.locale,
+    ...(input.scope ? { scope: input.scope } : {}),
+    sourceTexts: input.sourceTexts,
+    ...(input.glossary && Object.keys(input.glossary).length > 0
+      ? { glossary: input.glossary }
+      : {})
+  });
 
 const isIdentityLocale = (locale: string): boolean => {
   const normalized = locale.trim().toLowerCase();

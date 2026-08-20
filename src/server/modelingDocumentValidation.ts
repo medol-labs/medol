@@ -1,17 +1,17 @@
 import type {
   CreateModelingDocumentInput,
+  ModelingDocumentKind,
   UpdateModelingDocumentInput
 } from '../contracts/modelingDocument';
-import type {
-  DocumentationKind,
-  DocumentationLanguage
-} from '../lib/generators/documentation';
+import type { DocumentationLanguage } from '../lib/generators/documentation';
 
-const kinds = new Set<DocumentationKind>([
+const kinds = new Set<ModelingDocumentKind>([
   'prd',
   'software-design',
   'database-design',
-  'process'
+  'process',
+  'test-outline',
+  'model-translations'
 ]);
 const languages = new Set<DocumentationLanguage>(['en', 'zh-CN']);
 const maxTitleLength = 240;
@@ -70,8 +70,8 @@ export const validateUpdateDocumentInput = (
 const text = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
-const isKind = (value: unknown): value is DocumentationKind =>
-  typeof value === 'string' && kinds.has(value as DocumentationKind);
+const isKind = (value: unknown): value is ModelingDocumentKind =>
+  typeof value === 'string' && kinds.has(value as ModelingDocumentKind);
 
 const isLanguage = (value: unknown): value is DocumentationLanguage =>
   typeof value === 'string' && languages.has(value as DocumentationLanguage);

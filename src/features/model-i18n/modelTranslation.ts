@@ -1,4 +1,12 @@
 import type { CodegenField, CodegenModel } from '../../lib/codegenModel';
+import type {
+  EmContext,
+  EmElement,
+  EmField,
+  EmModel,
+  EmSlice
+} from '../../lib/model';
+import { humanize } from '../../lib/name';
 
 export interface ModelTranslationCatalog {
   sourceTexts: string[];
@@ -7,6 +15,26 @@ export interface ModelTranslationCatalog {
 export interface ModelTranslationGroup {
   name: string;
   sourceTexts: string[];
+}
+
+export type ModelTranslationUnitKind = 'common' | 'context' | 'slice';
+
+export interface ModelTranslationUnit {
+  id: string;
+  kind: ModelTranslationUnitKind;
+  name: string;
+  contextName?: string;
+  sourceRefs: string[];
+  sourceTexts: string[];
+}
+
+export interface ModelTranslationUnitSummary {
+  id: string;
+  kind: ModelTranslationUnitKind;
+  name: string;
+  missing: number;
+  total: number;
+  sourceRefs: string[];
 }
 
 export type ModelTranslations = Record<string, string>;
@@ -101,6 +129,168 @@ export const buildModelTranslationGroups = (
   ].filter((group) => group.sourceTexts.length > 0);
 };
 
+export const buildModelTranslationUnits = (
+  model: EmModel
+): ModelTranslationUnit[] => {
+  const common = createCollector();
+  const domainRefs = (model.domains ?? []).map((domain) => domain.id);
+  addCommonTexts(common.add);
+  (model.domains ?? []).forEach((domain) => {
+    addIdentifier(domain.name, common.add);
+    (domain.deployments ?? []).forEach((deployment) => addIdentifier(deployment.name, common.add));
+  });
+  (model.deployments ?? []).forEach((deployment) => addIdentifier(deployment.name, common.add));
+  (model.contexts ?? []).forEach((context) => {
+    allContextSlicesWithOwners(context).forEach(({ slice }) => {
+      slice.elements
+        .filter((element) => element.kind === 'actor')
+        .forEach((actor) => addIdentifier(actor.name, common.add));
+    });
+  });
+
+  const units: ModelTranslationUnit[] = [{
+    id: 'common',
+    kind: 'common',
+    name: 'Common',
+    sourceRefs: domainRefs,
+    sourceTexts: common.sourceTexts()
+  }];
+
+  for (const context of model.contexts ?? []) {
+    const contextCollector = createCollector();
+    addContextGeneralTexts(context, contextCollector.add);
+    units.push({
+      id: `context:${context.id}`,
+      kind: 'context',
+      name: humanize(context.name),
+      contextName: context.name,
+      sourceRefs: [
+        context.id,
+    ...(context.aggregates ?? []).map((aggregate) => aggregate.id),
+    ...(context.concepts ?? []).map((concept) => concept.id),
+    ...(context.valueTypes ?? []).map((valueType) => valueType.id),
+    ...(context.externalSystems ?? []).map((externalSystem) => externalSystem.id)
+      ],
+      sourceTexts: contextCollector.sourceTexts()
+    });
+
+    for (const { slice } of allContextSlicesWithOwners(context)) {
+      const sliceCollector = createCollector();
+      addSliceTexts(slice, sliceCollector.add);
+      units.push({
+        id: `slice:${slice.id}`,
+        kind: 'slice',
+        name: humanize(slice.name),
+        contextName: context.name,
+        sourceRefs: [slice.id],
+        sourceTexts: sliceCollector.sourceTexts()
+      });
+    }
+  }
+
+  return units.filter((unit) => unit.sourceTexts.length > 0);
+};
+
+export const buildModelTranslationCatalogFromUnits = (
+  units: ModelTranslationUnit[]
+): ModelTranslationCatalog => ({
+  sourceTexts: [
+    ...new Set(units.flatMap((unit) => unit.sourceTexts))
+  ].sort((left, right) => left.localeCompare(right))
+});
+
+export const summarizeModelTranslationUnits = (
+  units: ModelTranslationUnit[],
+  translations: ModelTranslations
+): ModelTranslationUnitSummary[] => units
+  .map((unit) => ({
+    id: unit.id,
+    kind: unit.kind,
+    name: unit.name,
+    sourceRefs: unit.sourceRefs,
+    total: unit.sourceTexts.length,
+    missing: unit.sourceTexts.filter((sourceText) => !translations[sourceText]).length
+  }))
+  .filter((unit) => unit.missing > 0);
+
+export const renderModelTranslationMarkdown = (input: {
+  model: EmModel;
+  locale: string;
+  sourceHash: string;
+  translations: ModelTranslations;
+}): string => {
+  const units = buildModelTranslationUnits(input.model);
+  const title = input.locale === 'zh-CN'
+    ? '模型国际化术语表'
+    : 'Model Translation Glossary';
+  const text = input.locale === 'zh-CN'
+    ? {
+        sourceHash: '源模型哈希',
+        summary: '翻译进度',
+        total: '总条目',
+        translated: '已翻译',
+        missing: '缺失',
+        source: '原文',
+        translation: '译文',
+        status: '状态',
+        done: '已翻译',
+        pending: '待翻译',
+        common: '全局术语',
+        context: '上下文术语',
+        slice: 'Slice 术语'
+      }
+    : {
+        sourceHash: 'Source hash',
+        summary: 'Translation Progress',
+        total: 'Total',
+        translated: 'Translated',
+        missing: 'Missing',
+        source: 'Source',
+        translation: 'Translation',
+        status: 'Status',
+        done: 'Translated',
+        pending: 'Pending',
+        common: 'Common Terms',
+        context: 'Context Terms',
+        slice: 'Slice Terms'
+      };
+  const total = buildModelTranslationCatalogFromUnits(units).sourceTexts.length;
+  const translated = Object.keys(input.translations).length;
+  const lines = [
+    `# ${title}`,
+    '',
+    `- ${text.sourceHash}: ${input.sourceHash}`,
+    `- ${text.total}: ${total}`,
+    `- ${text.translated}: ${Math.min(translated, total)}`,
+    `- ${text.missing}: ${Math.max(0, total - translated)}`,
+    ''
+  ];
+
+  for (const unit of units) {
+    lines.push(sectionMarker(unit));
+    const heading = unit.kind === 'common'
+      ? text.common
+      : unit.kind === 'context'
+        ? `${text.context}: ${unit.name}`
+        : `${text.slice}: ${unit.name}`;
+    lines.push(`## ${heading}`);
+    if (unit.contextName && unit.kind === 'slice') {
+      lines.push('');
+      lines.push(`- Context: ${humanize(unit.contextName)}`);
+    }
+    lines.push('');
+    lines.push(`| ${text.source} | ${text.translation} | ${text.status} |`);
+    lines.push('| --- | --- | --- |');
+    unit.sourceTexts.forEach((sourceText) => {
+      const translation = input.translations[sourceText]?.trim();
+      lines.push(`| ${cell(sourceText)} | ${cell(translation || '-')} | ${translation ? text.done : text.pending} |`);
+    });
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd() + '\n';
+};
+
 const createCollector = () => {
   const texts = new Set<string>();
   const add = (value: string | undefined): void => {
@@ -132,7 +322,7 @@ const addCommonTexts = (add: (value: string | undefined) => void): void => {
 };
 
 const addField = (
-  field: CodegenField,
+  field: Pick<CodegenField, 'name'> | Pick<EmField, 'name'>,
   add: (value: string | undefined) => void
 ): void => {
   const label = titleCase(field.name);
@@ -169,3 +359,109 @@ const titleCase = (value: string): string =>
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+
+const addIdentifier = (
+  value: string | undefined,
+  add: (value: string | undefined) => void
+): void => {
+  if (!value) return;
+  add(humanize(value));
+};
+
+const addContextGeneralTexts = (
+  context: EmContext,
+  add: (value: string | undefined) => void
+): void => {
+  addIdentifier(context.name, add);
+  [
+    ...(context.notes ?? []),
+    ...(context.risks ?? []),
+    ...(context.decisions ?? []),
+    ...(context.metrics ?? [])
+  ].forEach(add);
+  (context.valueTypes ?? []).forEach((valueType) => {
+    addIdentifier(valueType.name, add);
+    (valueType.values ?? []).forEach((value) => addIdentifier(value, add));
+    (valueType.fields ?? []).forEach((field) => {
+      addField(field, add);
+      if (field.mapping?.rule) add(field.mapping.rule);
+    });
+  });
+  (context.aggregates ?? []).forEach((aggregate) => {
+    addIdentifier(aggregate.name, add);
+    (aggregate.states ?? []).forEach((state) => addIdentifier(state, add));
+  });
+  (context.concepts ?? []).forEach((concept) => {
+    addIdentifier(concept.name, add);
+    (concept.states ?? []).forEach((state) => addIdentifier(state, add));
+    (concept.sliceNames ?? []).forEach((sliceName) => addIdentifier(sliceName, add));
+  });
+  (context.externalSystems ?? []).forEach((externalSystem) => {
+    addIdentifier(externalSystem.name, add);
+    addIdentifier(externalSystem.kind, add);
+    addIdentifier(externalSystem.protocol, add);
+    (externalSystem.capabilities ?? []).forEach((capability) => addIdentifier(capability.name, add));
+  });
+  (context.looseElements ?? []).forEach((element) => addElementTexts(element, add));
+};
+
+const addSliceTexts = (
+  slice: EmSlice,
+  add: (value: string | undefined) => void
+): void => {
+  addIdentifier(slice.name, add);
+  addIdentifier(slice.resultingState, add);
+  (slice.hotspots ?? []).forEach(add);
+  (slice.elements ?? []).forEach((element) => addElementTexts(element, add));
+};
+
+const addElementTexts = (
+  element: EmElement,
+  add: (value: string | undefined) => void
+): void => {
+  addIdentifier(element.name, add);
+  (element.fields ?? []).forEach((field) => {
+    addField(field, add);
+    if (field.mapping?.rule) add(field.mapping.rule);
+  });
+  for (const [key, value] of Object.entries(element.metadata ?? {})) {
+    if (!isTranslatableMetadata(key)) continue;
+    if (isNarrativeMetadata(key)) add(value);
+    else addIdentifier(value, add);
+  }
+};
+
+const allContextSlicesWithOwners = (
+  context: EmContext
+): Array<{ slice: EmSlice }> => [
+  ...(context.aggregates ?? []).flatMap((aggregate) =>
+    (aggregate.slices ?? []).map((slice) => ({ slice }))
+  ),
+  ...(context.slices ?? []).map((slice) => ({ slice }))
+];
+
+const isTranslatableMetadata = (key: string): boolean =>
+  !/^expression\d+$/.test(key)
+  && !key.startsWith('example:')
+  && !key.startsWith('givenExample:');
+
+const isNarrativeMetadata = (key: string): boolean =>
+  key === 'rule'
+  || key === 'specification'
+  || key === 'thenReject'
+  || key === 'thenError'
+  || key === 'description';
+
+const sectionMarker = (unit: ModelTranslationUnit): string => {
+  const id = `model-i18n.${unit.kind}.${slug(unit.id)}`;
+  if (unit.sourceRefs.length === 1) {
+    return `<!-- em:section id="${id}" source="${unit.sourceRefs[0]}" -->`;
+  }
+  return `<!-- em:section id="${id}" sources="${unit.sourceRefs.join(' ')}" -->`;
+};
+
+const slug = (value: string): string =>
+  value.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'unit';
+
+const cell = (value: string): string =>
+  String(value ?? '').replace(/\|/g, '\\|').replace(/\n/g, '<br>');

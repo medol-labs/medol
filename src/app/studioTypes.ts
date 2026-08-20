@@ -10,6 +10,7 @@ export type ToolbarAction =
   | 'software-design-ai'
   | 'database-design-ai'
   | 'process-ai'
+  | 'test-outline-ai'
   | 'model-translations'
   | 'download-translations'
   | 'reset';
@@ -18,7 +19,8 @@ export type DocumentationToolbarAction =
   | 'prd-ai'
   | 'software-design-ai'
   | 'database-design-ai'
-  | 'process-ai';
+  | 'process-ai'
+  | 'test-outline-ai';
 
 export type PreviewMode = 'canvas' | 'global' | 'layout' | 'documents';
 

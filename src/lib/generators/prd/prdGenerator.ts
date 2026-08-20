@@ -55,7 +55,7 @@ const buildPrdDocument = (model: EmModel, id: string, title: string): PrdDocumen
       ),
       ...context.slices.map((slice) => toPrdSlice(
         slice,
-        context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => `Concept:${concept.name}`).join(', ') || 'Context',
+        context.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name).join(', ') || 'Context',
         context.name
       ))
     ]
@@ -70,12 +70,24 @@ const buildPrdDocument = (model: EmModel, id: string, title: string): PrdDocumen
     notes,
     actors: collectActors(model),
     aggregates: contexts.flatMap((context) =>
-      context.aggregates.map<PrdAggregate>((aggregate) => ({
-        id: aggregate.id,
-        name: aggregate.name,
-        states: aggregate.states,
-        sourceRefs: [aggregate.id]
-      }))
+      [
+        ...context.aggregates.map<PrdAggregate>((aggregate) => ({
+          id: aggregate.id,
+          name: aggregate.name,
+          type: 'aggregate',
+          context: context.name,
+          states: aggregate.states,
+          sourceRefs: [aggregate.id]
+        })),
+        ...context.concepts.map<PrdAggregate>((concept) => ({
+          id: concept.id,
+          name: concept.name,
+          type: 'concept',
+          context: context.name,
+          states: concept.states,
+          sourceRefs: [concept.id]
+        }))
+      ]
     ),
     slices,
     dataDictionary: collectDataDictionary(model),
@@ -91,9 +103,9 @@ const buildOverview = (model: EmModel, context: EmContext | undefined): string =
   const domainNames = model.domains.map((domain) => humanize(domain.name));
   const contextNames = model.contexts.map((item) => humanize(item.name));
   if (domainNames.length) {
-    return `${domainNames.join(', ')} describes ${contextNames.join(', ') || humanize(context?.name ?? 'the modeled context')} through event-modeled business capabilities, state changes, automations, read models, and integrations.`;
+    return `${domainNames.join(', ')} covers ${contextNames.join(', ') || humanize(context?.name ?? 'the modeled context')} and defines the product capabilities, operating roles, data views, business rules, and delivery acceptance scope required for implementation.`;
   }
-  return `${contextNames.join(', ') || humanize(context?.name ?? 'the modeled context')} is described through event-modeled business capabilities, state changes, automations, read models, and integrations.`;
+  return `${contextNames.join(', ') || humanize(context?.name ?? 'the modeled context')} defines the product capabilities, operating roles, data views, business rules, and delivery acceptance scope required for implementation.`;
 };
 
 const toPrdSlice = (slice: EmSlice, aggregate: string, context: string): PrdSlice => {

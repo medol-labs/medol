@@ -252,7 +252,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
       setDocumentNavigationMessage(
         documents.length
           ? 'No linked section was found in the saved documents. Regenerate the document so it includes MEDOL references.'
-          : 'Generate a PRD, software design, database design, or process document first. It will then be linked to this MEDOL item.'
+          : 'Generate a PRD, software design, database design, process document, or test outline first. It will then be linked to this MEDOL item.'
       );
       setDocumentNavigationTone('warning');
       return;
