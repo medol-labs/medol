@@ -2124,7 +2124,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id generated technical
       federationId: UUID
       featureSchemaId: UUID
-      initialModelId: UUID
+      initialModelId: UUID from ModelArtifactCatalog.modelId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -2293,7 +2293,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id technical
       federationId: UUID
       featureSchemaId: UUID
-      initialModelId: UUID
+      initialModelId: UUID from ModelArtifactCatalog.modelId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -4681,8 +4681,8 @@ context SecureAggregation {
       secureAggregationSessionId: UUID id technical
       roundId: UUID from SecureAggregationSessionCreated.roundId
       acceptedRuntimeIds: UUID[] from SecureAggregationSessionCreated.acceptedRuntimeIds
-      selectedRuntimeIds: UUID[]
-      selectedParticipantCount: Int
+      selectedRuntimeIds: UUID[] from SecureAggregationSessionCreated.acceptedRuntimeIds
+      selectedParticipantCount: Int from SecureAggregationSessionCreated.requiredParticipantCount
     }
 
     event SecureAggregationParticipantsSelected {
@@ -6179,7 +6179,7 @@ context RuntimeAgentOperations {
 
     specification "Runtime Engine Job Observation Outcome" {
       rule """
-        Observing a runtime engine job is an external status check. The adapter queries the runtime engine by runtimeEngineJobId and records RuntimeEngineJobObserved with observedStatus RUNNING, COMPLETED, or FAILED. Completion and failure domain state changes are triggered by follow-up automations instead of embedding runtime engine polling inside CompleteRoundExecution or FailRoundExecution.
+        Observing a runtime engine job is an external status check and must not advance or reset the RoundExecution lifecycle state. The adapter queries the runtime engine by runtimeEngineJobId and records RuntimeEngineJobObserved with observedStatus RUNNING, COMPLETED, or FAILED. Completion and failure domain state changes are triggered by follow-up automations instead of embedding runtime engine polling inside CompleteRoundExecution or FailRoundExecution.
       """
 
       scenario "Runtime Engine Job Observed Running" {

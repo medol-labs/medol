@@ -118,6 +118,7 @@
 - [ ] 优化 ai agent 使用，减少 token 消耗，固定的问题整理 skill
 - [ ] 生成分页查询默认按时间排序
 - [ ] 多状态
+- [ ] 基于 medol 参考 https://github.com/hexclave/hexclave 设计一套 user infrastructure
 
 ##
 
@@ -163,7 +164,11 @@
     - 生成器后续应支持这类 snapshot port + decision policy 的默认结构，避免业务规则沉入 infrastructure adapter。
   - [ ] MEDOL 建模需要表达 decision 依赖的业务事实与判断规则：adapter 中现有的业务判断迁移到 decision 前，模型中应能看出 command decision 依赖哪些 state / read model snapshot / port result、成功失败分别产生什么 event、哪些字段来自 command/state/触发事件。不要在模型中表达 SQL/join 等技术查询细节，但不能让 adapter 成为业务规则唯一来源。
   - [ ] 完成 cancel pause job 等流程
-
+  - [ ] federation learning 使用 https://github.com/hexclave/hexclave 做身份与认证管理等基础框架
+  - [ ] training run configuration 添加 display name
+    - [ ] 需重新设计，算法工程师动态配置对应参数，不同算法参数不一样
+  - [ ] submit taining job 切换成 dialog
+    - [ ] submit 加校验，不能重复提交
 ##
 
 建议 DSL 使用时遵守：
