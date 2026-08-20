@@ -45,6 +45,7 @@
 - [ ] 页面查询条件怎么表达
   - [ ] 仿照 jhipster 支持多字段查询
   - [ ] supabase 支持？
+  - [ ] View toolbar 支持字段顺序调整，用户可控制列表列展示顺序
 - [ ] 在生成代码中抛出设计中的 specification 提示信息
 - [ ] 读模型更新状态字段怎么对照
 - [ ] 版本管理
@@ -160,6 +161,7 @@
     - domain decision component 承载业务规则：参与方选择策略、quorum、每组织/每 runtime 选择规则、失败事件选择、重试策略。
     - 建模上把 `SelectTrainingRoundParticipantsService` 这类“做业务选择”的 port 降级为 `LoadTrainingRoundParticipantSelectionSnapshot` 这类查询型 port，事件仍记录完整 selected participant snapshot。
     - 生成器后续应支持这类 snapshot port + decision policy 的默认结构，避免业务规则沉入 infrastructure adapter。
+  - [ ] MEDOL 建模需要表达 decision 依赖的业务事实与判断规则：adapter 中现有的业务判断迁移到 decision 前，模型中应能看出 command decision 依赖哪些 state / read model snapshot / port result、成功失败分别产生什么 event、哪些字段来自 command/state/触发事件。不要在模型中表达 SQL/join 等技术查询细节，但不能让 adapter 成为业务规则唯一来源。
   - [ ] 完成 cancel pause job 等流程
 
 ##
