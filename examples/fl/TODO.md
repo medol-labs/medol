@@ -19,6 +19,15 @@
 - [ ] umadb
     - [ ] Projector 没有执行，没有更新 readmodel
 
+## Runtime Agent Endpoint Access
+
+- [ ] 前端只部署一套时，runtime agent 后端不能继续使用构建期静态 `apiUrl`。
+- [ ] 平台侧通过 `RuntimeAgentEndpointCatalog` 维护每个 `runtimeAgentId` / `organizationId` 的可访问 endpoint。
+- [ ] 前端访问 runtime-agent 模块时按当前用户、组织、runtimeId 动态解析 endpoint。
+- [ ] endpoint scope 需要区分参与方浏览器本地可达、局域网可达、平台代理转发等模式。
+- [ ] runtime agent 需要支持 central console origin 的 CORS 与平台签发/校验的短期访问凭证。
+- [ ] 生成器层面只提供 dynamic endpoint/dataProvider 扩展点，不写入 federation-learning 具体业务查询逻辑。
+
 
 
 ## Dictionary 
