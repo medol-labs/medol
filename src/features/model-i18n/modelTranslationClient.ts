@@ -6,6 +6,7 @@ export interface ModelTranslationGenerationResult {
   sourceHash: string;
   total: number;
   translated: number;
+  reused?: number;
   missing: string[];
   pendingUnits?: ModelTranslationUnitProgress[];
   pendingGroups?: ModelTranslationUnitProgress[];

@@ -19,6 +19,8 @@ import {
   renderSoftwareDesignMarkdown,
   renderTestOutlineMarkdown
 } from './documentationMarkdownRenderer';
+import { numberMarkdownHeadings } from './documentHeadingNumbering';
+import { insertMarkdownTableOfContentsAfterTitle } from './documentTableOfContents';
 import { localizeDocumentationMarkdown } from './documentationLocalization';
 import { coveredSpecificationExpressions } from '../../specificationCoverage';
 
@@ -45,9 +47,13 @@ export const generateDocumentation = (
         : kind === 'test-outline'
           ? renderTestOutlineMarkdown(bundle, language)
           : renderProcessMarkdown(bundle);
-  const markdown = language === 'zh-CN' && kind === 'process'
+  const localizedMarkdown = language === 'zh-CN' && kind === 'process'
     ? localizeDocumentationMarkdown(baseMarkdown, kind)
     : baseMarkdown;
+  const numberedMarkdown = numberMarkdownHeadings(localizedMarkdown, language);
+  const markdown = kind === 'prd'
+    ? insertMarkdownTableOfContentsAfterTitle(numberedMarkdown, language)
+    : numberedMarkdown;
 
   return { kind, language, title, markdown, bundle };
 };

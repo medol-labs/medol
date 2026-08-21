@@ -1,6 +1,7 @@
 import Editor from '@monaco-editor/react';
 import type { OnMount } from '@monaco-editor/react';
 import { Download, FileDown, FileText, LocateFixed, PanelLeftClose, PanelLeftOpen, Save, Trash2 } from 'lucide-react';
+import type { MouseEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -11,6 +12,8 @@ import {
   findDocumentSourceLine,
   parseDocumentMarkdownSections
 } from './documentReferences';
+import { markdownHeadingAnchor } from '../../lib/generators/documentation/documentTableOfContents';
+import { toRenderableDocumentMarkdown } from './documentMarkdownPresentation';
 import { exportModelingDocumentWord } from './modelingDocumentClient';
 import type { DocumentPersistenceStatus } from './useModelingDocuments';
 
@@ -92,6 +95,17 @@ export function DocumentWorkspace({
     () => parseDocumentMarkdownSections(markdown),
     [markdown]
   );
+  const renderableMarkdownSections = useMemo(
+    () => markdownSections.map((section) => ({
+      ...section,
+      markdown: toRenderableDocumentMarkdown(section.markdown)
+    })),
+    [markdownSections]
+  );
+  const downloadableMarkdown = useMemo(
+    () => toRenderableDocumentMarkdown(markdown),
+    [markdown]
+  );
 
   useEffect(() => {
     if (!focusSourceId || markdown !== activeDocument?.markdown) return;
@@ -155,8 +169,21 @@ export function DocumentWorkspace({
     editor.setScrollTop(editor.getTopForLineNumber(Math.max(1, Math.round(sourceLine))));
   };
 
+  const handlePreviewClick = (event: MouseEvent<HTMLDivElement>) => {
+    const link = (event.target as Element | null)?.closest?.('a[href^="#"]');
+    const href = link?.getAttribute('href');
+    const preview = previewScrollRef.current;
+    if (!href || !preview) return;
+    const targetId = decodeURIComponent(href.slice(1));
+    const target = [...preview.querySelectorAll<HTMLElement>('[id]')]
+      .find((element) => element.id === targetId);
+    if (!target) return;
+    event.preventDefault();
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const download = () => {
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const blob = new Blob([downloadableMarkdown], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -375,9 +402,10 @@ export function DocumentWorkspace({
             onScroll={syncEditorFromPreview}
             onWheel={() => markScrollDriver('preview')}
             onPointerDown={() => markScrollDriver('preview')}
+            onClick={handlePreviewClick}
           >
             <article className="document-markdown mx-auto max-w-4xl px-8 py-7">
-              {markdownSections.map((section) => (
+              {renderableMarkdownSections.map((section) => (
                 <section
                   key={section.id}
                   className={focusSourceId && section.sourceRefs.includes(focusSourceId)
@@ -405,7 +433,8 @@ export function DocumentWorkspace({
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     rehypePlugins={[
-                      createSourceLinePlugin((section.contentStartLine ?? section.startLine ?? 1) - 1)
+                      createSourceLinePlugin((section.contentStartLine ?? section.startLine ?? 1) - 1),
+                      createHeadingAnchorPlugin()
                     ]}
                   >
                     {section.markdown}
@@ -460,6 +489,7 @@ interface PreviewAnchor {
 interface PositionedNode {
   type?: string;
   tagName?: string;
+  value?: string;
   position?: {
     start?: { line?: number };
     end?: { line?: number };
@@ -489,6 +519,38 @@ const createSourceLinePlugin = (lineOffset: number) => () => (tree: PositionedNo
     node.children?.forEach(visit);
   };
   visit(tree);
+};
+
+const createHeadingAnchorPlugin = () => () => (tree: PositionedNode) => {
+  const usedAnchors = new Map<string, number>();
+  const visit = (node: PositionedNode) => {
+    if (
+      node.type === 'element'
+      && node.tagName
+      && /^h[1-6]$/u.test(node.tagName)
+    ) {
+      const title = extractNodeText(node).trim();
+      if (title) {
+        node.properties ??= {};
+        node.properties.id = uniqueAnchor(markdownHeadingAnchor(title), usedAnchors);
+      }
+    }
+    node.children?.forEach(visit);
+  };
+  visit(tree);
+};
+
+const extractNodeText = (node: PositionedNode): string =>
+  node.children?.map((child) =>
+    typeof child.value === 'string'
+      ? child.value
+      : extractNodeText(child)
+  ).join('') ?? '';
+
+const uniqueAnchor = (anchor: string, usedAnchors: Map<string, number>): string => {
+  const count = usedAnchors.get(anchor) ?? 0;
+  usedAnchors.set(anchor, count + 1);
+  return count === 0 ? anchor : `${anchor}-${count}`;
 };
 
 const getPreviewOffset = (preview: HTMLElement, element: HTMLElement): number =>

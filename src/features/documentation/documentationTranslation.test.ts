@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { EmModel } from '../../lib/model';
 import { generateDocumentation } from '../../lib/generators/documentation';
+import { numberMarkdownHeadings } from '../../lib/generators/documentation/documentHeadingNumbering';
 import {
   buildDocumentationTranslationCatalog,
   modelTranslationsToDocumentationTranslations,
@@ -12,6 +13,8 @@ import {
   buildModelTranslationUnits,
   renderModelTranslationMarkdown
 } from '../model-i18n/modelTranslation';
+import { normalizeModelTranslationResponse } from '../model-i18n/modelTranslationProvider';
+import { toRenderableDocumentMarkdown } from './documentMarkdownPresentation';
 
 const model: EmModel = {
   domains: [{
@@ -214,6 +217,68 @@ test('renders locatable model translation markdown', () => {
   assert.match(markdown, /\| Email already exists \| - \| 待翻译 \|/);
 });
 
+test('hides internal document comments from rendered markdown', () => {
+  const markdown = [
+    '# Account Platform 产品需求文档',
+    '',
+    '<!-- em:section id="prd.overview" source="context/account" -->',
+    '',
+    '## 版本变更记录',
+    '',
+    '<!-- medol:pagebreak -->',
+    '',
+    '## 一、产品背景与目标',
+    '',
+    '<!-- medol:toc -->',
+    '',
+    '<!-- empty document body -->',
+    '',
+    '正文内容。'
+  ].join('\n');
+
+  const renderable = toRenderableDocumentMarkdown(markdown);
+
+  assert.match(renderable, /# Account Platform 产品需求文档/);
+  assert.match(renderable, /## 一、产品背景与目标/);
+  assert.match(renderable, /正文内容。/);
+  assert.doesNotMatch(renderable, /<!--|medol:pagebreak|em:section|empty document body/);
+  assert.doesNotMatch(renderable, /medol:toc/);
+});
+
+test('adds title-initial unique codes to Chinese document headings', () => {
+  const markdown = generateDocumentation(
+    model,
+    'prd',
+    { language: 'zh-CN' }
+  ).markdown;
+
+  assert.match(markdown, /## 一、产品背景与目标\/AP-PRD-BAG/);
+  assert.match(markdown, /<!-- em:section id="document\.toc" -->\n## 目录\n\n- \[一、产品背景与目标\/AP-PRD-BAG\]\(#ap-prd-bag\)/);
+  assert.match(markdown, /  - \[1\.1 业务背景\/AP-PRD-BB\]\(#ap-prd-bb\)/);
+  assert.doesNotMatch(markdown, /\[TOC\]/);
+  assert.match(markdown, /<!-- em:section id="prd\.section\.overview" sources="aggregate\/account slice\/register command\/register" -->/);
+  assert.match(markdown, /<!-- em:section id="prd\.section\.featureInventory" sources="slice\/register command\/register" -->/);
+  assert.match(markdown, /### 1\.1 业务背景\/AP-PRD-BB/);
+  assert.match(markdown, /## 六、功能需求\/AP-PRD-FR/);
+  assert.match(markdown, /#### 6\.1\.1 Register Account · 新增\/AP-PRD-RA/);
+});
+
+test('adds numeric suffixes for duplicate title-initial codes', () => {
+  const markdown = numberMarkdownHeadings([
+    '# Order Platform 产品需求文档',
+    '',
+    '## Create Order',
+    '',
+    '## Create Order',
+    '',
+    '## Cancel Order'
+  ].join('\n'), 'zh-CN');
+
+  assert.match(markdown, /## 一、Create Order\/OP-PRD-CO/);
+  assert.match(markdown, /## 二、Create Order\/OP-PRD-CO-2/);
+  assert.match(markdown, /## 三、Cancel Order\/OP-PRD-CO-3/);
+});
+
 test('maps stored model translations into documentation translations', () => {
   const translations = modelTranslationsToDocumentationTranslations(model, {
     'Account Platform': '账户平台',
@@ -243,6 +308,51 @@ test('maps stored model translations into documentation translations', () => {
   assert.equal(translations.narratives['Normalize the email address.'], '规范化邮箱地址。');
   assert.equal(translated.contexts[0].name, '账户管理（AccountManagement）');
   assert.equal(translated.contexts[0].aggregates[0].slices[0].name, '注册账户（RegisterAccount）');
+});
+
+test('normalizes wrapped model translation provider responses', () => {
+  const sourceTexts = ['Register Account', 'Email already exists'];
+
+  assert.deepEqual(normalizeModelTranslationResponse({
+    translations: {
+      'Register Account': '注册账户',
+      'Email already exists': '邮箱已存在'
+    }
+  }, sourceTexts), {
+    'Register Account': '注册账户',
+    'Email already exists': '邮箱已存在'
+  });
+
+  assert.deepEqual(normalizeModelTranslationResponse({
+    data: [{
+      sourceText: 'Register Account',
+      translatedText: '注册账户'
+    }, {
+      source: 'Email already exists',
+      translation: '邮箱已存在'
+    }]
+  }, sourceTexts), {
+    'Register Account': '注册账户',
+    'Email already exists': '邮箱已存在'
+  });
+
+  assert.deepEqual(normalizeModelTranslationResponse({
+    translations: {
+      'Register Account': { 'zh-CN': '注册账户' },
+      'Email already exists': { 译文: '邮箱已存在' }
+    }
+  }, sourceTexts), {
+    'Register Account': '注册账户',
+    'Email already exists': '邮箱已存在'
+  });
+
+  assert.deepEqual(normalizeModelTranslationResponse([
+    ['Register Account', '注册账户'],
+    ['Email already exists', '邮箱已存在']
+  ], sourceTexts), {
+    'Register Account': '注册账户',
+    'Email already exists': '邮箱已存在'
+  });
 });
 
 test('generates a conventional Chinese PRD with concept business objects', () => {
@@ -319,11 +429,21 @@ test('generates a conventional Chinese PRD with concept business objects', () =>
     { language: 'zh-CN' }
   ).markdown;
 
-  assert.match(markdown, /## 产品背景与目标/);
-  assert.match(markdown, /## 功能需求/);
+  assert.match(markdown, /## 一、产品背景与目标/);
+  assert.match(markdown, /### 1\.1 业务背景/);
+  assert.match(markdown, /Account Platform覆盖Account Management，定义实施所需的产品能力、操作角色、数据视图、业务规则和交付验收范围。/);
+  assert.match(markdown, /## 三、角色与权限矩阵/);
+  assert.match(markdown, /\| 角色 \| 职责 \| 可访问模块 \| 关键权限 \| 数据范围 \|/);
+  assert.match(markdown, /\| Account Admin \| 负责Account Management中的新增。 \| Account Management \| 创建\/登记 Register Account \|/);
+  assert.match(markdown, /## 六、功能需求/);
+  assert.match(markdown, /#### 6\.1\.1 Register Account · 新增/);
+  assert.match(markdown, /\*\*权限要求\*\*/);
+  assert.match(markdown, /仅 Account Admin 或具备等效授权的角色可使用该功能。/);
+  assert.match(markdown, /\*\*无权限处理\*\*/);
+  assert.match(markdown, /不得产生 Account Registered。/);
   assert.match(markdown, /\*\*核心业务对象:\*\* Account/);
   assert.doesNotMatch(markdown, /\*\*核心业务对象:\*\* -/);
-  assert.doesNotMatch(markdown, /Concept:Account|Event Modeling|MEDOL/);
+  assert.doesNotMatch(markdown, /Concept:Account|Event Modeling|MEDOL|covers|defines the product capabilities|delivery acceptance scope|尚未定义明确的验收规则|验收矩阵依据|specification/);
 });
 
 test('generates comprehensive Chinese software design sections', () => {
@@ -333,11 +453,12 @@ test('generates comprehensive Chinese software design sections', () => {
     { language: 'zh-CN' }
   ).markdown;
 
-  assert.match(markdown, /## 概要设计/);
-  assert.match(markdown, /## 详细设计/);
-  assert.match(markdown, /#### 业务对象设计/);
-  assert.match(markdown, /#### 应用服务与能力设计/);
-  assert.match(markdown, /## 接口与集成设计/);
+  assert.match(markdown, /## 一、概要设计/);
+  assert.match(markdown, /### 1\.1 限界上下文与模块划分/);
+  assert.match(markdown, /## 二、详细设计/);
+  assert.match(markdown, /#### 2\.1\.1 业务对象设计/);
+  assert.match(markdown, /#### 2\.1\.2 应用服务与能力设计/);
+  assert.match(markdown, /## 三、接口与集成设计/);
   assert.doesNotMatch(markdown, /Architecture Overview|Aggregate Design|Implementation Gaps/);
 });
 
@@ -349,8 +470,15 @@ test('generates Chinese test outline documentation', () => {
   ).markdown;
 
   assert.match(markdown, /# Account Platform 测试大纲/);
-  assert.match(markdown, /## 测试目标与范围/);
-  assert.match(markdown, /## 功能测试范围/);
-  assert.match(markdown, /## 业务规则与异常测试/);
-  assert.match(markdown, /## 准出标准/);
+  assert.match(markdown, /## 一、测试目标与范围/);
+  assert.match(markdown, /## 二、测试对象/);
+  assert.match(markdown, /## 三、测试范围边界/);
+  assert.match(markdown, /### 3\.1 纳入测试范围/);
+  assert.match(markdown, /## 六、测试类型/);
+  assert.match(markdown, /## 七、功能测试范围/);
+  assert.match(markdown, /## 八、测试场景覆盖/);
+  assert.match(markdown, /Specification Test/);
+  assert.match(markdown, /正常路径；拒绝路径；幂等；权限；边界；并发/);
+  assert.match(markdown, /## 九、业务规则与异常测试/);
+  assert.match(markdown, /## 十四、准出标准/);
 });

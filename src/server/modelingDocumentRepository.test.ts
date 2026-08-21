@@ -16,6 +16,7 @@ process.env.MEDOL_DB_PATH = workspaceDatabasePath;
 
 const repository = await import('./modelingDocumentRepository');
 const workspaceRepository = await import('./modelingWorkspaceRepository');
+const { documentDatabase } = await import('./documentDatabase');
 
 test.after(() => {
   for (const database of [databasePath, workspaceDatabasePath]) {
@@ -147,6 +148,99 @@ test('regeneration updates the existing document instead of creating a duplicate
   assert.equal(regenerated.mergeSummary?.preserved, 1);
 });
 
+test('adds an incremental document version history page for workspace DSL versions', () => {
+  const initialDsl = `
+domain Versioned {
+  context Sales {
+    aggregate Order {
+      slice CreateOrder {
+        command CreateOrder
+        event OrderCreated
+      }
+    }
+  }
+}`;
+  const nextDsl = initialDsl.replace(
+    'event OrderCreated',
+    'event OrderCreated\n        readmodel OrderList'
+  );
+  const workspace = workspaceRepository.createModelingWorkspace({
+    name: 'Versioned documents',
+    dsl: initialDsl
+  });
+  const first = repository.createModelingDocument({
+    workspaceId: workspace.id,
+    title: 'Versioned PRD',
+    kind: 'prd',
+    language: 'zh-CN',
+    sourceHash: hashMedolSource(initialDsl),
+    markdown: [
+      '# Versioned PRD',
+      '',
+      '<!-- em:section id="prd.section.slice.CreateOrder" source="slice/create" -->',
+      '## Create Order',
+      '',
+      'Version one.'
+    ].join('\n')
+  });
+
+  assert.match(first.markdown, /## 版本变更记录/);
+  assert.match(first.markdown, /## 目录/);
+  assert.match(first.markdown, /\| 文档版本 \| 生成时间 \| 变更说明 \|/);
+  assert.match(first.markdown, /\| v1\.0\.0 \| .+ \| Initial version \|/);
+  assert.doesNotMatch(first.markdown, /DSL 版本|源模型哈希|fnv1a-/);
+  assert.match(first.markdown, /<!-- em:section id="document\.version-history" -->\n# Versioned PRD\n\n## 版本变更记录/);
+  assert.match(first.markdown, /## 版本变更记录[\s\S]+<!-- medol:pagebreak -->[\s\S]+<!-- em:section id="document\.toc" -->\n## 目录\n\n- \[一、Create Order\/V-PRD-CO\]\(#v-prd-co\)[\s\S]+<!-- medol:pagebreak -->[\s\S]+<!-- em:section id="document\.body" -->\n<!-- em:section id="prd\.section\.slice\.CreateOrder" source="slice\/create" -->\n## 一、Create Order\/V-PRD-CO/);
+  assert.doesNotMatch(first.markdown, /\[TOC\]/);
+  assert.doesNotMatch(first.markdown, /page-break-before/);
+  assert.equal((first.markdown.match(/^# Versioned PRD$/gm) ?? []).length, 1);
+  assert.equal((first.markdown.match(/^# /gm) ?? []).length, 1);
+
+  const secondVersion = workspaceRepository.createModelingWorkspaceVersion(workspace.id, {
+    message: 'Add order list read model',
+    dsl: nextDsl
+  })?.version;
+  assert.ok(secondVersion);
+  const regenerated = repository.createModelingDocument({
+    workspaceId: workspace.id,
+    title: 'Versioned PRD',
+    kind: 'prd',
+    language: 'zh-CN',
+    sourceHash: hashMedolSource(nextDsl),
+    markdown: [
+      '# Versioned PRD',
+      '',
+      '<!-- em:section id="prd.section.slice.CreateOrder" source="slice/create" -->',
+      '## Create Order',
+      '',
+      'Version two.'
+    ].join('\n')
+  });
+
+  assert.equal(regenerated.id, first.id);
+  assert.equal(repository.listModelingDocuments(workspace.id).length, 1);
+  assert.match(regenerated.markdown, /\| v1\.0\.0 \| .+ \| Initial version \|/);
+  assert.match(regenerated.markdown, /\| v2\.0\.0 \| .+ \| Add order list read model \|/);
+  assert.match(regenerated.markdown, /Add order list read model/);
+  assert.equal((regenerated.markdown.match(/## 版本变更记录/g) ?? []).length, 1);
+  assert.equal((regenerated.markdown.match(/## 目录/g) ?? []).length, 1);
+  assert.equal((regenerated.markdown.match(/document\.toc/g) ?? []).length, 1);
+  assert.doesNotMatch(regenerated.markdown, /DSL 版本|源模型哈希|fnv1a-/);
+  assert.match(regenerated.markdown, /<!-- em:section id="document\.version-history" -->\n# Versioned PRD\n\n## 版本变更记录/);
+  assert.equal((regenerated.markdown.match(/^# Versioned PRD$/gm) ?? []).length, 1);
+  assert.equal((regenerated.markdown.match(/^# /gm) ?? []).length, 1);
+
+  const sameVersion = repository.createModelingDocument({
+    workspaceId: workspace.id,
+    title: 'Versioned PRD',
+    kind: 'prd',
+    language: 'zh-CN',
+    sourceHash: hashMedolSource(nextDsl),
+    markdown: regenerated.markdown
+  });
+  assert.equal((sameVersion.markdown.match(/\| v2\.0\.0 \| .+ \| Add order list read model \|/g) ?? []).length, 1);
+});
+
 test('backfills source references for previously generated documents', () => {
   const workspace = workspaceRepository.createModelingWorkspace({
     name: 'Legacy documents',
@@ -172,10 +266,94 @@ domain Orders {
   });
 
   assert.deepEqual(repository.readModelingDocument(created.id)?.sourceRefs, [
-    'domain/Orders/context/Sales/aggregate/Order'
+    'domain/Orders/context/Sales/concept/Order'
   ]);
   assert.match(
     repository.readModelingDocument(created.id)?.markdown ?? '',
     /em:section id="software\.aggregate\.Order"/
+  );
+});
+
+test('backfills version history for existing generated documents', () => {
+  const dsl = `
+domain Orders {
+  context Sales {
+    slice CreateOrder {
+      command CreateOrder
+      event OrderCreated
+    }
+  }
+}`;
+  const workspace = workspaceRepository.createModelingWorkspace({
+    name: 'Legacy version history',
+    dsl
+  });
+  const legacyMarkdown = [
+    '# Orders PRD',
+    '',
+    '<!-- em:section id="prd.section.slice.CreateOrder" source="domain/Orders/context/Sales/slice/CreateOrder" -->',
+    '## Create Order',
+    '',
+    'Legacy content.'
+  ].join('\n');
+  const created = repository.createModelingDocument({
+    workspaceId: workspace.id,
+    title: 'Orders PRD',
+    kind: 'prd',
+    language: 'zh-CN',
+    sourceHash: hashMedolSource(dsl),
+    markdown: legacyMarkdown
+  });
+
+  documentDatabase.prepare('DELETE FROM modeling_document_versions WHERE document_id = ?')
+    .run(created.id);
+  documentDatabase.prepare(`
+    UPDATE modeling_documents
+    SET markdown = ?, generated_markdown = ?
+    WHERE id = ?
+  `).run(legacyMarkdown, legacyMarkdown, created.id);
+
+  const backfilled = repository.readModelingDocument(created.id);
+  assert.ok(backfilled);
+  assert.match(backfilled.markdown, /## 版本变更记录/);
+  assert.match(backfilled.markdown, /## 目录/);
+  assert.match(backfilled.markdown, /\| v1\.0\.0 \| .+ \| Initial version \|/);
+  assert.match(backfilled.markdown, /Initial version/);
+  assert.doesNotMatch(backfilled.markdown, /DSL 版本|源模型哈希|fnv1a-/);
+  assert.match(backfilled.markdown, /<!-- em:section id="document\.version-history" -->\n# Orders PRD\n\n## 版本变更记录/);
+  assert.equal((backfilled.markdown.match(/^# Orders PRD$/gm) ?? []).length, 1);
+  assert.equal((backfilled.markdown.match(/^# /gm) ?? []).length, 1);
+
+  const versionRows = documentDatabase.prepare(`
+    SELECT document_id
+    FROM modeling_document_versions
+    WHERE document_id = ?
+  `).all(created.id);
+  assert.equal(versionRows.length, 1);
+});
+
+test('does not add document version history to model translation catalogs', () => {
+  const created = repository.createModelingDocument({
+    workspaceId: 'translation-workspace',
+    title: 'Model translations',
+    kind: 'model-translations',
+    language: 'zh-CN',
+    sourceHash: 'fnv1a-translations',
+    markdown: [
+      '# 模型翻译',
+      '',
+      '<!-- em:section id="model-translations.section.catalog" source="translation/RegisterAccount" -->',
+      '## 翻译表'
+    ].join('\n')
+  });
+
+  assert.doesNotMatch(created.markdown, /document\.version-history|版本变更记录/);
+  assert.equal(
+    documentDatabase.prepare(`
+      SELECT COUNT(*) AS count
+      FROM modeling_document_versions
+      WHERE document_id = ?
+    `).get(created.id).count,
+    0
   );
 });

@@ -12,6 +12,7 @@ import { requestModelTranslations } from '../../../features/model-i18n/modelTran
 import { parseMedol } from '../../../lib/dslParser';
 import {
   readModelTranslations,
+  readReusableModelTranslations,
   upsertModelTranslations
 } from '../../../server/modelTranslationRepository';
 
@@ -83,7 +84,27 @@ export const Route = createFileRoute('/api/modeling/translations')({
         const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : undefined;
         const units = buildModelTranslationUnits(model);
         const catalog = buildModelTranslationCatalogFromUnits(units);
-        const existing = readModelTranslations({ workspaceId, sourceHash, locale });
+        let existing = readModelTranslations({ workspaceId, sourceHash, locale });
+        const reusable = body.regenerate
+          ? {}
+          : readReusableModelTranslations(
+              { workspaceId, sourceHash, locale },
+              catalog.sourceTexts.filter((sourceText) => !existing[sourceText])
+            );
+        if (Object.keys(reusable).length > 0) {
+          upsertModelTranslations({
+            workspaceId,
+            sourceHash,
+            locale,
+            translations: reusable,
+            provider: 'local',
+            model: 'historical-reuse'
+          });
+          existing = {
+            ...existing,
+            ...reusable
+          };
+        }
         const missingSourceTexts = body.regenerate
           ? catalog.sourceTexts
           : catalog.sourceTexts.filter((sourceText) => !existing[sourceText]);
@@ -190,7 +211,8 @@ export const Route = createFileRoute('/api/modeling/translations')({
             locale,
             requested: missingSourceTexts.length,
             units: unitsToProcess.length,
-            generated: Object.keys(generated).length
+            generated: Object.keys(generated).length,
+            reused: Object.keys(reusable).length
           });
         }
 
@@ -213,6 +235,7 @@ export const Route = createFileRoute('/api/modeling/translations')({
           sourceHash,
           total: catalog.sourceTexts.length,
           translated: Object.keys(translations).length,
+          reused: Object.keys(reusable).length,
           missing: catalog.sourceTexts.filter((sourceText) => !translations[sourceText]),
           pendingGroups: pendingUnitSummaries,
           pendingUnits: pendingUnitSummaries,

@@ -43,6 +43,16 @@ const selectTranslations = database.prepare(`
   ORDER BY source_text ASC
 `);
 
+const selectReusableTranslations = (sourceTexts: string[]) => database.prepare(`
+  SELECT source_text, translated_text
+  FROM model_translations
+  WHERE workspace_id = ?
+    AND source_hash <> ?
+    AND locale = ?
+    AND source_text IN (${sourceTexts.map(() => '?').join(', ')})
+  ORDER BY source_text ASC, updated_at DESC
+`);
+
 const upsertTranslation = database.prepare(`
   INSERT INTO model_translations (
     workspace_id, source_hash, locale, source_text, translated_text, provider, model, created_at, updated_at
@@ -63,6 +73,28 @@ export const readModelTranslations = (scope: TranslationScope): ModelTranslation
     scope.locale
   ) as TranslationRow[];
   return Object.fromEntries(rows.map((row) => [row.source_text, row.translated_text]));
+};
+
+export const readReusableModelTranslations = (
+  scope: TranslationScope,
+  sourceTexts: string[]
+): ModelTranslations => {
+  const requested = [...new Set(sourceTexts.map((sourceText) => sourceText.trim()).filter(Boolean))];
+  if (requested.length === 0) return {};
+
+  const translations: ModelTranslations = {};
+  for (const chunk of chunks(requested, 500)) {
+    const rows = selectReusableTranslations(chunk).all(
+      normalizeWorkspaceId(scope.workspaceId),
+      scope.sourceHash,
+      scope.locale,
+      ...chunk
+    ) as TranslationRow[];
+    for (const row of rows) {
+      translations[row.source_text] ??= row.translated_text;
+    }
+  }
+  return translations;
 };
 
 export const upsertModelTranslations = (
@@ -89,3 +121,11 @@ export const upsertModelTranslations = (
 
 const normalizeWorkspaceId = (workspaceId: string | undefined): string =>
   workspaceId?.trim() ?? '';
+
+const chunks = <T>(items: T[], size: number): T[][] => {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    result.push(items.slice(index, index + size));
+  }
+  return result;
+};

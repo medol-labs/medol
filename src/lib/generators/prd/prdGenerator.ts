@@ -271,7 +271,7 @@ const collectOpenQuestions = (model: EmModel, slices: PrdSlice[]): string[] => {
   for (const [context, names] of missingSpecifications) {
     const examples = names.slice(0, 4).join(', ');
     const remainder = names.length > 4 ? ` and ${names.length - 4} more` : '';
-    questions.push(`${humanize(context)} has ${names.length} operations without explicit specifications: ${examples}${remainder}.`);
+    questions.push(`${humanize(context)} has ${names.length} operations without explicit acceptance criteria: ${examples}${remainder}.`);
   }
   return questions;
 };

@@ -125,24 +125,17 @@ export const requestModelTranslations = async (input: {
     }
     const responseJson = parseJson(responseText);
     const output = extractOutputText(responseJson) ?? responseText;
-    const translations = translationSchema.safeParse(parseEmbeddedJson(output));
-    if (!translations.success) {
+    const complete = normalizeModelTranslationResponse(
+      parseEmbeddedJson(output),
+      sourceTexts
+    );
+    if (!complete) {
       console.error('[model-i18n] Model translation response did not match schema', {
-        issues: translations.error.issues,
         output
       });
       return { warning: '模型翻译结果格式不完整，未生成新的翻译。' };
     }
-    const complete = completeTranslations(translations.data, sourceTexts);
     const missing = sourceTexts.filter((sourceText) => !complete[sourceText]);
-    if (missing.length > 0) {
-      console.error('[model-i18n] Model translation response missed source strings', {
-        missing,
-        translated: Object.keys(translations.data).length,
-        expected: sourceTexts.length
-      });
-      return { warning: '模型翻译结果缺少部分条目，未生成新的翻译。' };
-    }
     const usage = extractOpenAiCompatibleUsage(responseJson, {
       provider: 'minimax',
       model: config.minimax.model
@@ -151,6 +144,20 @@ export const requestModelTranslations = async (input: {
       `${translationSystemPrompt}\n${prompt}`,
       output
     );
+    if (missing.length > 0 && Object.keys(complete).length > 0) {
+      console.error('[model-i18n] Model translation response missed source strings', {
+        missing,
+        translated: Object.keys(complete).length,
+        expected: sourceTexts.length
+      });
+      return {
+        translations: complete,
+        usage,
+        provider: 'minimax',
+        model: config.minimax.model,
+        warning: `模型翻译结果缺少 ${missing.length} 个条目，已保存其余 ${Object.keys(complete).length} 个翻译。`
+      };
+    }
     return {
       translations: complete,
       usage,
@@ -206,6 +213,144 @@ const completeTranslations = (
     .filter((sourceText) => translations[sourceText]?.trim())
     .map((sourceText) => [sourceText, translations[sourceText]]));
 
+export const normalizeModelTranslationResponse = (
+  value: unknown,
+  sourceTexts: string[]
+): ModelTranslations | undefined => {
+  const direct = collectDirectTranslations(value, sourceTexts);
+  const nested = collectNestedTranslations(value, sourceTexts);
+  const best = [direct, ...nested]
+    .filter((translations): translations is ModelTranslations => Boolean(translations))
+    .sort((left, right) => Object.keys(right).length - Object.keys(left).length)[0];
+  return best && Object.keys(best).length > 0 ? best : undefined;
+};
+
+const collectDirectTranslations = (
+  value: unknown,
+  sourceTexts: string[]
+): ModelTranslations | undefined => {
+  if (Array.isArray(value)) return collectEntryTranslations(value, sourceTexts);
+  if (!isRecord(value)) return undefined;
+  const literal: ModelTranslations = {};
+  for (const sourceText of sourceTexts) {
+    const valueForSource = value[sourceText];
+    if (typeof valueForSource === 'string' && valueForSource.trim()) {
+      literal[sourceText] = valueForSource.trim();
+      continue;
+    }
+    if (isRecord(valueForSource)) {
+      const translated = firstString(valueForSource, [
+        'translation',
+        'translated',
+        'translatedText',
+        'translated_text',
+        'target',
+        'value',
+        'output',
+        'zh-CN',
+        'zh_CN',
+        'zh',
+        '中文',
+        '译文'
+      ]);
+      if (translated) literal[sourceText] = translated;
+    }
+  }
+  return completeTranslations(literal, sourceTexts);
+};
+
+const collectNestedTranslations = (
+  value: unknown,
+  sourceTexts: string[]
+): ModelTranslations[] => {
+  if (!isRecord(value)) return [];
+  const candidates: ModelTranslations[] = [];
+  for (const key of [
+    'translations',
+    'translation',
+    'result',
+    'results',
+    'data',
+    'items',
+    'entries',
+    'dictionary',
+    'glossary'
+  ]) {
+    const nested = value[key];
+    const direct = collectDirectTranslations(nested, sourceTexts);
+    if (direct) candidates.push(direct);
+    candidates.push(...collectNestedTranslations(nested, sourceTexts));
+  }
+  for (const nested of Object.values(value).filter(isRecord)) {
+    const direct = collectDirectTranslations(nested, sourceTexts);
+    if (direct) candidates.push(direct);
+  }
+  return candidates;
+};
+
+const collectEntryTranslations = (
+  value: unknown[],
+  sourceTexts: string[]
+): ModelTranslations | undefined => {
+  const translations: ModelTranslations = {};
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const source = firstString(entry, [
+      'source',
+      'sourceText',
+      'source_text',
+      'key',
+      'original',
+      'text',
+      'input',
+      '原文'
+    ]);
+    const translated = firstString(entry, [
+      'translation',
+      'translated',
+      'translatedText',
+      'translated_text',
+      'target',
+      'value',
+      'output',
+      'zh-CN',
+      'zh_CN',
+      'zh',
+      '中文',
+      '译文'
+    ]);
+    if (source && translated && sourceTexts.includes(source)) {
+      translations[source] = translated;
+    }
+  }
+  for (const entry of value) {
+    if (
+      Array.isArray(entry)
+      && entry.length >= 2
+      && typeof entry[0] === 'string'
+      && typeof entry[1] === 'string'
+      && sourceTexts.includes(entry[0])
+    ) {
+      translations[entry[0]] = entry[1];
+    }
+  }
+  return completeTranslations(translations, sourceTexts);
+};
+
+const firstString = (
+  record: Record<string, unknown>,
+  keys: string[]
+): string | undefined => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 const parseEmbeddedJson = (value: string): unknown => {
   const trimmed = value.trim()
     .replace(/^```(?:json)?\s*/i, '')
@@ -214,9 +359,17 @@ const parseEmbeddedJson = (value: string): unknown => {
   if (direct) return direct;
   const start = trimmed.indexOf('{');
   const end = trimmed.lastIndexOf('}');
-  return start >= 0 && end > start
-    ? parseJson(trimmed.slice(start, end + 1))
-    : undefined;
+  if (start >= 0 && end > start) {
+    const object = parseJson(trimmed.slice(start, end + 1));
+    if (object) return object;
+  }
+  const arrayStart = trimmed.indexOf('[');
+  const arrayEnd = trimmed.lastIndexOf(']');
+  if (arrayStart >= 0 && arrayEnd > arrayStart) {
+    const array = parseJson(trimmed.slice(arrayStart, arrayEnd + 1));
+    if (array) return array;
+  }
+  return undefined;
 };
 
 const parseJson = (value: string): unknown | undefined => {

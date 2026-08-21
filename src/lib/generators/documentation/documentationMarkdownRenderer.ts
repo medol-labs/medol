@@ -585,15 +585,55 @@ const testOutlineText = {
     objectivesAndScope: 'Test Objectives And Scope',
     objectives: (bundle: DocumentationBundle) => [
       `Cover ${bundle.contexts.length} business contexts, ${bundle.workflows.length} functional capabilities, ${bundle.readmodels.length} read models, and ${bundle.integrations.length} modeled integrations.`,
-      'Validate happy paths, business rejection paths, state transitions, data-view updates, and operational automation.',
-      'Provide a QA planning baseline that can be expanded into manual cases, API tests, integration tests, and regression suites.'
+      'Define what must be tested, how the test space is divided, which scenarios matter, and what level of coverage is expected before detailed test cases are written.',
+      'Use modeled slices, specifications, events, projections, automations, and integrations as the traceable source for test design.'
+    ],
+    testObject: 'Test Object',
+    objectContext: 'Context',
+    objectUnit: 'Test Unit',
+    objectOwner: 'Business Object',
+    objectTrigger: 'Actor / Trigger',
+    objectObservableResult: 'Observable Result',
+    scopeBoundary: 'Scope Boundary',
+    inScope: 'In Scope',
+    outOfScope: 'Out Of Scope',
+    scopeInItems: [
+      'Modeled slices, commands, events, specifications, state transitions, read-model updates, automation triggers, and external integrations.',
+      'Happy paths, business-rule rejection paths, permission boundaries, duplicate operation handling, idempotency, retry behavior, and data consistency.'
+    ],
+    scopeOutItems: [
+      'Unmodeled business processes, implementation-only technical details, production operations, and external-system internal behavior outside the modeled contract.',
+      'Concrete input values, step-by-step execution procedure, and expected payload examples belong to detailed test cases rather than this outline.'
+    ],
+    scenarioCoverage: 'Test Scenario Coverage',
+    scenarioUnit: 'Test Unit',
+    normalPath: 'Normal Path',
+    businessRules: 'Business Rules / Exceptions',
+    stateAndEvents: 'State And Events',
+    readSideAndAutomation: 'Read Side / Automation',
+    coverageFocus: 'Coverage Focus',
+    normalPathTemplate: (slice: string) => `Complete ${slice} successfully.`,
+    noExplicitRules: 'Derive negative scenarios from validation, state, permission, boundary, duplicate, and missing-field conditions.',
+    eventExpectation: 'Success emits',
+    stateExpectation: 'state',
+    noEventsModeled: 'Event outcome requires confirmation',
+    noReadSideOrAutomation: 'Read-side or automation outcome requires confirmation',
+    coverageChecklist: 'happy path; rejection path; idempotency; permission; boundary; concurrency',
+    testTypes: 'Test Types',
+    testTypeItems: [
+      'Specification Test: map Given / When / Then rules to executable domain scenarios.',
+      'Domain Test: verify aggregate or concept state transitions, invariants, rejection paths, and emitted events.',
+      'Adapter Contract Test: verify ports, external-system contracts, failure mapping, retries, and timeout behavior.',
+      'Integration Test: verify cross-context handoffs, event handlers, automations, projections, and external dependencies.',
+      'Workflow / E2E Test: verify user-visible or operator-visible business flows across UI/API, domain, and read side.',
+      'Regression Test: preserve coverage for lifecycle transitions, business rules, permissions, read-model rebuilds, and previously fixed defects.'
     ],
     testStrategy: 'Test Strategy',
     strategy: [
       'Use scenario-based functional tests for user-facing capabilities and system-triggered workflows.',
       'Use API or service-level tests for operations without a UI entry point.',
       'Use integration tests for external systems, automation triggers, and cross-context handoffs.',
-      'Use read-model assertions to verify projection freshness, key selection, filtering, sorting, and idempotent updates.',
+      'Use read-model assertions to verify eventual consistency, projection freshness, key selection, filtering, sorting, replay, and idempotent updates.',
       'Use regression suites around lifecycle transitions, permission boundaries, validation rules, and retry behavior.'
     ],
     environmentAndData: 'Test Environment And Test Data',
@@ -659,15 +699,55 @@ const testOutlineText = {
     objectivesAndScope: '测试目标与范围',
     objectives: (bundle: DocumentationBundle) => [
       `覆盖 ${bundle.contexts.length} 个业务上下文、${bundle.workflows.length} 个功能能力、${bundle.readmodels.length} 个 Read Model 和 ${bundle.integrations.length} 个已建模集成点。`,
-      '验证正常路径、业务拒绝路径、状态流转、数据视图更新和运维自动化。',
-      '形成测试计划基线，后续可展开为手工用例、API 测试、集成测试和回归测试套件。'
+      '在编写详细测试用例之前，定义系统要测什么、怎么划分测试单元、重点场景在哪里，以及覆盖到什么程度算测试设计充分。',
+      '以模型中的 Slice、Specification、事件、Projection、Automation 和集成为可追溯来源，形成后续测试用例和自动化测试的设计依据。'
+    ],
+    testObject: '测试对象',
+    objectContext: '上下文',
+    objectUnit: '测试单元',
+    objectOwner: '业务对象',
+    objectTrigger: '角色/触发条件',
+    objectObservableResult: '可观察结果',
+    scopeBoundary: '测试范围边界',
+    inScope: '纳入测试范围',
+    outOfScope: '不纳入测试范围',
+    scopeInItems: [
+      '模型中已明确的 Slice、Command、Event、Specification、状态流转、Read Model 更新、Automation 触发和外部集成。',
+      '基于模型推导的正常路径、业务拒绝路径、权限边界、重复操作、幂等、重试、并发和数据一致性验证。'
+    ],
+    scopeOutItems: [
+      '未建模业务流程、纯实现细节、生产运维操作，以及超出已建模集成契约的外部系统内部行为。',
+      '具体输入值、逐步操作步骤、接口报文样例等属于详细测试用例，不在测试大纲中展开。'
+    ],
+    scenarioCoverage: '测试场景覆盖',
+    scenarioUnit: '测试单元',
+    normalPath: '正常路径',
+    businessRules: '业务规则/异常',
+    stateAndEvents: '状态与事件',
+    readSideAndAutomation: '读侧/自动化',
+    coverageFocus: '覆盖重点',
+    normalPathTemplate: (slice: string) => `成功完成 ${slice}。`,
+    noExplicitRules: '从校验、状态、权限、边界、重复提交和缺失字段推导反向场景。',
+    eventExpectation: '成功时产生',
+    stateExpectation: '状态',
+    noEventsModeled: '事件结果需确认',
+    noReadSideOrAutomation: '读侧或自动化结果需确认',
+    coverageChecklist: '正常路径；拒绝路径；幂等；权限；边界；并发',
+    testTypes: '测试类型',
+    testTypeItems: [
+      'Specification Test：将 Given / When / Then 规则映射为可执行领域场景。',
+      'Domain Test：验证聚合或概念的状态流转、不变量、拒绝路径和产生事件。',
+      'Adapter Contract Test：验证端口、外部系统契约、失败映射、重试和超时行为。',
+      'Integration Test：验证跨上下文协作、事件处理器、自动化、Projection 和外部依赖。',
+      'Workflow / E2E Test：验证用户或运维可感知的端到端业务流程。',
+      'Regression Test：固化生命周期流转、业务规则、权限、Read Model 重放和历史缺陷回归覆盖。'
     ],
     testStrategy: '测试策略',
     strategy: [
       '面向用户功能和系统触发流程采用场景化功能测试。',
       '没有页面入口的操作采用 API 或服务层测试。',
       '外部系统、自动化触发和跨上下文协作采用集成测试。',
-      'Read Model 通过投影新鲜度、主键、过滤、排序和幂等更新断言进行验证。',
+      'Read Model 通过最终一致性、投影新鲜度、主键、过滤、排序、重放和幂等更新断言进行验证。',
       '生命周期流转、权限边界、校验规则和重试行为纳入回归测试。'
     ],
     environmentAndData: '测试环境与测试数据',
@@ -732,6 +812,33 @@ const testOutlineText = {
   title: string;
   objectivesAndScope: string;
   objectives: (bundle: DocumentationBundle) => string[];
+  testObject: string;
+  objectContext: string;
+  objectUnit: string;
+  objectOwner: string;
+  objectTrigger: string;
+  objectObservableResult: string;
+  scopeBoundary: string;
+  inScope: string;
+  outOfScope: string;
+  scopeInItems: string[];
+  scopeOutItems: string[];
+  scenarioCoverage: string;
+  scenarioUnit: string;
+  normalPath: string;
+  businessRules: string;
+  stateAndEvents: string;
+  readSideAndAutomation: string;
+  coverageFocus: string;
+  normalPathTemplate: (slice: string) => string;
+  noExplicitRules: string;
+  eventExpectation: string;
+  stateExpectation: string;
+  noEventsModeled: string;
+  noReadSideOrAutomation: string;
+  coverageChecklist: string;
+  testTypes: string;
+  testTypeItems: string[];
   testStrategy: string;
   strategy: string[];
   environmentAndData: string;
@@ -903,12 +1010,35 @@ export const renderTestOutlineMarkdown = (
   lines.push('');
   appendDiagnostics(lines, bundle, language);
 
+  section(lines, text.testObject);
+  lines.push(`| ${text.objectContext} | ${text.objectUnit} | ${text.objectOwner} | ${text.objectTrigger} | ${text.objectObservableResult} |`);
+  lines.push('| --- | --- | --- | --- | --- |');
+  for (const workflow of bundle.workflows) {
+    lines.push(`| ${cell(humanize(workflow.context))} | ${cell(humanize(workflow.slice))} | ${cell(humanize(workflow.aggregate))} | ${cell(workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || text.system)} | ${cell(formatWorkflowResult(workflow, language))} |`);
+  }
+  if (bundle.workflows.length === 0) lines.push(`| ${text.notModeled} | ${text.notModeled} | ${text.notModeled} | ${text.notModeled} | ${text.notModeled} |`);
+  lines.push('');
+
+  section(lines, text.scopeBoundary);
+  lines.push(`### ${text.inScope}`);
+  lines.push('');
+  appendList(lines, text.scopeInItems);
+  lines.push('');
+  lines.push(`### ${text.outOfScope}`);
+  lines.push('');
+  appendList(lines, text.scopeOutItems);
+  lines.push('');
+
   section(lines, text.testStrategy);
   appendList(lines, text.strategy);
   lines.push('');
 
   section(lines, text.environmentAndData);
   appendList(lines, text.environmentChecklist);
+  lines.push('');
+
+  section(lines, text.testTypes);
+  appendList(lines, text.testTypeItems);
   lines.push('');
 
   section(lines, text.functionalScope);
@@ -929,6 +1059,29 @@ export const renderTestOutlineMarkdown = (
     }
     lines.push('');
   }
+
+  section(lines, text.scenarioCoverage);
+  if (bundle.workflows.length) {
+    lines.push(`| ${text.scenarioUnit} | ${text.normalPath} | ${text.businessRules} | ${text.stateAndEvents} | ${text.readSideAndAutomation} | ${text.coverageFocus} |`);
+    lines.push('| --- | --- | --- | --- | --- | --- |');
+    for (const workflow of bundle.workflows) {
+      const rules = workflow.specifications.length
+        ? workflow.specifications.map((specification) => formatSpecificationSummary(specification, language)).join('; ')
+        : text.noExplicitRules;
+      const stateAndEvents = [
+        workflow.events.length ? `${text.eventExpectation}: ${workflow.events.map((event) => humanize(event.name)).join(', ')}` : text.noEventsModeled,
+        ...(workflow.resultingState ? [`${text.stateExpectation}: ${humanize(workflow.resultingState)}`] : [])
+      ].join('; ');
+      const readSideAndAutomation = [
+        ...workflow.readmodels.map(humanize),
+        ...workflow.processors.map(humanize)
+      ].join(', ') || text.noReadSideOrAutomation;
+      lines.push(`| ${cell(humanize(workflow.slice))} | ${cell(text.normalPathTemplate(humanize(workflow.slice)))} | ${cell(rules)} | ${cell(stateAndEvents)} | ${cell(readSideAndAutomation)} | ${cell(text.coverageChecklist)} |`);
+    }
+  } else {
+    lines.push(text.noCapabilities);
+  }
+  lines.push('');
 
   section(lines, text.ruleAndExceptionTesting);
   const specificationRows = summarizeSpecifications(bundle, language);

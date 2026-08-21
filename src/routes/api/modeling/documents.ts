@@ -2,12 +2,22 @@ import { createFileRoute } from '@tanstack/react-router';
 import { hashMedolSource } from '../../../features/documentation/documentReferences';
 import { enhanceDocumentationWithAgent } from '../../../features/documentation/documentationAgent';
 import {
+  buildModelTranslationCatalogFromUnits,
+  buildModelTranslationUnits,
+  type ModelTranslations
+} from '../../../features/model-i18n/modelTranslation';
+import {
   generateDocumentation,
   type DocumentationKind,
   type DocumentationLanguage
 } from '../../../lib/generators/documentation';
 import { parseMedol } from '../../../lib/dslParser';
-import { readModelTranslations } from '../../../server/modelTranslationRepository';
+import type { EmModel } from '../../../lib/model';
+import {
+  readModelTranslations,
+  readReusableModelTranslations,
+  upsertModelTranslations
+} from '../../../server/modelTranslationRepository';
 
 const documentKinds = new Set<DocumentationKind>([
   'prd',
@@ -48,6 +58,7 @@ export const Route = createFileRoute('/api/modeling/documents')({
         const language = body.language ?? 'en';
         const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : undefined;
         const model = parseMedol(medol);
+        const sourceHash = hashMedolSource(medol);
         const document = generateDocumentation(model, body.kind, {
           sourceText: medol,
           language
@@ -64,9 +75,10 @@ export const Route = createFileRoute('/api/modeling/documents')({
           model,
           document,
           modelTranslations: language === 'zh-CN'
-            ? readModelTranslations({
+            ? readCurrentModelTranslations({
+                model,
                 workspaceId,
-                sourceHash: hashMedolSource(medol),
+                sourceHash,
                 locale: language
               })
             : undefined
@@ -89,4 +101,34 @@ const isDocumentationKind = (value: unknown): value is DocumentationKind => {
 
 const isDocumentationLanguage = (value: unknown): value is DocumentationLanguage => {
   return typeof value === 'string' && documentLanguages.has(value as DocumentationLanguage);
+};
+
+const readCurrentModelTranslations = (input: {
+  model: EmModel;
+  workspaceId?: string;
+  sourceHash: string;
+  locale: DocumentationLanguage;
+}): ModelTranslations => {
+  const current = readModelTranslations(input);
+  const catalog = buildModelTranslationCatalogFromUnits(
+    buildModelTranslationUnits(input.model)
+  );
+  const reusable = readReusableModelTranslations(
+    input,
+    catalog.sourceTexts.filter((sourceText) => !current[sourceText])
+  );
+  if (Object.keys(reusable).length === 0) return current;
+
+  upsertModelTranslations({
+    workspaceId: input.workspaceId,
+    sourceHash: input.sourceHash,
+    locale: input.locale,
+    translations: reusable,
+    provider: 'local',
+    model: 'historical-reuse'
+  });
+  return {
+    ...current,
+    ...reusable
+  };
 };

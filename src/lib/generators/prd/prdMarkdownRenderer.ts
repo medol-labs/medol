@@ -15,12 +15,24 @@ export const renderPrdMarkdown = (
   const zh = language === 'zh-CN';
   const text = prdText[language];
   const lines: string[] = [];
+  const aggregateSources = document.aggregates.map((aggregate) => aggregate.id);
+  const actorSources = document.actors.flatMap((actor) => actor.sourceRefs);
+  const sliceSources = document.slices.flatMap((slice) => slice.sourceRefs);
+  const dataSources = document.dataDictionary.map((field) => field.sourceRef);
+  const automationSources = document.automations.flatMap((automation) => automation.sourceRefs);
+  const documentSources = unique([
+    ...aggregateSources,
+    ...actorSources,
+    ...sliceSources,
+    ...dataSources,
+    ...automationSources
+  ]);
 
   lines.push(`# ${document.title} ${text.titleSuffix}`);
   lines.push('');
-  lines.push('<!-- em:section id="prd.section.overview" -->');
+  lines.push(sectionMarker('prd.section.overview', documentSources));
   heading(lines, 2, text.backgroundAndGoals);
-  lines.push(document.overview);
+  lines.push(formatOverview(document, language));
   lines.push('');
   lines.push(text.goalLead);
   lines.push('');
@@ -32,7 +44,7 @@ export const renderPrdMarkdown = (
     lines.push('');
   }
 
-  lines.push('<!-- em:section id="prd.section.scope" -->');
+  lines.push(sectionMarker('prd.section.scope', [...aggregateSources, ...actorSources]));
   heading(lines, 2, text.scopeAndBoundary);
   lines.push(`**${text.businessScope}:** ${document.context.split(', ').map(humanize).join(', ')}`);
   lines.push('');
@@ -43,8 +55,10 @@ export const renderPrdMarkdown = (
   lines.push(text.scopeBoundaryNote);
   lines.push('');
 
+  appendRolePermissionMatrix(lines, document, language);
+
   if (document.aggregates.length) {
-    lines.push('<!-- em:section id="prd.section.businessObjects" -->');
+    lines.push(sectionMarker('prd.section.businessObjects', aggregateSources));
     heading(lines, 2, text.businessObjectOverview);
     lines.push(`| ${text.objectName} | ${text.ownerContext} | ${text.lifecycle} | ${text.relatedFeatures} |`);
     lines.push('| --- | --- | --- | --- |');
@@ -55,9 +69,10 @@ export const renderPrdMarkdown = (
     lines.push('');
   }
 
-  lines.push('<!-- em:section id="prd.section.featureInventory" -->');
+  lines.push(sectionMarker('prd.section.featureInventory', sliceSources));
   heading(lines, 2, text.featureOverview);
   for (const [context, slices] of groupBy(document.slices, (slice) => slice.context)) {
+    lines.push(sectionMarker(`prd.section.featureInventory.${context}`, slices.flatMap((slice) => slice.sourceRefs)));
     lines.push(`### ${humanize(context)}`);
     lines.push('');
     lines.push(text.featureOverviewIntro(slices.length));
@@ -72,7 +87,7 @@ export const renderPrdMarkdown = (
     lines.push('');
   }
 
-  lines.push('<!-- em:section id="prd.section.functionalRequirements" -->');
+  lines.push(sectionMarker('prd.section.functionalRequirements', sliceSources));
   heading(lines, 2, text.functionalRequirements);
   const groupedObjects = document.aggregates.filter((object) =>
     document.slices.some((slice) => slice.aggregate === object.name)
@@ -93,7 +108,7 @@ export const renderPrdMarkdown = (
     lines.push('');
   }
 
-  lines.push('<!-- em:section id="prd.section.userExperience" -->');
+  lines.push(sectionMarker('prd.section.userExperience', sliceSources));
   heading(lines, 2, text.userExperience);
   lines.push(zh
     ? '| 页面/入口 | 所属功能 | 交互类型 | 主要输入 | 输出/展示 |'
@@ -104,7 +119,7 @@ export const renderPrdMarkdown = (
   }
   lines.push('');
 
-  lines.push('<!-- em:section id="prd.section.acceptanceMatrix" -->');
+  lines.push(sectionMarker('prd.section.acceptanceMatrix', sliceSources));
   heading(lines, 2, text.acceptanceMatrix);
   lines.push(zh
     ? '| 编号 | 功能 | 场景/前置条件 | 用户操作 | 预期结果 | 验收依据 |'
@@ -120,7 +135,7 @@ export const renderPrdMarkdown = (
   }
   lines.push('');
 
-  lines.push('<!-- em:section id="prd.section.dataDictionary" -->');
+  lines.push(sectionMarker('prd.section.dataDictionary', dataSources));
   heading(lines, 2, text.dataAndRules);
   const keyFields = document.dataDictionary.filter((field) =>
     field.attributes.some((attribute) => ['id', 'query', 'optional'].includes(attribute))
@@ -140,7 +155,7 @@ export const renderPrdMarkdown = (
   }
   lines.push('');
 
-  lines.push('<!-- em:section id="prd.section.automations" -->');
+  lines.push(sectionMarker('prd.section.automations', automationSources));
   heading(lines, 2, text.operationsAndIntegrations);
   if (document.automations.length) {
     lines.push(zh ? '| 名称 | 类型 | 触发与规则 |' : '| Name | Type | Trigger and Rules |');
@@ -156,7 +171,7 @@ export const renderPrdMarkdown = (
   }
   lines.push('');
 
-  lines.push('<!-- em:section id="prd.section.nonFunctional" -->');
+  lines.push(sectionMarker('prd.section.nonFunctional', documentSources));
   heading(lines, 2, text.nonFunctionalRequirements);
   appendList(lines, text.nonFunctionalChecklist);
   if (document.metrics.length) {
@@ -167,12 +182,12 @@ export const renderPrdMarkdown = (
   }
   lines.push('');
 
-  lines.push('<!-- em:section id="prd.section.deliveryAcceptance" -->');
+  lines.push(sectionMarker('prd.section.deliveryAcceptance', sliceSources));
   heading(lines, 2, text.deliveryAcceptance);
   appendList(lines, text.deliveryChecklist);
   lines.push('');
 
-  lines.push('<!-- em:section id="prd.section.openQuestions" -->');
+  lines.push(sectionMarker('prd.section.openQuestions', sliceSources));
   heading(lines, 2, text.openQuestions);
   appendList(
     lines,
@@ -323,6 +338,188 @@ const renderLegacyPrdMarkdown = (
   return lines.join('\n');
 };
 
+const formatOverview = (
+  document: PrdDocument,
+  language: DocumentationLanguage
+): string => {
+  const text = prdText[language];
+  const contexts = document.context.split(', ').map(humanize).filter(Boolean);
+  const contextText = contexts.join(language === 'zh-CN' ? '、' : ', ')
+    || text.modeledContext;
+  const domainText = document.domain ? humanize(document.domain) : document.title;
+  if (language === 'zh-CN') {
+    return `${domainText}覆盖${contextText}，定义实施所需的产品能力、操作角色、数据视图、业务规则和交付验收范围。`;
+  }
+  if (document.domain) {
+    return `${domainText} covers ${contextText} and defines the product capabilities, operating roles, data views, business rules, and delivery acceptance scope required for implementation.`;
+  }
+  return `${contextText} defines the product capabilities, operating roles, data views, business rules, and delivery acceptance scope required for implementation.`;
+};
+
+const appendRolePermissionMatrix = (
+  lines: string[],
+  document: PrdDocument,
+  language: DocumentationLanguage
+): void => {
+  const text = prdText[language];
+  const roleEntries = buildRolePermissionEntries(document.slices, language);
+  lines.push('<!-- em:section id="prd.section.rolePermissionMatrix" -->');
+  heading(lines, 2, text.rolePermissionMatrix);
+  if (!roleEntries.length) {
+    lines.push(text.noRolePermissionMatrix);
+    lines.push('');
+    return;
+  }
+  lines.push(`| ${text.roleColumn} | ${text.responsibilityColumn} | ${text.accessibleModulesColumn} | ${text.keyPermissionsColumn} | ${text.dataScopeColumn} |`);
+  lines.push('| --- | --- | --- | --- | --- |');
+  for (const entry of roleEntries) {
+    lines.push(`| ${cell(entry.role)} | ${cell(entry.responsibility)} | ${cell(entry.modules)} | ${cell(entry.permissions)} | ${cell(entry.dataScope)} |`);
+  }
+  lines.push('');
+};
+
+interface RolePermissionEntry {
+  role: string;
+  responsibility: string;
+  modules: string;
+  permissions: string;
+  dataScope: string;
+}
+
+const buildRolePermissionEntries = (
+  slices: PrdSlice[],
+  language: DocumentationLanguage
+): RolePermissionEntry[] => {
+  const text = prdText[language];
+  const actorSlices = slices.filter((slice) => slice.actor);
+  const groups = groupBy(actorSlices, (slice) => slice.actor ?? '');
+  return groups.map(([actor, roleSlices]) => {
+    const modules = unique(roleSlices.map((slice) => humanize(slice.context))).join(', ');
+    const operations = unique(roleSlices.map((slice) =>
+      `${operationVerb(slice.operation, language)} ${humanize(slice.name)}`
+    ));
+    const aggregates = unique(roleSlices.map((slice) => humanize(slice.aggregate)));
+    return {
+      role: humanize(actor),
+      responsibility: roleResponsibility(actor, roleSlices, language),
+      modules,
+      permissions: operations.slice(0, 8).join('; ')
+        + (operations.length > 8 ? `; ${text.andMore(operations.length - 8)}` : ''),
+      dataScope: inferActorDataScope(actor, roleSlices, aggregates, language)
+    };
+  });
+};
+
+const appendFeaturePermissionRequirement = (
+  lines: string[],
+  slice: PrdSlice,
+  language: DocumentationLanguage
+): void => {
+  const text = prdText[language];
+  const actor = slice.actor ? humanize(slice.actor) : text.systemOrUnspecified;
+  const scope = inferActorDataScope(slice.actor, [slice], [humanize(slice.aggregate)], language);
+  lines.push(`**${text.permissionRequirements}**`);
+  lines.push('');
+  appendList(lines, [
+    text.permissionRoleRequirement(actor),
+    text.permissionScopeRequirement(scope),
+    text.permissionOperationRequirement(actor, operationVerb(slice.operation, language), humanize(slice.name)),
+    ...permissionRuleRequirements(slice, language)
+  ]);
+  lines.push('');
+  lines.push(`**${text.permissionDeniedHandling}**`);
+  lines.push('');
+  appendList(lines, [
+    text.denySubmit,
+    text.denyMessage,
+    slice.event
+      ? text.denyNoEvent(humanize(slice.event.name))
+      : text.denyNoStateChange,
+    text.denyAudit
+  ]);
+  lines.push('');
+};
+
+const permissionRuleRequirements = (
+  slice: PrdSlice,
+  language: DocumentationLanguage
+): string[] => {
+  const zh = language === 'zh-CN';
+  const rules = slice.specifications
+    .filter((specification) =>
+      specification.rule
+      && /(permission|authorize|authorization|access|role|scope|tenant|organization|federation|权限|授权|访问|角色|范围|租户|组织|联邦)/i.test(specification.rule)
+    )
+    .map((specification) => specification.rule?.replace(/\s+/g, ' ').trim())
+    .filter((rule): rule is string => Boolean(rule));
+  if (rules.length) {
+    return rules.map((rule) => zh ? `需满足权限规则：${rule}` : `Must satisfy permission rule: ${rule}`);
+  }
+  return [
+    zh
+      ? '授权条件、拒绝原因和处理方式应与业务权限规则保持一致。'
+      : 'Authorization conditions, denial reasons, and handling behavior must remain consistent with the business permission rules.'
+  ];
+};
+
+const roleResponsibility = (
+  actor: string,
+  slices: PrdSlice[],
+  language: DocumentationLanguage
+): string => {
+  const zh = language === 'zh-CN';
+  const actorText = humanize(actor);
+  const operations = unique(slices.map((slice) => operationLabel(slice.operation, language))).join(zh ? '、' : ', ');
+  const modules = unique(slices.map((slice) => humanize(slice.context))).slice(0, 3).join(zh ? '、' : ', ');
+  return zh
+    ? `负责${modules || '相关模块'}中的${operations || '业务操作'}。`
+    : `Responsible for ${operations || 'business operations'} in ${modules || 'the modeled modules'}.`;
+};
+
+const inferActorDataScope = (
+  actor: string | undefined,
+  slices: PrdSlice[],
+  aggregates: string[],
+  language: DocumentationLanguage
+): string => {
+  const zh = language === 'zh-CN';
+  if (!actor) return zh ? '系统处理范围，需在实现前确认。' : 'System processing scope; confirm before implementation.';
+  if (/platform|superadmin|systemadmin/i.test(actor)) return zh ? '全平台或被授权平台范围。' : 'Full platform or authorized platform scope.';
+  if (/federation/i.test(actor)) return zh ? '所属联邦及其成员数据范围。' : 'Assigned federation and member data scope.';
+  if (/organization|data steward|data owner/i.test(actor)) return zh ? '所属组织或机构数据范围。' : 'Assigned organization data scope.';
+  if (/runtime|node|agent/i.test(actor)) return zh ? '绑定运行时、节点或代理实例范围。' : 'Bound runtime, node, or agent instance scope.';
+  if (/compliance|governance|security|review|audit/i.test(actor)) return zh ? '授权审计、治理或监管范围。' : 'Authorized audit, governance, or compliance scope.';
+  const modules = unique(slices.map((slice) => humanize(slice.context))).join(zh ? '、' : ', ');
+  const objects = aggregates.join(zh ? '、' : ', ');
+  return zh
+    ? `${modules || '相关模块'}内与${objects || '相关业务对象'}关联的授权数据范围。`
+    : `Authorized data scope for ${objects || 'related business objects'} in ${modules || 'the related modules'}.`;
+};
+
+const operationVerb = (
+  operation: PrdSlice['operation'],
+  language: DocumentationLanguage
+): string => {
+  if (language === 'zh-CN') {
+    return {
+      create: '创建/登记',
+      read: '查看',
+      update: '修改/状态处理',
+      delete: '删除/撤销',
+      action: '执行',
+      automation: '触发'
+    }[operation];
+  }
+  return {
+    create: 'create',
+    read: 'view',
+    update: 'update',
+    delete: 'delete',
+    action: 'execute',
+    automation: 'trigger'
+  }[operation];
+};
+
 const appendFeatureRequirement = (
   lines: string[],
   slice: PrdSlice,
@@ -348,15 +545,14 @@ const appendFeatureRequirement = (
   ]);
   lines.push('');
 
+  appendFeaturePermissionRequirement(lines, slice, language);
+
   appendFields(lines, text.inputFields, slice.command?.fields ?? [], language);
   if (slice.specifications.length) {
     appendRuleCoverage(lines, slice.specifications, language);
     lines.push(`**${text.acceptanceScenarios}**`);
     lines.push('');
     appendSpecifications(lines, slice.specifications, language);
-  } else if (slice.command) {
-    lines.push(`> ${text.inferredAcceptanceWarning}`);
-    lines.push('');
   }
   if (slice.hotspots.length) {
     lines.push(`**${text.productQuestions}**`);
@@ -385,15 +581,14 @@ const appendSlice = (
   }
   lines.push('');
 
+  appendFeaturePermissionRequirement(lines, slice, language);
+
   appendFields(lines, zh ? '输入字段' : 'Input Fields', slice.command?.fields ?? [], language);
   if (slice.specifications.length) {
     appendRuleCoverage(lines, slice.specifications, language);
     lines.push(`**${zh ? '明确验收场景' : 'Explicit Acceptance Scenarios'}**`);
     lines.push('');
     appendSpecifications(lines, slice.specifications, language);
-  } else if (slice.command) {
-    lines.push(`> ${zh ? '该操作尚未定义明确的验收 specification，以下验收矩阵仅依据 command、event 和 state 推导，需在评审时确认。' : 'The MEDOL does not define a specification for this operation; the acceptance matrix is inferred only from command, event, and state semantics.'}`);
-    lines.push('');
   }
   if (slice.hotspots.length) {
     lines.push(`**${zh ? '建模热点/疑问' : 'Modeling Hotspots'}**`);
@@ -577,10 +772,10 @@ const localizeOpenQuestion = (question: string): string => {
   if (question.startsWith('Clarify the product behavior for')) return question.replace('Clarify the product behavior for', '明确以下功能的产品行为：');
   if (question.startsWith('Confirm the expected result event or read model for')) return question.replace('Confirm the expected result event or read model for', '确认以下功能的结果事件或 Read Model：');
   if (question.startsWith('Add acceptance criteria for')) return question.replace('Add acceptance criteria for', '补充以下功能的验收标准：');
-  const specificationSummary = question.match(/^(.+) has (\d+) operations without explicit specifications: (.+)\.$/);
-  if (specificationSummary) {
-    const examples = specificationSummary[3].replace(/ and (\d+) more$/, '，另有 $1 个');
-    return `${specificationSummary[1]} 有 ${specificationSummary[2]} 个操作尚未定义明确的 specification：${examples}。`;
+  const acceptanceSummary = question.match(/^(.+) has (\d+) operations without explicit (?:specifications|acceptance criteria): (.+)\.$/);
+  if (acceptanceSummary) {
+    const examples = acceptanceSummary[3].replace(/ and (\d+) more$/, '，另有 $1 个');
+    return `${acceptanceSummary[1]} 有 ${acceptanceSummary[2]} 个操作尚未定义明确的验收标准：${examples}。`;
   }
   return question;
 };
@@ -599,6 +794,16 @@ const appendList = (lines: string[], values: string[], emptyText?: string): void
 };
 
 const cell = (value: string): string => value.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+
+const sectionMarker = (id: string, sourceRefs: string[] = []): string => {
+  const sources = unique(sourceRefs);
+  if (sources.length === 0) return `<!-- em:section id="${escapeAttribute(id)}" -->`;
+  if (sources.length === 1) return `<!-- em:section id="${escapeAttribute(id)}" source="${escapeAttribute(sources[0])}" -->`;
+  return `<!-- em:section id="${escapeAttribute(id)}" sources="${escapeAttribute(sources.join(' '))}" -->`;
+};
+
+const escapeAttribute = (value: string): string =>
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
 const formatLifecycle = (
   object: PrdAggregate,
@@ -632,6 +837,9 @@ const groupBy = <T>(
   return [...groups.entries()];
 };
 
+const unique = (values: string[]): string[] =>
+  [...new Set(values.filter(Boolean))];
+
 const prdText = {
   en: {
     titleSuffix: 'Product Requirements Document',
@@ -648,6 +856,14 @@ const prdText = {
     coreObjects: 'Core business objects',
     roles: 'User roles',
     scopeBoundaryNote: 'Items not represented as a capability, page, data view, rule, integration, or open question in this document should be treated as out of scope until they are explicitly confirmed.',
+    rolePermissionMatrix: 'Role And Permission Matrix',
+    noRolePermissionMatrix: 'No user-facing actor is explicitly modeled. Permission scope requires product confirmation.',
+    roleColumn: 'Role',
+    responsibilityColumn: 'Responsibility',
+    accessibleModulesColumn: 'Accessible Modules',
+    keyPermissionsColumn: 'Key Permissions',
+    dataScopeColumn: 'Data Scope',
+    andMore: (count: number) => `${count} more`,
     businessObjectOverview: 'Business Object Overview',
     objectName: 'Business Object',
     ownerContext: 'Owner Context',
@@ -683,11 +899,22 @@ const prdText = {
     noKeyFields: 'No identifier, query, example, or mapping fields require separate documentation.',
     noAutomation: 'No automation or integrations are explicitly modeled.',
     notModeled: 'Not explicitly modeled',
+    modeledContext: 'the modeled context',
     notApplicable: '-',
     systemOrUnspecified: 'System / unspecified',
     targetUser: 'the target user',
     userStory: 'User Story',
     requirementDescription: 'Requirement Description',
+    permissionRequirements: 'Permission Requirements',
+    permissionDeniedHandling: 'Permission Denied Handling',
+    permissionRoleRequirement: (actor: string) => `The operation is available only to ${actor} or an equivalent authorized role.`,
+    permissionScopeRequirement: (scope: string) => `The actor data scope must match ${scope}`,
+    permissionOperationRequirement: (actor: string, operation: string, feature: string) => `${actor} must be authorized to ${operation} ${feature}.`,
+    denySubmit: 'Block submission or execution before changing business state.',
+    denyMessage: 'Show a clear permission denial reason to the user or caller.',
+    denyNoEvent: (event: string) => `Do not produce ${event}.`,
+    denyNoStateChange: 'Do not change business state or visible read models.',
+    denyAudit: 'Record the denied attempt when audit or compliance requirements apply.',
     entry: 'Entry',
     role: 'Role',
     businessObject: 'Business object',
@@ -695,7 +922,6 @@ const prdText = {
     displayResult: 'Display result',
     inputFields: 'Input Fields',
     acceptanceScenarios: 'Acceptance Scenarios',
-    inferredAcceptanceWarning: 'Detailed acceptance rules are not explicitly specified for this feature. The acceptance matrix is inferred from the operation, expected business result, status change, and display output and should be confirmed during review.',
     productQuestions: 'Product Questions'
   },
   'zh-CN': {
@@ -713,6 +939,14 @@ const prdText = {
     coreObjects: '核心业务对象',
     roles: '参与角色',
     scopeBoundaryNote: '本文档未体现为功能、页面、数据视图、业务规则、集成或待确认事项的内容，默认不纳入本期范围，除非后续评审明确补充。',
+    rolePermissionMatrix: '角色与权限矩阵',
+    noRolePermissionMatrix: '当前未显式建模面向用户的 actor，权限范围需由产品评审确认。',
+    roleColumn: '角色',
+    responsibilityColumn: '职责',
+    accessibleModulesColumn: '可访问模块',
+    keyPermissionsColumn: '关键权限',
+    dataScopeColumn: '数据范围',
+    andMore: (count: number) => `另有 ${count} 项`,
     businessObjectOverview: '业务对象概览',
     objectName: '业务对象',
     ownerContext: '归属模块',
@@ -748,11 +982,22 @@ const prdText = {
     noKeyFields: '当前未定义需要单独说明的标识、查询、示例或映射字段。',
     noAutomation: '当前未明确自动化或集成。',
     notModeled: '尚未明确',
+    modeledContext: '已建模上下文',
     notApplicable: '-',
     systemOrUnspecified: '系统/未明确',
     targetUser: '目标用户',
     userStory: '用户故事',
     requirementDescription: '需求说明',
+    permissionRequirements: '权限要求',
+    permissionDeniedHandling: '无权限处理',
+    permissionRoleRequirement: (actor: string) => `仅 ${actor} 或具备等效授权的角色可使用该功能。`,
+    permissionScopeRequirement: (scope: string) => `用户的数据范围必须覆盖：${scope}`,
+    permissionOperationRequirement: (actor: string, operation: string, feature: string) => `${actor} 必须具备${operation} ${feature}的授权。`,
+    denySubmit: '在业务状态变化前阻止提交或执行。',
+    denyMessage: '向用户或调用方展示明确的无权限原因。',
+    denyNoEvent: (event: string) => `不得产生 ${event}。`,
+    denyNoStateChange: '不得改变业务状态或可见 Read Model。',
+    denyAudit: '如涉及审计或合规要求，应记录被拒绝的操作尝试。',
     entry: '入口',
     role: '角色',
     businessObject: '业务对象',
@@ -760,7 +1005,6 @@ const prdText = {
     displayResult: '展示结果',
     inputFields: '输入字段',
     acceptanceScenarios: '验收场景',
-    inferredAcceptanceWarning: '该功能尚未定义明确的验收规则。当前验收矩阵依据操作、预期业务结果、状态变化和展示输出推导，需在评审时确认。',
     productQuestions: '产品疑问'
   }
 } satisfies Record<DocumentationLanguage, {
@@ -774,6 +1018,14 @@ const prdText = {
   coreObjects: string;
   roles: string;
   scopeBoundaryNote: string;
+  rolePermissionMatrix: string;
+  noRolePermissionMatrix: string;
+  roleColumn: string;
+  responsibilityColumn: string;
+  accessibleModulesColumn: string;
+  keyPermissionsColumn: string;
+  dataScopeColumn: string;
+  andMore: (count: number) => string;
   businessObjectOverview: string;
   objectName: string;
   ownerContext: string;
@@ -801,6 +1053,16 @@ const prdText = {
   targetUser: string;
   userStory: string;
   requirementDescription: string;
+  permissionRequirements: string;
+  permissionDeniedHandling: string;
+  permissionRoleRequirement: (actor: string) => string;
+  permissionScopeRequirement: (scope: string) => string;
+  permissionOperationRequirement: (actor: string, operation: string, feature: string) => string;
+  denySubmit: string;
+  denyMessage: string;
+  denyNoEvent: (event: string) => string;
+  denyNoStateChange: string;
+  denyAudit: string;
   entry: string;
   role: string;
   businessObject: string;
@@ -808,6 +1070,5 @@ const prdText = {
   displayResult: string;
   inputFields: string;
   acceptanceScenarios: string;
-  inferredAcceptanceWarning: string;
   productQuestions: string;
 }>;
