@@ -1,6 +1,10 @@
 import type { DocumentationLanguage } from './documentationModel';
 
-const ignoredSectionIds = new Set(['document.version-history', 'document.toc']);
+const ignoredSectionIds = new Set([
+  'document.version-history',
+  'document.changeLog',
+  'document.toc'
+]);
 
 export const documentTableOfContentsSectionId = 'document.toc';
 

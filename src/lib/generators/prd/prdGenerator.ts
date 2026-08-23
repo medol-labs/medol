@@ -27,6 +27,7 @@ export interface PrdGenerateOptions {
 }
 
 export const generatePrd = (model: EmModel, options: PrdGenerateOptions = {}): PrdGenerationResult => {
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
   const context = model.contexts[0];
   const titleSource = model.domains.length === 1
     ? model.domains[0].name
@@ -35,13 +36,18 @@ export const generatePrd = (model: EmModel, options: PrdGenerateOptions = {}): P
       : context?.name ?? 'Product Requirements';
   const title = humanize(titleSource);
   const documentId = `prd:${toDslId(titleSource)}`;
-  const document = buildPrdDocument(model, documentId, title);
-  const trace = buildTrace(model, document, options);
+  const document = buildPrdDocument(model, documentId, title, generatedAt);
+  const trace = buildTrace(model, document, { ...options, generatedAt });
 
   return { document, trace };
 };
 
-const buildPrdDocument = (model: EmModel, id: string, title: string): PrdDocument => {
+const buildPrdDocument = (
+  model: EmModel,
+  id: string,
+  title: string,
+  generatedAt: string
+): PrdDocument => {
   const contexts = model.contexts;
   const primaryContext = contexts[0];
   const notes = contexts.flatMap((context) => context.notes);
@@ -64,6 +70,7 @@ const buildPrdDocument = (model: EmModel, id: string, title: string): PrdDocumen
   return {
     id,
     title,
+    generatedAt,
     ...(model.domains.length === 1 ? { domain: model.domains[0].name } : {}),
     context: contexts.map((context) => context.name).join(', ') || primaryContext?.name || 'EventModel',
     overview: buildOverview(model, primaryContext),

@@ -1,20 +1,22 @@
 import Editor from '@monaco-editor/react';
 import type { OnMount } from '@monaco-editor/react';
 import { Download, FileDown, FileText, LocateFixed, PanelLeftClose, PanelLeftOpen, Save, Trash2 } from 'lucide-react';
-import type { MouseEvent } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
+import { Children, isValidElement, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ModelingDocument, ModelingDocumentSummary } from '../../contracts/modelingDocument';
 import { Button } from '../../components/ui/button';
 import { OverflowText } from '../../components/ui/overflow-text';
+import { renderSimpleMermaidSvg } from '../../lib/generators/documentation/simpleMermaidRenderer';
 import {
   findDocumentSourceLine,
   parseDocumentMarkdownSections
 } from './documentReferences';
 import { markdownHeadingAnchor } from '../../lib/generators/documentation/documentTableOfContents';
 import { toRenderableDocumentMarkdown } from './documentMarkdownPresentation';
-import { exportModelingDocumentWord } from './modelingDocumentClient';
+import { exportModelingDocumentWord, type WordExportProfileId } from './modelingDocumentClient';
 import type { DocumentPersistenceStatus } from './useModelingDocuments';
 
 interface DocumentWorkspaceProps {
@@ -54,6 +56,7 @@ export function DocumentWorkspace({
   const [mobileMode, setMobileMode] = useState<'edit' | 'preview'>('edit');
   const [wordExportStatus, setWordExportStatus] = useState<'idle' | 'exporting' | 'error'>('idle');
   const [wordExportError, setWordExportError] = useState<string | undefined>(undefined);
+  const [wordExportProfile, setWordExportProfile] = useState<WordExportProfileId>('default');
   const editorRef = useRef<Parameters<OnMount>[0] | undefined>(undefined);
   const editorScrollSubscription = useRef<{ dispose: () => void } | undefined>(undefined);
   const editorInteractionCleanup = useRef<(() => void) | undefined>(undefined);
@@ -65,6 +68,7 @@ export function DocumentWorkspace({
   useEffect(() => {
     setTitle(activeDocument?.title ?? '');
     setMarkdown(activeDocument?.markdown ?? '');
+    setWordExportProfile(activeDocument?.language === 'zh-CN' ? 'zh-formal' : 'default');
   }, [activeDocument]);
 
   const dirty = Boolean(activeDocument)
@@ -199,7 +203,8 @@ export function DocumentWorkspace({
     try {
       const exported = await exportModelingDocumentWord({
         title: title.trim(),
-        markdown
+        markdown,
+        profileId: wordExportProfile
       });
       downloadBlob(exported.blob, exported.filename);
       setWordExportStatus('idle');
@@ -316,6 +321,16 @@ export function DocumentWorkspace({
             <Button type="button" variant="outline" size="icon" title="Download Markdown" onClick={download}>
               <Download />
             </Button>
+            <select
+              className="h-9 shrink-0 border border-slate-200 bg-white px-2 text-xs text-slate-700"
+              value={wordExportProfile}
+              aria-label="Word export format"
+              title="Word export format"
+              onChange={(event) => setWordExportProfile(event.target.value as WordExportProfileId)}
+            >
+              <option value="default">Default DOCX</option>
+              <option value="zh-formal">中文正式</option>
+            </select>
             <Button
               type="button"
               variant="outline"
@@ -436,6 +451,7 @@ export function DocumentWorkspace({
                       createSourceLinePlugin((section.contentStartLine ?? section.startLine ?? 1) - 1),
                       createHeadingAnchorPlugin()
                     ]}
+                    components={markdownComponents}
                   >
                     {section.markdown}
                   </ReactMarkdown>
@@ -474,8 +490,51 @@ const labelKind = (kind: ModelingDocumentSummary['kind']): string => ({
   'database-design': 'Database',
   process: 'Process',
   'test-outline': 'Test',
+  'installation-manual': 'Install',
+  'user-manual': 'User',
   'model-translations': 'I18N'
 })[kind];
+
+const markdownComponents: Components = {
+  pre({ children, node: _node, ...props }) {
+    if (containsMermaidCode(children)) {
+      return <div className="document-mermaid-source" {...props}>{children}</div>;
+    }
+    return <pre {...props}>{children}</pre>;
+  },
+  code({ className, children, node: _node, ...props }) {
+    const language = className?.split(/\s+/).find((name) => name.startsWith('language-'))?.replace('language-', '');
+    if (language === 'mermaid') {
+      return <MermaidDiagram source={String(children).replace(/\n$/, '')} />;
+    }
+    return <code className={className} {...props}>{children}</code>;
+  }
+};
+
+function MermaidDiagram({ source }: { source: string }) {
+  const svg = useMemo(() => renderSimpleMermaidSvg(source), [source]);
+  if (!svg) {
+    return (
+      <pre className="document-mermaid-fallback">
+        <code>{source}</code>
+      </pre>
+    );
+  }
+  return (
+    <div
+      className="document-mermaid"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+
+const containsMermaidCode = (children: ReactNode): boolean => {
+  const items = Children.toArray(children);
+  return items.length === 1
+    && isValidElement<{ className?: string }>(items[0])
+    && typeof items[0].props.className === 'string'
+    && items[0].props.className.split(/\s+/).includes('language-mermaid');
+};
 
 const clamp = (value: number): number => Math.min(1, Math.max(0, value));
 

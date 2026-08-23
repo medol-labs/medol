@@ -24,7 +24,9 @@ const documentKinds = new Set<DocumentationKind>([
   'software-design',
   'database-design',
   'process',
-  'test-outline'
+  'test-outline',
+  'installation-manual',
+  'user-manual'
 ]);
 const maxDslLength = 2_000_000;
 const documentLanguages = new Set<DocumentationLanguage>(['en', 'zh-CN']);

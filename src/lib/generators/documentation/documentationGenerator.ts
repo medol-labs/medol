@@ -15,9 +15,11 @@ import type {
 } from './documentationModel';
 import {
   renderDatabaseDesignMarkdown,
+  renderInstallationManualMarkdown,
   renderProcessMarkdown,
   renderSoftwareDesignMarkdown,
-  renderTestOutlineMarkdown
+  renderTestOutlineMarkdown,
+  renderUserManualMarkdown
 } from './documentationMarkdownRenderer';
 import { numberMarkdownHeadings } from './documentHeadingNumbering';
 import { insertMarkdownTableOfContentsAfterTitle } from './documentTableOfContents';
@@ -39,14 +41,18 @@ export const generateDocumentation = (
   const bundle = buildDocumentationBundle(model, options.generatedAt);
   const title = documentTitle(bundle.title, kind, language);
   const baseMarkdown = kind === 'prd'
-    ? renderPrdMarkdown(generatePrd(model, options).document, language)
+    ? renderPrdMarkdown(generatePrd(model, { ...options, generatedAt: bundle.generatedAt }).document, language)
     : kind === 'software-design'
       ? renderSoftwareDesignMarkdown(bundle, language)
       : kind === 'database-design'
         ? renderDatabaseDesignMarkdown(bundle, language)
         : kind === 'test-outline'
           ? renderTestOutlineMarkdown(bundle, language)
-          : renderProcessMarkdown(bundle);
+          : kind === 'installation-manual'
+            ? renderInstallationManualMarkdown(bundle, language)
+            : kind === 'user-manual'
+              ? renderUserManualMarkdown(bundle, language)
+              : renderProcessMarkdown(bundle, language);
   const localizedMarkdown = language === 'zh-CN' && kind === 'process'
     ? localizeDocumentationMarkdown(baseMarkdown, kind)
     : baseMarkdown;
@@ -66,7 +72,9 @@ export const generateDocumentationBundle = (
   'software-design': generateDocumentation(model, 'software-design', options),
   'database-design': generateDocumentation(model, 'database-design', options),
   process: generateDocumentation(model, 'process', options),
-  'test-outline': generateDocumentation(model, 'test-outline', options)
+  'test-outline': generateDocumentation(model, 'test-outline', options),
+  'installation-manual': generateDocumentation(model, 'installation-manual', options),
+  'user-manual': generateDocumentation(model, 'user-manual', options)
 });
 
 export const buildDocumentationBundle = (
@@ -329,11 +337,15 @@ const documentTitle = (
     if (kind === 'software-design') return `${title} 软件设计`;
     if (kind === 'database-design') return `${title} 数据库设计`;
     if (kind === 'test-outline') return `${title} 测试大纲`;
+    if (kind === 'installation-manual') return `${title} 安装部署手册`;
+    if (kind === 'user-manual') return `${title} 使用手册`;
     return `${title} 业务流程`;
   }
   if (kind === 'prd') return `${title} Product Requirements and Acceptance`;
   if (kind === 'software-design') return `${title} Software Design`;
   if (kind === 'database-design') return `${title} Database Design`;
   if (kind === 'test-outline') return `${title} Test Outline`;
+  if (kind === 'installation-manual') return `${title} Installation And Deployment Guide`;
+  if (kind === 'user-manual') return `${title} User Manual`;
   return `${title} Business Process`;
 };

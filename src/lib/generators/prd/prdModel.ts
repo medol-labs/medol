@@ -3,6 +3,7 @@ import type { EmElementKind } from '../../model';
 export interface PrdDocument {
   id: string;
   title: string;
+  generatedAt: string;
   domain?: string;
   context: string;
   overview: string;

@@ -45,7 +45,7 @@ This supports an agentic, spec-driven workflow in which:
 2. The agent proposes explicit MEDOL changes instead of silently rewriting the application.
 3. The editor previews the patch and keeps the human in control of applying it.
 4. Semantic validation checks model structure and relationships.
-5. Product requirements, software design, database design, processes, and acceptance material are derived from the reviewed model.
+5. Product requirements, software design, database design, processes, manuals, and acceptance material are derived from the reviewed model.
 6. Code generators consume a normalized `CodegenModel`, keeping technical generation concerns separate from domain design.
 7. New implementation knowledge can be recorded back into MEDOL as rules, examples, mappings, concepts, or hotspots.
 
@@ -64,7 +64,7 @@ slice 1 { command, event, GWT business rules }
 - Slice columns arranged left to right by timeline/order.
 - Lane-based rendering for UI, command, event, GWT, read model, automation, policy, and hotspot elements.
 - Agentic conversation with persisted history, project knowledge, MEDOL patch proposals, editor diff preview, and explicit apply.
-- Spec-driven generation of PRD, software design, database design, process, test outline, and acceptance material.
+- Spec-driven generation of PRD, software design, database design, process, test outline, installation manual, user manual, and acceptance material.
 - Context/slice-scoped model internationalization with a reusable terminology glossary for generated code and documents.
 - Editable Markdown document workspace with live preview and workspace-scoped SQLite persistence.
 - MEDOL to `EmModel` JSON export for code generation.
@@ -164,12 +164,32 @@ whether a document still represents the current MEDOL content or needs regenerat
 editor and rendered preview scroll together in both directions. Regenerating the same document kind
 and language updates the existing document section by section: unchanged generated sections are
 refreshed, new and removed MEDOL sections are reconciled, and manually edited sections are preserved
-for review.
+for review. Generated Markdown includes an editable change-log section after the title so document
+history remains part of the mergeable source document.
 
 Word export uses Pandoc on the server/runtime that runs the TanStack Start API. Local development
 therefore needs `pandoc` on the PATH; a deployed server or Docker image should install it in the
-runtime image. If Pandoc is unavailable, the export API returns a clear error while Markdown export
-continues to work.
+runtime image. The export API accepts a `profileId` while the saved document remains Markdown for
+editing and incremental section merge. Supported profiles are:
+
+- `default`: lightweight Pandoc DOCX export with MEDOL section markers removed from the temporary
+  export input.
+- `zh-formal`: Chinese formal DOCX export using
+  `templates/docx/zh-formal.reference.docx`, with generated cover/TOC front matter, change-log
+  rows reused from the Markdown source, page header and footer/page-number styles from the reference
+  document, body page numbering restarted from 1, Mermaid image rendering, and marker cleanup.
+
+Regenerate the sample Chinese reference document with:
+
+```bash
+python3 scripts/create-docx-reference.py templates/docx/zh-formal.reference.docx
+```
+
+The `zh-formal` post-processing step unpacks and repacks DOCX files, so it also needs `zip` and
+`unzip` on the PATH. Mermaid blocks are rendered through `MERMAID_CLI_PATH` when set, otherwise
+through `mmdc` if available; without Mermaid CLI, the exporter still renders the simple `flowchart
+LR` diagrams emitted by the current process-document generator as embedded SVG images. If Pandoc is
+unavailable, the export API returns a clear error while Markdown export continues to work.
 
 The editor depends on the `ModelingWorkspaceClient` interface rather than TanStack Start directly. To move workspace management to another backend later, implement the same API contract and set:
 
@@ -295,7 +315,7 @@ The model translation workflow builds a reusable terminology catalog from the re
 
 The web toolkit processes one unit per request and stores completed entries immediately, so a large model can resume from the last saved translation if a provider warning or timeout happens. Each request includes a compact glossary of previously translated terms so later slices keep terminology consistent.
 
-After translation, the toolkit saves a `Model Translation Glossary` document in the Documents preview. The glossary is split by context and slice and includes MEDOL source references, so the explorer's document locator can jump from a model item to its translation table. Chinese PRD, software design, database design, process, and test outline generation read the stored model translations first and use the same terminology instead of translating a whole generated document in one large model call.
+After translation, the toolkit saves a `Model Translation Glossary` document in the Documents preview. The glossary is split by context and slice and includes MEDOL source references, so the explorer's document locator can jump from a model item to its translation table. Chinese PRD, software design, database design, process, test outline, installation manual, and user manual generation read the stored model translations first and use the same terminology instead of translating a whole generated document in one large model call.
 
 ## Generate PRD Markdown
 
@@ -326,6 +346,8 @@ The documentation generator builds a deterministic documentation model from `EmM
 - read-model-oriented database design, including fields, keys, query candidates, source events, and mappings
 - end-to-end business process documentation with Mermaid overviews
 - test outline material covering functional, integration, data, non-functional, regression, and acceptance scope
+- installation manuals covering environment preparation, configuration, deployment order, smoke checks, rollback, and operations handover
+- user manuals covering roles, feature entry points, operation steps, input fields, data views, rules, and troubleshooting
 
 Generate one document:
 
@@ -345,6 +367,13 @@ Generate a test outline:
 npm run docs:generate -- examples/fl/federation-learning.medol --kind=test-outline --language=zh-CN
 ```
 
+Generate manuals:
+
+```bash
+npm run docs:generate -- examples/fl/federation-learning.medol --kind=installation-manual --language=zh-CN
+npm run docs:generate -- examples/fl/federation-learning.medol --kind=user-manual --language=zh-CN
+```
+
 Generate all document types:
 
 ```bash
@@ -359,7 +388,7 @@ The server endpoint is:
 POST /api/modeling/documents
 ```
 
-It accepts `medol`, `kind`, optional `language` (`en` or `zh-CN`), and optional `enhanceWithAi`. The legacy request field `dsl` remains accepted for compatibility. Supported kinds are `prd`, `software-design`, `database-design`, `process`, and `test-outline`. PRD output is organized as routine product and delivery material: product background, scope, feature inventory, UI entry points, input constraints, business outcomes, acceptance matrix, delivery checklist, and open questions. Software design output is organized into summary design and detailed design, including module boundaries, workflow details, data design, interfaces, quality attributes, and implementation gaps.
+It accepts `medol`, `kind`, optional `language` (`en` or `zh-CN`), and optional `enhanceWithAi`. The legacy request field `dsl` remains accepted for compatibility. Supported kinds are `prd`, `software-design`, `database-design`, `process`, `test-outline`, `installation-manual`, and `user-manual`. PRD output is organized as routine product and delivery material: product background, scope, feature inventory, UI entry points, input constraints, business outcomes, acceptance matrix, delivery checklist, and open questions. Software design output is organized into summary design and detailed design, including module boundaries, workflow details, data design, interfaces, quality attributes, and implementation gaps.
 
 ## MEDOL Example
 

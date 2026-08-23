@@ -11,6 +11,8 @@ const kinds = new Set<ModelingDocumentKind>([
   'database-design',
   'process',
   'test-outline',
+  'installation-manual',
+  'user-manual',
   'model-translations'
 ]);
 const languages = new Set<DocumentationLanguage>(['en', 'zh-CN']);

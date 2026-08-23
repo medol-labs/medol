@@ -1645,6 +1645,30 @@ textarea {
   color: inherit;
 }
 
+.document-mermaid-source {
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.document-mermaid {
+  min-width: 260px;
+  overflow-x: auto;
+  border: 1px solid #dbe2ea;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.document-mermaid svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.document-mermaid-fallback {
+  margin: 0;
+}
+
 .document-markdown table {
   display: block;
   max-width: 100%;

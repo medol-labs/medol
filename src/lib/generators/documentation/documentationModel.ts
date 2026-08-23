@@ -5,7 +5,9 @@ export type DocumentationKind =
   | 'software-design'
   | 'database-design'
   | 'process'
-  | 'test-outline';
+  | 'test-outline'
+  | 'installation-manual'
+  | 'user-manual';
 
 export type DocumentationLanguage = 'en' | 'zh-CN';
 

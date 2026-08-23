@@ -15,6 +15,7 @@
     "test:model-translations": "node --import tsx --test src/server/modelTranslationRepository.test.ts",
     "test:workspace": "node --import tsx --test src/server/modelingWorkspaceRepository.test.ts",
     "test:documents": "node --import tsx --test src/server/modelingDocumentRepository.test.ts",
+    "test:document-export": "node --import tsx --test src/server/modelingDocumentExport.test.ts",
     "preview": "node dist/server/server.js",
     "langium:generate": "langium generate",
     "config:to-medol": "tsx src/lib/configToDsl.ts",

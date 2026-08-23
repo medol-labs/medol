@@ -64,8 +64,10 @@ export const modelingDocumentClient = createHttpModelingDocumentClient(
   configuredBaseUrl || '/api/modeling'
 );
 
+export type WordExportProfileId = 'default' | 'zh-formal';
+
 export const exportModelingDocumentWord = async (
-  input: { title: string; markdown: string },
+  input: { title: string; markdown: string; profileId?: WordExportProfileId },
   signal?: AbortSignal
 ): Promise<{ blob: Blob; filename: string }> => {
   const response = await fetch('/api/modeling/document-export', {

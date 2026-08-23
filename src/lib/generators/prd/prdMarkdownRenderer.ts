@@ -1,4 +1,5 @@
 import { humanize } from '../../name';
+import { documentFrontMatterLines } from '../documentation/documentFrontMatter';
 import type { DocumentationLanguage } from '../documentation/documentationModel';
 import type {
   PrdDocument,
@@ -30,6 +31,7 @@ export const renderPrdMarkdown = (
 
   lines.push(`# ${document.title} ${text.titleSuffix}`);
   lines.push('');
+  lines.push(...documentFrontMatterLines(document.generatedAt, language));
   lines.push(sectionMarker('prd.section.overview', documentSources));
   heading(lines, 2, text.backgroundAndGoals);
   lines.push(formatOverview(document, language));
@@ -208,6 +210,7 @@ const renderLegacyPrdMarkdown = (
 
   lines.push(`# ${document.title} ${zh ? '产品需求与验收文档' : 'Product Requirements and Acceptance Document'}`);
   lines.push('');
+  lines.push(...documentFrontMatterLines(document.generatedAt, language));
   lines.push('<!-- em:section id="prd.section.overview" -->');
   heading(lines, 2, zh ? '文档目的' : 'Document Purpose');
   lines.push(zh

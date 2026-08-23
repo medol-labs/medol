@@ -3,6 +3,8 @@ import test from 'node:test';
 import type { EmModel } from '../../lib/model';
 import { generateDocumentation } from '../../lib/generators/documentation';
 import { numberMarkdownHeadings } from '../../lib/generators/documentation/documentHeadingNumbering';
+import { medolSoftwareVersion } from '../../lib/generators/documentation/documentVersion';
+import { renderSimpleMermaidSvg } from '../../lib/generators/documentation/simpleMermaidRenderer';
 import {
   buildDocumentationTranslationCatalog,
   modelTranslationsToDocumentationTranslations,
@@ -443,7 +445,7 @@ test('generates a conventional Chinese PRD with concept business objects', () =>
   assert.match(markdown, /不得产生 Account Registered。/);
   assert.match(markdown, /\*\*核心业务对象:\*\* Account/);
   assert.doesNotMatch(markdown, /\*\*核心业务对象:\*\* -/);
-  assert.doesNotMatch(markdown, /Concept:Account|Event Modeling|MEDOL|covers|defines the product capabilities|delivery acceptance scope|尚未定义明确的验收规则|验收矩阵依据|specification/);
+  assert.doesNotMatch(markdown, /Concept:Account|Event Modeling|covers|defines the product capabilities|delivery acceptance scope|尚未定义明确的验收规则|验收矩阵依据|specification/);
 });
 
 test('generates comprehensive Chinese software design sections', () => {
@@ -481,4 +483,110 @@ test('generates Chinese test outline documentation', () => {
   assert.match(markdown, /正常路径；拒绝路径；幂等；权限；边界；并发/);
   assert.match(markdown, /## 九、业务规则与异常测试/);
   assert.match(markdown, /## 十四、准出标准/);
+});
+
+test('generates Chinese installation and user manuals', () => {
+  const installationManual = generateDocumentation(
+    model,
+    'installation-manual',
+    { language: 'zh-CN', generatedAt: '2026-08-23T10:00:00.000Z' }
+  ).markdown;
+  assert.match(installationManual, /# Account Platform 安装部署手册/);
+  const installationManualBodyHeadings = (installationManual.match(/^## .+$/gm) ?? [])
+    .map((heading) => heading.replace(/^## /, ''))
+    .map(normalizeFormalHeading)
+    .filter((heading) => heading !== '变更记录');
+  assert.deepEqual(installationManualBodyHeadings, [
+    '系统说明',
+    '部署架构',
+    '环境要求',
+    '网络与端口',
+    '安装前准备',
+    '安装步骤',
+    '配置说明',
+    '初始化',
+    '启动与停止',
+    '安装验证',
+    '升级与回滚',
+    '故障排查'
+  ]);
+  assertFormalHeading(installationManual, '##', '系统说明');
+  assert.ok(installationManual.includes(`| 软件版本 | ${medolSoftwareVersion} |`));
+  assert.ok(installationManual.includes(`| 手册版本 | ${medolSoftwareVersion} |`));
+  assertFormalHeading(installationManual, '##', '部署架构');
+  assertFormalHeading(installationManual, '###', '部署拓扑');
+  assert.match(installationManual, /```mermaid\nflowchart TB/);
+  const topologySource = installationManual.match(/```mermaid\n([\s\S]*?)\n```/)?.[1] ?? '';
+  assert.match(topologySource, /User\["用户浏览器"\]/);
+  assert.match(topologySource, /Db\["数据库 \/ 事件存储（umadb）"\]/);
+  assert.match(topologySource, /User --> Web/);
+  assert.doesNotMatch(topologySource, /User\["[^"]+"\]\s*-->\s*Web/);
+  assert.match(renderSimpleMermaidSvg(topologySource) ?? '', /<svg\b/);
+  assert.ok(installationManual.includes('| 后端 API 服务 | 数据库 / 事件存储（umadb） | 写入事件存储，并读写持久化业务数据和查询数据。 |'));
+  assertFormalHeading(installationManual, '##', '环境要求');
+  assertFormalHeading(installationManual, '###', '硬件要求');
+  assert.ok(installationManual.includes('| 架构 | x86_64 / ARM64 | x86_64 / ARM64 | x86_64 / ARM64 |'));
+  assert.doesNotMatch(installationManual, /Linux x86_64|ARM64 支持需单独确认/);
+  assertFormalHeading(installationManual, '##', '网络与端口');
+  assertFormalHeading(installationManual, '##', '安装前准备');
+  assertFormalHeading(installationManual, '###', '安装介质确认');
+  assert.ok(installationManual.includes(`account-platform-${medolSoftwareVersion}/`));
+  assert.ok(installationManual.includes(`| account-platform-backend | ${medolSoftwareVersion} | SHA256:<...> |`));
+  assert.match(installationManual, /\| 准备项 \| 命令 \/ 操作 \| 期望结果 \|/);
+  assertFormalHeading(installationManual, '##', '安装步骤');
+  assert.match(installationManual, /初始化 umadb 与事件存储结构/);
+  assert.match(installationManual, /\| 步骤 \| 操作目的 \| 命令 \| 预期输出 \| 异常处理 \|/);
+  assertFormalHeading(installationManual, '##', '配置说明');
+  assert.ok(installationManual.includes('| DB_NAME | 是 | umadb | umadb | 统一应用数据库名称，当前固定为 umadb。 |'));
+  assertFormalHeading(installationManual, '##', '初始化');
+  assertFormalHeading(installationManual, '##', '启动与停止');
+  assertFormalHeading(installationManual, '##', '安装验证');
+  assert.ok(installationManual.includes('| 事件存储验证 | `psql -h <db_host> -U <user> -d umadb -c "select 1"` | umadb 可连接，并可作为应用事件存储使用。 |'));
+  assert.match(installationManual, /\| 验证层级 \| 验证方式 \| 通过标准 \|/);
+  assertFormalHeading(installationManual, '##', '升级与回滚');
+  assertFormalHeading(installationManual, '##', '故障排查');
+  assert.doesNotMatch(installationManual, /## 文档概述|## 系统部署架构|## 安装环境要求|## 网络要求|## 安装介质说明|## 系统安装|## 系统配置|## 系统初始化|## 启动、停止、重启和状态检查|## 常见问题与故障排查|## 系统卸载|## 附录|## 模块部署与初始化|installation-manual\.slice\.RegisterAccount|限界上下文准备运行主机|首次生产启动前准备日志/);
+
+  const userManual = generateDocumentation(
+    model,
+    'user-manual',
+    { language: 'zh-CN', generatedAt: '2026-08-23T10:00:00.000Z' }
+  ).markdown;
+  assert.match(userManual, /# Account Platform 使用手册/);
+  assertFormalHeading(userManual, '##', '角色与权限');
+  assertFormalHeading(userManual, '##', '功能操作指南');
+  assertFormalHeading(userManual, '####', 'Register Account');
+  assert.match(userManual, /\| 命令 \| 字段 \| 类型 \| 填写要求 \| 示例\/规则 \|/);
+});
+
+const normalizeFormalHeading = (heading: string): string =>
+  heading
+    .replace(/\/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$/u, '')
+    .replace(/^[零〇一二三四五六七八九十百千万两]+、/u, '')
+    .replace(/^\d+(?:\.\d+)*\s+/u, '')
+    .trim();
+
+const assertFormalHeading = (markdown: string, hashes: string, title: string): void => {
+  assert.match(
+    markdown,
+    new RegExp(`^${hashes} (?:[零〇一二三四五六七八九十百千万两]+、|\\d+(?:\\.\\d+)* )?${escapeRegExp(title)}(?:/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)?$`, 'm')
+  );
+};
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+test('includes editable change log front matter in generated Chinese Markdown', () => {
+  for (const kind of ['prd', 'software-design', 'database-design', 'process', 'test-outline', 'installation-manual', 'user-manual'] as const) {
+    const markdown = generateDocumentation(
+      model,
+      kind,
+      { language: 'zh-CN', generatedAt: '2026-08-23T10:00:00.000Z' }
+    ).markdown;
+
+    assert.match(markdown, /<!-- em:section id="document\.changeLog" -->/);
+    assert.match(markdown, /## 变更记录/);
+    assert.match(markdown, /\| 版本 \| 日期 \| 变更说明 \| 作者 \|/);
+    assert.ok(markdown.includes(`| ${medolSoftwareVersion} | 2026-08-23 | 初始发布 | MEDOL |`));
+  }
 });

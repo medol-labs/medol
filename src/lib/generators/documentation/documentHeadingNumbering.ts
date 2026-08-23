@@ -49,7 +49,12 @@ export const numberMarkdownHeadings = (
     }
 
     const title = stripHeadingNumber(heading[2]);
-    if (currentSectionId === 'document.version-history' || currentSectionId === 'document.toc') {
+    if (
+      currentSectionId === 'document.version-history'
+      || currentSectionId === 'document.changeLog'
+      || currentSectionId === 'document.toc'
+    ) {
+      currentSectionId = undefined;
       return `${heading[1]} ${title}`;
     }
 
