@@ -3297,6 +3297,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID from ModelUpdateSubmissionReceived.trainingRunConfigurationId
       roundId: UUID from ModelUpdateSubmissionReceived.roundId
       runtimeId: UUID from ModelUpdateSubmissionReceived.runtimeId
+      featureSchemaId: UUID from ModelUpdateSubmissionReceived.featureSchemaId
       anomalyScore: Decimal generated technical
     }
 
@@ -3308,7 +3309,11 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       roundId: UUID
       runtimeId: UUID
+      featureSchemaId: UUID
       anomalyScore: Decimal
+      acceptedModelUpdateCount: Int
+      acceptedRuntimeIds: UUID[]
+      minimumNodesPerRound: Int
     }
 
     event ModelUpdateSubmissionRejected {
@@ -3326,7 +3331,7 @@ context TrainingOrchestration {
 
     specification "Poisoned Local Updates Are Excluded" {
       rule """
-        A local model update is evaluated exactly once by aggregation policy. The same evaluation command records ModelUpdateSubmissionAccepted when the update passes policy, or ModelUpdateSubmissionRejected when anomaly checks fail.
+        A local model update is evaluated exactly once by aggregation policy. The same evaluation command records ModelUpdateSubmissionAccepted when the update passes policy, or ModelUpdateSubmissionRejected when anomaly checks fail. ModelUpdateSubmissionAccepted carries the cumulative accepted runtime snapshot for the round so downstream secure aggregation automation can copy complete replayable data from the event.
       """
 
       scenario "Reject Anomalous Update" {
@@ -3355,13 +3360,13 @@ context TrainingOrchestration {
     }
 
     command RequestSecureAggregation {
-      trainingJobId: UUID id technical
-      trainingRunConfigurationId: UUID
-      featureSchemaId: UUID
-      roundId: UUID
-      acceptedModelUpdateCount: Int
-      acceptedRuntimeIds: UUID[] derived from ModelUpdateSubmissionAccepted.runtimeId by roundId
-      minimumNodesPerRound: Int derived from TrainingRoundStarted.minimumNodesPerRound by roundId
+      trainingJobId: UUID id technical from ModelUpdateSubmissionAccepted.trainingJobId
+      trainingRunConfigurationId: UUID from ModelUpdateSubmissionAccepted.trainingRunConfigurationId
+      featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
+      roundId: UUID from ModelUpdateSubmissionAccepted.roundId
+      acceptedModelUpdateCount: Int from ModelUpdateSubmissionAccepted.acceptedModelUpdateCount
+      acceptedRuntimeIds: UUID[] from ModelUpdateSubmissionAccepted.acceptedRuntimeIds
+      minimumNodesPerRound: Int from ModelUpdateSubmissionAccepted.minimumNodesPerRound
     }
 
     event SecureAggregationRequested {
@@ -6419,7 +6424,6 @@ context RuntimeAgentOperations {
   }
 
   slice SubmitAgentLocalModelUpdate {
-    reactsTo RoundExecutionCompleted
     port
 
     automation SubmitLocalModelUpdateWhenRoundExecutionCompleted {
