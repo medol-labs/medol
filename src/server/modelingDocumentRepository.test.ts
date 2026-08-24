@@ -148,7 +148,7 @@ test('regeneration updates the existing document instead of creating a duplicate
   assert.equal(regenerated.mergeSummary?.preserved, 1);
 });
 
-test('adds an incremental document version history page for workspace DSL versions', () => {
+test('tracks document versions without wrapping editable Markdown', () => {
   const initialDsl = `
 domain Versioned {
   context Sales {
@@ -184,17 +184,17 @@ domain Versioned {
     ].join('\n')
   });
 
-  assert.match(first.markdown, /## 版本变更记录/);
-  assert.match(first.markdown, /## 目录/);
-  assert.match(first.markdown, /\| 文档版本 \| 生成时间 \| 变更说明 \|/);
-  assert.match(first.markdown, /\| v1\.0\.0 \| .+ \| Initial version \|/);
-  assert.doesNotMatch(first.markdown, /DSL 版本|源模型哈希|fnv1a-/);
-  assert.match(first.markdown, /<!-- em:section id="document\.version-history" -->\n# Versioned PRD\n\n## 版本变更记录/);
-  assert.match(first.markdown, /## 版本变更记录[\s\S]+<!-- medol:pagebreak -->[\s\S]+<!-- em:section id="document\.toc" -->\n## 目录\n\n- \[一、Create Order\/V-PRD-CO\]\(#v-prd-co\)[\s\S]+<!-- medol:pagebreak -->[\s\S]+<!-- em:section id="document\.body" -->\n<!-- em:section id="prd\.section\.slice\.CreateOrder" source="slice\/create" -->\n## 一、Create Order\/V-PRD-CO/);
-  assert.doesNotMatch(first.markdown, /\[TOC\]/);
-  assert.doesNotMatch(first.markdown, /page-break-before/);
+  assert.match(first.markdown, /^# Versioned PRD$/m);
+  assert.match(first.markdown, /<!-- em:section id="prd\.section\.slice\.CreateOrder" source="slice\/create" -->\n## 一、Create Order\/V-PRD-CO/);
+  assert.doesNotMatch(first.markdown, /document\.version-history|document\.toc|document\.body|版本变更记录|<!-- medol:pagebreak -->|\[TOC\]|page-break-before|v1\.0\.0|DSL 版本|源模型哈希|fnv1a-/);
   assert.equal((first.markdown.match(/^# Versioned PRD$/gm) ?? []).length, 1);
   assert.equal((first.markdown.match(/^# /gm) ?? []).length, 1);
+  const initialRows = documentDatabase.prepare(`
+    SELECT workspace_version_message
+    FROM modeling_document_versions
+    WHERE document_id = ?
+  `).all(first.id);
+  assert.equal(initialRows.length, 1);
 
   const secondVersion = workspaceRepository.createModelingWorkspaceVersion(workspace.id, {
     message: 'Add order list read model',
@@ -219,16 +219,22 @@ domain Versioned {
 
   assert.equal(regenerated.id, first.id);
   assert.equal(repository.listModelingDocuments(workspace.id).length, 1);
-  assert.match(regenerated.markdown, /\| v1\.0\.0 \| .+ \| Initial version \|/);
-  assert.match(regenerated.markdown, /\| v2\.0\.0 \| .+ \| Add order list read model \|/);
-  assert.match(regenerated.markdown, /Add order list read model/);
-  assert.equal((regenerated.markdown.match(/## 版本变更记录/g) ?? []).length, 1);
-  assert.equal((regenerated.markdown.match(/## 目录/g) ?? []).length, 1);
-  assert.equal((regenerated.markdown.match(/document\.toc/g) ?? []).length, 1);
-  assert.doesNotMatch(regenerated.markdown, /DSL 版本|源模型哈希|fnv1a-/);
-  assert.match(regenerated.markdown, /<!-- em:section id="document\.version-history" -->\n# Versioned PRD\n\n## 版本变更记录/);
+  assert.match(regenerated.markdown, /^# Versioned PRD$/m);
+  assert.match(regenerated.markdown, /Version two\./);
+  assert.doesNotMatch(regenerated.markdown, /document\.version-history|document\.toc|document\.body|版本变更记录|<!-- medol:pagebreak -->|v1\.0\.0|v2\.0\.0|Add order list read model|DSL 版本|源模型哈希|fnv1a-/);
   assert.equal((regenerated.markdown.match(/^# Versioned PRD$/gm) ?? []).length, 1);
   assert.equal((regenerated.markdown.match(/^# /gm) ?? []).length, 1);
+  const regeneratedRows = documentDatabase.prepare(`
+    SELECT workspace_version_message
+    FROM modeling_document_versions
+    WHERE document_id = ?
+    ORDER BY created_at ASC
+  `).all(first.id) as Array<{ workspace_version_message: string | null }>;
+  assert.equal(regeneratedRows.length, 2);
+  assert.deepEqual(
+    regeneratedRows.map((row) => row.workspace_version_message),
+    ['Initial version', 'Add order list read model']
+  );
 
   const sameVersion = repository.createModelingDocument({
     workspaceId: workspace.id,
@@ -238,7 +244,13 @@ domain Versioned {
     sourceHash: hashMedolSource(nextDsl),
     markdown: regenerated.markdown
   });
-  assert.equal((sameVersion.markdown.match(/\| v2\.0\.0 \| .+ \| Add order list read model \|/g) ?? []).length, 1);
+  assert.equal(sameVersion.markdown, regenerated.markdown);
+  const sameVersionRows = documentDatabase.prepare(`
+    SELECT COUNT(*) AS count
+    FROM modeling_document_versions
+    WHERE document_id = ?
+  `).get(first.id) as { count: number };
+  assert.equal(sameVersionRows.count, 2);
 });
 
 test('backfills source references for previously generated documents', () => {
@@ -274,7 +286,7 @@ domain Orders {
   );
 });
 
-test('backfills version history for existing generated documents', () => {
+test('backfills document version rows without wrapping editable Markdown', () => {
   const dsl = `
 domain Orders {
   context Sales {
@@ -315,21 +327,20 @@ domain Orders {
 
   const backfilled = repository.readModelingDocument(created.id);
   assert.ok(backfilled);
-  assert.match(backfilled.markdown, /## 版本变更记录/);
-  assert.match(backfilled.markdown, /## 目录/);
-  assert.match(backfilled.markdown, /\| v1\.0\.0 \| .+ \| Initial version \|/);
-  assert.match(backfilled.markdown, /Initial version/);
-  assert.doesNotMatch(backfilled.markdown, /DSL 版本|源模型哈希|fnv1a-/);
-  assert.match(backfilled.markdown, /<!-- em:section id="document\.version-history" -->\n# Orders PRD\n\n## 版本变更记录/);
+  assert.match(backfilled.markdown, /^# Orders PRD$/m);
+  assert.match(backfilled.markdown, /<!-- em:section id="prd\.section\.slice\.CreateOrder" source="domain\/Orders\/context\/Sales\/slice\/CreateOrder" -->/);
+  assert.match(backfilled.markdown, /## 一、Create Order\/O-PRD-CO/);
+  assert.doesNotMatch(backfilled.markdown, /document\.version-history|document\.toc|document\.body|版本变更记录|<!-- medol:pagebreak -->|v1\.0\.0|Initial version|DSL 版本|源模型哈希|fnv1a-/);
   assert.equal((backfilled.markdown.match(/^# Orders PRD$/gm) ?? []).length, 1);
   assert.equal((backfilled.markdown.match(/^# /gm) ?? []).length, 1);
 
   const versionRows = documentDatabase.prepare(`
-    SELECT document_id
+    SELECT document_id, workspace_version_message
     FROM modeling_document_versions
     WHERE document_id = ?
-  `).all(created.id);
+  `).all(created.id) as Array<{ document_id: string; workspace_version_message: string | null }>;
   assert.equal(versionRows.length, 1);
+  assert.equal(versionRows[0].workspace_version_message, 'Initial version');
 });
 
 test('does not add document version history to model translation catalogs', () => {

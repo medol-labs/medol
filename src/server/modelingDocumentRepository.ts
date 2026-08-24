@@ -17,7 +17,6 @@ import {
 import { numberMarkdownHeadings } from '../lib/generators/documentation/documentHeadingNumbering';
 import {
   documentTableOfContentsSectionId,
-  renderMarkdownTableOfContentsBlock,
   stripMarkdownTableOfContents
 } from '../lib/generators/documentation/documentTableOfContents';
 import { parseMedol } from '../lib/dslParser';
@@ -207,22 +206,21 @@ export const createModelingDocument = (
     const documentVersion = tracksVersions
       ? createDocumentVersionSnapshot(prepared.id, input)
       : undefined;
-    const currentMarkdown = stripDocumentVersionHistory(prepared.markdown);
+    const currentMarkdown = stripDocumentVersionHistory(prepared.markdown, prepared.title);
     const baselineMarkdown = prepared.generated_markdown
-      ? stripDocumentVersionHistory(prepared.generated_markdown)
+      ? stripDocumentVersionHistory(prepared.generated_markdown, prepared.title)
       : undefined;
-    const nextMarkdown = stripDocumentVersionHistory(input.markdown);
+    const nextMarkdown = stripDocumentVersionHistory(input.markdown, input.title);
     const merge = mergeGeneratedDocument(
       currentMarkdown,
       baselineMarkdown,
       nextMarkdown
     );
-    const existingVersions = readDocumentVersionRows(prepared.id);
     const markdown = documentVersion
-      ? withDocumentVersionHistory(merge.markdown, existingVersions, documentVersion)
+      ? prepareVersionedEditableMarkdown(merge.markdown, documentVersion)
       : merge.markdown;
     const generatedMarkdown = documentVersion
-      ? withDocumentVersionHistory(nextMarkdown, existingVersions, documentVersion)
+      ? prepareVersionedEditableMarkdown(nextMarkdown, documentVersion)
       : nextMarkdown;
     updateGeneratedDocument.run(
       input.title,
@@ -251,8 +249,8 @@ export const createModelingDocument = (
     ? createDocumentVersionSnapshot(documentId, input)
     : undefined;
   const markdown = documentVersion
-    ? withDocumentVersionHistory(stripDocumentVersionHistory(input.markdown), [], documentVersion)
-    : stripDocumentVersionHistory(input.markdown);
+    ? prepareVersionedEditableMarkdown(stripDocumentVersionHistory(input.markdown, input.title), documentVersion)
+    : stripDocumentVersionHistory(input.markdown, input.title);
   insertDocument.run(
     documentId,
     input.workspaceId,
@@ -323,7 +321,6 @@ const toDocument = (row: DocumentRow): ModelingDocument => ({
 
 const documentVersionHistorySectionId = 'document.version-history';
 const documentBodySectionId = 'document.body';
-const documentPageBreakMarker = '<!-- medol:pagebreak -->';
 const documentPageBreakPattern =
   /(?:<!--\s*medol:pagebreak\s*-->|<div\s+style="page-break-before:\s*always;">\s*<\/div>)/giu;
 
@@ -378,135 +375,57 @@ const persistDocumentVersion = (
   );
 };
 
-const stripDocumentVersionHistory = (markdown: string): string =>
-  stripMarkdownTableOfContents(
-    stripDocumentPageBreaks(
-      serializeDocumentSections(
-        parseDocumentMarkdownSections(markdown)
-          .filter((section) =>
-            section.id !== documentVersionHistorySectionId
-            && section.id !== documentTableOfContentsSectionId
-          )
-      )
-    )
+const stripDocumentVersionHistory = (markdown: string, title?: string): string => {
+  const unwrapped = parseDocumentMarkdownSections(markdown)
+    .map((section) => {
+      if (
+        section.id === documentVersionHistorySectionId
+        || section.id === documentTableOfContentsSectionId
+      ) {
+        return '';
+      }
+      if (section.id === documentBodySectionId) {
+        return section.markdown;
+      }
+      return [
+        section.marker,
+        section.markdown
+      ].filter(Boolean).join('\n');
+    })
+    .filter(Boolean)
+    .join('\n\n');
+  return ensureLeadingDocumentTitle(
+    stripMarkdownTableOfContents(stripDocumentPageBreaks(unwrapped)),
+    title
   );
+};
 
 const stripDocumentPageBreaks = (markdown: string): string =>
   markdown.replace(documentPageBreakPattern, '').replace(/\n{3,}/g, '\n\n').trim();
 
-const withDocumentVersionHistory = (
-  markdown: string,
-  existingRows: DocumentVersionRow[],
-  nextRow: DocumentVersionRow
-): string => withDocumentTableOfContents(numberMarkdownHeadings([
-    renderDocumentVersionHistory(existingRows, nextRow),
-    documentPageBreakMarker,
-    withDocumentBodyMarker(stripDocumentVersionHistory(markdown), nextRow.title)
-  ].filter(Boolean).join('\n\n'), nextRow.language), nextRow.language);
+const ensureLeadingDocumentTitle = (markdown: string, title?: string): string => {
+  const cleaned = markdown.trim();
+  if (!title) return cleaned;
+  const firstContent = cleaned.split(/\r?\n/).find((line) => line.trim())?.trim();
+  if (firstContent && /^#\s+/u.test(firstContent)) return cleaned;
+  return [`# ${title}`, cleaned].filter(Boolean).join('\n\n');
+};
 
-const withPersistedDocumentVersionHistory = (
+const prepareVersionedEditableMarkdown = (
+  markdown: string,
+  nextRow: DocumentVersionRow
+): string =>
+  stripDocumentVersionHistory(numberMarkdownHeadings(markdown, nextRow.language), nextRow.title);
+
+const preparePersistedEditableMarkdown = (
   documentId: string,
   markdown: string,
   title: string
 ): string => {
   const rows = readDocumentVersionRows(documentId);
-  if (rows.length === 0) return stripDocumentVersionHistory(markdown);
-  return withDocumentTableOfContents(numberMarkdownHeadings([
-    renderDocumentVersionHistory(rows, rows[rows.length - 1]),
-    documentPageBreakMarker,
-    withDocumentBodyMarker(stripDocumentVersionHistory(markdown), title)
-  ].filter(Boolean).join('\n\n'), rows[rows.length - 1].language), rows[rows.length - 1].language);
+  if (rows.length === 0) return stripDocumentVersionHistory(markdown, title);
+  return stripDocumentVersionHistory(numberMarkdownHeadings(markdown, rows[rows.length - 1].language), title);
 };
-
-const withDocumentTableOfContents = (
-  markdown: string,
-  language: DocumentationLanguage
-): string => {
-  const toc = renderDocumentTableOfContents(markdown, language);
-  if (!toc) return markdown;
-  const pageBreakMatch = [...markdown.matchAll(documentPageBreakPattern)][0];
-  if (pageBreakMatch?.index === undefined) return [toc, documentPageBreakMarker, markdown].join('\n\n');
-  return [
-    markdown.slice(0, pageBreakMatch.index).trimEnd(),
-    pageBreakMatch[0],
-    toc,
-    documentPageBreakMarker,
-    markdown.slice(pageBreakMatch.index + pageBreakMatch[0].length).trimStart()
-  ].join('\n\n');
-};
-
-const renderDocumentTableOfContents = (
-  markdown: string,
-  language: DocumentationLanguage
-): string => renderMarkdownTableOfContentsBlock(markdown, language);
-
-const withDocumentBodyMarker = (markdown: string, title: string): string => {
-  const stripped = markdown.trim()
-    .replace(/^<!--\s*em:section\s+id="document\.body"\s*-->\s*/u, '')
-    .replace(/^\s*<div\s+style="page-break-before:\s*always;">\s*<\/div>\s*/iu, '')
-    .replace(/^\s*<!--\s*medol:pagebreak\s*-->\s*/iu, '')
-    .trim();
-  const body = stripLeadingDocumentTitle(stripped);
-  return [
-    `<!-- em:section id="${documentBodySectionId}" -->`,
-    body || '<!-- empty document body -->'
-  ].join('\n');
-};
-
-const stripLeadingDocumentTitle = (markdown: string): string => {
-  const lines = markdown.split(/\r?\n/);
-  const firstContentIndex = lines.findIndex((line) => line.trim().length > 0);
-  if (firstContentIndex < 0) return '';
-  const firstContent = lines[firstContentIndex].trim();
-  if (!/^#\s+/u.test(firstContent)) return markdown;
-  const nextLines = [
-    ...lines.slice(0, firstContentIndex),
-    ...lines.slice(firstContentIndex + 1)
-  ].join('\n');
-  return nextLines.replace(/^\s+/, '').trim();
-};
-
-const renderDocumentVersionHistory = (
-  existingRows: DocumentVersionRow[],
-  nextRow: DocumentVersionRow
-): string => {
-  const rows = hasEquivalentDocumentVersion(existingRows, nextRow)
-    ? existingRows
-    : [...existingRows, nextRow];
-  const language = nextRow.language;
-  const zh = language === 'zh-CN';
-  const text = zh
-    ? {
-        title: '版本变更记录',
-        documentVersion: '文档版本',
-        generatedAt: '生成时间',
-        summary: '变更说明',
-        regenerated: '重新生成'
-      }
-    : {
-        title: 'Version History',
-        documentVersion: 'Document Version',
-        generatedAt: 'Generated At',
-        summary: 'Summary',
-        regenerated: 'Regenerated'
-      };
-  const lines = [
-    `<!-- em:section id="${documentVersionHistorySectionId}" -->`,
-    `# ${nextRow.title}`,
-    '',
-    `## ${text.title}`,
-    '',
-    `| ${text.documentVersion} | ${text.generatedAt} | ${text.summary} |`,
-    '| --- | --- | --- |'
-  ];
-  rows.forEach((row, index) => {
-    lines.push(`| ${formatSemanticVersion(index + 1)} | ${cell(row.created_at)} | ${cell(row.workspace_version_message ?? text.regenerated)} |`);
-  });
-  return lines.join('\n');
-};
-
-const formatSemanticVersion = (major: number): string =>
-  `v${Math.max(0, Math.trunc(major))}.0.0`;
 
 const hasEquivalentDocumentVersion = (
   rows: DocumentVersionRow[],
@@ -521,19 +440,6 @@ const hasEquivalentDocumentVersion = (
       && row.source_hash === nextRow.source_hash;
   });
 
-const serializeDocumentSections = (
-  sections: ReturnType<typeof parseDocumentMarkdownSections>
-): string => sections
-  .map((section) => [
-    section.marker,
-    section.markdown
-  ].filter(Boolean).join('\n'))
-  .filter(Boolean)
-  .join('\n\n');
-
-const cell = (value: string): string =>
-  String(value ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
-
 const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
   if (extractDocumentSourceRefs(row.markdown).length > 0) {
     const prepared = row.generated_markdown
@@ -545,7 +451,7 @@ const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
     if (!row.generated_markdown) {
       backfillGeneratedBaseline.run(row.markdown, row.id);
     }
-    return ensureDocumentVersionHistory(prepared);
+    return ensureDocumentVersionRows(prepared);
   }
   const workspace = readModelingWorkspace(row.workspace_id);
   if (!workspace?.dsl) return row;
@@ -610,7 +516,7 @@ const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
             headings: [slice.name, humanize(slice.name)]
           }))
         ]);
-  const markdown = addDocumentSectionReferences(stripDocumentVersionHistory(row.markdown), references);
+  const markdown = addDocumentSectionReferences(stripDocumentVersionHistory(row.markdown, row.title), references);
   const sourceHash = hashMedolSource(workspace.dsl);
   const prepared = {
     ...row,
@@ -621,10 +527,10 @@ const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
   if (markdown !== row.markdown) {
     backfillDocument.run(markdown, markdown, sourceHash, row.id);
   }
-  return ensureDocumentVersionHistory(prepared, workspace);
+  return ensureDocumentVersionRows(prepared, workspace);
 };
 
-const ensureDocumentVersionHistory = (
+const ensureDocumentVersionRows = (
   row: DocumentRow,
   workspace = readModelingWorkspace(row.workspace_id)
 ): DocumentRow => {
@@ -645,13 +551,13 @@ const ensureDocumentVersionHistory = (
     ? createDocumentVersionSnapshot(row.id, input)
     : undefined;
   const markdown = documentVersion
-    ? withDocumentVersionHistory(row.markdown, existingRows, documentVersion)
-    : withPersistedDocumentVersionHistory(row.id, row.markdown, row.title);
+    ? prepareVersionedEditableMarkdown(row.markdown, documentVersion)
+    : preparePersistedEditableMarkdown(row.id, row.markdown, row.title);
   const generatedMarkdown = row.generated_markdown
     ? (
         documentVersion
-          ? withDocumentVersionHistory(row.generated_markdown, existingRows, documentVersion)
-          : withPersistedDocumentVersionHistory(row.id, row.generated_markdown, row.title)
+          ? prepareVersionedEditableMarkdown(row.generated_markdown, documentVersion)
+          : preparePersistedEditableMarkdown(row.id, row.generated_markdown, row.title)
       )
     : null;
   const nextSourceHash = row.source_hash ?? sourceHash ?? null;
