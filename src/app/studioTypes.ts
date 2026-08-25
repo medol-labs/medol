@@ -11,6 +11,7 @@ export type ToolbarAction =
   | 'database-design-ai'
   | 'process-ai'
   | 'test-outline-ai'
+  | 'user-journey-ai'
   | 'installation-manual-ai'
   | 'user-manual-ai'
   | 'model-translations'
@@ -23,6 +24,7 @@ export type DocumentationToolbarAction =
   | 'database-design-ai'
   | 'process-ai'
   | 'test-outline-ai'
+  | 'user-journey-ai'
   | 'installation-manual-ai'
   | 'user-manual-ai';
 

@@ -485,6 +485,27 @@ test('generates Chinese test outline documentation', () => {
   assert.match(markdown, /## 十四、准出标准/);
 });
 
+test('generates Chinese user journey summary documentation', () => {
+  const markdown = generateDocumentation(
+    model,
+    'user-journey',
+    { language: 'zh-CN' }
+  ).markdown;
+
+  assert.match(markdown, /# Account Platform 用户旅程总结/);
+  assert.match(markdown, /## 一、旅程概览/);
+  assert.match(markdown, /## 二、角色旅程摘要/);
+  assert.match(markdown, /\| 角色 \| 目标\/能力 \| 主要触点 \| 关键结果 \|/);
+  assert.match(markdown, /\| 系统 \| Register Account \|/);
+  assert.match(markdown, /Register Account/);
+  assert.match(markdown, /## 三、端到端旅程图/);
+  assert.match(markdown, /```mermaid\nflowchart LR/);
+  assert.match(markdown, /## 四、业务域旅程/);
+  assert.match(markdown, /\| 步骤 \| 角色\/触发方 \| 用户目标 \| 触点 \| 业务结果 \| 完成证据 \|/);
+  assert.match(markdown, /## 七、AI 辅助业务梳理提示词/);
+  assert.match(markdown, /不得编造模型中不存在的角色、能力、状态、页面、集成或业务规则/);
+});
+
 test('generates Chinese installation and user manuals', () => {
   const installationManual = generateDocumentation(
     model,
@@ -577,7 +598,7 @@ const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 test('includes editable change log front matter in generated Chinese Markdown', () => {
-  for (const kind of ['prd', 'software-design', 'database-design', 'process', 'test-outline', 'installation-manual', 'user-manual'] as const) {
+  for (const kind of ['prd', 'software-design', 'database-design', 'process', 'test-outline', 'user-journey', 'installation-manual', 'user-manual'] as const) {
     const markdown = generateDocumentation(
       model,
       kind,

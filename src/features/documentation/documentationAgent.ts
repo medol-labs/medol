@@ -16,6 +16,15 @@ export interface DocumentationAgentResult {
   warning?: string;
 }
 
+export const userJourneyClarificationPrompt = [
+  'You are a senior business analyst helping review an Event Modeling design.',
+  'Use the MEDOL DSL and generated user journey summary as the only source of truth.',
+  'Refine the journey summary by actor: business goal, entry touchpoint, step sequence, expected business result, visible feedback/read model, and critical rule or exception.',
+  'Do not invent roles, features, states, integrations, data views, or rules that are not present in the source model.',
+  'When the source model is ambiguous or incomplete, preserve the gap as a business question.',
+  'Return Markdown only and preserve existing heading levels, section markers, tables, and stable document structure where possible.'
+].join('\n');
+
 export const enhanceDocumentationWithAgent = async (input: {
   dsl: string;
   model: EmModel;

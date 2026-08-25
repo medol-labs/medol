@@ -1151,6 +1151,102 @@ export const renderTestOutlineMarkdown = (
   return lines.join('\n');
 };
 
+export const renderUserJourneyMarkdown = (
+  bundle: DocumentationBundle,
+  language: DocumentationLanguage = 'en'
+): string => {
+  const text = userJourneyText[language];
+  const lines = header(bundle, text.title, language);
+  const actors = collectJourneyActors(bundle, language);
+
+  section(lines, text.overview);
+  lines.push(text.overviewBody(bundle));
+  lines.push('');
+  appendDiagnostics(lines, bundle, language);
+
+  section(lines, text.actorJourneySummary);
+  if (actors.length) {
+    lines.push(`| ${text.actor} | ${text.goals} | ${text.mainTouchpoints} | ${text.keyResults} |`);
+    lines.push('| --- | --- | --- | --- |');
+    for (const actor of actors) {
+      const workflows = bundle.workflows.filter((workflow) => journeyActor(workflow, language) === actor);
+      lines.push(`| ${cell(actor)} | ${cell(workflows.map((workflow) => humanize(workflow.slice)).join(', ') || text.notModeled)} | ${cell(workflows.map(formatJourneyTouchpoint).filter(Boolean).join(', ') || text.systemTouchpoint)} | ${cell(workflows.map((workflow) => formatWorkflowResult(workflow, language)).join('; ') || text.notModeled)} |`);
+    }
+  } else {
+    lines.push(text.noActors);
+  }
+  lines.push('');
+
+  section(lines, text.endToEndJourneyMap);
+  lines.push('```mermaid');
+  lines.push('flowchart LR');
+  for (const [index, workflow] of bundle.workflows.entries()) {
+    const nodeId = `J${index + 1}`;
+    const actor = journeyActor(workflow, language);
+    lines.push(`  ${nodeId}["${mermaidLabel(`${actor}: ${humanize(workflow.slice)}`)}"]`);
+    if (index > 0 && bundle.workflows[index - 1].context === workflow.context) {
+      lines.push(`  J${index} --> ${nodeId}`);
+    }
+  }
+  if (bundle.workflows.length === 0) lines.push(`  Empty["${mermaidLabel(text.noCapabilities)}"]`);
+  lines.push('```');
+  lines.push('');
+
+  section(lines, text.contextJourneys);
+  for (const context of bundle.contexts) {
+    lines.push(`<!-- em:section id="user-journey.context.${context.name}" source="${context.id}" -->`);
+    lines.push(`### ${humanize(context.name)}`);
+    lines.push('');
+    const workflows = bundle.workflows.filter((workflow) => workflow.context === context.name);
+    if (!workflows.length) {
+      lines.push(text.noCapabilities);
+      lines.push('');
+      continue;
+    }
+    lines.push(`| ${text.step} | ${text.actorOrTrigger} | ${text.userGoal} | ${text.touchpoint} | ${text.businessResult} | ${text.evidence} |`);
+    lines.push('| --- | --- | --- | --- | --- | --- |');
+    workflows.forEach((workflow, index) => {
+      lines.push(`| ${index + 1} | ${cell(journeyActor(workflow, language))} | ${cell(humanize(workflow.slice))} | ${cell(formatJourneyTouchpoint(workflow) || text.systemTouchpoint)} | ${cell(formatWorkflowResult(workflow, language))} | ${cell(formatJourneyEvidence(workflow, language))} |`);
+    });
+    lines.push('');
+  }
+
+  section(lines, text.momentsAndRules);
+  appendList(lines, [
+    ...bundle.workflows.flatMap((workflow) =>
+      workflow.specifications.map((specification) =>
+        `${humanize(workflow.slice)}: ${formatSpecificationSummary(specification, language)}`
+      )
+    ),
+    ...bundle.workflows.flatMap((workflow) =>
+      workflow.hotspots.map((hotspot) => `${humanize(workflow.slice)}: ${hotspot}`)
+    )
+  ], text.noRules);
+  lines.push('');
+
+  section(lines, text.dataAndFeedback);
+  if (bundle.readmodels.length) {
+    lines.push(`| ${text.readModel} | ${text.whereAppears} | ${text.updatedBy} | ${text.userValue} |`);
+    lines.push('| --- | --- | --- | --- |');
+    for (const readmodel of bundle.readmodels) {
+      lines.push(`| ${cell(humanize(readmodel.name))} | ${cell(`${humanize(readmodel.context)} / ${humanize(readmodel.slice)}`)} | ${cell(readmodel.sourceEvents.map(humanize).join(', ') || text.notModeled)} | ${cell(formatReadModelAccess(readmodel, language))} |`);
+    }
+  } else {
+    lines.push(text.noReadmodels);
+  }
+  lines.push('');
+
+  section(lines, text.aiPrompt);
+  lines.push(text.aiPromptIntro);
+  lines.push('');
+  lines.push('```text');
+  lines.push(...text.promptLines);
+  lines.push('```');
+  lines.push('');
+
+  return lines.join('\n');
+};
+
 export const renderInstallationManualMarkdown = (
   bundle: DocumentationBundle,
   language: DocumentationLanguage = 'en'
@@ -1937,6 +2033,38 @@ const formatReadModelAccess = (
       : undefined,
     readmodel.collection ? text.listView : text.detailView
   ].filter(Boolean).join('; ');
+};
+
+const collectJourneyActors = (
+  bundle: DocumentationBundle,
+  language: DocumentationLanguage
+): string[] =>
+  [...new Set(bundle.workflows.map((workflow) => journeyActor(workflow, language)))];
+
+const journeyActor = (
+  workflow: DocumentationWorkflow,
+  language: DocumentationLanguage
+): string => {
+  if (workflow.actor) return humanize(workflow.actor);
+  if (workflow.processors.length) return workflow.processors.map(humanize).join(', ');
+  return userJourneyText[language].systemActor;
+};
+
+const formatJourneyTouchpoint = (workflow: DocumentationWorkflow): string =>
+  workflow.ui?.name
+    ? `${humanize(workflow.ui.name)}${workflow.ui.type ? ` (${workflow.ui.type})` : ''}`
+    : '';
+
+const formatJourneyEvidence = (
+  workflow: DocumentationWorkflow,
+  language: DocumentationLanguage
+): string => {
+  const text = userJourneyText[language];
+  return [
+    workflow.commands.length ? `${text.command}: ${workflow.commands.map((command) => humanize(command.name)).join(', ')}` : undefined,
+    workflow.events.length ? `${text.event}: ${workflow.events.map((event) => humanize(event.name)).join(', ')}` : undefined,
+    workflow.readmodels.length ? `${text.readModel}: ${workflow.readmodels.map(humanize).join(', ')}` : undefined
+  ].filter(Boolean).join('; ') || text.notModeled;
 };
 
 const formatFieldRequirement = (
@@ -2828,6 +2956,95 @@ const installationManualText = {
       '交接运维前记录未解决风险、人工修复项和后续负责人。'
     ],
     notModeled: '尚未明确'
+  }
+};
+
+const userJourneyText = {
+  en: {
+    title: 'User Journey Summary',
+    overview: 'Journey Overview',
+    overviewBody: (bundle: DocumentationBundle) =>
+      `${bundle.title} user journeys summarize who uses each capability, where the interaction happens, what business result is expected, and what evidence confirms completion.`,
+    actorJourneySummary: 'Actor Journey Summary',
+    actor: 'Actor',
+    goals: 'Goals / Capabilities',
+    mainTouchpoints: 'Main Touchpoints',
+    keyResults: 'Key Results',
+    endToEndJourneyMap: 'End-To-End Journey Map',
+    contextJourneys: 'Context Journeys',
+    step: 'Step',
+    actorOrTrigger: 'Actor / Trigger',
+    userGoal: 'User Goal',
+    touchpoint: 'Touchpoint',
+    businessResult: 'Business Result',
+    evidence: 'Evidence',
+    momentsAndRules: 'Critical Moments And Rules',
+    dataAndFeedback: 'Data Views And Feedback',
+    readModel: 'Read Model',
+    whereAppears: 'Where It Appears',
+    updatedBy: 'Updated By',
+    userValue: 'User Value',
+    aiPrompt: 'AI-Assisted Business Clarification Prompt',
+    aiPromptIntro: 'Use this fixed prompt only when model-assisted clarification is needed before business review.',
+    promptLines: [
+      'You are a senior business analyst. Based on the provided MEDOL model and generated user journey summary, refine the user journeys for business review.',
+      'Keep the document faithful to the model. Do not invent roles, capabilities, states, pages, integrations, or rules that are not present in the model.',
+      'For each actor, summarize goals, entry touchpoints, step sequence, expected business result, feedback/read model, and critical rule or exception.',
+      'Highlight ambiguities as business questions instead of silently completing them.',
+      'Return Markdown only, preserving heading structure and tables where possible.'
+    ],
+    noActors: 'No explicit actor-driven journeys are modeled.',
+    noCapabilities: 'No capabilities are modeled in this context.',
+    noRules: 'No critical rules, exceptions, or hotspots are explicitly modeled.',
+    noReadmodels: 'No user-visible read models are modeled.',
+    notModeled: 'Not modeled',
+    systemActor: 'System',
+    systemTouchpoint: 'System / background process',
+    command: 'Command',
+    event: 'Event'
+  },
+  'zh-CN': {
+    title: '用户旅程总结',
+    overview: '旅程概览',
+    overviewBody: (bundle: DocumentationBundle) =>
+      `${bundle.title}用户旅程总结用于梳理不同角色如何进入系统、完成业务目标、获得业务结果，并通过页面、数据视图或事件反馈确认处理完成。`,
+    actorJourneySummary: '角色旅程摘要',
+    actor: '角色',
+    goals: '目标/能力',
+    mainTouchpoints: '主要触点',
+    keyResults: '关键结果',
+    endToEndJourneyMap: '端到端旅程图',
+    contextJourneys: '业务域旅程',
+    step: '步骤',
+    actorOrTrigger: '角色/触发方',
+    userGoal: '用户目标',
+    touchpoint: '触点',
+    businessResult: '业务结果',
+    evidence: '完成证据',
+    momentsAndRules: '关键时刻与业务规则',
+    dataAndFeedback: '数据视图与反馈',
+    readModel: '数据视图',
+    whereAppears: '出现位置',
+    updatedBy: '更新来源',
+    userValue: '用户价值',
+    aiPrompt: 'AI 辅助业务梳理提示词',
+    aiPromptIntro: '需要借助模型进一步梳理业务时，使用以下固定提示词。',
+    promptLines: [
+      '你是一名资深业务分析师。请基于提供的 MEDOL 模型和已生成的用户旅程总结，面向业务评审优化用户旅程。',
+      '必须忠实于模型内容，不得编造模型中不存在的角色、能力、状态、页面、集成或业务规则。',
+      '请按角色梳理目标、入口触点、步骤顺序、预期业务结果、反馈/数据视图、关键规则或异常。',
+      '对于模型表达不清的地方，以业务待确认问题呈现，不要自行补全。',
+      '仅返回 Markdown，并尽量保留原有标题结构和表格。'
+    ],
+    noActors: '当前未建模明确的角色旅程。',
+    noCapabilities: '该业务域下尚未建模可梳理的能力。',
+    noRules: '当前未建模明确的关键规则、异常或热点问题。',
+    noReadmodels: '当前未建模用户可见的数据视图。',
+    notModeled: '未建模',
+    systemActor: '系统',
+    systemTouchpoint: '系统/后台流程',
+    command: '命令',
+    event: '事件'
   }
 };
 

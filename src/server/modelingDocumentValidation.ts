@@ -11,6 +11,7 @@ const kinds = new Set<ModelingDocumentKind>([
   'database-design',
   'process',
   'test-outline',
+  'user-journey',
   'installation-manual',
   'user-manual',
   'model-translations'

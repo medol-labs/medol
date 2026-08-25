@@ -490,6 +490,7 @@ const labelKind = (kind: ModelingDocumentSummary['kind']): string => ({
   'database-design': 'Database',
   process: 'Process',
   'test-outline': 'Test',
+  'user-journey': 'Journey',
   'installation-manual': 'Install',
   'user-manual': 'User',
   'model-translations': 'I18N'

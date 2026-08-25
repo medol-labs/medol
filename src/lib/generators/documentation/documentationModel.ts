@@ -6,6 +6,7 @@ export type DocumentationKind =
   | 'database-design'
   | 'process'
   | 'test-outline'
+  | 'user-journey'
   | 'installation-manual'
   | 'user-manual';
 

@@ -14,6 +14,7 @@ const toolbarActionTitles: Record<ToolbarAction, string> = {
   'database-design-ai': 'Generate database design',
   'process-ai': 'Generate process document',
   'test-outline-ai': 'Generate test outline',
+  'user-journey-ai': 'Generate user journey summary',
   'installation-manual-ai': 'Generate installation manual',
   'user-manual-ai': 'Generate user manual',
   'model-translations': 'Generate model translations',
@@ -137,6 +138,7 @@ export function PreviewToolbar({
               <option value="database-design-ai">Database design</option>
               <option value="process-ai">Process doc</option>
               <option value="test-outline-ai">Test outline</option>
+              <option value="user-journey-ai">User journey</option>
               <option value="installation-manual-ai">Installation manual</option>
               <option value="user-manual-ai">User manual</option>
               <option value="model-translations">Translate model</option>

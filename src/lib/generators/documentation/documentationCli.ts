@@ -13,6 +13,7 @@ function parseKind(value?: string): DocumentationKind | 'all' {
     || value === 'database-design'
     || value === 'process'
     || value === 'test-outline'
+    || value === 'user-journey'
     || value === 'installation-manual'
     || value === 'user-manual'
     || value === 'all'
@@ -32,7 +33,7 @@ const language: DocumentationLanguage = languageArgument === 'zh-CN' || language
   : 'en';
 
 if (!input) {
-  console.error('Usage: npm run docs:generate -- ./model.medol [--kind=prd|software-design|database-design|process|test-outline|installation-manual|user-manual|all] [--language=en|zh-CN] [--json]');
+  console.error('Usage: npm run docs:generate -- ./model.medol [--kind=prd|software-design|database-design|process|test-outline|user-journey|installation-manual|user-manual|all] [--language=en|zh-CN] [--json]');
   process.exitCode = 1;
 } else {
   const sourceText = readFileSync(input, 'utf8');
