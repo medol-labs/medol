@@ -113,12 +113,15 @@
 - [ ] 怎么调试排查问题
 - [ ] 服务间调用失败重试、发现机制
 - [ ] decision 内注入多 concept state 逻辑怎么没了？
-  -  重要，要处理这种逻辑，另外印象中改过怎么丢了
-- [ ] 控制异常堆栈打印行数生成模板中，   exception-conversion-word: "%ex{10}"
+  - 重要，要处理这种逻辑，另外印象中改过怎么丢了
+- [ ] 控制异常堆栈打印行数生成模板中， exception-conversion-word: "%ex{10}"
 - [ ] 优化 ai agent 使用，减少 token 消耗，固定的问题整理 skill
 - [ ] 生成分页查询默认按时间排序
 - [ ] 多状态
 - [ ] 基于 medol 参考 https://github.com/hexclave/hexclave 设计一套 user infrastructure
+- [ ] 什么时候用枚举，什么时候用字典， OrganizationType 怎么处理
+- [ ] 状态值国际化
+- [ ] 时区
 
 ##
 
@@ -154,9 +157,9 @@
   - [ ] StartRoundWhenParticipantsSelectedProcessor 业务逻辑不满足，没有地方能查看
   - [ ] 一个 feature 多个 dataset
   - [ ] 任务失败，需要重新发起功能
-  - [ ] 现派发任务 runtime agent ip 读取配置文件，这里逻辑要调整动态获取 id 
+  - [ ] 现派发任务 runtime agent ip 读取配置文件，这里逻辑要调整动态获取 id
   - [ ] GeneratePlanForSelectedRuntimeProcessor 应该循环节点分别发送？现在 runtime id 等信息没有正确传递，建模上应该怎么处理
-  循环发送多个事件还是怎么办。
+        循环发送多个事件还是怎么办。
   - [ ] 梳理 adapter 与 domain decision 边界：当前部分 adapter 过重，典型例子是 `ReadModelTrainingRoundParticipantSelectionAdapter`，里面包含 joined member 为空、active runtime、dataset metadata compatible、组织/runtime 匹配、distinct、quorum 等判断。长期应调整为：
     - adapter 只做 read model / 外部系统查询、基础技术过滤、数据快照组装、技术不可用返回。
     - domain decision component 承载业务规则：参与方选择策略、quorum、每组织/每 runtime 选择规则、失败事件选择、重试策略。
@@ -169,6 +172,54 @@
     - [ ] 需重新设计，算法工程师动态配置对应参数，不同算法参数不一样
   - [ ] submit taining job 切换成 dialog
     - [ ] submit 加校验，不能重复提交
+  - [ ] 字典改为中文
+  - [ ] 组织状态流程，激活没有作用
+  - [ ] 运行时基础设施包，是否直接放字典中就可以
+  -
+
+## TODO: Refine Generator UI Type Adaptation
+
+当前 MEDOL 已支持 `ui <ScreenName> <type>` 建模，其中 `type` 包括 `list`、`detail`、`form`、`dialog`、`drawer`、`confirm`、`wizard`、`inline`、`background`。但 Refine generator 目前主要根据 `readmodel []` 和 command 生成资源、路由和表单页，尚未完整消费 `slice.screens[].ui.type`。
+
+后续需要补全：
+
+1. 在 Refine model builder 中解析 slice screen 与 command 的关系，将 `uiName`、`uiType` 写入 command/resource metadata。
+2. 保持现有 `form` 类型默认生成路由表单页。
+3. `dialog` 类型 command 由行按钮或创建按钮打开 Dialog 表单，而不是跳转页面。
+4. `drawer` 类型 command 使用 Drawer/Sheet 承载表单。
+5. `confirm` 类型 command 使用 AlertDialog 进行二次确认，必要时支持轻量输入字段。
+6. `wizard` 类型 command 支持分步表单渲染，可先基于字段分组或后续 DSL 元数据扩展。
+7. `inline` 类型 command 支持表格行内编辑或局部表单提交。
+8. `background` 类型 command 不生成用户表单入口，只作为自动化/后台流程元数据保留。
+9. 路由、resources metadata、CommandButton、command form 模板和 i18n messages 需要统一适配。
+10. 补充 generator 单测，覆盖 `dialog/drawer/confirm/form` 的生成结果，避免 UI 类型退化成普通路由页。
+
+# TODO：优化前端生成展示字段策略
+
+## 目标
+
+避免生成后的列表页、详情页、选择器主要展示 `xxxId`，让业务用户优先看到名称、状态、类型、时间、数量等可读信息。
+
+## 任务
+
+- [ ] 补充建模规范：每个 `readmodel` 应至少有一个业务可读字段标记为 `display`
+- [ ] 扫描 `federation-learning.medol`，为缺少业务展示字段的 `readmodel` 补充 `display` 字段
+- [ ] 对只有外键 ID 的 `readmodel`，补充派生展示字段，例如 `organizationName`、`federationName`、`datasetName`
+- [ ] Refine generator 增加 `displayField` 识别逻辑
+- [ ] `displayField` 优先级：
+  - `field.display`
+  - `name` / `title` / `label` / `displayName`
+  - `*Name` / `*Code` / `*Version`
+  - `idField`
+- [ ] 列表页默认列排序：
+  - `displayField` 第一
+  - 状态、类型、核心业务字段靠前
+  - `xxxId` 默认靠后或隐藏
+- [ ] 详情页标题改为 `record[displayField] ?? record[idField]`
+- [ ] 资源选择器 label 使用 `displayField`，value 保持 `idField`
+- [ ] 字典字段列表展示字典 `displayName`，提交时仍保存 `valueCode`
+- [ ] 给 federation-learning 生成结果增加回归检查，确保典型页面不再以 ID 作为主要展示信息
+
 ##
 
 建议 DSL 使用时遵守：

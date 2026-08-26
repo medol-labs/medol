@@ -13,11 +13,7 @@ import {
 } from '../../../lib/generators/documentation';
 import { parseMedol } from '../../../lib/dslParser';
 import type { EmModel } from '../../../lib/model';
-import {
-  readModelTranslations,
-  readReusableModelTranslations,
-  upsertModelTranslations
-} from '../../../server/modelTranslationRepository';
+import { readResolvedModelTranslations } from '../../../server/modelTranslationResolver';
 
 const documentKinds = new Set<DocumentationKind>([
   'prd',
@@ -112,26 +108,8 @@ const readCurrentModelTranslations = (input: {
   sourceHash: string;
   locale: DocumentationLanguage;
 }): ModelTranslations => {
-  const current = readModelTranslations(input);
   const catalog = buildModelTranslationCatalogFromUnits(
     buildModelTranslationUnits(input.model)
   );
-  const reusable = readReusableModelTranslations(
-    input,
-    catalog.sourceTexts.filter((sourceText) => !current[sourceText])
-  );
-  if (Object.keys(reusable).length === 0) return current;
-
-  upsertModelTranslations({
-    workspaceId: input.workspaceId,
-    sourceHash: input.sourceHash,
-    locale: input.locale,
-    translations: reusable,
-    provider: 'local',
-    model: 'historical-reuse'
-  });
-  return {
-    ...current,
-    ...reusable
-  };
+  return readResolvedModelTranslations(input, catalog.sourceTexts).translations;
 };

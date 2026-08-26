@@ -538,7 +538,7 @@ const buildTransitions = (model: EmModel): CodegenTransition[] => {
           ...(command ? { command: toCodegenTransitionElement(command) } : {}),
           ...(event ? { event: toCodegenTransitionElement(event) } : {}),
           ...(trigger ? { trigger: toCodegenTransitionElement(trigger) } : {}),
-          ...(!slice.startsLifecycle ? inferTransitionFromState(owner, trigger, eventToSlice, ownersBySliceId) : {}),
+          ...(!slice.startsLifecycle ? inferTransitionFromState(owner, trigger, eventToSlice, ownersBySliceId, model, contextBySliceId) : {}),
           to: slice.resultingState,
           startsLifecycle: Boolean(slice.startsLifecycle)
         });
@@ -553,14 +553,102 @@ const inferTransitionFromState = (
   owner: CodegenTransitionOwner,
   trigger: EmElement | undefined,
   eventToSlice: Map<string, EmSlice>,
-  ownersBySliceId: Map<string, CodegenTransitionOwner[]>
+  ownersBySliceId: Map<string, CodegenTransitionOwner[]>,
+  model: EmModel,
+  contextBySliceId: Map<string, string>
 ): { from: string } | {} => {
   if (!trigger) return {};
   const sourceSlice = eventToSlice.get(trigger.id);
   if (!sourceSlice?.resultingState) return {};
   const sourceOwners = ownersBySliceId.get(sourceSlice.id) ?? [];
   const sameOwner = sourceOwners.some((candidate) => candidate.id === owner.id && candidate.type === owner.type);
-  return sameOwner ? { from: sourceSlice.resultingState } : {};
+  if (!sameOwner) return {};
+
+  return {
+    from: inferTriggerEventState(owner, trigger, sourceSlice, model, contextBySliceId) ?? sourceSlice.resultingState
+  };
+};
+
+const inferTriggerEventState = (
+  owner: CodegenTransitionOwner,
+  trigger: EmElement,
+  sourceSlice: EmSlice,
+  model: EmModel,
+  contextBySliceId: Map<string, string>
+): string | undefined => {
+  const stateChangeEvent = sourceSlice.elements.find((element) => element.kind === 'event');
+  if (stateChangeEvent?.id === trigger.id) return sourceSlice.resultingState;
+
+  const states = findOwnerStates(owner, sourceSlice, model, contextBySliceId);
+  return bestStateForEventName(trigger.name, states);
+};
+
+const findOwnerStates = (
+  owner: CodegenTransitionOwner,
+  sourceSlice: EmSlice,
+  model: EmModel,
+  contextBySliceId: Map<string, string>
+): string[] => {
+  const sourceContextName = contextBySliceId.get(sourceSlice.id);
+  const contexts = [
+    ...model.contexts.filter((contextItem) => contextItem.name === sourceContextName),
+    ...model.contexts.filter((contextItem) => contextItem.name !== sourceContextName)
+  ];
+
+  for (const contextItem of contexts) {
+    const source = owner.type === 'concept'
+      ? contextItem.concepts.find((concept) => stableId('concept', concept.id) === owner.id || concept.name === owner.name)
+      : contextItem.aggregates.find((aggregate) => stableId('aggregate', aggregate.id) === owner.id || aggregate.name === owner.name);
+    if (source) return source.states;
+  }
+
+  return [];
+};
+
+const bestStateForEventName = (eventName: string, states: string[]): string | undefined => {
+  const normalizedEventName = normalizeOutcomeName(eventName);
+  const direct = states.find((state) => normalizedEventName.includes(normalizeOutcomeName(state)));
+  if (direct) return direct;
+
+  const eventWords = semanticOutcomeWords(eventName);
+  const ranked = states
+    .map((state) => {
+      const stateWords = semanticOutcomeWords(state);
+      const overlap = stateWords.filter((word) => eventWords.includes(word)).length;
+      const extraStateWords = stateWords.filter((word) => !eventWords.includes(word)).length;
+      return {
+        state,
+        score: overlap * 3 - extraStateWords
+      };
+    })
+    .sort((left, right) => right.score - left.score || left.state.length - right.state.length);
+
+  return ranked[0]?.score > 0 ? ranked[0].state : undefined;
+};
+
+const normalizeOutcomeName = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const semanticOutcomeWords = (value: string): string[] => {
+  const synonyms: Record<string, string> = {
+    failure: 'failed',
+    fail: 'failed',
+    fails: 'failed',
+    failing: 'failed',
+    installation: 'deployment',
+    installed: 'deployment',
+    install: 'deployment',
+    succeeded: 'ready',
+    success: 'ready',
+    established: 'connected'
+  };
+
+  return humanize(value)
+    .replace(/[^A-Za-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.toLowerCase())
+    .map((word) => synonyms[word] ?? word);
 };
 
 const toCodegenTransitionElement = (element: EmElement): { id: string; name: string; title: string } => ({

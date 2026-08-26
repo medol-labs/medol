@@ -352,6 +352,24 @@ export const withCodegenTranslations = (
   ...toCodegenTranslations(locale, translations)
 });
 
+export const parseModelTranslationMarkdown = (markdown: string): ModelTranslations => {
+  const translations: ModelTranslations = {};
+  for (const line of markdown.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) continue;
+    if (/^\|\s*-+\s*\|/u.test(trimmed)) continue;
+
+    const cells = splitMarkdownTableRow(trimmed).map((value) => decodeMarkdownTableCell(value.trim()));
+    const [source, translation] = cells;
+    if (!source || !translation) continue;
+    if (isTranslationHeader(source, translation)) continue;
+    if (translation === '-') continue;
+
+    translations[source] = translation;
+  }
+  return translations;
+};
+
 const titleCase = (value: string): string =>
   String(value ?? '')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -465,3 +483,43 @@ const slug = (value: string): string =>
 
 const cell = (value: string): string =>
   String(value ?? '').replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+
+const splitMarkdownTableRow = (line: string): string[] => {
+  const cells: string[] = [];
+  let current = '';
+  let escaped = false;
+  const body = line.slice(1, -1);
+
+  for (const char of body) {
+    if (escaped) {
+      current += char === '|' ? char : `\\${char}`;
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '|') {
+      cells.push(current);
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  if (escaped) {
+    current += '\\';
+  }
+  cells.push(current);
+  return cells;
+};
+
+const decodeMarkdownTableCell = (value: string): string =>
+  value.replace(/<br\s*\/?>/giu, '\n').replace(/\\\|/g, '|').trim();
+
+const isTranslationHeader = (source: string, translation: string): boolean => {
+  const normalizedSource = source.toLowerCase();
+  const normalizedTranslation = translation.toLowerCase();
+  return (normalizedSource === 'source' || source === '原文')
+    && (normalizedTranslation === 'translation' || translation === '译文');
+};

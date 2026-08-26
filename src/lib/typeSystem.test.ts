@@ -481,6 +481,84 @@ test('derives codegen transitions from lifecycle state changes and reactsTo', ()
   );
 });
 
+test('infers transition fromState from specific failure trigger event', () => {
+  const model = parseMedol(`
+    context Runtime {
+      slice StartRoundExecution {
+        startsLifecycle
+        command StartRoundExecution {
+          roundExecutionId: UUID id generated technical
+        }
+        event RoundExecutionStarted {
+          roundExecutionId: UUID id technical
+        }
+        event RoundExecutionStartFailed {
+          roundExecutionId: UUID id technical
+          failureReason: String
+        }
+        state Running
+      }
+
+      slice RetryRoundExecutionAfterStartFailure {
+        reactsTo RoundExecutionStartFailed
+        command RetryRoundExecutionAfterStartFailure {
+          roundExecutionId: UUID id technical
+        }
+        event RoundExecutionStartRetryStarted {
+          roundExecutionId: UUID id technical
+        }
+        event RoundExecutionStartRetryFailed {
+          roundExecutionId: UUID id technical
+          failureReason: String
+        }
+        state Retried
+      }
+
+      slice ReleaseRuntimeEngineJobAfterStartFailure {
+        reactsTo RoundExecutionStartFailed
+        command ReleaseRuntimeEngineJobAfterStartFailure {
+          roundExecutionId: UUID id technical
+        }
+        event RuntimeEngineJobReleaseFailedOrSkippedAfterStartFailure {
+          roundExecutionId: UUID id technical
+        }
+        state RuntimeEngineReleaseHandled
+      }
+
+      slice ReleaseRuntimeEngineJobAfterRetryFailure {
+        reactsTo RoundExecutionStartRetryFailed
+        command ReleaseRuntimeEngineJobAfterRetryFailure {
+          roundExecutionId: UUID id technical
+        }
+        event RuntimeEngineJobReleaseFailedOrSkippedAfterRetry {
+          roundExecutionId: UUID id technical
+        }
+        state RuntimeEngineReleaseHandled
+      }
+
+      concept RoundExecution {
+        state Running
+        state StartFailed
+        state Retried
+        state Failed
+        state RuntimeEngineReleaseHandled
+        slice StartRoundExecution
+        slice RetryRoundExecutionAfterStartFailure
+        slice ReleaseRuntimeEngineJobAfterStartFailure
+        slice ReleaseRuntimeEngineJobAfterRetryFailure
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  const transitionByCommand = new Map(codegen.transitions.map((transition) => [transition.command?.name, transition]));
+
+  assert.equal(transitionByCommand.get('RetryRoundExecutionAfterStartFailure')?.from, 'StartFailed');
+  assert.equal(transitionByCommand.get('ReleaseRuntimeEngineJobAfterStartFailure')?.from, 'StartFailed');
+  assert.equal(transitionByCommand.get('ReleaseRuntimeEngineJobAfterRetryFailure')?.from, 'Failed');
+});
+
 test('does not infer fromState from cross concept reactsTo events', () => {
   const model = parseMedol(`
     context Training {

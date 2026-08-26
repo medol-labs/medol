@@ -14487,64 +14487,6 @@
               "uploadFile": false,
               "file": false,
               "portOutput": false
-            },
-            {
-              "name": "runtimeDeploymentTargetType",
-              "type": "String",
-              "dictionary": "RUNTIME_DEPLOYMENT_TARGET_TYPE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "installProfile",
-              "type": "String",
-              "dictionary": "RUNTIME_INSTALL_PROFILE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "architecture",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "installGuide",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
             }
           ],
           "dependencies": [
@@ -14619,64 +14561,6 @@
               "name": "runtimeEnvironmentType",
               "type": "String",
               "dictionary": "RUNTIME_ENVIRONMENT_TYPE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "runtimeDeploymentTargetType",
-              "type": "String",
-              "dictionary": "RUNTIME_DEPLOYMENT_TARGET_TYPE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "installProfile",
-              "type": "String",
-              "dictionary": "RUNTIME_INSTALL_PROFILE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "architecture",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "installGuide",
-              "type": "String",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -14827,64 +14711,6 @@
               "name": "runtimeEnvironmentType",
               "type": "String",
               "dictionary": "RUNTIME_ENVIRONMENT_TYPE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "runtimeDeploymentTargetType",
-              "type": "String",
-              "dictionary": "RUNTIME_DEPLOYMENT_TARGET_TYPE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "installProfile",
-              "type": "String",
-              "dictionary": "RUNTIME_INSTALL_PROFILE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "architecture",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "installGuide",
-              "type": "String",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -15862,33 +15688,6 @@
               }
             },
             {
-              "name": "infrastructureInstallGuide",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "RuntimeInfrastructurePackageCatalog.installGuide"
-                ],
-                "lookup": {
-                  "key": "runtimeInfrastructurePackageId",
-                  "cacheProjection": "RuntimeInfrastructurePackageCatalog",
-                  "sourceField": "installGuide",
-                  "targetField": "infrastructureInstallGuide",
-                  "missingValuePolicy": "keep"
-                }
-              }
-            },
-            {
               "name": "organizationName",
               "type": "String",
               "cardinality": "Single",
@@ -15952,34 +15751,6 @@
               }
             },
             {
-              "name": "runtimeDeploymentTargetType",
-              "type": "String",
-              "dictionary": "RUNTIME_DEPLOYMENT_TARGET_TYPE",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "RuntimeInfrastructurePackageCatalog.runtimeDeploymentTargetType"
-                ],
-                "lookup": {
-                  "key": "runtimeInfrastructurePackageId",
-                  "cacheProjection": "RuntimeInfrastructurePackageCatalog",
-                  "sourceField": "runtimeDeploymentTargetType",
-                  "targetField": "runtimeDeploymentTargetType",
-                  "missingValuePolicy": "keep"
-                }
-              }
-            },
-            {
               "name": "runtimeEnvironmentType",
               "type": "String",
               "dictionary": "RUNTIME_ENVIRONMENT_TYPE",
@@ -16027,61 +15798,6 @@
                   "RuntimeInstallationPlanCreated.agentInstallMode"
                 ],
                 "rule": "Lookup by runtimeInstallationPlanId and display how the platform should request runtime agent installation."
-              }
-            },
-            {
-              "name": "installProfile",
-              "type": "String",
-              "dictionary": "RUNTIME_INSTALL_PROFILE",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "RuntimeInfrastructurePackageCatalog.installProfile"
-                ],
-                "lookup": {
-                  "key": "runtimeInfrastructurePackageId",
-                  "cacheProjection": "RuntimeInfrastructurePackageCatalog",
-                  "sourceField": "installProfile",
-                  "targetField": "installProfile",
-                  "missingValuePolicy": "keep"
-                }
-              }
-            },
-            {
-              "name": "architecture",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "RuntimeInfrastructurePackageCatalog.architecture"
-                ],
-                "lookup": {
-                  "key": "runtimeInfrastructurePackageId",
-                  "cacheProjection": "RuntimeInfrastructurePackageCatalog",
-                  "sourceField": "architecture",
-                  "targetField": "architecture",
-                  "missingValuePolicy": "keep"
-                }
               }
             },
             {
@@ -18785,34 +18501,6 @@
                   "RuntimeInstallationPlanCreated.runtimeName"
                 ],
                 "rule": "Lookup by runtimeInfrastructureId and denormalize the runtime display name into the access view."
-              }
-            },
-            {
-              "name": "runtimeDeploymentTargetType",
-              "type": "String",
-              "dictionary": "RUNTIME_DEPLOYMENT_TARGET_TYPE",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "RuntimeInfrastructurePackageCatalog.runtimeDeploymentTargetType"
-                ],
-                "lookup": {
-                  "key": "runtimeInfrastructurePackageId",
-                  "cacheProjection": "RuntimeInfrastructurePackageCatalog",
-                  "sourceField": "runtimeDeploymentTargetType",
-                  "targetField": "runtimeDeploymentTargetType",
-                  "missingValuePolicy": "keep"
-                }
               }
             },
             {

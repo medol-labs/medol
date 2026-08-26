@@ -2,7 +2,7 @@ import { MedolValidationError } from './dslToConfig';
 import { medolFileToCodegenModel } from './dslToConfigFile';
 import { readFileSync } from 'node:fs';
 import { hashMedolSource } from '../features/documentation/documentReferences';
-import { withCodegenTranslations } from '../features/model-i18n/modelTranslation';
+import { buildModelTranslationCatalog, withCodegenTranslations } from '../features/model-i18n/modelTranslation';
 
 const input = process.argv[2];
 const locale = readOption('--locale') ?? readOption('--language');
@@ -15,14 +15,15 @@ if (!input) {
   try {
     let model = medolFileToCodegenModel(input);
     if (locale) {
-      const { readModelTranslations } = await import('../server/modelTranslationRepository');
+      const { readResolvedModelTranslations } = await import('../server/modelTranslationResolver');
       const sourceText = readFileSync(input, 'utf8');
       const sourceHash = hashMedolSource(sourceText);
-      const translations = readModelTranslations({
+      const catalog = buildModelTranslationCatalog(model);
+      const translations = readResolvedModelTranslations({
         workspaceId,
         sourceHash,
         locale
-      });
+      }, catalog.sourceTexts).translations;
       model = withCodegenTranslations(model, locale, translations);
     }
     console.log(JSON.stringify(model, null, 2));

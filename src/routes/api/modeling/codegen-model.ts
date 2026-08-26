@@ -1,9 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { hashMedolSource } from '../../../features/documentation/documentReferences';
-import { withCodegenTranslations } from '../../../features/model-i18n/modelTranslation';
-import { modelToCodegenModel } from '../../../lib/codegenModel';
+import {
+  buildModelTranslationCatalog,
+  withCodegenTranslations,
+  type ModelTranslations
+} from '../../../features/model-i18n/modelTranslation';
+import { modelToCodegenModel, type CodegenModel } from '../../../lib/codegenModel';
 import { parseMedol } from '../../../lib/dslParser';
-import { readModelTranslations } from '../../../server/modelTranslationRepository';
+import { readResolvedModelTranslations } from '../../../server/modelTranslationResolver';
 import {
   listModelingWorkspaces,
   readModelingWorkspace,
@@ -50,11 +54,13 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
           }, { status: 400 });
         }
 
+        const sourceHash = hashMedolSource(dsl);
         let codegenModel = modelToCodegenModel(model);
         if (locale) {
-          const translations = readModelTranslations({
+          const translations = readCurrentCodegenTranslations({
+            codegenModel,
             workspaceId: workspace.id,
-            sourceHash: hashMedolSource(dsl),
+            sourceHash,
             locale
           });
           codegenModel = withCodegenTranslations(codegenModel, locale, translations);
@@ -63,7 +69,7 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
         return new Response(JSON.stringify(codegenModel, null, 2), {
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Content-Disposition': contentDisposition('codegen-model.json'),
+            'Content-Disposition': contentDisposition(codegenModelFilename(locale)),
             'X-Medol-Workspace-Id': workspace.id,
             'X-Medol-Workspace-Name': encodeURIComponent(workspace.name),
             ...(version ? {
@@ -71,6 +77,7 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
               'X-Medol-Version-No': String(version.versionNo),
               'X-Medol-Model-Hash': version.modelHash
             } : {}),
+            'X-Medol-Source-Hash': sourceHash,
             ...(locale ? { 'X-Medol-Locale': locale } : {})
           }
         });
@@ -84,7 +91,20 @@ const readLatestWorkspace = () => {
   return latest ? readModelingWorkspace(latest.id) : undefined;
 };
 
+const readCurrentCodegenTranslations = (input: {
+  codegenModel: CodegenModel;
+  workspaceId?: string;
+  sourceHash: string;
+  locale: string;
+}): ModelTranslations => {
+  const catalog = buildModelTranslationCatalog(input.codegenModel);
+  return readResolvedModelTranslations(input, catalog.sourceTexts).translations;
+};
+
 const contentDisposition = (filename: string): string => {
   const fallback = filename.replace(/[^\w.-]+/g, '-');
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 };
+
+const codegenModelFilename = (locale: string | null): string =>
+  locale ? `codegen-model.${locale}.json` : 'codegen-model.json';

@@ -1007,13 +1007,6 @@ context RuntimeProvisioning {
       packageVersion: String
       // 安装包支持的 runtime 环境类型；真实包地址、签名、secret 由平台包服务按 packageId 解析。
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
-      // 安装包对应的 runtime agent 部署方式；真实 adapter 配置不进入建模。
-      runtimeDeploymentTargetType: String dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE"
-      // 安装规格档位，和安装包一起维护，创建计划时不再人工重复填写。
-      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
-      architecture: String
-      // 面向 RuntimeInstaller 的安装向导内容或模板，由平台维护并在 RuntimeInstallationGuide 中展示。
-      installGuide: String
     }
 
     event RuntimeInfrastructurePackageRegistered {
@@ -1021,10 +1014,6 @@ context RuntimeProvisioning {
       packageName: String
       packageVersion: String
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
-      runtimeDeploymentTargetType: String dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE"
-      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
-      architecture: String
-      installGuide: String
     }
 
     state Registered
@@ -1036,17 +1025,13 @@ context RuntimeProvisioning {
       packageName: String
       packageVersion: String
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
-      runtimeDeploymentTargetType: String dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE"
-      installProfile: String dictionary "RUNTIME_INSTALL_PROFILE"
-      architecture: String
-      installGuide: String
       state: RuntimeInfrastructurePackage.State
       subscribe RuntimeInfrastructurePackageRegistered
     }
   }
 
   // Runtime installation plan describes how an organization runtime will be onboarded.
-  // PlatformAdmin selects a platform-maintained infrastructure package; RuntimeInstaller follows the generated guide to prepare K3s, Docker Compose, or local runtime.
+  // PlatformAdmin selects a platform-maintained infrastructure package; RuntimeInstaller follows the generated bootstrap command to prepare K3s, Docker Compose, or local runtime.
   // After infrastructure registration and verification, the platform requests runtime agent installation according to this plan.
   slice CreateRuntimeInstallationPlan {
     startsLifecycle
@@ -1142,7 +1127,6 @@ context RuntimeProvisioning {
       }
       runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
       runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
-      infrastructureInstallGuide: String? derived from RuntimeInfrastructurePackageCatalog.installGuide by runtimeInfrastructurePackageId
       organizationName: String? derived {
         from OrganizationRegistered.organizationName
         rule "Lookup by organizationId and denormalize the organization display name into the runtime installation guide."
@@ -1155,14 +1139,11 @@ context RuntimeProvisioning {
         from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
         rule "Render the copyable install/start command using the runtime installation plan and platform-managed bootstrap service."
       }
-      runtimeDeploymentTargetType: String? dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeDeploymentTargetType by runtimeInfrastructurePackageId
       runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
       agentInstallMode: String? dictionary "RUNTIME_AGENT_INSTALL_MODE" derived {
         from RuntimeInstallationPlanCreated.agentInstallMode
         rule "Lookup by runtimeInstallationPlanId and display how the platform should request runtime agent installation."
       }
-      installProfile: String? dictionary "RUNTIME_INSTALL_PROFILE" derived from RuntimeInfrastructurePackageCatalog.installProfile by runtimeInfrastructurePackageId
-      architecture: String? derived from RuntimeInfrastructurePackageCatalog.architecture by runtimeInfrastructurePackageId
       expectedNodeCount: Int? derived {
         from RuntimeInstallationPlanCreated.expectedNodeCount
         rule "Lookup by runtimeInstallationPlanId and display the planned node count."
@@ -1478,7 +1459,6 @@ context RuntimeProvisioning {
         from RuntimeInstallationPlanCreated.runtimeName
         rule "Lookup by runtimeInfrastructureId and denormalize the runtime display name into the access view."
       }
-      runtimeDeploymentTargetType: String? dictionary "RUNTIME_DEPLOYMENT_TARGET_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeDeploymentTargetType by runtimeInfrastructurePackageId
       runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       expectedNodeCount: Int
@@ -2009,19 +1989,21 @@ context ModelRepository {
       modelId: UUID id generated technical
       modelName: String display
       modelVersion: String
-      sourceType: String
+      modelDescription: String?
+      sourceType: String dictionary "MODEL_ARTIFACT_SOURCE_TYPE"
       stagedFileId: UUID? file
-      modelFormat: String?
+      modelFormat: String? dictionary "MODEL_FORMAT"
     }
 
     event ModelArtifactRegistered {
       modelId: UUID id technical
       modelName: String display
       modelVersion: String
-      sourceType: String
+      modelDescription: String?
+      sourceType: String dictionary "MODEL_ARTIFACT_SOURCE_TYPE"
       modelArtifactUri: String
       modelRegistryRef: String
-      modelFormat: String
+      modelFormat: String dictionary "MODEL_FORMAT"
       modelArtifactDigest: String
       modelSignatureUri: String?
       modelSizeBytes: Int?
@@ -2031,7 +2013,7 @@ context ModelRepository {
 
     specification "Model Artifact Must Be Pullable And Verifiable" {
       rule """
-        Registering a model artifact is a port-backed import operation. modelName identifies the logical model and modelVersion identifies the business version under that model; the pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. For uploaded files, stagedFileId references a file previously staged by FileUpload, not a browser-local file path. The adapter queries FileUpload metadata or content, imports the staged source model into the managed model registry, marks the staged file consumed after a successful import, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelArtifactUri identifies the concrete pullable artifact for that version.
+        Registering a model artifact is a port-backed import operation. modelName identifies the logical model, modelVersion identifies the business version under that model, and modelDescription captures the business purpose, training background, applicable scenarios, or limitations that operators need when selecting the model. The pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. sourceType is maintained by the MODEL_ARTIFACT_SOURCE_TYPE dictionary and distinguishes externally imported artifacts from artifacts produced by federated training; expected values include EXTERNAL and FEDERATED_TRAINING. For uploaded files, stagedFileId references a file previously staged by FileUpload, not a browser-local file path. The adapter queries FileUpload metadata or content, imports the staged source model into the managed model registry, marks the staged file consumed after a successful import, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelFormat is maintained by the MODEL_FORMAT dictionary; expected values include ONNX, PMML, TENSORFLOW_SAVED_MODEL, PYTORCH_STATE_DICT, XGBOOST, and SKLEARN_PICKLE. modelArtifactUri identifies the concrete pullable artifact for that version.
 
         unique (ModelArtifact.modelName, ModelArtifact.modelVersion)
       """
@@ -2041,7 +2023,8 @@ context ModelRepository {
           modelId = "model-1"
           modelName = "credit-risk"
           modelVersion = "v1"
-          sourceType = "UPLOAD"
+          modelDescription = "Baseline credit risk classifier for federated training"
+          sourceType = "EXTERNAL"
           stagedFileId = "staged-file-1"
           modelFormat = "ONNX"
         }
@@ -2055,10 +2038,11 @@ context ModelRepository {
       modelId: UUID id
       modelName: String display
       modelVersion: String
-      sourceType: String?
+      modelDescription: String?
+      sourceType: String? dictionary "MODEL_ARTIFACT_SOURCE_TYPE"
       modelArtifactUri: String
       modelRegistryRef: String
-      modelFormat: String
+      modelFormat: String dictionary "MODEL_FORMAT"
       modelArtifactDigest: String
       modelSignatureUri: String?
       modelSizeBytes: Int?
@@ -2138,12 +2122,8 @@ context TrainingOrchestration {
       lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
       gradientClippingNorm: Decimal?
       secureAggregationRequired: Boolean
-      differentialPrivacyEnabled: Boolean
-      dpNoiseMultiplier: Decimal?
-      dpClipNorm: Decimal?
       minimumAccuracy: Decimal
       minimumFairnessScore: Decimal?
-      failureToleranceRatio: Decimal
     }
 
     event TrainingRunConfigurationDefined {
@@ -2192,19 +2172,15 @@ context TrainingOrchestration {
       lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
       gradientClippingNorm: Decimal?
       secureAggregationRequired: Boolean
-      differentialPrivacyEnabled: Boolean
-      dpNoiseMultiplier: Decimal?
-      dpClipNorm: Decimal?
       minimumAccuracy: Decimal
       minimumFairnessScore: Decimal?
-      failureToleranceRatio: Decimal
     }
 
     state Draft
 
     specification "Training Configuration Must Be Runnable" {
       rule """
-        A training run configuration is accepted only when the selected federation, feature schema, and initial model exist; the round budget, quorum, timeouts, and local training parameters are positive; and differential privacy parameters are complete when differential privacy is enabled.
+        A training run configuration is accepted only when the selected federation, feature schema, and initial model exist; the round budget, quorum, timeouts, local training parameters, and target quality thresholds are valid.
       """
 
       scenario "Define Runnable Configuration" {
@@ -2225,9 +2201,7 @@ context TrainingOrchestration {
           optimizer = "SGD"
           lossFunction = "CROSS_ENTROPY"
           secureAggregationRequired = true
-          differentialPrivacyEnabled = false
           minimumAccuracy = 0.9
-          failureToleranceRatio = 0.2
         }
         then TrainingRunConfigurationDefined
       }
@@ -2250,36 +2224,9 @@ context TrainingOrchestration {
           optimizer = "SGD"
           lossFunction = "CROSS_ENTROPY"
           secureAggregationRequired = true
-          differentialPrivacyEnabled = false
           minimumAccuracy = 0.9
-          failureToleranceRatio = 0.2
         }
         then reject "Positive Round Budget Required"
-      }
-
-      scenario "Reject Differential Privacy Without Parameters" {
-        when DefineTrainingRunConfiguration {
-          trainingRunConfigurationId = "cfg-3"
-          federationId = "fed-1"
-          featureSchemaId = "schema-1"
-          initialModelId = "model-1"
-          strategyName = "FED_AVG"
-          aggregationAlgorithm = "FEDERATED_AVERAGING"
-          maxRounds = 10
-          minimumNodesPerRound = 3
-          roundTimeoutSeconds = 1800
-          nodeResponseTimeoutSeconds = 300
-          localEpochs = 2
-          batchSize = 64
-          learningRate = 0.01
-          optimizer = "SGD"
-          lossFunction = "CROSS_ENTROPY"
-          secureAggregationRequired = true
-          differentialPrivacyEnabled = true
-          minimumAccuracy = 0.9
-          failureToleranceRatio = 0.2
-        }
-        then reject "Differential Privacy Parameters Required"
       }
     }
   }
@@ -2307,12 +2254,8 @@ context TrainingOrchestration {
       lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
       gradientClippingNorm: Decimal?
       secureAggregationRequired: Boolean
-      differentialPrivacyEnabled: Boolean
-      dpNoiseMultiplier: Decimal?
-      dpClipNorm: Decimal?
       minimumAccuracy: Decimal
       minimumFairnessScore: Decimal?
-      failureToleranceRatio: Decimal
       updateReason: String?
     }
 
@@ -2362,12 +2305,8 @@ context TrainingOrchestration {
       lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
       gradientClippingNorm: Decimal?
       secureAggregationRequired: Boolean
-      differentialPrivacyEnabled: Boolean
-      dpNoiseMultiplier: Decimal?
-      dpClipNorm: Decimal?
       minimumAccuracy: Decimal
       minimumFairnessScore: Decimal?
-      failureToleranceRatio: Decimal
       updateReason: String?
     }
 
@@ -2399,9 +2338,7 @@ context TrainingOrchestration {
           optimizer = "SGD"
           lossFunction = "CROSS_ENTROPY"
           secureAggregationRequired = true
-          differentialPrivacyEnabled = false
           minimumAccuracy = 0.9
-          failureToleranceRatio = 0.2
           updateReason = "Tune round budget before submission."
         }
         then TrainingRunConfigurationUpdated
@@ -2428,9 +2365,7 @@ context TrainingOrchestration {
           optimizer = "SGD"
           lossFunction = "CROSS_ENTROPY"
           secureAggregationRequired = true
-          differentialPrivacyEnabled = false
           minimumAccuracy = 0.9
-          failureToleranceRatio = 0.2
           updateReason = "Fix submitted configuration."
         }
         then reject "Training Run Configuration Locked"
@@ -2500,12 +2435,8 @@ context TrainingOrchestration {
       lossFunction: String dictionary "TRAINING_LOSS_FUNCTION"
       gradientClippingNorm: Decimal?
       secureAggregationRequired: Boolean
-      differentialPrivacyEnabled: Boolean
-      dpNoiseMultiplier: Decimal?
-      dpClipNorm: Decimal?
       minimumAccuracy: Decimal
       minimumFairnessScore: Decimal?
-      failureToleranceRatio: Decimal
       updateReason: String?
       lockedByTrainingJobId: UUID? derived {
         from TrainingRunConfigurationLocked.trainingJobId
@@ -4993,7 +4924,6 @@ context RuntimeAgentOperations {
       organizationId: UUID
       featureSchemaId: UUID
       datasetName: String
-      datasetType: String
       datasetUsage: String
     }
 
@@ -5002,7 +4932,6 @@ context RuntimeAgentOperations {
       organizationId: UUID
       featureSchemaId: UUID
       datasetName: String
-      datasetType: String
       datasetUsage: String
       features: FeatureDefinition[]
       labels: LabelDefinition[]?
@@ -5010,7 +4939,7 @@ context RuntimeAgentOperations {
 
     specification "Feature Schema Snapshot Required For Dataset Declaration" {
       rule """
-        Declaring a dataset synchronously loads the referenced feature schema through the DeclareDataset port adapter before the decision emits DatasetDeclared. The adapter must enrich the declaration result with the feature and label snapshot so the runtime agent can validate and profile local data without querying the platform later. If the feature schema cannot be loaded, the adapter throws an exception and the declaration does not emit DatasetDeclared.
+        Declaring a dataset synchronously loads the referenced feature schema through the DeclareDataset port adapter before the decision emits DatasetDeclared. The adapter must enrich the declaration result with the feature and label snapshot so the runtime agent can validate and profile local data without querying the platform later. Dataset usage describes the governance purpose of the dataset, such as training, validation, evaluation, or testing, and is stored as a maintained dictionary value. If the feature schema cannot be loaded, the adapter throws an exception and the declaration does not emit DatasetDeclared.
       """
 
       scenario "Declare Dataset With Feature Schema Snapshot" {
@@ -5019,7 +4948,6 @@ context RuntimeAgentOperations {
           organizationId = "22222222-2222-4222-8222-222222222222"
           featureSchemaId = "33333333-3333-4333-8333-333333333333"
           datasetName = "credit-risk"
-          datasetType = "TABULAR"
           datasetUsage = "TRAINING"
         }
         then DatasetDeclared
@@ -5031,7 +4959,6 @@ context RuntimeAgentOperations {
           organizationId = "55555555-5555-4555-8555-555555555555"
           featureSchemaId = "66666666-6666-4666-8666-666666666666"
           datasetName = "credit-risk"
-          datasetType = "TABULAR"
           datasetUsage = "TRAINING"
         }
         then error "Feature Schema Load Failed"
@@ -6679,7 +6606,7 @@ context RuntimeAgentOperations {
 
   slice LoadRuntimeAgentBootstrapConfiguration {
     startsLifecycle
-
+    ui LoadRuntimeAgentBootstrapConfigurationConfirm confirm
     actor RuntimeAgent
     port
 

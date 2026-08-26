@@ -4,7 +4,8 @@ import type { CreateModelingDocumentInput, ModelingDocument } from '../contracts
 import { generateModelingDocument } from '../features/documentation/documentationClient';
 import {
   generateModelTranslations,
-  readStoredModelTranslations
+  readCodegenModelJson,
+  resolveModelTranslations
 } from '../features/model-i18n/modelTranslationClient';
 import { exportFlowViewportToPng, exportFlowViewportToSvg } from '../lib/exportFlowImage';
 import type { DocumentationLanguage } from '../lib/generators/documentation';
@@ -67,7 +68,12 @@ export const useToolbarActions = ({
       if (toolbarAction === 'em-model') {
         downloadJson('em-model.json', emModelJson);
       } else if (toolbarAction === 'codegen-model') {
-        downloadJson('codegen-model.json', codegenModelJson);
+        const resolvedJson = await resolveCodegenModelJson({
+          fallbackJson: codegenModelJson,
+          locale: documentationLanguage,
+          workspaceId: activeWorkspaceId
+        });
+        downloadJson(getCodegenModelFilename(documentationLanguage), resolvedJson);
       } else if (toolbarAction === 'config') {
         downloadJson('config.json', configJson);
       } else if (toolbarAction === 'png' && flowNodes.length > 0) {
@@ -104,9 +110,10 @@ export const useToolbarActions = ({
         onDocumentFocusSourceIdChange(undefined);
         onPreviewModeChange('documents');
       } else if (toolbarAction === 'model-translations') {
+        const locale = modelTranslationLocale(documentationLanguage);
         const result = await generateModelTranslations({
           dsl,
-          locale: documentationLanguage,
+          locale,
           workspaceId: activeWorkspaceId,
           unitLimit: 1,
           onProgress: (progress) => {
@@ -124,7 +131,7 @@ export const useToolbarActions = ({
           await createDocument({
             title: result.title ?? `Model translations ${result.locale}`,
             kind: 'model-translations',
-            language: documentationLanguage,
+            language: locale,
             markdown: result.markdown,
             sourceHash: medolSourceHash
           });
@@ -138,11 +145,16 @@ export const useToolbarActions = ({
             : `Translations ${result.locale}: ${result.translated}/${result.total} stored`
         );
       } else if (toolbarAction === 'download-translations') {
-        const result = await readStoredModelTranslations({
-          locale: documentationLanguage,
-          sourceHash: medolSourceHash,
+        const locale = modelTranslationLocale(documentationLanguage);
+        const result = await resolveModelTranslations({
+          dsl,
+          locale,
           workspaceId: activeWorkspaceId
         });
+        if (result.translated === 0) {
+          setModelTranslationMessage(`Translations ${result.locale}: no stored translations, run Translate model first`);
+          return;
+        }
         downloadJson(`model-translations.${result.locale}.json`, JSON.stringify(result.codegen, null, 2));
         setModelTranslationMessage(`Translations ${result.locale}: ${result.translated} downloaded`);
       } else if (toolbarAction === 'reset') {
@@ -172,6 +184,27 @@ export const useToolbarActions = ({
 
 const isModelTranslationAction = (action: ToolbarAction): boolean => {
   return action === 'model-translations' || action === 'download-translations';
+};
+
+const modelTranslationLocale = (language: DocumentationLanguage): DocumentationLanguage =>
+  language === 'en' ? 'zh-CN' : language;
+
+const resolveCodegenModelJson = async (input: {
+  fallbackJson: string;
+  locale: DocumentationLanguage;
+  workspaceId?: string;
+}): Promise<string> => {
+  if (!input.workspaceId || input.locale === 'en') {
+    return input.fallbackJson;
+  }
+  return readCodegenModelJson({
+    workspaceId: input.workspaceId,
+    locale: input.locale
+  });
+};
+
+const getCodegenModelFilename = (locale: DocumentationLanguage): string => {
+  return locale === 'en' ? 'codegen-model.json' : `codegen-model.${locale}.json`;
 };
 
 const downloadJson = (filename: string, content: string) => {

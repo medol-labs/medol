@@ -100,6 +100,21 @@ export const generateModelTranslations = async (input: {
   return latest;
 };
 
+export const resolveModelTranslations = async (input: {
+  dsl: string;
+  locale: string;
+  workspaceId?: string;
+  signal?: AbortSignal;
+}): Promise<ModelTranslationGenerationResult> =>
+  requestModelTranslations({
+    dsl: input.dsl,
+    locale: input.locale,
+    workspaceId: input.workspaceId,
+    unitLimit: 0,
+    includeMarkdown: false,
+    signal: input.signal
+  });
+
 const requestModelTranslations = async (input: {
   dsl: string;
   locale: string;
@@ -151,4 +166,28 @@ export const readStoredModelTranslations = async (input: {
     throw new Error(body?.error ?? `Reading model translations failed with HTTP ${response.status}`);
   }
   return response.json() as Promise<StoredModelTranslationsResult>;
+};
+
+export const readCodegenModelJson = async (input: {
+  workspaceId?: string;
+  locale?: string;
+  signal?: AbortSignal;
+}): Promise<string> => {
+  const searchParams = new URLSearchParams();
+  if (input.workspaceId) {
+    searchParams.set('workspaceId', input.workspaceId);
+  }
+  if (input.locale) {
+    searchParams.set('locale', input.locale);
+  }
+
+  const query = searchParams.toString();
+  const response = await fetch(`/api/modeling/codegen-model${query ? `?${query}` : ''}`, {
+    signal: input.signal
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined) as { error?: string } | undefined;
+    throw new Error(body?.error ?? `Reading codegen model failed with HTTP ${response.status}`);
+  }
+  return response.text();
 };

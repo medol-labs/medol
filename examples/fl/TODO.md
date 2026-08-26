@@ -32,19 +32,16 @@
 
 ## Dictionary 
 
-当前 [federation-learning.medol]里，动态字典项只有 5 个 `dictionaryCode`，都属于 `RuntimeOnboarding` 相关字段：
+当前 [federation-learning.medol] 里，`RuntimeOnboarding` 相关动态字典项包括：
 
 | dictionaryCode | 使用次数 | 用途字段 |
 | --- | ---: | --- |
-| `RUNTIME_CONNECTIVITY_MODE` | 3 | `connectivityMode` |
-| `RUNTIME_INFRASTRUCTURE_TYPE` | 9 | `infrastructureType` |
-| `RUNTIME_ORCHESTRATOR_TYPE` | 10 | `orchestratorType` |
-| `RUNTIME_ORCHESTRATOR_VERSION` | 9 | `orchestratorVersion` |
-| `RUNTIME_INSTALL_PROFILE` | 9 | `installProfile` |
+| `RUNTIME_ENVIRONMENT_TYPE` | 5 | `runtimeEnvironmentType` |
+| `RUNTIME_AGENT_INSTALL_MODE` | 9 | `agentInstallMode` |
+| `RUNTIME_AGENT_ENDPOINT_SCOPE` | 5 | `endpointScope` |
 
 这些字段集中在：
 
-- `ConfigureOrganizationNetworkProfile`
 - `CreateRuntimeInstallationPlan`
 - `IssueRuntimeBootstrapConfig`
 - `RuntimeInstallationPlanCatalog`

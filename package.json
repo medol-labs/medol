@@ -12,7 +12,7 @@
     "test:agent": "node --import tsx --test src/features/agent-chat/dslOperationTools.test.ts",
     "test:search": "node --import tsx --test src/features/model-search/modelSearch.test.ts",
     "test:documentation": "node --import tsx --test src/features/documentation/documentationTranslation.test.ts",
-    "test:model-translations": "node --import tsx --test src/server/modelTranslationRepository.test.ts",
+    "test:model-translations": "node --import tsx --test src/server/modelTranslationRepository.test.ts src/server/modelTranslationResolver.test.ts",
     "test:workspace": "node --import tsx --test src/server/modelingWorkspaceRepository.test.ts",
     "test:documents": "node --import tsx --test src/server/modelingDocumentRepository.test.ts",
     "test:document-export": "node --import tsx --test src/server/modelingDocumentExport.test.ts",

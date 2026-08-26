@@ -11,10 +11,10 @@ import {
 import { requestModelTranslations } from '../../../features/model-i18n/modelTranslationProvider';
 import { parseMedol } from '../../../lib/dslParser';
 import {
-  readModelTranslations,
-  readReusableModelTranslations,
   upsertModelTranslations
 } from '../../../server/modelTranslationRepository';
+import { readResolvedModelTranslations } from '../../../server/modelTranslationResolver';
+import { readModelingWorkspace } from '../../../server/modelingWorkspaceRepository';
 
 const maxDslLength = 2_000_000;
 const defaultTranslationBatchSize = 25;
@@ -37,11 +37,18 @@ export const Route = createFileRoute('/api/modeling/translations')({
           return Response.json({ error: 'sourceHash must be a string' }, { status: 400 });
         }
 
-        const translations = readModelTranslations({ workspaceId, sourceHash, locale });
+        const sourceTexts = readWorkspaceTranslationSourceTexts(workspaceId);
+        const resolved = readResolvedModelTranslations(
+          { workspaceId, sourceHash, locale },
+          sourceTexts
+        );
+        const translations = resolved.translations;
         return Response.json({
           locale,
           sourceHash,
           translated: Object.keys(translations).length,
+          reused: resolved.reused,
+          document: resolved.document,
           translations,
           codegen: toCodegenTranslations(locale, translations)
         });
@@ -84,27 +91,16 @@ export const Route = createFileRoute('/api/modeling/translations')({
         const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : undefined;
         const units = buildModelTranslationUnits(model);
         const catalog = buildModelTranslationCatalogFromUnits(units);
-        let existing = readModelTranslations({ workspaceId, sourceHash, locale });
-        const reusable = body.regenerate
-          ? {}
-          : readReusableModelTranslations(
-              { workspaceId, sourceHash, locale },
-              catalog.sourceTexts.filter((sourceText) => !existing[sourceText])
-            );
-        if (Object.keys(reusable).length > 0) {
-          upsertModelTranslations({
-            workspaceId,
-            sourceHash,
-            locale,
-            translations: reusable,
-            provider: 'local',
-            model: 'historical-reuse'
-          });
-          existing = {
-            ...existing,
-            ...reusable
-          };
-        }
+        const resolvedExisting = readResolvedModelTranslations(
+          { workspaceId, sourceHash, locale },
+          catalog.sourceTexts,
+          {
+            includeReusable: !body.regenerate,
+            includeDocuments: !body.regenerate
+          }
+        );
+        const existing = resolvedExisting.translations;
+        const reused = body.regenerate ? 0 : resolvedExisting.reused;
         const missingSourceTexts = body.regenerate
           ? catalog.sourceTexts
           : catalog.sourceTexts.filter((sourceText) => !existing[sourceText]);
@@ -212,7 +208,7 @@ export const Route = createFileRoute('/api/modeling/translations')({
             requested: missingSourceTexts.length,
             units: unitsToProcess.length,
             generated: Object.keys(generated).length,
-            reused: Object.keys(reusable).length
+            reused
           });
         }
 
@@ -235,7 +231,8 @@ export const Route = createFileRoute('/api/modeling/translations')({
           sourceHash,
           total: catalog.sourceTexts.length,
           translated: Object.keys(translations).length,
-          reused: Object.keys(reusable).length,
+          reused,
+          document: resolvedExisting.document,
           missing: catalog.sourceTexts.filter((sourceText) => !translations[sourceText]),
           pendingGroups: pendingUnitSummaries,
           pendingUnits: pendingUnitSummaries,
@@ -260,6 +257,15 @@ function translationBatchSize(): number {
   const value = raw ? Number.parseInt(raw, 10) : defaultTranslationBatchSize;
   return Number.isFinite(value) && value > 0 ? value : defaultTranslationBatchSize;
 }
+
+const readWorkspaceTranslationSourceTexts = (workspaceId: string | undefined): string[] => {
+  if (!workspaceId) return [];
+  const workspace = readModelingWorkspace(workspaceId);
+  if (!workspace?.dsl) return [];
+  const model = parseMedol(workspace.dsl);
+  if (model.diagnostics.length > 0) return [];
+  return buildModelTranslationCatalogFromUnits(buildModelTranslationUnits(model)).sourceTexts;
+};
 
 function nonNegativeInteger(value: unknown): number | undefined {
   if (typeof value !== 'number' && typeof value !== 'string') return undefined;

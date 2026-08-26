@@ -13,6 +13,7 @@ import {
 } from './documentationTranslation';
 import {
   buildModelTranslationUnits,
+  parseModelTranslationMarkdown,
   renderModelTranslationMarkdown
 } from '../model-i18n/modelTranslation';
 import { normalizeModelTranslationResponse } from '../model-i18n/modelTranslationProvider';
@@ -217,6 +218,25 @@ test('renders locatable model translation markdown', () => {
   assert.match(markdown, /<!-- em:section id="model-i18n\.slice\.slice_slice_register" source="slice\/register" -->/);
   assert.match(markdown, /\| Register Account \| 注册账户 \| 已翻译 \|/);
   assert.match(markdown, /\| Email already exists \| - \| 待翻译 \|/);
+});
+
+test('parses edited model translation markdown back into source translations', () => {
+  const markdown = [
+    '# 模型国际化术语表',
+    '',
+    '| 原文 | 译文 | 状态 |',
+    '| --- | --- | --- |',
+    '| Active Member Count | 活跃成员数 | 已翻译 |',
+    '| Rule with \\| separator | 包含\\|分隔符的规则 | 已翻译 |',
+    '| Windows Path | C:\\Temp\\Demo | 已翻译 |',
+    '| Pending Item | - | 待翻译 |'
+  ].join('\n');
+
+  assert.deepEqual(parseModelTranslationMarkdown(markdown), {
+    'Active Member Count': '活跃成员数',
+    'Rule with | separator': '包含|分隔符的规则',
+    'Windows Path': 'C:\\Temp\\Demo'
+  });
 });
 
 test('hides internal document comments from rendered markdown', () => {
