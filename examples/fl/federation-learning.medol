@@ -2071,7 +2071,7 @@ context ModelRepository {
 context TrainingOrchestration {
   note "Training orchestration owns job intent, participant eligibility, runtime dispatch, and each round of distributed training and evaluation."
 
-  risk "Training can stall when started participant runtimes fall below quorum or when secure aggregation is requested before enough evaluated updates exist."
+  risk "Training can stall when started participant runtimes fall below quorum or when secure aggregation context preparation fails before execution plans are dispatched."
   risk "Poisoned local updates can degrade the global model if anomaly checks are not modeled as a first class decision."
   metric nodeDropoutRate
   metric roundCompletionLatency
@@ -2081,6 +2081,7 @@ context TrainingOrchestration {
     source TrainingRound
     target SecureAggregationService
     reactsTo SecureAggregationRequested
+    emits PrepareHomomorphicEncryptionContext
     emits CompleteHomomorphicAggregationSession
   }
 
@@ -2836,6 +2837,7 @@ context TrainingOrchestration {
       roundId: UUID
       roundNumber: Int
       minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
       selectedOrganizationIds: UUID[]
       selectedRuntimeIds: UUID[]
       selectedParticipants: TrainingRoundParticipant[]
@@ -2850,6 +2852,7 @@ context TrainingOrchestration {
       roundId: UUID
       roundNumber: Int
       minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
       selectedOrganizationIds: UUID[]
       selectedRuntimeIds: UUID[]
       selectedParticipants: TrainingRoundParticipant[]
@@ -2924,26 +2927,72 @@ context TrainingOrchestration {
 
   slice StartTrainingRound {
     reactsTo TrainingRoundParticipantsSelected
+    reactsTo HomomorphicEncryptionContextPrepared
     port
 
-    automation StartRoundWhenParticipantsSelected {
+    automation StartRoundWhenParticipantsSelectedWithoutSecureAggregation {
       on TrainingRoundParticipantsSelected
+      condition secureAggregationRequired == false
+      emits StartTrainingRound
+    }
+
+    automation StartRoundWhenEncryptionContextPrepared {
+      on HomomorphicEncryptionContextPrepared
       condition selectedRuntimeCount >= minimumNodesPerRound
       emits StartTrainingRound
     }
 
     command StartTrainingRound {
-      trainingJobId: UUID id technical from TrainingRoundParticipantsSelected.trainingJobId
-      trainingRunConfigurationId: UUID from TrainingRoundParticipantsSelected.trainingRunConfigurationId
-      featureSchemaId: UUID from TrainingRoundParticipantsSelected.featureSchemaId
-      roundId: UUID from TrainingRoundParticipantsSelected.roundId
-      roundNumber: Int from TrainingRoundParticipantsSelected.roundNumber
-      selectedOrganizationIds: UUID[] from TrainingRoundParticipantsSelected.selectedOrganizationIds
-      selectedRuntimeIds: UUID[] from TrainingRoundParticipantsSelected.selectedRuntimeIds
-      selectedParticipants: TrainingRoundParticipant[] from TrainingRoundParticipantsSelected.selectedParticipants
-      selectedOrganizationCount: Int from TrainingRoundParticipantsSelected.selectedOrganizationCount
-      selectedRuntimeCount: Int from TrainingRoundParticipantsSelected.selectedRuntimeCount
-      minimumNodesPerRound: Int from TrainingRoundParticipantsSelected.minimumNodesPerRound
+      trainingJobId: UUID id technical derived {
+        from TrainingRoundParticipantsSelected.trainingJobId, HomomorphicEncryptionContextPrepared.trainingJobId
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      trainingRunConfigurationId: UUID derived {
+        from TrainingRoundParticipantsSelected.trainingRunConfigurationId, HomomorphicEncryptionContextPrepared.trainingRunConfigurationId
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      featureSchemaId: UUID derived {
+        from TrainingRoundParticipantsSelected.featureSchemaId, HomomorphicEncryptionContextPrepared.featureSchemaId
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      roundId: UUID derived {
+        from TrainingRoundParticipantsSelected.roundId, HomomorphicEncryptionContextPrepared.roundId
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      roundNumber: Int derived {
+        from TrainingRoundParticipantsSelected.roundNumber, HomomorphicEncryptionContextPrepared.roundNumber
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      selectedOrganizationIds: UUID[] derived {
+        from TrainingRoundParticipantsSelected.selectedOrganizationIds, HomomorphicEncryptionContextPrepared.selectedOrganizationIds
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      selectedRuntimeIds: UUID[] derived {
+        from TrainingRoundParticipantsSelected.selectedRuntimeIds, HomomorphicEncryptionContextPrepared.selectedRuntimeIds
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      selectedParticipants: TrainingRoundParticipant[] derived from TrainingRoundParticipantsSelected.selectedParticipants by roundId
+      selectedOrganizationCount: Int derived {
+        from TrainingRoundParticipantsSelected.selectedOrganizationCount, HomomorphicEncryptionContextPrepared.selectedOrganizationCount
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      selectedRuntimeCount: Int derived {
+        from TrainingRoundParticipantsSelected.selectedRuntimeCount, HomomorphicEncryptionContextPrepared.selectedRuntimeCount
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      minimumNodesPerRound: Int derived {
+        from TrainingRoundParticipantsSelected.minimumNodesPerRound, HomomorphicEncryptionContextPrepared.minimumNodesPerRound
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      secureAggregationRequired: Boolean derived {
+        from TrainingRoundParticipantsSelected.secureAggregationRequired, HomomorphicEncryptionContextPrepared.secureAggregationRequired
+        rule "Plaintext rounds use false from participant selection; secure aggregation rounds use true from the prepared encryption context."
+      }
+      secureAggregationSessionId: UUID? from HomomorphicEncryptionContextPrepared.secureAggregationSessionId
+      encryptionScheme: String? from HomomorphicEncryptionContextPrepared.encryptionScheme
+      publicKeyVersion: String? from HomomorphicEncryptionContextPrepared.publicKeyVersion
+      publicKeyRef: String? from HomomorphicEncryptionContextPrepared.publicKeyRef
+      encryptedParameterScale: Int? from HomomorphicEncryptionContextPrepared.encryptedParameterScale
     }
 
     event TrainingRoundStarted {
@@ -2958,6 +3007,12 @@ context TrainingOrchestration {
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
     }
 
     event TrainingRoundStartFailed {
@@ -2972,6 +3027,12 @@ context TrainingOrchestration {
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
       failureReason: String
     }
 
@@ -2983,13 +3044,6 @@ context TrainingOrchestration {
       """
 
       scenario "Start Round With Selected Runtime Quorum" {
-        given TrainingRoundParticipantsSelected {
-          trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-          roundId = "round-1"
-          selectedRuntimeCount = 3
-          minimumNodesPerRound = 3
-        }
         when StartTrainingRound {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
@@ -3000,13 +3054,6 @@ context TrainingOrchestration {
       }
 
       scenario "Record Failed Round Start Below Quorum" {
-        given TrainingRoundParticipantsSelected {
-          trainingJobId = "job-1"
-          trainingRunConfigurationId = "config-1"
-          roundId = "round-1"
-          selectedRuntimeCount = 2
-          minimumNodesPerRound = 3
-        }
         when StartTrainingRound {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
@@ -3063,6 +3110,12 @@ context TrainingOrchestration {
         from TrainingRunConfiguration.initialModelSignatureUri, TrainingRoundCompleted.aggregatedModelSignatureUri
         rule "Snapshot the optional signature URI for the base model used by this participant execution plan."
       }
+      secureAggregationRequired: Boolean from TrainingRoundStarted.secureAggregationRequired
+      secureAggregationSessionId: UUID? from TrainingRoundStarted.secureAggregationSessionId
+      encryptionScheme: String? from TrainingRoundStarted.encryptionScheme
+      publicKeyVersion: String? from TrainingRoundStarted.publicKeyVersion
+      publicKeyRef: String? from TrainingRoundStarted.publicKeyRef
+      encryptedParameterScale: Int? from TrainingRoundStarted.encryptedParameterScale
     }
 
     event ParticipantExecutionPlanGenerated {
@@ -3081,6 +3134,12 @@ context TrainingOrchestration {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
     }
 
     state PlanGenerated
@@ -3148,6 +3207,12 @@ context TrainingOrchestration {
       baseModelFormat: String from ParticipantExecutionPlanGenerated.baseModelFormat
       baseModelArtifactDigest: String from ParticipantExecutionPlanGenerated.baseModelArtifactDigest
       baseModelSignatureUri: String? from ParticipantExecutionPlanGenerated.baseModelSignatureUri
+      secureAggregationRequired: Boolean from ParticipantExecutionPlanGenerated.secureAggregationRequired
+      secureAggregationSessionId: UUID? from ParticipantExecutionPlanGenerated.secureAggregationSessionId
+      encryptionScheme: String? from ParticipantExecutionPlanGenerated.encryptionScheme
+      publicKeyVersion: String? from ParticipantExecutionPlanGenerated.publicKeyVersion
+      publicKeyRef: String? from ParticipantExecutionPlanGenerated.publicKeyRef
+      encryptedParameterScale: Int? from ParticipantExecutionPlanGenerated.encryptedParameterScale
     }
 
     event ParticipantExecutionPlanDispatched {
@@ -3166,6 +3231,12 @@ context TrainingOrchestration {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
     }
 
     state PlanDispatched
@@ -3185,10 +3256,15 @@ context TrainingOrchestration {
       roundExecutionId: UUID from AgentLocalModelUpdateSubmitted.roundExecutionId
       runtimeId: UUID from AgentLocalModelUpdateSubmitted.runtimeId
       featureSchemaId: UUID
+      secureAggregationRequired: Boolean from AgentLocalModelUpdateSubmitted.secureAggregationRequired
+      secureAggregationSessionId: UUID? from AgentLocalModelUpdateSubmitted.secureAggregationSessionId
+      encryptionScheme: String? from AgentLocalModelUpdateSubmitted.encryptionScheme
+      publicKeyVersion: String? from AgentLocalModelUpdateSubmitted.publicKeyVersion
       localModelId: UUID
       updateArtifactId: UUID
       artifactRef: String
       artifactDigest: String
+      updateProtectionType: String from AgentLocalModelUpdateSubmitted.updateProtectionType
       trainingLoss: Decimal
     }
 
@@ -3202,10 +3278,15 @@ context TrainingOrchestration {
       roundExecutionId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
       localModelId: UUID
       updateArtifactId: UUID
       artifactRef: String
       artifactDigest: String
+      updateProtectionType: String dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       trainingLoss: Decimal
     }
 
@@ -3229,6 +3310,14 @@ context TrainingOrchestration {
       roundId: UUID from ModelUpdateSubmissionReceived.roundId
       runtimeId: UUID from ModelUpdateSubmissionReceived.runtimeId
       featureSchemaId: UUID from ModelUpdateSubmissionReceived.featureSchemaId
+      secureAggregationRequired: Boolean from ModelUpdateSubmissionReceived.secureAggregationRequired
+      secureAggregationSessionId: UUID? from ModelUpdateSubmissionReceived.secureAggregationSessionId
+      encryptionScheme: String? from ModelUpdateSubmissionReceived.encryptionScheme
+      publicKeyVersion: String? from ModelUpdateSubmissionReceived.publicKeyVersion
+      updateArtifactId: UUID from ModelUpdateSubmissionReceived.updateArtifactId
+      artifactRef: String from ModelUpdateSubmissionReceived.artifactRef
+      artifactDigest: String from ModelUpdateSubmissionReceived.artifactDigest
+      updateProtectionType: String from ModelUpdateSubmissionReceived.updateProtectionType
       anomalyScore: Decimal generated technical
     }
 
@@ -3241,10 +3330,22 @@ context TrainingOrchestration {
       roundId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      updateArtifactId: UUID
+      artifactRef: String
+      artifactDigest: String
+      updateProtectionType: String dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       anomalyScore: Decimal
-      acceptedModelUpdateCount: Int
-      acceptedRuntimeIds: UUID[]
-      minimumNodesPerRound: Int
+      acceptedModelUpdateCount: Int derived from ModelUpdateSubmissionAccepted.acceptedRuntimeIds, EvaluateModelUpdateSubmission.runtimeId {
+        rule "count(appendDistinct(ModelUpdateSubmissionAccepted.acceptedRuntimeIds, EvaluateModelUpdateSubmission.runtimeId))"
+      }
+      acceptedRuntimeIds: UUID[] derived from ModelUpdateSubmissionAccepted.acceptedRuntimeIds, EvaluateModelUpdateSubmission.runtimeId {
+        rule "appendDistinct(ModelUpdateSubmissionAccepted.acceptedRuntimeIds, EvaluateModelUpdateSubmission.runtimeId)"
+      }
+      minimumNodesPerRound: Int from TrainingRoundStarted.minimumNodesPerRound
     }
 
     event ModelUpdateSubmissionRejected {
@@ -3262,8 +3363,35 @@ context TrainingOrchestration {
 
     specification "Poisoned Local Updates Are Excluded" {
       rule """
-        A local model update is evaluated exactly once by aggregation policy. The same evaluation command records ModelUpdateSubmissionAccepted when the update passes policy, or ModelUpdateSubmissionRejected when anomaly checks fail. ModelUpdateSubmissionAccepted carries the cumulative accepted runtime snapshot for the round so downstream secure aggregation automation can copy complete replayable data from the event.
+        A runtime agent submits only the protected model update artifact for secure aggregation rounds. The platform evaluates the submitted metadata, digest, protection type, participant identity, and anomaly signal without receiving plaintext model parameters. ModelUpdateSubmissionAccepted carries the cumulative accepted runtime snapshot for the round so downstream secure aggregation automation can count encrypted updates and complete aggregation. Anomalous update rejection remains an explicit business rule and should be wired to ModelUpdateSubmissionRejected after the anomaly scoring policy is modeled as a conditional decision or port-backed adapter.
       """
+
+      expression {
+        assert EvaluateModelUpdateSubmission.anomalyScore < 0.95
+      }
+
+      scenario "Accept Normal Update" {
+        given TrainingRoundStarted {
+          trainingJobId = "job-1"
+          trainingRunConfigurationId = "config-1"
+          roundId = "round-1"
+          selectedRuntimeCount = 2
+          minimumNodesPerRound = 2
+        }
+        given ModelUpdateSubmissionReceived {
+          modelUpdateSubmissionId = "submission-1"
+          roundId = "round-1"
+          runtimeId = "runtime-1"
+          updateArtifactId = "artifact-1"
+          trainingLoss = 0.23
+        }
+        when EvaluateModelUpdateSubmission {
+          modelUpdateSubmissionId = "submission-1"
+          runtimeId = "runtime-1"
+          anomalyScore = 0.12
+        }
+        then ModelUpdateSubmissionAccepted
+      }
 
       scenario "Reject Anomalous Update" {
         given ModelUpdateSubmissionReceived {
@@ -3277,27 +3405,33 @@ context TrainingOrchestration {
           modelUpdateSubmissionId = "submission-1"
           anomalyScore = 0.98
         }
-        then ModelUpdateSubmissionRejected
+        then reject "Anomalous Model Update Rejected"
       }
     }
   }
 
   slice RequestSecureAggregation {
-    reactsTo ModelUpdateSubmissionAccepted
+    reactsTo TrainingRoundParticipantsSelected
 
-    automation RequestAggregationWhenEvaluatedUpdatesComplete {
-      condition acceptedModelUpdateCount >= minimumNodesPerRound
+    automation RequestAggregationWhenParticipantsSelected {
+      on TrainingRoundParticipantsSelected
+      condition secureAggregationRequired == true
       emits RequestSecureAggregation
     }
 
     command RequestSecureAggregation {
-      trainingJobId: UUID id technical from ModelUpdateSubmissionAccepted.trainingJobId
-      trainingRunConfigurationId: UUID from ModelUpdateSubmissionAccepted.trainingRunConfigurationId
-      featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
-      roundId: UUID from ModelUpdateSubmissionAccepted.roundId
-      acceptedModelUpdateCount: Int from ModelUpdateSubmissionAccepted.acceptedModelUpdateCount
-      acceptedRuntimeIds: UUID[] from ModelUpdateSubmissionAccepted.acceptedRuntimeIds
-      minimumNodesPerRound: Int from ModelUpdateSubmissionAccepted.minimumNodesPerRound
+      trainingJobId: UUID id technical from TrainingRoundParticipantsSelected.trainingJobId
+      trainingRunConfigurationId: UUID from TrainingRoundParticipantsSelected.trainingRunConfigurationId
+      featureSchemaId: UUID from TrainingRoundParticipantsSelected.featureSchemaId
+      roundId: UUID from TrainingRoundParticipantsSelected.roundId
+      roundNumber: Int from TrainingRoundParticipantsSelected.roundNumber
+      requiredParticipantCount: Int from TrainingRoundParticipantsSelected.selectedRuntimeCount
+      selectedOrganizationIds: UUID[] from TrainingRoundParticipantsSelected.selectedOrganizationIds
+      selectedRuntimeIds: UUID[] from TrainingRoundParticipantsSelected.selectedRuntimeIds
+      selectedOrganizationCount: Int from TrainingRoundParticipantsSelected.selectedOrganizationCount
+      selectedRuntimeCount: Int from TrainingRoundParticipantsSelected.selectedRuntimeCount
+      minimumNodesPerRound: Int from TrainingRoundParticipantsSelected.minimumNodesPerRound
+      secureAggregationRequired: Boolean from TrainingRoundParticipantsSelected.secureAggregationRequired
     }
 
     event SecureAggregationRequested {
@@ -3305,9 +3439,14 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
-      acceptedModelUpdateCount: Int
-      acceptedRuntimeIds: UUID[]
+      roundNumber: Int
+      requiredParticipantCount: Int
+      selectedOrganizationIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedOrganizationCount: Int
+      selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
     }
 
     state Aggregating
@@ -3321,6 +3460,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID from SecureAggregationCompleted.trainingRunConfigurationId
       featureSchemaId: UUID from SecureAggregationCompleted.featureSchemaId
       roundId: UUID from SecureAggregationCompleted.roundId
+      roundNumber: Int from SecureAggregationCompleted.roundNumber
       secureAggregationSessionId: UUID from SecureAggregationCompleted.secureAggregationSessionId
       aggregatedModelId: UUID from SecureAggregationCompleted.aggregatedModelId
       aggregatedModelArtifactUri: String from SecureAggregationCompleted.aggregatedModelArtifactUri
@@ -3335,6 +3475,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int
       secureAggregationSessionId: UUID
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String
@@ -3355,6 +3496,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int from GlobalModelUpdated.roundNumber
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String from GlobalModelUpdated.aggregatedModelArtifactUri
       aggregatedModelRegistryRef: String from GlobalModelUpdated.aggregatedModelRegistryRef
@@ -3370,6 +3512,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
@@ -3394,6 +3537,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int from GlobalModelEvaluationSubmitted.roundNumber
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String from GlobalModelEvaluationSubmitted.aggregatedModelArtifactUri
       aggregatedModelRegistryRef: String from GlobalModelEvaluationSubmitted.aggregatedModelRegistryRef
@@ -3408,6 +3552,7 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
@@ -4587,8 +4732,14 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID from SecureAggregationRequested.trainingRunConfigurationId
       featureSchemaId: UUID from SecureAggregationRequested.featureSchemaId
       roundId: UUID from SecureAggregationRequested.roundId
-      requiredParticipantCount: Int from SecureAggregationRequested.acceptedModelUpdateCount
-      acceptedRuntimeIds: UUID[] from SecureAggregationRequested.acceptedRuntimeIds
+      roundNumber: Int from SecureAggregationRequested.roundNumber
+      requiredParticipantCount: Int from SecureAggregationRequested.requiredParticipantCount
+      selectedOrganizationIds: UUID[] from SecureAggregationRequested.selectedOrganizationIds
+      selectedRuntimeIds: UUID[] from SecureAggregationRequested.selectedRuntimeIds
+      selectedOrganizationCount: Int from SecureAggregationRequested.selectedOrganizationCount
+      selectedRuntimeCount: Int from SecureAggregationRequested.selectedRuntimeCount
+      minimumNodesPerRound: Int from SecureAggregationRequested.minimumNodesPerRound
+      secureAggregationRequired: Boolean from SecureAggregationRequested.secureAggregationRequired
     }
 
     event SecureAggregationSessionCreated {
@@ -4597,8 +4748,14 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int
       requiredParticipantCount: Int
-      acceptedRuntimeIds: UUID[]
+      selectedOrganizationIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedOrganizationCount: Int
+      selectedRuntimeCount: Int
+      minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
     }
 
     state Planned
@@ -4616,17 +4773,31 @@ context SecureAggregation {
     command SelectSecureAggregationParticipants {
       secureAggregationSessionId: UUID id technical
       roundId: UUID from SecureAggregationSessionCreated.roundId
-      acceptedRuntimeIds: UUID[] from SecureAggregationSessionCreated.acceptedRuntimeIds
-      selectedRuntimeIds: UUID[] from SecureAggregationSessionCreated.acceptedRuntimeIds
+      trainingJobId: UUID from SecureAggregationSessionCreated.trainingJobId
+      trainingRunConfigurationId: UUID from SecureAggregationSessionCreated.trainingRunConfigurationId
+      featureSchemaId: UUID from SecureAggregationSessionCreated.featureSchemaId
+      roundNumber: Int from SecureAggregationSessionCreated.roundNumber
+      selectedOrganizationIds: UUID[] from SecureAggregationSessionCreated.selectedOrganizationIds
+      selectedRuntimeIds: UUID[] from SecureAggregationSessionCreated.selectedRuntimeIds
+      selectedOrganizationCount: Int from SecureAggregationSessionCreated.selectedOrganizationCount
       selectedParticipantCount: Int from SecureAggregationSessionCreated.requiredParticipantCount
+      minimumNodesPerRound: Int from SecureAggregationSessionCreated.minimumNodesPerRound
+      secureAggregationRequired: Boolean from SecureAggregationSessionCreated.secureAggregationRequired
     }
 
     event SecureAggregationParticipantsSelected {
       secureAggregationSessionId: UUID id technical
       roundId: UUID
-      acceptedRuntimeIds: UUID[]
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundNumber: Int
+      selectedOrganizationIds: UUID[]
       selectedRuntimeIds: UUID[]
+      selectedOrganizationCount: Int
       selectedParticipantCount: Int
+      minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
     }
 
     state ParticipantsSelected
@@ -4644,18 +4815,38 @@ context SecureAggregation {
 
     command PrepareHomomorphicEncryptionContext {
       secureAggregationSessionId: UUID id technical
-      // PAILLIER
-      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
-      publicKeyVersion: String
-      // 浮点参数转整数再加密时使用的缩放倍数/精度约定
-      encryptedParameterScale: Int
+      trainingJobId: UUID from SecureAggregationParticipantsSelected.trainingJobId
+      trainingRunConfigurationId: UUID from SecureAggregationParticipantsSelected.trainingRunConfigurationId
+      featureSchemaId: UUID from SecureAggregationParticipantsSelected.featureSchemaId
+      roundId: UUID from SecureAggregationParticipantsSelected.roundId
+      roundNumber: Int from SecureAggregationParticipantsSelected.roundNumber
+      selectedOrganizationIds: UUID[] from SecureAggregationParticipantsSelected.selectedOrganizationIds
+      selectedRuntimeIds: UUID[] from SecureAggregationParticipantsSelected.selectedRuntimeIds
+      selectedOrganizationCount: Int from SecureAggregationParticipantsSelected.selectedOrganizationCount
+      selectedRuntimeCount: Int from SecureAggregationParticipantsSelected.selectedParticipantCount
+      minimumNodesPerRound: Int from SecureAggregationParticipantsSelected.minimumNodesPerRound
+      secureAggregationRequired: Boolean from SecureAggregationParticipantsSelected.secureAggregationRequired
     }
 
     event HomomorphicEncryptionContextPrepared {
       secureAggregationSessionId: UUID id technical
-      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
-      publicKeyVersion: String
-      encryptedParameterScale: Int
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
+      roundNumber: Int
+      selectedOrganizationIds: UUID[]
+      selectedRuntimeIds: UUID[]
+      selectedOrganizationCount: Int
+      selectedRuntimeCount: Int
+      minimumNodesPerRound: Int
+      secureAggregationRequired: Boolean
+      // PAILLIER
+      encryptionScheme: String portOutput
+      publicKeyVersion: String portOutput
+      publicKeyRef: String portOutput
+      // 浮点参数转整数再加密时使用的缩放倍数/精度约定
+      encryptedParameterScale: Int portOutput
     }
 
     state EncryptionContextPrepared
@@ -4665,18 +4856,40 @@ context SecureAggregation {
     actor SecureAggregationService
     reactsTo ModelUpdateSubmissionAccepted
 
+    automation RecordEncryptedUpdateWhenSubmissionAccepted {
+      on ModelUpdateSubmissionAccepted
+      condition updateProtectionType == "HOMOMORPHIC_ENCRYPTED"
+      emits RecordEncryptedModelUpdate
+    }
+
     command RecordEncryptedModelUpdate {
-      secureAggregationSessionId: UUID id technical
-      submissionId: UUID
-      runtimeId: UUID
-      encryptedUpdateDigest: String
+      secureAggregationSessionId: UUID id technical from ModelUpdateSubmissionAccepted.secureAggregationSessionId
+      submissionId: UUID from ModelUpdateSubmissionAccepted.modelUpdateSubmissionId
+      trainingJobId: UUID from ModelUpdateSubmissionAccepted.trainingJobId
+      trainingRunConfigurationId: UUID from ModelUpdateSubmissionAccepted.trainingRunConfigurationId
+      featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
+      roundId: UUID from ModelUpdateSubmissionAccepted.roundId
+      runtimeId: UUID from ModelUpdateSubmissionAccepted.runtimeId
+      updateArtifactId: UUID from ModelUpdateSubmissionAccepted.updateArtifactId
+      encryptedUpdateArtifactRef: String from ModelUpdateSubmissionAccepted.artifactRef
+      encryptedUpdateDigest: String from ModelUpdateSubmissionAccepted.artifactDigest
+      encryptionScheme: String from ModelUpdateSubmissionAccepted.encryptionScheme
+      publicKeyVersion: String from ModelUpdateSubmissionAccepted.publicKeyVersion
     }
 
     event EncryptedModelUpdateReceived {
       secureAggregationSessionId: UUID id technical
       submissionId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
       runtimeId: UUID
+      updateArtifactId: UUID
+      encryptedUpdateArtifactRef: String
       encryptedUpdateDigest: String
+      encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String
     }
   }
 
@@ -4697,6 +4910,7 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID from SecureAggregationSessionCreated.trainingRunConfigurationId
       featureSchemaId: UUID from SecureAggregationSessionCreated.featureSchemaId
       roundId: UUID from SecureAggregationSessionCreated.roundId
+      roundNumber: Int from SecureAggregationSessionCreated.roundNumber
       aggregatedModelId: UUID generated technical
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
@@ -4711,6 +4925,7 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
@@ -4746,14 +4961,18 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int
       requiredParticipantCount: Int
-      acceptedRuntimeIds: UUID[]
+      selectedOrganizationIds: UUID[]
       selectedRuntimeIds: UUID[]
+      selectedOrganizationCount: Int?
+      selectedRuntimeCount: Int?
       selectedParticipantCount: Int?
       encryptionContextPrepared: Boolean
       receivedEncryptedUpdateCount: Int
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
       publicKeyVersion: String?
+      publicKeyRef: String?
       encryptedParameterScale: Int?
       aggregatedModelId: UUID?
       modelFormat: String?
@@ -5835,6 +6054,12 @@ context RuntimeAgentOperations {
       baseModelFormat: String from ParticipantExecutionPlanDispatched.baseModelFormat
       baseModelArtifactDigest: String from ParticipantExecutionPlanDispatched.baseModelArtifactDigest
       baseModelSignatureUri: String? from ParticipantExecutionPlanDispatched.baseModelSignatureUri
+      secureAggregationRequired: Boolean from ParticipantExecutionPlanDispatched.secureAggregationRequired
+      secureAggregationSessionId: UUID? from ParticipantExecutionPlanDispatched.secureAggregationSessionId
+      encryptionScheme: String? from ParticipantExecutionPlanDispatched.encryptionScheme
+      publicKeyVersion: String? from ParticipantExecutionPlanDispatched.publicKeyVersion
+      publicKeyRef: String? from ParticipantExecutionPlanDispatched.publicKeyRef
+      encryptedParameterScale: Int? from ParticipantExecutionPlanDispatched.encryptedParameterScale
     }
 
     event ExecutionPlanReceived {
@@ -5853,6 +6078,12 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
     }
 
     state PlanReceived
@@ -5883,6 +6114,12 @@ context RuntimeAgentOperations {
       baseModelFormat: String from ExecutionPlanReceived.baseModelFormat
       baseModelArtifactDigest: String from ExecutionPlanReceived.baseModelArtifactDigest
       baseModelSignatureUri: String? from ExecutionPlanReceived.baseModelSignatureUri
+      secureAggregationRequired: Boolean from ExecutionPlanReceived.secureAggregationRequired
+      secureAggregationSessionId: UUID? from ExecutionPlanReceived.secureAggregationSessionId
+      encryptionScheme: String? from ExecutionPlanReceived.encryptionScheme
+      publicKeyVersion: String? from ExecutionPlanReceived.publicKeyVersion
+      publicKeyRef: String? from ExecutionPlanReceived.publicKeyRef
+      encryptedParameterScale: Int? from ExecutionPlanReceived.encryptedParameterScale
     }
 
     event ExecutionPlanAccepted {
@@ -5901,6 +6138,12 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
       localExecutionRequirementsSatisfied: Boolean
       runtimeIdentityMatched: Boolean
       runtimeDatasetBindingAvailable: Boolean
@@ -5927,6 +6170,12 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
       localExecutionRequirementsSatisfied: Boolean
       runtimeIdentityMatched: Boolean
       runtimeDatasetBindingAvailable: Boolean
@@ -5993,6 +6242,12 @@ context RuntimeAgentOperations {
       baseModelFormat: String from ExecutionPlanAccepted.baseModelFormat
       baseModelArtifactDigest: String from ExecutionPlanAccepted.baseModelArtifactDigest
       baseModelSignatureUri: String? from ExecutionPlanAccepted.baseModelSignatureUri
+      secureAggregationRequired: Boolean from ExecutionPlanAccepted.secureAggregationRequired
+      secureAggregationSessionId: UUID? from ExecutionPlanAccepted.secureAggregationSessionId
+      encryptionScheme: String? from ExecutionPlanAccepted.encryptionScheme
+      publicKeyVersion: String? from ExecutionPlanAccepted.publicKeyVersion
+      publicKeyRef: String? from ExecutionPlanAccepted.publicKeyRef
+      encryptedParameterScale: Int? from ExecutionPlanAccepted.encryptedParameterScale
     }
 
     event RoundExecutionStarted {
@@ -6012,6 +6267,12 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
       runtimeEngineJobId: String portOutput
     }
 
@@ -6032,6 +6293,12 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
+      publicKeyRef: String?
+      encryptedParameterScale: Int?
       runtimeEngineJobId: String?
       failureReason: String
     }
@@ -6041,6 +6308,7 @@ context RuntimeAgentOperations {
     specification "Round Execution Runtime Engine Start Outcome" {
       rule """
         Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.
+        When secureAggregationRequired is true, StartRoundExecution must pass encryptionScheme, publicKeyVersion, publicKeyRef, and encryptedParameterScale to the runtime engine so the local model update is encrypted inside the participant runtime boundary before any update artifact is reported to the platform.
       """
 
       scenario "Round Execution Started" {
@@ -6086,6 +6354,10 @@ context RuntimeAgentOperations {
       organizationId: UUID from RoundExecutionStarted.organizationId
       featureSchemaId: UUID from RoundExecutionStarted.featureSchemaId
       runtimeEngineJobId: String from RoundExecutionStarted.runtimeEngineJobId
+      secureAggregationRequired: Boolean from RoundExecutionStarted.secureAggregationRequired
+      secureAggregationSessionId: UUID? from RoundExecutionStarted.secureAggregationSessionId
+      encryptionScheme: String? from RoundExecutionStarted.encryptionScheme
+      publicKeyVersion: String? from RoundExecutionStarted.publicKeyVersion
     }
 
     event RuntimeEngineJobObserved {
@@ -6100,9 +6372,15 @@ context RuntimeAgentOperations {
       organizationId: UUID
       featureSchemaId: UUID
       runtimeEngineJobId: String
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
       observedStatus: String
       failureReason: String?
       localUpdateArtifactRef: String?
+      encryptedUpdateArtifactRef: String?
+      encryptedUpdateDigest: String?
       metricsArtifactRef: String?
       trainingLoss: Decimal?
     }
@@ -6112,6 +6390,7 @@ context RuntimeAgentOperations {
     specification "Runtime Engine Job Observation Outcome" {
       rule """
         Observing a runtime engine job is an external status check and must not advance or reset the RoundExecution lifecycle state. The adapter queries the runtime engine by runtimeEngineJobId and records RuntimeEngineJobObserved with observedStatus RUNNING, COMPLETED, or FAILED. Completion and failure domain state changes are triggered by follow-up automations instead of embedding runtime engine polling inside CompleteRoundExecution or FailRoundExecution.
+        When secure aggregation is required, the completed runtime engine observation must report an encrypted update artifact and digest. The platform must not receive or derive a plaintext local model update artifact for secure aggregation rounds.
       """
 
       scenario "Runtime Engine Job Observed Running" {
@@ -6167,7 +6446,13 @@ context RuntimeAgentOperations {
       organizationId: UUID from RuntimeEngineJobObserved.organizationId
       featureSchemaId: UUID from RuntimeEngineJobObserved.featureSchemaId
       runtimeEngineJobId: String from RuntimeEngineJobObserved.runtimeEngineJobId
+      secureAggregationRequired: Boolean from RuntimeEngineJobObserved.secureAggregationRequired
+      secureAggregationSessionId: UUID? from RuntimeEngineJobObserved.secureAggregationSessionId
+      encryptionScheme: String? from RuntimeEngineJobObserved.encryptionScheme
+      publicKeyVersion: String? from RuntimeEngineJobObserved.publicKeyVersion
       localUpdateArtifactRef: String? from RuntimeEngineJobObserved.localUpdateArtifactRef
+      encryptedUpdateArtifactRef: String? from RuntimeEngineJobObserved.encryptedUpdateArtifactRef
+      encryptedUpdateDigest: String? from RuntimeEngineJobObserved.encryptedUpdateDigest
       metricsArtifactRef: String? from RuntimeEngineJobObserved.metricsArtifactRef
       trainingLoss: Decimal? from RuntimeEngineJobObserved.trainingLoss
     }
@@ -6184,7 +6469,13 @@ context RuntimeAgentOperations {
       organizationId: UUID
       featureSchemaId: UUID
       runtimeEngineJobId: String
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
       localUpdateArtifactRef: String?
+      encryptedUpdateArtifactRef: String?
+      encryptedUpdateDigest: String?
       metricsArtifactRef: String?
       trainingLoss: Decimal?
     }
@@ -6368,10 +6659,15 @@ context RuntimeAgentOperations {
       roundId: UUID from RoundExecutionCompleted.roundId
       runtimeId: UUID from RoundExecutionCompleted.runtimeId
       featureSchemaId: UUID from RoundExecutionCompleted.featureSchemaId
+      secureAggregationRequired: Boolean from RoundExecutionCompleted.secureAggregationRequired
+      secureAggregationSessionId: UUID? from RoundExecutionCompleted.secureAggregationSessionId
+      encryptionScheme: String? from RoundExecutionCompleted.encryptionScheme
+      publicKeyVersion: String? from RoundExecutionCompleted.publicKeyVersion
       localModelId: UUID
       updateArtifactId: UUID
-      artifactRef: String from RoundExecutionCompleted.localUpdateArtifactRef
-      artifactDigest: String
+      artifactRef: String from RoundExecutionCompleted.encryptedUpdateArtifactRef
+      artifactDigest: String from RoundExecutionCompleted.encryptedUpdateDigest
+      updateProtectionType: String dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       trainingLoss: Decimal from RoundExecutionCompleted.trainingLoss
     }
 
@@ -6385,10 +6681,15 @@ context RuntimeAgentOperations {
       roundId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
+      secureAggregationRequired: Boolean
+      secureAggregationSessionId: UUID?
+      encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
+      publicKeyVersion: String?
       localModelId: UUID
       updateArtifactId: UUID
       artifactRef: String
       artifactDigest: String
+      updateProtectionType: String dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       trainingLoss: Decimal
     }
 
