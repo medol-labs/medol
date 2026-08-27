@@ -2971,7 +2971,6 @@ context TrainingOrchestration {
         from TrainingRoundParticipantsSelected.selectedRuntimeIds, HomomorphicEncryptionContextPrepared.selectedRuntimeIds
         rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
       }
-      selectedParticipants: TrainingRoundParticipant[] derived from TrainingRoundParticipantsSelected.selectedParticipants by roundId
       selectedOrganizationCount: Int derived {
         from TrainingRoundParticipantsSelected.selectedOrganizationCount, HomomorphicEncryptionContextPrepared.selectedOrganizationCount
         rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
@@ -3003,7 +3002,7 @@ context TrainingOrchestration {
       roundNumber: Int
       selectedOrganizationIds: UUID[]
       selectedRuntimeIds: UUID[]
-      selectedParticipants: TrainingRoundParticipant[]
+      selectedParticipants: TrainingRoundParticipant[] derived from TrainingRoundParticipantsSelected.selectedParticipants by roundId
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
@@ -3023,7 +3022,7 @@ context TrainingOrchestration {
       roundNumber: Int
       selectedOrganizationIds: UUID[]
       selectedRuntimeIds: UUID[]
-      selectedParticipants: TrainingRoundParticipant[]
+      selectedParticipants: TrainingRoundParticipant[] derived from TrainingRoundParticipantsSelected.selectedParticipants by roundId
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
@@ -3449,7 +3448,6 @@ context TrainingOrchestration {
       secureAggregationRequired: Boolean
     }
 
-    state Aggregating
   }
 
   slice CompleteSecureAggregation {
@@ -6381,6 +6379,9 @@ context RuntimeAgentOperations {
       localUpdateArtifactRef: String?
       encryptedUpdateArtifactRef: String?
       encryptedUpdateDigest: String?
+      modelUpdateArtifactRef: String?
+      modelUpdateArtifactDigest: String?
+      updateProtectionType: String? dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       metricsArtifactRef: String?
       trainingLoss: Decimal?
     }
@@ -6453,6 +6454,9 @@ context RuntimeAgentOperations {
       localUpdateArtifactRef: String? from RuntimeEngineJobObserved.localUpdateArtifactRef
       encryptedUpdateArtifactRef: String? from RuntimeEngineJobObserved.encryptedUpdateArtifactRef
       encryptedUpdateDigest: String? from RuntimeEngineJobObserved.encryptedUpdateDigest
+      modelUpdateArtifactRef: String? from RuntimeEngineJobObserved.modelUpdateArtifactRef
+      modelUpdateArtifactDigest: String? from RuntimeEngineJobObserved.modelUpdateArtifactDigest
+      updateProtectionType: String? from RuntimeEngineJobObserved.updateProtectionType
       metricsArtifactRef: String? from RuntimeEngineJobObserved.metricsArtifactRef
       trainingLoss: Decimal? from RuntimeEngineJobObserved.trainingLoss
     }
@@ -6476,6 +6480,9 @@ context RuntimeAgentOperations {
       localUpdateArtifactRef: String?
       encryptedUpdateArtifactRef: String?
       encryptedUpdateDigest: String?
+      modelUpdateArtifactRef: String?
+      modelUpdateArtifactDigest: String?
+      updateProtectionType: String? dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       metricsArtifactRef: String?
       trainingLoss: Decimal?
     }
@@ -6663,11 +6670,12 @@ context RuntimeAgentOperations {
       secureAggregationSessionId: UUID? from RoundExecutionCompleted.secureAggregationSessionId
       encryptionScheme: String? from RoundExecutionCompleted.encryptionScheme
       publicKeyVersion: String? from RoundExecutionCompleted.publicKeyVersion
+      runtimeEngineJobId: String from RoundExecutionCompleted.runtimeEngineJobId
       localModelId: UUID
       updateArtifactId: UUID
-      artifactRef: String from RoundExecutionCompleted.encryptedUpdateArtifactRef
-      artifactDigest: String from RoundExecutionCompleted.encryptedUpdateDigest
-      updateProtectionType: String dictionary "MODEL_UPDATE_PROTECTION_TYPE"
+      artifactRef: String from RoundExecutionCompleted.modelUpdateArtifactRef
+      artifactDigest: String from RoundExecutionCompleted.modelUpdateArtifactDigest
+      updateProtectionType: String from RoundExecutionCompleted.updateProtectionType
       trainingLoss: Decimal from RoundExecutionCompleted.trainingLoss
     }
 
@@ -6685,6 +6693,7 @@ context RuntimeAgentOperations {
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
       publicKeyVersion: String?
+      runtimeEngineJobId: String
       localModelId: UUID
       updateArtifactId: UUID
       artifactRef: String
@@ -6697,17 +6706,17 @@ context RuntimeAgentOperations {
   }
 
   slice ReleaseRuntimeEngineJobAfterCompletion {
-    reactsTo RoundExecutionCompleted
+    reactsTo AgentLocalModelUpdateSubmitted
     port
 
-    automation ReleaseRuntimeEngineJobWhenRoundExecutionCompleted {
-      on RoundExecutionCompleted
+    automation ReleaseRuntimeEngineJobWhenLocalModelUpdateSubmitted {
+      on AgentLocalModelUpdateSubmitted
       emits ReleaseRuntimeEngineJobAfterCompletion
     }
 
     command ReleaseRuntimeEngineJobAfterCompletion {
-      roundExecutionId: UUID id technical from RoundExecutionCompleted.roundExecutionId
-      runtimeEngineJobId: String from RoundExecutionCompleted.runtimeEngineJobId
+      roundExecutionId: UUID id technical from AgentLocalModelUpdateSubmitted.roundExecutionId
+      runtimeEngineJobId: String from AgentLocalModelUpdateSubmitted.runtimeEngineJobId
     }
 
     event RuntimeEngineJobReleased {
