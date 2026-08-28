@@ -34534,6 +34534,26 @@
               "portOutput": false
             },
             {
+              "name": "roundNumber",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "TrainingRoundStarted.roundNumber"
+                ]
+              }
+            },
+            {
               "name": "runtimeId",
               "type": "UUID",
               "cardinality": "Single",
@@ -35183,6 +35203,9 @@
                 },
                 {
                   "name": "roundId"
+                },
+                {
+                  "name": "roundNumber"
                 },
                 {
                   "name": "runtimeId",
@@ -36377,10 +36400,10 @@
               "elementType": "COMMAND"
             },
             {
-              "id": "command-92322789",
+              "id": "automation-372f67a6",
               "direction": "OUTBOUND",
-              "title": "Submit Global Model Evaluation",
-              "elementType": "COMMAND"
+              "title": "Submit Global Model Evaluation When Global Model Updated",
+              "elementType": "PROCESSOR"
             },
             {
               "id": "readmodel-b866abe9",
@@ -36411,6 +36434,7 @@
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
       "tags": [],
+      "port": true,
       "concepts": [
         "TrainingRound"
       ],
@@ -36612,42 +36636,14 @@
                   "GlobalModelUpdated.aggregatedModelSignatureUri"
                 ]
               }
-            },
-            {
-              "name": "globalAccuracy",
-              "type": "Decimal",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "globalFairnessScore",
-              "type": "Decimal",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
             }
           ],
           "dependencies": [
             {
-              "id": "event-4759d38f",
+              "id": "automation-372f67a6",
               "direction": "INBOUND",
-              "title": "Global Model Updated",
-              "elementType": "EVENT"
+              "title": "Submit Global Model Evaluation When Global Model Updated",
+              "elementType": "PROCESSOR"
             },
             {
               "id": "event-09a309cd",
@@ -36655,7 +36651,8 @@
               "title": "Global Model Evaluation Submitted",
               "elementType": "EVENT"
             }
-          ]
+          ],
+          "port": true
         }
       ],
       "events": [
@@ -36833,7 +36830,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             },
             {
               "name": "globalFairnessScore",
@@ -36847,7 +36844,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             }
           ],
           "dependencies": [
@@ -36874,7 +36871,36 @@
       ],
       "readmodels": [],
       "screens": [],
-      "processors": [],
+      "processors": [
+        {
+          "id": "automation-372f67a6",
+          "name": "SubmitGlobalModelEvaluationWhenGlobalModelUpdated",
+          "title": "Submit Global Model Evaluation When Global Model Updated",
+          "type": "PROCESSOR",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Submit Global Model Evaluation",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "event-4759d38f",
+              "direction": "INBOUND",
+              "title": "Global Model Updated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-92322789",
+              "direction": "OUTBOUND",
+              "title": "Submit Global Model Evaluation",
+              "elementType": "COMMAND"
+            }
+          ],
+          "metadata": {
+            "on": "GlobalModelUpdated",
+            "onKind": "event",
+            "emits": "SubmitGlobalModelEvaluation"
+          }
+        }
+      ],
       "specifications": [],
       "actors": [],
       "hotspots": []
@@ -48430,6 +48456,26 @@
               }
             },
             {
+              "name": "roundNumber",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.roundNumber"
+                ]
+              }
+            },
+            {
               "name": "runtimeId",
               "type": "UUID",
               "cardinality": "Single",
@@ -48660,6 +48706,20 @@
               "portOutput": false
             },
             {
+              "name": "roundNumber",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "runtimeId",
               "type": "UUID",
               "cardinality": "Single",
@@ -48861,7 +48921,7 @@
               "source": {
                 "kind": "direct",
                 "from": [
-                  "SecureAggregationSessionCreated.trainingJobId"
+                  "EncryptedModelUpdateReceived.trainingJobId"
                 ]
               }
             },
@@ -48881,7 +48941,7 @@
               "source": {
                 "kind": "direct",
                 "from": [
-                  "SecureAggregationSessionCreated.trainingRunConfigurationId"
+                  "EncryptedModelUpdateReceived.trainingRunConfigurationId"
                 ]
               }
             },
@@ -48901,7 +48961,7 @@
               "source": {
                 "kind": "direct",
                 "from": [
-                  "SecureAggregationSessionCreated.featureSchemaId"
+                  "EncryptedModelUpdateReceived.featureSchemaId"
                 ]
               }
             },
@@ -48921,7 +48981,7 @@
               "source": {
                 "kind": "direct",
                 "from": [
-                  "SecureAggregationSessionCreated.roundId"
+                  "EncryptedModelUpdateReceived.roundId"
                 ]
               }
             },
@@ -48941,7 +49001,7 @@
               "source": {
                 "kind": "direct",
                 "from": [
-                  "SecureAggregationSessionCreated.roundNumber"
+                  "EncryptedModelUpdateReceived.roundNumber"
                 ]
               }
             },
@@ -48953,76 +49013,6 @@
               "idAttribute": false,
               "generated": true,
               "technicalAttribute": true,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "aggregatedModelArtifactUri",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "aggregatedModelRegistryRef",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "modelFormat",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "modelArtifactDigest",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "aggregatedModelSignatureUri",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
               "query": false,
               "display": false,
               "uploadFile": false,
@@ -49166,7 +49156,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             },
             {
               "name": "aggregatedModelRegistryRef",
@@ -49180,7 +49170,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             },
             {
               "name": "modelFormat",
@@ -49194,7 +49184,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             },
             {
               "name": "modelArtifactDigest",
@@ -49208,7 +49198,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             },
             {
               "name": "aggregatedModelSignatureUri",
@@ -49222,7 +49212,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             }
           ],
           "dependencies": [

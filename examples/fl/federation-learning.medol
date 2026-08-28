@@ -3327,6 +3327,7 @@ context TrainingOrchestration {
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
       roundId: UUID
+      roundNumber: Int from TrainingRoundStarted.roundNumber
       runtimeId: UUID
       featureSchemaId: UUID
       secureAggregationRequired: Boolean
@@ -3488,6 +3489,12 @@ context TrainingOrchestration {
 
   slice SubmitGlobalModelEvaluation {
     reactsTo GlobalModelUpdated
+    port
+
+    automation SubmitGlobalModelEvaluationWhenGlobalModelUpdated {
+      on GlobalModelUpdated
+      emits SubmitGlobalModelEvaluation
+    }
 
     command SubmitGlobalModelEvaluation {
       trainingJobId: UUID id technical
@@ -3501,8 +3508,6 @@ context TrainingOrchestration {
       modelFormat: String from GlobalModelUpdated.modelFormat
       modelArtifactDigest: String from GlobalModelUpdated.modelArtifactDigest
       aggregatedModelSignatureUri: String? from GlobalModelUpdated.aggregatedModelSignatureUri
-      globalAccuracy: Decimal
-      globalFairnessScore: Decimal
     }
 
     event GlobalModelEvaluationSubmitted {
@@ -3517,8 +3522,8 @@ context TrainingOrchestration {
       modelFormat: String
       modelArtifactDigest: String
       aggregatedModelSignatureUri: String?
-      globalAccuracy: Decimal
-      globalFairnessScore: Decimal
+      globalAccuracy: Decimal portOutput
+      globalFairnessScore: Decimal portOutput
     }
   }
 
@@ -4867,6 +4872,7 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID from ModelUpdateSubmissionAccepted.trainingRunConfigurationId
       featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
       roundId: UUID from ModelUpdateSubmissionAccepted.roundId
+      roundNumber: Int from ModelUpdateSubmissionAccepted.roundNumber
       runtimeId: UUID from ModelUpdateSubmissionAccepted.runtimeId
       updateArtifactId: UUID from ModelUpdateSubmissionAccepted.updateArtifactId
       encryptedUpdateArtifactRef: String from ModelUpdateSubmissionAccepted.artifactRef
@@ -4882,6 +4888,7 @@ context SecureAggregation {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID
+      roundNumber: Int
       runtimeId: UUID
       updateArtifactId: UUID
       encryptedUpdateArtifactRef: String
@@ -4904,17 +4911,12 @@ context SecureAggregation {
 
     command CompleteHomomorphicAggregationSession {
       secureAggregationSessionId: UUID id technical
-      trainingJobId: UUID from SecureAggregationSessionCreated.trainingJobId
-      trainingRunConfigurationId: UUID from SecureAggregationSessionCreated.trainingRunConfigurationId
-      featureSchemaId: UUID from SecureAggregationSessionCreated.featureSchemaId
-      roundId: UUID from SecureAggregationSessionCreated.roundId
-      roundNumber: Int from SecureAggregationSessionCreated.roundNumber
+      trainingJobId: UUID from EncryptedModelUpdateReceived.trainingJobId
+      trainingRunConfigurationId: UUID from EncryptedModelUpdateReceived.trainingRunConfigurationId
+      featureSchemaId: UUID from EncryptedModelUpdateReceived.featureSchemaId
+      roundId: UUID from EncryptedModelUpdateReceived.roundId
+      roundNumber: Int from EncryptedModelUpdateReceived.roundNumber
       aggregatedModelId: UUID generated technical
-      aggregatedModelArtifactUri: String
-      aggregatedModelRegistryRef: String
-      modelFormat: String
-      modelArtifactDigest: String
-      aggregatedModelSignatureUri: String?
     }
 
     event SecureAggregationCompleted {
@@ -4925,11 +4927,11 @@ context SecureAggregation {
       roundId: UUID
       roundNumber: Int
       aggregatedModelId: UUID
-      aggregatedModelArtifactUri: String
-      aggregatedModelRegistryRef: String
-      modelFormat: String
-      modelArtifactDigest: String
-      aggregatedModelSignatureUri: String?
+      aggregatedModelArtifactUri: String portOutput
+      aggregatedModelRegistryRef: String portOutput
+      modelFormat: String portOutput
+      modelArtifactDigest: String portOutput
+      aggregatedModelSignatureUri: String? portOutput
     }
 
     state Completed
