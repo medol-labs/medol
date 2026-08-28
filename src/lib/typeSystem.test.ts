@@ -759,6 +759,35 @@ test('loads imports, merges context fragments, and keeps qualified IDs stable', 
   assert.equal(first.valueTypes[0].id, inline.valueTypes[0].id);
 });
 
+test('loads built-in identity access management imports into the selected deployment', () => {
+  const model = parseMedol(`
+    import identity-access-management as Iam deploy Support
+
+    domain Demo {
+      context Support {
+        slice KeepAlive {
+          command KeepAlive {
+            keepAliveId: UUID id generated technical
+          }
+        }
+      }
+
+      deployment Support {
+        includes Support
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  assert.equal(codegen.domain, 'Demo');
+  assert(codegen.contexts.some((context) => context.name === 'IdentityAccessManagement'));
+  assert.deepEqual(
+    codegen.deployments.find((deployment) => deployment.name === 'Support')?.contexts.map((context) => context.name),
+    ['Support', 'IdentityAccessManagement']
+  );
+});
+
 test('reports circular imports and keeps same concept names distinct across contexts', () => {
   const files = new Map<string, string>([
     ['/workspace/a.medol', 'import "./b.medol"\ncontext Sales { concept Item {} }'],

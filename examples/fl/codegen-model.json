@@ -73,6 +73,18 @@
           "title": "Runtime Agent Operations"
         }
       ]
+    },
+    {
+      "id": "domain-b8f47bf9",
+      "name": "IdentityAccessManagement",
+      "title": "Identity Access Management",
+      "contexts": [
+        {
+          "id": "context-90939a75",
+          "name": "IdentityAccessManagement",
+          "title": "Identity Access Management"
+        }
+      ]
     }
   ],
   "deployments": [
@@ -91,6 +103,11 @@
           "id": "context-99c60f04",
           "name": "FileUpload",
           "title": "File Upload"
+        },
+        {
+          "id": "context-90939a75",
+          "name": "IdentityAccessManagement",
+          "title": "Identity Access Management"
         }
       ]
     },
@@ -1692,6 +1709,70 @@
           "id": "slice-a56419ba",
           "name": "AgentRuntimeNodeResourceLatest",
           "title": "Agent Runtime Node Resource Latest"
+        }
+      ]
+    },
+    {
+      "id": "context-90939a75",
+      "name": "IdentityAccessManagement",
+      "title": "Identity Access Management",
+      "domain": "IdentityAccessManagement",
+      "notes": [],
+      "risks": [],
+      "decisions": [],
+      "metrics": [],
+      "valueTypes": [],
+      "aggregates": [],
+      "concepts": [
+        {
+          "id": "concept-ed072007",
+          "name": "UserAccount",
+          "title": "User Account",
+          "states": [
+            "Active",
+            "Deactivated"
+          ]
+        },
+        {
+          "id": "concept-cb7435bf",
+          "name": "Role",
+          "title": "Role",
+          "states": [
+            "Registered"
+          ]
+        }
+      ],
+      "externalSystems": [],
+      "slices": [
+        {
+          "id": "slice-4fcce762",
+          "name": "RegisterUserAccount",
+          "title": "Register User Account"
+        },
+        {
+          "id": "slice-2f4abaeb",
+          "name": "DeactivateUserAccount",
+          "title": "Deactivate User Account"
+        },
+        {
+          "id": "slice-7b54b84c",
+          "name": "RegisterRole",
+          "title": "Register Role"
+        },
+        {
+          "id": "slice-1d773a87",
+          "name": "GrantPermissionToRole",
+          "title": "Grant Permission To Role"
+        },
+        {
+          "id": "slice-0766b926",
+          "name": "AssignRoleToUser",
+          "title": "Assign Role To User"
+        },
+        {
+          "id": "slice-584fdb91",
+          "name": "IdentityAccessCatalogs",
+          "title": "Identity Access Catalogs"
         }
       ]
     }
@@ -3641,6 +3722,54 @@
           "id": "slice-a56419ba",
           "name": "AgentRuntimeNodeResourceLatest",
           "title": "Agent Runtime Node Resource Latest"
+        }
+      ]
+    },
+    {
+      "id": "concept-ed072007",
+      "name": "UserAccount",
+      "title": "User Account",
+      "context": "IdentityAccessManagement",
+      "states": [
+        "Active",
+        "Deactivated"
+      ],
+      "slices": [
+        {
+          "id": "slice-4fcce762",
+          "name": "RegisterUserAccount",
+          "title": "Register User Account"
+        },
+        {
+          "id": "slice-2f4abaeb",
+          "name": "DeactivateUserAccount",
+          "title": "Deactivate User Account"
+        },
+        {
+          "id": "slice-0766b926",
+          "name": "AssignRoleToUser",
+          "title": "Assign Role To User"
+        }
+      ]
+    },
+    {
+      "id": "concept-cb7435bf",
+      "name": "Role",
+      "title": "Role",
+      "context": "IdentityAccessManagement",
+      "states": [
+        "Registered"
+      ],
+      "slices": [
+        {
+          "id": "slice-7b54b84c",
+          "name": "RegisterRole",
+          "title": "Register Role"
+        },
+        {
+          "id": "slice-1d773a87",
+          "name": "GrantPermissionToRole",
+          "title": "Grant Permission To Role"
         }
       ]
     }
@@ -7114,6 +7243,87 @@
       },
       "to": "Reported",
       "startsLifecycle": true
+    },
+    {
+      "id": "transition-2d2509e9",
+      "context": "IdentityAccessManagement",
+      "owner": {
+        "id": "concept-ed072007",
+        "type": "concept",
+        "name": "UserAccount",
+        "title": "User Account"
+      },
+      "slice": {
+        "id": "slice-4fcce762",
+        "name": "RegisterUserAccount",
+        "title": "Register User Account"
+      },
+      "command": {
+        "id": "command-c00913ea",
+        "name": "RegisterUserAccount",
+        "title": "Register User Account"
+      },
+      "event": {
+        "id": "event-d81a5d20",
+        "name": "UserAccountRegistered",
+        "title": "User Account Registered"
+      },
+      "to": "Active",
+      "startsLifecycle": true
+    },
+    {
+      "id": "transition-d701b1d8",
+      "context": "IdentityAccessManagement",
+      "owner": {
+        "id": "concept-ed072007",
+        "type": "concept",
+        "name": "UserAccount",
+        "title": "User Account"
+      },
+      "slice": {
+        "id": "slice-2f4abaeb",
+        "name": "DeactivateUserAccount",
+        "title": "Deactivate User Account"
+      },
+      "command": {
+        "id": "command-6d4c655a",
+        "name": "DeactivateUserAccount",
+        "title": "Deactivate User Account"
+      },
+      "event": {
+        "id": "event-7cda3d01",
+        "name": "UserAccountDeactivated",
+        "title": "User Account Deactivated"
+      },
+      "to": "Deactivated",
+      "startsLifecycle": false
+    },
+    {
+      "id": "transition-98ad04e0",
+      "context": "IdentityAccessManagement",
+      "owner": {
+        "id": "concept-cb7435bf",
+        "type": "concept",
+        "name": "Role",
+        "title": "Role"
+      },
+      "slice": {
+        "id": "slice-7b54b84c",
+        "name": "RegisterRole",
+        "title": "Register Role"
+      },
+      "command": {
+        "id": "command-ec1dfd06",
+        "name": "RegisterRole",
+        "title": "Register Role"
+      },
+      "event": {
+        "id": "event-3ce4a19c",
+        "name": "RoleRegistered",
+        "title": "Role Registered"
+      },
+      "to": "Registered",
+      "startsLifecycle": true
     }
   ],
   "actors": [
@@ -7256,6 +7466,11 @@
       "id": "actor-2d61dc2c",
       "name": "ComplianceOfficer",
       "title": "Compliance Officer"
+    },
+    {
+      "id": "actor-55595ba0",
+      "name": "IdentityAdministrator",
+      "title": "Identity Administrator"
     }
   ],
   "slices": [
@@ -73077,6 +73292,902 @@
       "processors": [],
       "specifications": [],
       "actors": [],
+      "hotspots": []
+    },
+    {
+      "id": "slice-4fcce762",
+      "index": 156,
+      "name": "RegisterUserAccount",
+      "title": "Register User Account",
+      "chapter": "IdentityAccessManagement",
+      "context": "IdentityAccessManagement",
+      "tags": [],
+      "concepts": [
+        "UserAccount"
+      ],
+      "commands": [
+        {
+          "id": "command-c00913ea",
+          "name": "RegisterUserAccount",
+          "title": "Register User Account",
+          "type": "COMMAND",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Register User Account",
+          "fields": [
+            {
+              "name": "userAccountId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": true,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "username",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "providerSubject",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-d81a5d20",
+              "direction": "OUTBOUND",
+              "title": "User Account Registered",
+              "elementType": "EVENT"
+            }
+          ],
+          "startsLifecycle": true
+        }
+      ],
+      "events": [
+        {
+          "id": "event-d81a5d20",
+          "name": "UserAccountRegistered",
+          "title": "User Account Registered",
+          "type": "EVENT",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Register User Account",
+          "fields": [
+            {
+              "name": "userAccountId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "username",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "providerSubject",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-c00913ea",
+              "direction": "INBOUND",
+              "title": "Register User Account",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-99fa1b3d",
+              "direction": "OUTBOUND",
+              "title": "User Account Catalog",
+              "elementType": "READMODEL"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "processors": [],
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-55595ba0",
+          "name": "IdentityAdministrator",
+          "title": "Identity Administrator"
+        }
+      ],
+      "hotspots": [],
+      "stateChange": {
+        "event": "UserAccountRegistered",
+        "eventId": "event-d81a5d20",
+        "to": "Active"
+      }
+    },
+    {
+      "id": "slice-2f4abaeb",
+      "index": 157,
+      "name": "DeactivateUserAccount",
+      "title": "Deactivate User Account",
+      "chapter": "IdentityAccessManagement",
+      "context": "IdentityAccessManagement",
+      "tags": [],
+      "concepts": [
+        "UserAccount"
+      ],
+      "commands": [
+        {
+          "id": "command-6d4c655a",
+          "name": "DeactivateUserAccount",
+          "title": "Deactivate User Account",
+          "type": "COMMAND",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Deactivate User Account",
+          "fields": [
+            {
+              "name": "userAccountId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "reason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-7cda3d01",
+              "direction": "OUTBOUND",
+              "title": "User Account Deactivated",
+              "elementType": "EVENT"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "id": "event-7cda3d01",
+          "name": "UserAccountDeactivated",
+          "title": "User Account Deactivated",
+          "type": "EVENT",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Deactivate User Account",
+          "fields": [
+            {
+              "name": "userAccountId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "reason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-6d4c655a",
+              "direction": "INBOUND",
+              "title": "Deactivate User Account",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-99fa1b3d",
+              "direction": "OUTBOUND",
+              "title": "User Account Catalog",
+              "elementType": "READMODEL"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "processors": [],
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-55595ba0",
+          "name": "IdentityAdministrator",
+          "title": "Identity Administrator"
+        }
+      ],
+      "hotspots": [],
+      "stateChange": {
+        "event": "UserAccountDeactivated",
+        "eventId": "event-7cda3d01",
+        "to": "Deactivated"
+      }
+    },
+    {
+      "id": "slice-7b54b84c",
+      "index": 158,
+      "name": "RegisterRole",
+      "title": "Register Role",
+      "chapter": "IdentityAccessManagement",
+      "context": "IdentityAccessManagement",
+      "tags": [],
+      "concepts": [
+        "Role"
+      ],
+      "commands": [
+        {
+          "id": "command-ec1dfd06",
+          "name": "RegisterRole",
+          "title": "Register Role",
+          "type": "COMMAND",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Register Role",
+          "fields": [
+            {
+              "name": "roleCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "roleName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-3ce4a19c",
+              "direction": "OUTBOUND",
+              "title": "Role Registered",
+              "elementType": "EVENT"
+            }
+          ],
+          "startsLifecycle": true
+        }
+      ],
+      "events": [
+        {
+          "id": "event-3ce4a19c",
+          "name": "RoleRegistered",
+          "title": "Role Registered",
+          "type": "EVENT",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Register Role",
+          "fields": [
+            {
+              "name": "roleCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "roleName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-ec1dfd06",
+              "direction": "INBOUND",
+              "title": "Register Role",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-3698b9ff",
+              "direction": "OUTBOUND",
+              "title": "Role Catalog",
+              "elementType": "READMODEL"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "processors": [],
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-55595ba0",
+          "name": "IdentityAdministrator",
+          "title": "Identity Administrator"
+        }
+      ],
+      "hotspots": [],
+      "stateChange": {
+        "event": "RoleRegistered",
+        "eventId": "event-3ce4a19c",
+        "to": "Registered"
+      }
+    },
+    {
+      "id": "slice-1d773a87",
+      "index": 159,
+      "name": "GrantPermissionToRole",
+      "title": "Grant Permission To Role",
+      "chapter": "IdentityAccessManagement",
+      "context": "IdentityAccessManagement",
+      "tags": [],
+      "concepts": [
+        "Role"
+      ],
+      "commands": [
+        {
+          "id": "command-cc9d4dda",
+          "name": "GrantPermissionToRole",
+          "title": "Grant Permission To Role",
+          "type": "COMMAND",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Grant Permission To Role",
+          "fields": [
+            {
+              "name": "roleCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "permissionCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-4d13df38",
+              "direction": "OUTBOUND",
+              "title": "Permission Granted To Role",
+              "elementType": "EVENT"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "id": "event-4d13df38",
+          "name": "PermissionGrantedToRole",
+          "title": "Permission Granted To Role",
+          "type": "EVENT",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Grant Permission To Role",
+          "fields": [
+            {
+              "name": "roleCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "permissionCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-cc9d4dda",
+              "direction": "INBOUND",
+              "title": "Grant Permission To Role",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-3698b9ff",
+              "direction": "OUTBOUND",
+              "title": "Role Catalog",
+              "elementType": "READMODEL"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "processors": [],
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-55595ba0",
+          "name": "IdentityAdministrator",
+          "title": "Identity Administrator"
+        }
+      ],
+      "hotspots": []
+    },
+    {
+      "id": "slice-0766b926",
+      "index": 160,
+      "name": "AssignRoleToUser",
+      "title": "Assign Role To User",
+      "chapter": "IdentityAccessManagement",
+      "context": "IdentityAccessManagement",
+      "tags": [],
+      "concepts": [
+        "UserAccount"
+      ],
+      "commands": [
+        {
+          "id": "command-4f06876a",
+          "name": "AssignRoleToUser",
+          "title": "Assign Role To User",
+          "type": "COMMAND",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Assign Role To User",
+          "fields": [
+            {
+              "name": "userAccountId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "roleCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-174883bc",
+              "direction": "OUTBOUND",
+              "title": "Role Assigned To User",
+              "elementType": "EVENT"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "id": "event-174883bc",
+          "name": "RoleAssignedToUser",
+          "title": "Role Assigned To User",
+          "type": "EVENT",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Assign Role To User",
+          "fields": [
+            {
+              "name": "userAccountId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "roleCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-4f06876a",
+              "direction": "INBOUND",
+              "title": "Assign Role To User",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-99fa1b3d",
+              "direction": "OUTBOUND",
+              "title": "User Account Catalog",
+              "elementType": "READMODEL"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "processors": [],
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-55595ba0",
+          "name": "IdentityAdministrator",
+          "title": "Identity Administrator"
+        }
+      ],
+      "hotspots": []
+    },
+    {
+      "id": "slice-584fdb91",
+      "index": 161,
+      "name": "IdentityAccessCatalogs",
+      "title": "Identity Access Catalogs",
+      "chapter": "IdentityAccessManagement",
+      "context": "IdentityAccessManagement",
+      "tags": [],
+      "concepts": [],
+      "commands": [],
+      "events": [],
+      "readmodels": [
+        {
+          "id": "readmodel-99fa1b3d",
+          "name": "UserAccountCatalog",
+          "title": "User Account Catalog",
+          "type": "READMODEL",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Identity Access Catalogs",
+          "fields": [
+            {
+              "name": "userAccountId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "username",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": true,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "providerSubject",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "active",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-d81a5d20",
+              "direction": "INBOUND",
+              "title": "User Account Registered",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-7cda3d01",
+              "direction": "INBOUND",
+              "title": "User Account Deactivated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-174883bc",
+              "direction": "INBOUND",
+              "title": "Role Assigned To User",
+              "elementType": "EVENT"
+            }
+          ],
+          "listElement": true
+        },
+        {
+          "id": "readmodel-3698b9ff",
+          "name": "RoleCatalog",
+          "title": "Role Catalog",
+          "type": "READMODEL",
+          "modelContext": "IdentityAccessManagement",
+          "slice": "Identity Access Catalogs",
+          "fields": [
+            {
+              "name": "roleCode",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": true,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "roleName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": true,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "permissionCodes",
+              "type": "String",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-3ce4a19c",
+              "direction": "INBOUND",
+              "title": "Role Registered",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-4d13df38",
+              "direction": "INBOUND",
+              "title": "Permission Granted To Role",
+              "elementType": "EVENT"
+            }
+          ],
+          "listElement": true
+        }
+      ],
+      "screens": [],
+      "processors": [],
+      "specifications": [],
+      "actors": [
+        {
+          "id": "actor-55595ba0",
+          "name": "IdentityAdministrator",
+          "title": "Identity Administrator"
+        }
+      ],
       "hotspots": []
     }
   ],

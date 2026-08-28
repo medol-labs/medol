@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, normalize, resolve } from 'node:path';
-import { parseMedolSources, readMedolImports, type MedolSource } from './dslParser';
+import { parseMedolSources, readMedolImports, type MedolImportReference, type MedolSource } from './dslParser';
+import { resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
 import type { EmModel } from './model';
 
 export interface MedolProjectFileSystem {
@@ -22,6 +23,7 @@ export const parseMedolFile = (
   const sources: MedolSource[] = [];
   const visited = new Set<string>();
   const visiting = new Set<string>();
+  const builtinVisited = new Set<string>();
   const diagnostics: string[] = [];
 
   const visit = (path: string, chain: string[]): void => {
@@ -42,7 +44,11 @@ export const parseMedolFile = (
     }
 
     for (const imported of readMedolImports(text)) {
-      visit(fileSystem.resolveImport(path, imported), [...chain, path]);
+      if (imported.path) {
+        visit(fileSystem.resolveImport(path, imported.path), [...chain, path]);
+      } else if (imported.module) {
+        visitBuiltin(imported, { sources, diagnostics, builtinVisited });
+      }
     }
     visiting.delete(path);
     visited.add(path);
@@ -54,4 +60,21 @@ export const parseMedolFile = (
   model.diagnostics.unshift(...diagnostics);
   model.diagnosticDetails.unshift(...diagnostics.map((message) => ({ message })));
   return model;
+};
+
+const visitBuiltin = (
+  imported: MedolImportReference,
+  state: { sources: MedolSource[]; diagnostics: string[]; builtinVisited: Set<string> }
+): void => {
+  const moduleName = imported.module ?? '';
+  const source = resolveBuiltinMedolImport(imported);
+  if (!source) {
+    state.diagnostics.push(`Unknown built-in import ${moduleName}. Supported built-ins: ${supportedBuiltinMedolImports().join(', ')}.`);
+    return;
+  }
+
+  const importKey = `${moduleName}:${imported.alias ?? ''}:${imported.deployment ?? ''}`;
+  if (state.builtinVisited.has(importKey)) return;
+  state.builtinVisited.add(importKey);
+  state.sources.push(source);
 };

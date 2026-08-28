@@ -83,6 +83,7 @@ import type {
 import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
+import { resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
@@ -99,8 +100,23 @@ export interface MedolSource {
   text: string;
 }
 
-export const parseMedol = (text: string): EmModel =>
-  parseMedolSources([{ sourceName: '<memory>', text }]);
+export const parseMedol = (text: string): EmModel => {
+  const diagnostics: string[] = [];
+  const builtinSources = readMedolImports(text)
+    .filter((imported) => imported.module)
+    .map((imported) => {
+      const source = resolveBuiltinMedolImport(imported);
+      if (!source) {
+        diagnostics.push(`Unknown built-in import ${imported.module}. Supported built-ins: ${supportedBuiltinMedolImports().join(', ')}.`);
+      }
+      return source;
+    })
+    .filter((source): source is MedolSource => Boolean(source));
+  const model = parseMedolSources([...builtinSources, { sourceName: '<memory>', text }]);
+  model.diagnostics.unshift(...diagnostics);
+  model.diagnosticDetails.unshift(...diagnostics.map((message) => ({ message })));
+  return model;
+};
 
 export const parseMedolSources = (sources: MedolSource[]): EmModel => {
   try {
@@ -192,13 +208,25 @@ const pointRange = (line: number, column: number, length = 1) => ({
 
 export const parseEventModelingDsl = parseMedol;
 
-export const readMedolImports = (text: string): string[] => {
+export interface MedolImportReference {
+  path?: string;
+  module?: string;
+  alias?: string;
+  deployment?: string;
+}
+
+export const readMedolImports = (text: string): MedolImportReference[] => {
   const parseResult = medolServices.parser.LangiumParser.parse<AstModel>(text);
-  return (parseResult.value.imports ?? []).map((item) => item.path);
+  return (parseResult.value.imports ?? []).map((item) => ({
+    ...(item.path ? { path: item.path } : {}),
+    ...(item.module ? { module: item.module } : {}),
+    ...(item.alias ? { alias: item.alias } : {}),
+    ...(item.deployment ? { deployment: item.deployment } : {})
+  }));
 };
 
 const mergeAstModels = (models: AstModel[]): AstModel => {
-  const merged = models[0] ?? medolServices.parser.LangiumParser.parse<AstModel>('').value;
+  const merged = models[models.length - 1] ?? medolServices.parser.LangiumParser.parse<AstModel>('').value;
   const domainGroups = models.map((model) => [...(model.domains ?? [])]);
   const contextGroups = models.map((model) => [...(model.contexts ?? [])]);
   const deploymentGroups = models.map((model) => [...(model.deployments ?? [])]);
@@ -210,7 +238,7 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
   const domains = new Map<string, AstDomain>();
   const looseContexts = new Map<string, AstContext>();
   const looseDeployments = new Map<string, AstDeployment>();
-  for (let index = 0; index < models.length; index += 1) {
+  for (let index = models.length - 1; index >= 0; index -= 1) {
     for (const domain of domainGroups[index]) {
       const existing = domains.get(domain.name);
       if (!existing) {
@@ -265,12 +293,22 @@ const mergeDeployments = (
 
 export const astToEmModel = (ast: AstModel): EmModel => {
   const model = emptyModel();
+  const deploymentsByName = new Map<string, EmDeployment>();
+  const addDeployment = (deployment: EmDeployment): void => {
+    const current = deploymentsByName.get(deployment.name);
+    if (current) {
+      current.contexts = [...new Set([...current.contexts, ...deployment.contexts])];
+      return;
+    }
+    deploymentsByName.set(deployment.name, deployment);
+    model.deployments.push(deployment);
+  };
 
   for (const domainNode of ast.domains ?? []) {
     const domain = parseDomain(domainNode, model.edges);
     model.domains.push(domain);
     model.contexts.push(...domain.contexts);
-    model.deployments.push(...domain.deployments);
+    domain.deployments.forEach(addDeployment);
   }
 
   for (const contextNode of ast.contexts ?? []) {
@@ -278,7 +316,7 @@ export const astToEmModel = (ast: AstModel): EmModel => {
   }
 
   for (const deploymentNode of ast.deployments ?? []) {
-    model.deployments.push(parseDeployment(deploymentNode, undefined));
+    addDeployment(parseDeployment(deploymentNode, undefined));
   }
 
   return model;

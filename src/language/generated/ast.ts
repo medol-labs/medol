@@ -53,6 +53,7 @@ export type MedolKeywordNames =
     | "confirm"
     | "context"
     | "decision"
+    | "deploy"
     | "deployment"
     | "derived"
     | "detail"
@@ -904,16 +905,28 @@ export function isHotspot(item: unknown): item is Hotspot {
 export interface Import extends langium.AstNode {
     readonly $container: Model;
     readonly $type: 'Import';
-    path: string;
+    alias?: string;
+    deployment?: string;
+    module?: ImportModuleName;
+    path?: string;
 }
 
 export const Import = {
     $type: 'Import',
+    alias: 'alias',
+    deployment: 'deployment',
+    module: 'module',
     path: 'path'
 } as const;
 
 export function isImport(item: unknown): item is Import {
     return reflection.isInstance(item, Import.$type);
+}
+
+export type ImportModuleName = string;
+
+export function isImportModuleName(item: unknown): item is ImportModuleName {
+    return typeof item === 'string';
 }
 
 export interface Integration extends langium.AstNode {
@@ -2317,6 +2330,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Import: {
             name: Import.$type,
             properties: {
+                alias: {
+                    name: Import.alias
+                },
+                deployment: {
+                    name: Import.deployment
+                },
+                module: {
+                    name: Import.module
+                },
                 path: {
                     name: Import.path
                 }

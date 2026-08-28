@@ -6,7 +6,11 @@ entry Model:
 ;
 
 Import:
-    'import' path=STRING
+    'import' (path=STRING | module=ImportModuleName) ('as' alias=ID)? ('deploy' deployment=ID)?
+;
+
+ImportModuleName returns string:
+    ID ('-' ID)*
 ;
 
 Domain:

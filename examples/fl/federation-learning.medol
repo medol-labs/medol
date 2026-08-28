@@ -1,3 +1,5 @@
+import identity-access-management as Iam deploy FederationLearningSupport
+
 domain FederationLearningPlatform {
 context OrganizationManagement {
   
