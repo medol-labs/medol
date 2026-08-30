@@ -130,33 +130,50 @@ domain IdentityAccessManagement {
       actor IdentityAdministrator
 
       command GrantPermissionToRole {
-        roleId: UUID id technical
-        roleCode: String technical
+        roleId: UUID id from RoleCatalog.roleId
+        roleCode: String from RoleCatalog.roleCode
         permissionCodes: String[] from PermissionCatalog.permissionCode
       }
 
       event PermissionGrantedToRole {
         roleId: UUID id technical
         roleCode: String
-        permissionCodes: String[]
+        permissionCode: String
       }
+
+      event PermissionRevokedFromRole {
+        roleId: UUID id technical
+        roleCode: String
+        permissionCode: String
+      }
+
+      state Registered
+
     }
 
     slice AssignRoleToUser {
       actor IdentityAdministrator
 
       command AssignRoleToUser {
-        userAccountId: UUID id technical
+        userAccountId: UUID id from UserAccountCatalog.userAccountId
         roleCodes: String[] from RoleCatalog.roleCode
       }
 
       event RoleAssignedToUser {
         userAccountId: UUID id technical
-        roleCodes: String[]
+        roleCode: String
       }
+
+      event RoleUnassignedFromUser {
+        userAccountId: UUID id technical
+        roleCode: String
+      }
+
+      state Active
+
     }
 
-    slice IdentityAccessCatalogs {
+    slice UserAccountCatalogs {
       actor IdentityAdministrator
 
       readmodel UserAccountCatalog[] {
@@ -165,21 +182,25 @@ domain IdentityAccessManagement {
         providerSubject: String?
         passwordHash: String? technical
         active: Boolean
-        roleCodes: String[]
         subscribe UserAccountRegistered
         subscribe UserAccountLoginPasswordGenerated
         subscribe UserAccountDeactivated
-        subscribe RoleAssignedToUser
       }
+    }
+
+    slice RoleCatalogs {
+      actor IdentityAdministrator
 
       readmodel RoleCatalog[] {
         roleId: UUID id
         roleCode: String
         roleName: String display
-        permissionCodes: String[]
         subscribe RoleRegistered
-        subscribe PermissionGrantedToRole
       }
+    }
+
+    slice PermissionCatalogs {
+      actor IdentityAdministrator
 
       readmodel PermissionCatalog[] {
         permissionId: UUID id
@@ -190,6 +211,31 @@ domain IdentityAccessManagement {
       }
     }
 
+    slice UserRoleAssignmentCatalog {
+      actor IdentityAdministrator
+
+      readmodel UserRoleAssignmentCatalog[] {
+        userAccountId: UUID id
+        username: String? display derived from UserAccountCatalog.username by userAccountId
+        roleCode: String id
+        roleName: String? derived from RoleCatalog.roleName by roleCode
+        subscribe RoleAssignedToUser
+      }
+    }
+
+    slice RolePermissionGrantCatalog {
+      actor IdentityAdministrator
+
+      readmodel RolePermissionGrantCatalog[] {
+        roleId: UUID
+        roleCode: String id display derived from RoleCatalog.roleCode by roleId
+        roleName: String? derived from RoleCatalog.roleName by roleId
+        permissionCode: String id
+        permissionName: String? derived from PermissionCatalog.permissionName by permissionCode
+        subscribe PermissionGrantedToRole
+      }
+    }
+
     concept UserAccount {
       state Active
       state Deactivated
@@ -197,18 +243,29 @@ domain IdentityAccessManagement {
       slice GenerateUserAccountLoginPassword
       slice DeactivateUserAccount
       slice AssignRoleToUser
-      slice IdentityAccessCatalogs
+      slice UserAccountCatalogs
     }
 
     concept Role {
       state Registered
       slice RegisterRole
       slice GrantPermissionToRole
+      slice RoleCatalogs
     }
 
     concept Permission {
       state Registered
       slice RegisterPermission
+      slice PermissionCatalogs
     }
+
+    concept UserRoleAssignment {
+      slice UserRoleAssignmentCatalog
+    }
+
+    concept RolePermissionGrant {
+      slice RolePermissionGrantCatalog
+    }
+
   }
 }
