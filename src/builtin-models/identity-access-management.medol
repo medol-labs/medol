@@ -7,18 +7,40 @@ domain IdentityAccessManagement {
       command RegisterUserAccount {
         userAccountId: UUID id generated technical
         username: String
-        providerSubject: String?
+        providerSubject: String? technical
+        passwordHash: String? technical
         organizationId: UUID?
       }
 
       event UserAccountRegistered {
         userAccountId: UUID id technical
         username: String
-        providerSubject: String?
+        providerSubject: String? technical
+        passwordHash: String? technical
         organizationId: UUID?
       }
 
       state Active
+
+      specification "User Account Username Unique" {
+        rule """
+          Active user account usernames must be unique.
+        """
+
+        expression {
+          unique UserAccount.username
+        }
+
+        scenario "Reject Duplicate Username" {
+          given UserAccountRegistered {
+            username = "admin"
+          }
+          when RegisterUserAccount {
+            username = "admin"
+          }
+          then reject "Username already exists."
+        }
+      }
     }
 
     slice DeactivateUserAccount {
@@ -37,6 +59,27 @@ domain IdentityAccessManagement {
       state Deactivated
     }
 
+    slice GenerateUserAccountLoginPassword {
+      actor IdentityAdministrator
+      reactsTo UserAccountRegistered
+      port
+
+      command GenerateUserAccountLoginPassword {
+        userAccountId: UUID id technical
+        passwordResetRequired: Boolean
+
+        result {
+          temporaryPassword: String technical
+        }
+      }
+
+      event UserAccountLoginPasswordGenerated {
+        userAccountId: UUID id technical
+        passwordHash: String portOutput technical
+        passwordResetRequired: Boolean
+      }
+    }
+
     slice RegisterRole {
       startsLifecycle
       actor IdentityAdministrator
@@ -49,6 +92,25 @@ domain IdentityAccessManagement {
       event RoleRegistered {
         roleCode: String id
         roleName: String
+      }
+
+      state Registered
+    }
+
+    slice RegisterPermission {
+      startsLifecycle
+      actor IdentityAdministrator
+
+      command RegisterPermission {
+        permissionCode: String id
+        permissionName: String
+        description: String?
+      }
+
+      event PermissionRegistered {
+        permissionCode: String id
+        permissionName: String
+        description: String?
       }
 
       state Registered
@@ -89,9 +151,12 @@ domain IdentityAccessManagement {
         userAccountId: UUID id
         username: String display
         providerSubject: String?
+        passwordHash: String? technical
         organizationId: UUID?
         active: Boolean
+        roleCodes: String[]
         subscribe UserAccountRegistered
+        subscribe UserAccountLoginPasswordGenerated
         subscribe UserAccountDeactivated
         subscribe RoleAssignedToUser
       }
@@ -103,20 +168,34 @@ domain IdentityAccessManagement {
         subscribe RoleRegistered
         subscribe PermissionGrantedToRole
       }
+
+      readmodel PermissionCatalog[] {
+        permissionCode: String id display
+        permissionName: String display
+        description: String?
+        subscribe PermissionRegistered
+      }
     }
 
     concept UserAccount {
       state Active
       state Deactivated
       slice RegisterUserAccount
+      slice GenerateUserAccountLoginPassword
       slice DeactivateUserAccount
       slice AssignRoleToUser
+      slice IdentityAccessCatalogs
     }
 
     concept Role {
       state Registered
       slice RegisterRole
       slice GrantPermissionToRole
+    }
+
+    concept Permission {
+      state Registered
+      slice RegisterPermission
     }
   }
 }

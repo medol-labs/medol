@@ -111,6 +111,7 @@ export type MedolKeywordNames =
     | "reactsTo"
     | "readmodel"
     | "reject"
+    | "result"
     | "risk"
     | "rule"
     | "scenario"
@@ -280,20 +281,45 @@ export function isCardinality(item: unknown): item is Cardinality {
 export interface Command extends langium.AstNode {
     readonly $container: Integration | Slice;
     readonly $type: 'Command';
-    examples: Array<Example>;
-    fields: Array<Field>;
+    elements: Array<CommandElement>;
     name: string;
 }
 
 export const Command = {
     $type: 'Command',
-    examples: 'examples',
-    fields: 'fields',
+    elements: 'elements',
     name: 'name'
 } as const;
 
 export function isCommand(item: unknown): item is Command {
     return reflection.isInstance(item, Command.$type);
+}
+
+export type CommandElement = CommandResult | Example | Field;
+
+export const CommandElement = {
+    $type: 'CommandElement'
+} as const;
+
+export function isCommandElement(item: unknown): item is CommandElement {
+    return reflection.isInstance(item, CommandElement.$type);
+}
+
+export interface CommandResult extends langium.AstNode {
+    readonly $container: Command;
+    readonly $type: 'CommandResult';
+    fields: Array<Field>;
+    name?: string;
+}
+
+export const CommandResult = {
+    $type: 'CommandResult',
+    fields: 'fields',
+    name: 'name'
+} as const;
+
+export function isCommandResult(item: unknown): item is CommandResult {
+    return reflection.isInstance(item, CommandResult.$type);
 }
 
 export interface CommandStep extends langium.AstNode {
@@ -742,7 +768,7 @@ export function isFanOut(item: unknown): item is FanOut {
 }
 
 export interface Field extends langium.AstNode {
-    readonly $container: Command | Event | ReadModel | StructuredValueType;
+    readonly $container: Command | CommandResult | Event | ReadModel | StructuredValueType;
     readonly $type: 'Field';
     attributes: Array<FieldAttribute>;
     cardinality?: Cardinality;
@@ -1699,6 +1725,8 @@ export type MedolAstType = {
     BinaryExpr: BinaryExpr
     BooleanLiteral: BooleanLiteral
     Command: Command
+    CommandElement: CommandElement
+    CommandResult: CommandResult
     CommandStep: CommandStep
     Concept: Concept
     ConceptFeature: ConceptFeature
@@ -1886,12 +1914,8 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Command: {
             name: Command.$type,
             properties: {
-                examples: {
-                    name: Command.examples,
-                    defaultValue: []
-                },
-                fields: {
-                    name: Command.fields,
+                elements: {
+                    name: Command.elements,
                     defaultValue: []
                 },
                 name: {
@@ -1899,6 +1923,25 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [IntegrationElement.$type, SliceElement.$type]
+        },
+        CommandElement: {
+            name: CommandElement.$type,
+            properties: {
+            },
+            superTypes: []
+        },
+        CommandResult: {
+            name: CommandResult.$type,
+            properties: {
+                fields: {
+                    name: CommandResult.fields,
+                    defaultValue: []
+                },
+                name: {
+                    name: CommandResult.name
+                }
+            },
+            superTypes: [CommandElement.$type]
         },
         CommandStep: {
             name: CommandStep.$type,
@@ -2093,7 +2136,7 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: Example.block
                 }
             },
-            superTypes: []
+            superTypes: [CommandElement.$type]
         },
         ExampleBlock: {
             name: ExampleBlock.$type,
@@ -2227,7 +2270,7 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: Field.type
                 }
             },
-            superTypes: [ReadModelElement.$type]
+            superTypes: [CommandElement.$type, ReadModelElement.$type]
         },
         FieldDerivation: {
             name: FieldDerivation.$type,

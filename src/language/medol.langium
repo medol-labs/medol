@@ -196,8 +196,19 @@ ReactsTo:
 
 Command:
     'command' name=ID '{'
+        elements+=CommandElement*
+    '}'
+;
+
+CommandElement:
+      Field
+    | CommandResult
+    | Example
+;
+
+CommandResult:
+    'result' name=ID? '{'
         fields+=Field*
-        examples+=Example*
     '}'
 ;
 

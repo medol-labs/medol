@@ -164,6 +164,7 @@ export interface CodegenElement {
   slice: string;
   aggregate?: CodegenAggregateRef;
   fields: CodegenField[];
+  resultFields?: CodegenField[];
   dependencies: CodegenDependency[];
   startsLifecycle?: boolean;
   port?: boolean;
@@ -734,6 +735,9 @@ const toCodegenElement = (
   slice: humanize(sliceName),
   ...(aggregate ? { aggregate } : {}),
   fields: element.fields.map(toCodegenField),
+  ...(type === 'COMMAND' && element.resultFields && element.resultFields.length > 0
+    ? { resultFields: element.resultFields.map(toCodegenField) }
+    : {}),
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   ...(startsLifecycle ? { startsLifecycle } : {}),
   ...(type === 'COMMAND' && port ? { port: true } : {}),

@@ -48,6 +48,7 @@ interface ConfigElement {
   todo?: boolean;
   metadata?: Record<string, string>;
   fields?: ConfigField[];
+  resultFields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
   ui?: ConfigUi;
   dictionaryProvider?: ConfigDictionaryProvider;
@@ -493,6 +494,13 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   }
   for (const field of element.fields ?? []) {
     lines.push(`${pad}  ${formatField(field)}`);
+  }
+  if (kind === 'command' && element.resultFields && element.resultFields.length > 0) {
+    lines.push(`${pad}  result {`);
+    for (const field of element.resultFields) {
+      lines.push(`${pad}    ${formatField(field)}`);
+    }
+    lines.push(`${pad}  }`);
   }
   for (const extraLine of extraLines) {
     lines.push(`${pad}  ${extraLine}`);

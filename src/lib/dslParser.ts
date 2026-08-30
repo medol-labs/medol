@@ -8,6 +8,7 @@ import {
   isBooleanLiteral,
   isCommand,
   isCondition,
+  isCommandResult,
   isDictionaryProvider,
   isStartsLifecycleMarker,
   isConcept,
@@ -727,6 +728,7 @@ const parseElement = (
     kind: kind as EmElement['kind'],
     name: safeName(node.name, 'UnnamedElement'),
     fields: parseElementFields(node),
+    ...(isCommand(node) ? { resultFields: parseCommandResultFields(node) } : {}),
     ...withSourceRange(node),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     ...(isReadModel(node) && node.todo ? { todo: true } : {}),
@@ -737,7 +739,10 @@ const parseElement = (
 };
 
 const parseElementFields = (node: AstCommand | AstEvent | AstReadModel | AstAutomation | AstSpecification | AstIntegration): EmField[] => {
-  if (isCommand(node) || isEvent(node)) {
+  if (isCommand(node)) {
+    return (node.elements ?? []).filter(isField).map(parseField);
+  }
+  if (isEvent(node)) {
     return (node.fields ?? []).map(parseField);
   }
   if (isReadModel(node)) {
@@ -748,6 +753,12 @@ const parseElementFields = (node: AstCommand | AstEvent | AstReadModel | AstAuto
   }
   return [];
 };
+
+const parseCommandResultFields = (node: AstCommand): EmField[] => (
+  (node.elements ?? [])
+    .filter(isCommandResult)
+    .flatMap((result) => (result.fields ?? []).map(parseField))
+);
 
 const parseIntegrationFields = (node: AstIntegration): EmField[] => {
   const fields: EmField[] = [];

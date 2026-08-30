@@ -1,129 +1,22 @@
 import type { MedolImportReference, MedolSource } from './dslParser';
 
-const identityAccessManagementMedol = String.raw`
-domain IdentityAccessManagement {
-  context IdentityAccessManagement {
-    slice RegisterUserAccount {
-      startsLifecycle
-      actor IdentityAdministrator
-
-      command RegisterUserAccount {
-        userAccountId: UUID id generated technical
-        username: String
-        providerSubject: String?
-        organizationId: UUID?
-      }
-
-      event UserAccountRegistered {
-        userAccountId: UUID id technical
-        username: String
-        providerSubject: String?
-        organizationId: UUID?
-      }
-
-      state Active
-    }
-
-    slice DeactivateUserAccount {
-      actor IdentityAdministrator
-
-      command DeactivateUserAccount {
-        userAccountId: UUID id technical
-        reason: String
-      }
-
-      event UserAccountDeactivated {
-        userAccountId: UUID id technical
-        reason: String
-      }
-
-      state Deactivated
-    }
-
-    slice RegisterRole {
-      startsLifecycle
-      actor IdentityAdministrator
-
-      command RegisterRole {
-        roleCode: String id
-        roleName: String
-      }
-
-      event RoleRegistered {
-        roleCode: String id
-        roleName: String
-      }
-
-      state Registered
-    }
-
-    slice GrantPermissionToRole {
-      actor IdentityAdministrator
-
-      command GrantPermissionToRole {
-        roleCode: String id
-        permissionCode: String
-      }
-
-      event PermissionGrantedToRole {
-        roleCode: String id
-        permissionCode: String
-      }
-    }
-
-    slice AssignRoleToUser {
-      actor IdentityAdministrator
-
-      command AssignRoleToUser {
-        userAccountId: UUID id technical
-        roleCode: String
-      }
-
-      event RoleAssignedToUser {
-        userAccountId: UUID id technical
-        roleCode: String
-      }
-    }
-
-    slice IdentityAccessCatalogs {
-      actor IdentityAdministrator
-
-      readmodel UserAccountCatalog[] {
-        userAccountId: UUID id
-        username: String display
-        providerSubject: String?
-        organizationId: UUID?
-        active: Boolean
-        subscribe UserAccountRegistered
-        subscribe UserAccountDeactivated
-        subscribe RoleAssignedToUser
-      }
-
-      readmodel RoleCatalog[] {
-        roleCode: String id display
-        roleName: String display
-        permissionCodes: String[]
-        subscribe RoleRegistered
-        subscribe PermissionGrantedToRole
-      }
-    }
-
-    concept UserAccount {
-      state Active
-      state Deactivated
-      slice RegisterUserAccount
-      slice DeactivateUserAccount
-      slice AssignRoleToUser
-    }
-
-    concept Role {
-      state Registered
-      slice RegisterRole
-      slice GrantPermissionToRole
-    }
+const loadIdentityAccessManagementMedol = async (): Promise<string> => {
+  if (typeof window === 'undefined') {
+    const importNodeModule = new Function('specifier', 'return import(specifier)') as (
+      specifier: string
+    ) => Promise<typeof import('node:fs')>;
+    const { readFileSync } = await importNodeModule('node:fs');
+    return readFileSync(
+      new URL('../builtin-models/identity-access-management.medol', import.meta.url),
+      'utf8'
+    );
   }
-}
-`;
+
+  const source = await import('../builtin-models/identity-access-management.medol?raw');
+  return source.default;
+};
+
+const identityAccessManagementMedol = await loadIdentityAccessManagementMedol();
 
 export const builtinMedolModels = new Map<string, string>([
   ['identity-access-management', identityAccessManagementMedol],

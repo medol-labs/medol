@@ -126,7 +126,7 @@ export const requestModelTranslations = async (input: {
     const responseJson = parseJson(responseText);
     const output = extractOutputText(responseJson) ?? responseText;
     const complete = normalizeModelTranslationResponse(
-      parseEmbeddedJson(output),
+      parseEmbeddedJson(output) ?? output,
       sourceTexts
     );
     if (!complete) {
@@ -217,9 +217,12 @@ export const normalizeModelTranslationResponse = (
   value: unknown,
   sourceTexts: string[]
 ): ModelTranslations | undefined => {
-  const direct = collectDirectTranslations(value, sourceTexts);
-  const nested = collectNestedTranslations(value, sourceTexts);
+  const parsed = typeof value === 'string' ? parseEmbeddedJson(value) : undefined;
+  const candidates = parsed ? [parsed, value] : [value];
+  const direct = candidates.map((candidate) => collectDirectTranslations(candidate, sourceTexts));
+  const nested = candidates.flatMap((candidate) => collectNestedTranslations(candidate, sourceTexts));
   const best = [direct, ...nested]
+    .flat()
     .filter((translations): translations is ModelTranslations => Boolean(translations))
     .sort((left, right) => Object.keys(right).length - Object.keys(left).length)[0];
   return best && Object.keys(best).length > 0 ? best : undefined;
@@ -229,9 +232,13 @@ const collectDirectTranslations = (
   value: unknown,
   sourceTexts: string[]
 ): ModelTranslations | undefined => {
+  if (typeof value === 'string') return collectPlainTextTranslation(value, sourceTexts);
   if (Array.isArray(value)) return collectEntryTranslations(value, sourceTexts);
   if (!isRecord(value)) return undefined;
   const literal: ModelTranslations = {};
+  const normalizedEntries = Object.entries(value)
+    .filter((entry): entry is [string, unknown] => typeof entry[0] === 'string')
+    .map(([key, item]) => [normalizedSourceKey(key), item] as const);
   for (const sourceText of sourceTexts) {
     const valueForSource = value[sourceText];
     if (typeof valueForSource === 'string' && valueForSource.trim()) {
@@ -254,6 +261,33 @@ const collectDirectTranslations = (
         '译文'
       ]);
       if (translated) literal[sourceText] = translated;
+    }
+    const normalizedValueForSource = normalizedEntries
+      .find(([key]) => key === normalizedSourceKey(sourceText))?.[1];
+    if (typeof normalizedValueForSource === 'string' && normalizedValueForSource.trim()) {
+      literal[sourceText] = normalizedValueForSource.trim();
+      continue;
+    }
+    if (isRecord(normalizedValueForSource)) {
+      const translated = firstString(normalizedValueForSource, [
+        'translation',
+        'translated',
+        'translatedText',
+        'translated_text',
+        'target',
+        'value',
+        'output',
+        'zh-CN',
+        'zh_CN',
+        'zh',
+        '中文',
+        '译文'
+      ]);
+      if (translated) literal[sourceText] = translated;
+    }
+    const compositeTranslation = collectCompositeTranslation(sourceText, normalizedEntries);
+    if (compositeTranslation) {
+      literal[sourceText] = compositeTranslation;
     }
   }
   return completeTranslations(literal, sourceTexts);
@@ -337,6 +371,43 @@ const collectEntryTranslations = (
   return completeTranslations(translations, sourceTexts);
 };
 
+const collectPlainTextTranslation = (
+  value: string,
+  sourceTexts: string[]
+): ModelTranslations | undefined => {
+  if (sourceTexts.length !== 1) return undefined;
+  const text = value.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .replace(/^["']|["']$/g, '')
+    .trim();
+  const sourceText = sourceTexts[0];
+  if (!text || text === sourceText) return undefined;
+  if (/^[\[{]/.test(text)) return undefined;
+  return { [sourceText]: text };
+};
+
+const collectCompositeTranslation = (
+  sourceText: string,
+  entries: ReadonlyArray<readonly [string, unknown]>
+): string | undefined => {
+  const parts = sourceText
+    .split(/(\n\s*\n|\r?\n)/)
+    .filter((part) => part.length > 0);
+  const contentParts = parts.filter((part) => part.trim().length > 0);
+  if (contentParts.length <= 1) return undefined;
+
+  const translatedParts = parts.map((part) => {
+    if (part.trim().length === 0) return part;
+    const translated = entries.find(([key]) => key === normalizedSourceKey(part))?.[1];
+    return typeof translated === 'string' && translated.trim()
+      ? translated.trim()
+      : undefined;
+  });
+  if (translatedParts.some((part) => part === undefined)) return undefined;
+  return translatedParts.join('');
+};
+
 const firstString = (
   record: Record<string, unknown>,
   keys: string[]
@@ -350,6 +421,12 @@ const firstString = (
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const normalizedSourceKey = (value: string): string =>
+  value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[^A-Za-z0-9\u4e00-\u9fff]+/g, '')
+    .toLowerCase();
 
 const parseEmbeddedJson = (value: string): unknown => {
   const trimmed = value.trim()
@@ -376,9 +453,18 @@ const parseJson = (value: string): unknown | undefined => {
   try {
     return JSON.parse(value);
   } catch {
-    return undefined;
+    const repaired = repairJsonEscapes(value);
+    if (repaired === value) return undefined;
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      return undefined;
+    }
   }
 };
+
+const repairJsonEscapes = (value: string): string =>
+  value.replace(/\\([^"\\/bfnrtu])/g, '$1');
 
 const extractOutputText = (value: unknown): string | undefined => {
   if (!value || typeof value !== 'object') return undefined;

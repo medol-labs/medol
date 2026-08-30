@@ -238,6 +238,67 @@ test('parses portOutput field attribute and preserves it for code generation', (
   assert.match(roundTripDsl, /runtimeEngineJobId: String portOutput/);
 });
 
+test('parses command result fields separately from command input fields', () => {
+  const model = parseMedol(`
+    context IdentityAccessManagement {
+      slice GenerateUserAccountLoginPassword {
+        port
+        command GenerateUserAccountLoginPassword {
+          userAccountId: UUID id technical
+          passwordResetRequired: Boolean
+
+          result {
+            temporaryPassword: String technical
+          }
+        }
+        event UserAccountLoginPasswordGenerated {
+          userAccountId: UUID id technical
+          passwordHash: String portOutput technical
+          passwordResetRequired: Boolean
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const command = model.contexts[0].slices[0].elements.find((item) => item.kind === 'command');
+  assert(command);
+  assert.deepEqual(command.fields.map((field) => field.name), ['userAccountId', 'passwordResetRequired']);
+  assert.deepEqual(command.resultFields?.map((field) => field.name), ['temporaryPassword']);
+
+  const codegen = modelToCodegenModel(model);
+  assert.deepEqual(codegen.slices[0].commands[0].fields.map((field) => field.name), ['userAccountId', 'passwordResetRequired']);
+  assert.deepEqual(codegen.slices[0].commands[0].resultFields?.map((field) => field.name), ['temporaryPassword']);
+
+  const roundTripDsl = configToDsl({
+    context: 'IdentityAccessManagement',
+    slices: [{
+      title: 'GenerateUserAccountLoginPassword',
+      port: true,
+      commands: [{
+        title: 'GenerateUserAccountLoginPassword',
+        fields: [{
+          name: 'userAccountId',
+          type: 'UUID',
+          cardinality: 'Single',
+          optional: false,
+          idAttribute: true,
+          technicalAttribute: true
+        }],
+        resultFields: [{
+          name: 'temporaryPassword',
+          type: 'String',
+          cardinality: 'Single',
+          optional: false,
+          technicalAttribute: true
+        }]
+      }]
+    }]
+  });
+  assert.match(roundTripDsl, /command GenerateUserAccountLoginPassword \{/);
+  assert.match(roundTripDsl, /result \{\n\s+temporaryPassword: String technical\n\s+\}/);
+});
+
 test('parses slice port marker and preserves it for code generation', () => {
   const model = parseMedol(`
     context Runtime {

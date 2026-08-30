@@ -375,6 +375,44 @@ test('normalizes wrapped model translation provider responses', () => {
     'Register Account': '注册账户',
     'Email already exists': '邮箱已存在'
   });
+
+  assert.deepEqual(normalizeModelTranslationResponse({
+    RegisterAccount: '注册账户',
+    EmailAlreadyExists: '邮箱已存在'
+  }, sourceTexts), {
+    'Register Account': '注册账户',
+    'Email already exists': '邮箱已存在'
+  });
+
+  assert.deepEqual(normalizeModelTranslationResponse(
+    '注册模型工件',
+    ['Register Model Artifact']
+  ), {
+    'Register Model Artifact': '注册模型工件'
+  });
+
+  assert.deepEqual(normalizeModelTranslationResponse(
+    '```json\n{\n  "PYTORCH\\_STATE\\_DICT and SKLEARN\\_PICKLE": "PYTORCH_STATE_DICT 和 SKLEARN_PICKLE"\n}\n```',
+    ['PYTORCH_STATE_DICT and SKLEARN_PICKLE']
+  ), {
+    'PYTORCH_STATE_DICT and SKLEARN_PICKLE': 'PYTORCH_STATE_DICT 和 SKLEARN_PICKLE'
+  });
+
+  const modelArtifactRule = [
+    'Registering a model artifact is a port-backed import operation. modelFormat is maintained by the MODEL_FORMAT dictionary.',
+    '',
+    'unique (ModelArtifact.modelName, ModelArtifact.modelVersion)'
+  ].join('\n');
+  assert.deepEqual(normalizeModelTranslationResponse({
+    'Registering a model artifact is a port-backed import operation. modelFormat is maintained by the MODEL\\_FORMAT dictionary.': '注册模型制品是一个由端口支持的导入操作。modelFormat 由 MODEL_FORMAT 字典维护。',
+    'unique (ModelArtifact.modelName, ModelArtifact.modelVersion)': '唯一 (ModelArtifact.modelName, ModelArtifact.modelVersion)'
+  }, [modelArtifactRule]), {
+    [modelArtifactRule]: [
+      '注册模型制品是一个由端口支持的导入操作。modelFormat 由 MODEL_FORMAT 字典维护。',
+      '',
+      '唯一 (ModelArtifact.modelName, ModelArtifact.modelVersion)'
+    ].join('\n')
+  });
 });
 
 test('generates a conventional Chinese PRD with concept business objects', () => {

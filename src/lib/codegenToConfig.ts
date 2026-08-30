@@ -54,6 +54,7 @@ interface ConfigElement {
   todo?: boolean;
   metadata?: Record<string, string>;
   aggregateDependencies?: string[];
+  resultFields?: ConfigField[];
   dependencies: Array<{
     id: string;
     type: 'INBOUND' | 'OUTBOUND';
@@ -231,6 +232,9 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   slice: element.slice,
   title: element.title,
   fields: element.fields.map(toConfigField),
+  ...(element.type === 'COMMAND' && element.resultFields && element.resultFields.length > 0
+    ? { resultFields: element.resultFields.map(toConfigField) }
+    : {}),
   type: element.type,
   description: '',
   aggregate: element.aggregate?.name,

@@ -44,6 +44,7 @@ export interface EmElement {
   kind: EmElementKind;
   name: string;
   fields: EmField[];
+  resultFields?: EmField[];
   listElement?: boolean;
   todo?: boolean;
   sliceId?: string;
