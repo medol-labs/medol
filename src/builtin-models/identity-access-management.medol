@@ -9,7 +9,6 @@ domain IdentityAccessManagement {
         username: String
         providerSubject: String? technical
         passwordHash: String? technical
-        organizationId: UUID?
       }
 
       event UserAccountRegistered {
@@ -17,7 +16,6 @@ domain IdentityAccessManagement {
         username: String
         providerSubject: String? technical
         passwordHash: String? technical
-        organizationId: UUID?
       }
 
       state Active
@@ -84,13 +82,19 @@ domain IdentityAccessManagement {
       startsLifecycle
       actor IdentityAdministrator
 
+      tags {
+        roleCode = normalize(roleCode)
+      }
+
       command RegisterRole {
-        roleCode: String id
+        roleId: UUID id generated technical
+        roleCode: String
         roleName: String
       }
 
       event RoleRegistered {
-        roleCode: String id
+        roleId: UUID id technical
+        roleCode: String
         roleName: String
       }
 
@@ -101,14 +105,20 @@ domain IdentityAccessManagement {
       startsLifecycle
       actor IdentityAdministrator
 
+      tags {
+        permissionCode = normalize(permissionCode)
+      }
+
       command RegisterPermission {
-        permissionCode: String id
+        permissionId: UUID id generated technical
+        permissionCode: String
         permissionName: String
         description: String?
       }
 
       event PermissionRegistered {
-        permissionCode: String id
+        permissionId: UUID id technical
+        permissionCode: String
         permissionName: String
         description: String?
       }
@@ -120,13 +130,15 @@ domain IdentityAccessManagement {
       actor IdentityAdministrator
 
       command GrantPermissionToRole {
-        roleCode: String id
-        permissionCode: String
+        roleId: UUID id technical
+        roleCode: String technical
+        permissionCodes: String[] from PermissionCatalog.permissionCode
       }
 
       event PermissionGrantedToRole {
-        roleCode: String id
-        permissionCode: String
+        roleId: UUID id technical
+        roleCode: String
+        permissionCodes: String[]
       }
     }
 
@@ -135,12 +147,12 @@ domain IdentityAccessManagement {
 
       command AssignRoleToUser {
         userAccountId: UUID id technical
-        roleCode: String
+        roleCodes: String[] from RoleCatalog.roleCode
       }
 
       event RoleAssignedToUser {
         userAccountId: UUID id technical
-        roleCode: String
+        roleCodes: String[]
       }
     }
 
@@ -152,7 +164,6 @@ domain IdentityAccessManagement {
         username: String display
         providerSubject: String?
         passwordHash: String? technical
-        organizationId: UUID?
         active: Boolean
         roleCodes: String[]
         subscribe UserAccountRegistered
@@ -162,7 +173,8 @@ domain IdentityAccessManagement {
       }
 
       readmodel RoleCatalog[] {
-        roleCode: String id display
+        roleId: UUID id
+        roleCode: String
         roleName: String display
         permissionCodes: String[]
         subscribe RoleRegistered
@@ -170,7 +182,8 @@ domain IdentityAccessManagement {
       }
 
       readmodel PermissionCatalog[] {
-        permissionCode: String id display
+        permissionId: UUID id
+        permissionCode: String
         permissionName: String display
         description: String?
         subscribe PermissionRegistered

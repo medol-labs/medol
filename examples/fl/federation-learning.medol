@@ -136,6 +136,67 @@ context OrganizationManagement {
     }
   }
 
+  slice BindUserAccountToOrganization {
+    startsLifecycle
+    actor PlatformAdmin
+    ui OrganizationAdminScreen
+
+    command BindUserAccountToOrganization {
+      userOrganizationMembershipId: UUID id generated technical
+      userAccountId: UUID from UserAccountCatalog.userAccountId
+      organizationId: UUID from OrganizationDirectory.organizationId
+      organizationUserRole: String?
+    }
+
+    event UserAccountBoundToOrganization {
+      userOrganizationMembershipId: UUID id technical
+      userAccountId: UUID
+      organizationId: UUID
+      organizationUserRole: String?
+    }
+
+    state Active
+
+    specification "User Account Organization Binding Unique" {
+      rule """
+        A user account can be bound to the same business organization only once.
+      """
+
+      expression {
+        unique (UserOrganizationMembership.userAccountId, UserOrganizationMembership.organizationId)
+      }
+
+      scenario "Reject Duplicate User Organization Binding" {
+        given UserAccountBoundToOrganization {
+          userAccountId = "11111111-1111-4111-8111-111111111111"
+          organizationId = "22222222-2222-4222-8222-222222222222"
+        }
+        when BindUserAccountToOrganization {
+          userAccountId = "11111111-1111-4111-8111-111111111111"
+          organizationId = "22222222-2222-4222-8222-222222222222"
+        }
+        then reject "User account is already bound to this organization."
+      }
+    }
+  }
+
+  slice UserOrganizationMembershipDirectory {
+    ui OrganizationAdminScreen
+
+    readmodel UserOrganizationMembershipDirectory[] {
+      userOrganizationMembershipId: UUID id
+      userAccountId: UUID
+      username: String? display derived from UserAccountCatalog.username by userAccountId
+      organizationId: UUID
+      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
+      organizationUserRole: String?
+      state: UserOrganizationMembership.State
+      subscribe UserAccountBoundToOrganization
+      subscribe UserAccountRegistered
+      subscribe OrganizationRegistered
+    }
+  }
+
   concept Organization {
     state Registered
     state Active
@@ -146,6 +207,13 @@ context OrganizationManagement {
     slice DeactivateOrganization
     slice ReactivateOrganization
     slice OrganizationDirectory
+  }
+
+  concept UserOrganizationMembership {
+    state Active
+
+    slice BindUserAccountToOrganization
+    slice UserOrganizationMembershipDirectory
   }
 
 }
