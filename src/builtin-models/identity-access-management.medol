@@ -25,10 +25,6 @@ domain IdentityAccessManagement {
           Active user account usernames must be unique.
         """
 
-        expression {
-          unique UserAccount.username
-        }
-
         scenario "Reject Duplicate Username" {
           given UserAccountRegistered {
             username = "admin"
@@ -173,6 +169,95 @@ domain IdentityAccessManagement {
 
     }
 
+    slice IssueServiceAccountApiToken {
+      startsLifecycle
+      actor SuperAdministrator
+      port
+      tags {
+        userAccountId
+      }
+
+      command IssueServiceAccountApiToken {
+        apiTokenId: UUID id generated technical
+        userAccountId: UUID from UserAccountCatalog.userAccountId
+        tokenName: String
+
+        result {
+          apiToken: String technical
+        }
+      }
+
+      event ServiceAccountApiTokenIssued {
+        apiTokenId: UUID id technical
+        userAccountId: UUID
+        username: String portOutput
+        tokenName: String
+        tokenPrefix: String portOutput
+        tokenDigest: String portOutput technical
+        issuedAt: LocalDateTime
+        roles: String[] portOutput
+        permissions: String[] portOutput
+      }
+
+      state Issued
+
+      specification "Only Super Administrator Can Issue Service Account Api Token" {
+        rule """
+          Service account API tokens are intended for third-party system integration only.
+          Normal users do not issue tokens for themselves. A super administrator creates
+          a dedicated service account user, grants the required roles, and issues a long-lived
+          token for that account.
+        """
+
+        scenario "Super Administrator Issues Token For Service Account" {
+          given UserAccountRegistered {
+            userAccountId = "00000000-0000-0000-0000-000000000001"
+            username = "dictionary-sync-service"
+          }
+          when IssueServiceAccountApiToken {
+            userAccountId = "00000000-0000-0000-0000-000000000001"
+            tokenName = "dictionary init"
+          }
+          then ServiceAccountApiTokenIssued
+        }
+      }
+
+      specification "Service Account Api Token Plaintext Returned Once" {
+        rule """
+          The generated API token plaintext is returned only as the command result.
+          Domain events and read models store only the token prefix and token digest.
+        """
+
+        scenario "Issued Event Stores Digest Instead Of Plaintext Token" {
+          when IssueServiceAccountApiToken {
+            tokenName = "offline integration"
+          }
+          then ServiceAccountApiTokenIssued
+        }
+      }
+
+      specification "Service Account Api Token Captures Permission Snapshot" {
+        rule """
+          The issued token carries the service account roles and permissions at issuance time.
+          When permissions change, the operator generates a new token for the service account.
+        """
+
+        scenario "Issued Token Captures Current Permissions" {
+          given RoleAssignedToUser {
+            roleCode = "DictionaryInitializer"
+          }
+          given PermissionGrantedToRole {
+            roleCode = "DictionaryInitializer"
+            permissionCode = "register_dictionary:execute"
+          }
+          when IssueServiceAccountApiToken {
+            tokenName = "dictionary initializer"
+          }
+          then ServiceAccountApiTokenIssued
+        }
+      }
+    }
+
     slice UserAccountCatalogs {
       actor IdentityAdministrator
 
@@ -236,6 +321,22 @@ domain IdentityAccessManagement {
       }
     }
 
+    slice ServiceAccountApiTokenCatalogs {
+      actor SuperAdministrator
+
+      readmodel ServiceAccountApiTokenCatalog[] {
+        apiTokenId: UUID id
+        userAccountId: UUID
+        username: String display
+        tokenName: String display
+        tokenPrefix: String display
+        issuedAt: LocalDateTime
+        roles: String[]
+        permissions: String[]
+        subscribe ServiceAccountApiTokenIssued
+      }
+    }
+
     concept UserAccount {
       state Active
       state Deactivated
@@ -265,6 +366,12 @@ domain IdentityAccessManagement {
 
     concept RolePermissionGrant {
       slice RolePermissionGrantCatalog
+    }
+
+    concept ServiceAccountApiToken {
+      state Issued
+      slice IssueServiceAccountApiToken
+      slice ServiceAccountApiTokenCatalogs
     }
 
   }

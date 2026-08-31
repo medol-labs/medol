@@ -2177,6 +2177,7 @@ context TrainingOrchestration {
 
     command DefineTrainingRunConfiguration {
       trainingRunConfigurationId: UUID id generated technical
+      configurationName: String display
       federationId: UUID
       featureSchemaId: UUID
       initialModelId: UUID from ModelArtifactCatalog.modelId
@@ -2199,6 +2200,7 @@ context TrainingOrchestration {
 
     event TrainingRunConfigurationDefined {
       trainingRunConfigurationId: UUID id technical
+      configurationName: String display
       federationId: UUID
       featureSchemaId: UUID
       initialModelId: UUID
@@ -2257,6 +2259,7 @@ context TrainingOrchestration {
       scenario "Define Runnable Configuration" {
         when DefineTrainingRunConfiguration {
           trainingRunConfigurationId = "cfg-1"
+          configurationName = "Readmission Risk Baseline"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
           initialModelId = "model-1"
@@ -2280,6 +2283,7 @@ context TrainingOrchestration {
       scenario "Reject Empty Round Budget" {
         when DefineTrainingRunConfiguration {
           trainingRunConfigurationId = "cfg-2"
+          configurationName = "Invalid Round Budget"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
           initialModelId = "model-1"
@@ -2309,6 +2313,7 @@ context TrainingOrchestration {
 
     command UpdateTrainingRunConfiguration {
       trainingRunConfigurationId: UUID id technical
+      configurationName: String display
       federationId: UUID
       featureSchemaId: UUID
       initialModelId: UUID from ModelArtifactCatalog.modelId
@@ -2332,6 +2337,7 @@ context TrainingOrchestration {
 
     event TrainingRunConfigurationUpdated {
       trainingRunConfigurationId: UUID id technical
+      configurationName: String display
       federationId: UUID
       featureSchemaId: UUID
       initialModelId: UUID
@@ -2394,6 +2400,7 @@ context TrainingOrchestration {
         }
         when UpdateTrainingRunConfiguration {
           trainingRunConfigurationId = "cfg-1"
+          configurationName = "Readmission Risk Tuned"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
           initialModelId = "model-2"
@@ -2421,6 +2428,7 @@ context TrainingOrchestration {
         }
         when UpdateTrainingRunConfiguration {
           trainingRunConfigurationId = "cfg-2"
+          configurationName = "Locked Configuration Fix"
           federationId = "fed-1"
           featureSchemaId = "schema-1"
           initialModelId = "model-2"
@@ -2471,10 +2479,11 @@ context TrainingOrchestration {
   slice TrainingRunConfigurationCatalog {
     readmodel TrainingRunConfigurationCatalog[] {
       trainingRunConfigurationId: UUID id
+      configurationName: String display
       federationId: UUID
       featureSchemaId: UUID
       initialModelId: UUID
-      initialModelName: String display
+      initialModelName: String
       initialModelVersion: String
       federationName: String? display derived {
         from FederationCreated.federationName
@@ -2636,6 +2645,61 @@ context TrainingOrchestration {
     }
   }
 
+  slice TrainingJobDashboard {
+    readmodel TrainingJobDashboard[] {
+      trainingJobId: UUID id
+      federationId: UUID
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      federationName: String? derived {
+        from FederationCreated.federationName
+        rule "Lookup by federationId and denormalize the federation display name into the training job dashboard."
+      }
+      featureDomain: String? derived {
+        from FeatureSchemaDefined.featureDomain
+        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training job dashboard."
+      }
+      featureSchemaVersion: String? derived {
+        from FeatureSchemaDefined.version
+        rule "Lookup by featureSchemaId and denormalize the feature schema version into the training job dashboard."
+      }
+      objective: String
+      strategyName: String? dictionary "TRAINING_STRATEGY"
+      aggregationAlgorithm: String? dictionary "AGGREGATION_ALGORITHM"
+      secureAggregationRequired: Boolean?
+      state: TrainingJob.State
+      workflowStage: String
+      workflowStep: Int
+      nextAction: String?
+      availableActions: String[]
+      blockedReason: String?
+      canSubmit: Boolean
+      canStartRound: Boolean
+      canPause: Boolean
+      canResume: Boolean
+      canCancel: Boolean
+      canComplete: Boolean
+      currentRoundNumber: Int
+      startedRuntimeCount: Int
+      minimumNodesPerRound: Int
+      maxRounds: Int
+      roundProgressPercent: Int
+      globalAccuracy: Decimal?
+      finalModelId: UUID?
+      stopReason: String?
+      subscribe FederationCreated
+      subscribe FeatureSchemaDefined
+      subscribe TrainingJobCreated
+      subscribe TrainingJobSubmitted
+      subscribe TrainingJobPaused
+      subscribe TrainingJobResumed
+      subscribe TrainingJobCanceled
+      subscribe TrainingRoundStarted
+      subscribe TrainingRoundCompleted
+      subscribe TrainingJobCompleted
+    }
+  }
+  
   slice TrainingParticipantEligibility {
     reactsTo TrainingJobSubmitted
 
@@ -2769,7 +2833,8 @@ context TrainingOrchestration {
     reactsTo TrainingRoundCompleted
 
     automation SelectNextRoundParticipantsWhenTrainingShouldContinue {
-      condition shouldStartNextRound == true
+      on TrainingRoundCompleted
+      condition roundNumber < maxRounds
       emits SelectTrainingRoundParticipants
     }
   }
@@ -2777,21 +2842,17 @@ context TrainingOrchestration {
 
     reactsTo TrainingRoundCompleted
 
-    automation CompleteJobWhenRoundBudgetExhausted {
-      condition currentRoundNumber >= maxRounds
-      emits CompleteTrainingJob
-    }
-
-    automation CompleteJobWhenGlobalMetricReached {
-      condition globalAccuracy >= minimumAccuracy
+    automation CompleteJobWhenTrainingStopCriteriaMet {
+      on TrainingRoundCompleted
+      condition roundNumber >= maxRounds
       emits CompleteTrainingJob
     }
 
     command CompleteTrainingJob {
       trainingJobId: UUID id technical
-      finalRoundId: UUID
-      finalModelId: UUID
-      stopReason: String
+      finalRoundId: UUID from TrainingRoundCompleted.roundId
+      finalModelId: UUID from TrainingRoundCompleted.aggregatedModelId
+      stopReason: String generated technical
     }
 
     event TrainingJobCompleted {
@@ -2804,60 +2865,6 @@ context TrainingOrchestration {
     state Completed
   }
 
-  slice TrainingJobDashboard {
-    readmodel TrainingJobDashboard[] {
-      trainingJobId: UUID id
-      federationId: UUID
-      trainingRunConfigurationId: UUID
-      featureSchemaId: UUID
-      federationName: String? derived {
-        from FederationCreated.federationName
-        rule "Lookup by federationId and denormalize the federation display name into the training job dashboard."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training job dashboard."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the training job dashboard."
-      }
-      objective: String
-      strategyName: String? dictionary "TRAINING_STRATEGY"
-      aggregationAlgorithm: String? dictionary "AGGREGATION_ALGORITHM"
-      secureAggregationRequired: Boolean?
-      state: TrainingJob.State
-      workflowStage: String
-      workflowStep: Int
-      nextAction: String?
-      availableActions: String[]
-      blockedReason: String?
-      canSubmit: Boolean
-      canStartRound: Boolean
-      canPause: Boolean
-      canResume: Boolean
-      canCancel: Boolean
-      canComplete: Boolean
-      currentRoundNumber: Int
-      startedRuntimeCount: Int
-      minimumNodesPerRound: Int
-      maxRounds: Int
-      roundProgressPercent: Int
-      globalAccuracy: Decimal?
-      finalModelId: UUID?
-      stopReason: String?
-      subscribe FederationCreated
-      subscribe FeatureSchemaDefined
-      subscribe TrainingJobCreated
-      subscribe TrainingJobSubmitted
-      subscribe TrainingJobPaused
-      subscribe TrainingJobResumed
-      subscribe TrainingJobCanceled
-      subscribe TrainingRoundStarted
-      subscribe TrainingRoundCompleted
-      subscribe TrainingJobCompleted
-    }
-  }
 
   concept TrainingJob {
     state Draft
@@ -2869,13 +2876,13 @@ context TrainingOrchestration {
 
     slice CreateTrainingJob
     slice SubmitTrainingJob
-    slice TrainingParticipantEligibility
     slice PauseTrainingJob
     slice ResumeTrainingJob
     slice CancelTrainingJob
     slice ScheduleNextTrainingRound
     slice CompleteTrainingJob
     slice TrainingJobDashboard
+    slice TrainingParticipantEligibility
   }
 
   value TrainingRoundParticipant {
@@ -2906,6 +2913,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       minimumNodesPerRound: Int
       secureAggregationRequired: Boolean
       selectedOrganizationIds: UUID[]
@@ -2921,6 +2930,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       minimumNodesPerRound: Int
       secureAggregationRequired: Boolean
       selectedOrganizationIds: UUID[]
@@ -3053,6 +3064,14 @@ context TrainingOrchestration {
         from TrainingRoundParticipantsSelected.minimumNodesPerRound, HomomorphicEncryptionContextPrepared.minimumNodesPerRound
         rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
       }
+      maxRounds: Int derived {
+        from TrainingRoundParticipantsSelected.maxRounds, HomomorphicEncryptionContextPrepared.maxRounds
+        rule "Carry the configured maximum round budget for downstream completion and next-round decisions."
+      }
+      minimumAccuracy: Decimal derived {
+        from TrainingRoundParticipantsSelected.minimumAccuracy, HomomorphicEncryptionContextPrepared.minimumAccuracy
+        rule "Carry the target global accuracy for downstream completion and next-round decisions."
+      }
       secureAggregationRequired: Boolean derived {
         from TrainingRoundParticipantsSelected.secureAggregationRequired, HomomorphicEncryptionContextPrepared.secureAggregationRequired
         rule "Plaintext rounds use false from participant selection; secure aggregation rounds use true from the prepared encryption context."
@@ -3076,6 +3095,8 @@ context TrainingOrchestration {
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -3096,6 +3117,8 @@ context TrainingOrchestration {
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -3398,6 +3421,8 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       roundId: UUID
       roundNumber: Int from TrainingRoundStarted.roundNumber
+      maxRounds: Int from TrainingRoundStarted.maxRounds
+      minimumAccuracy: Decimal from TrainingRoundStarted.minimumAccuracy
       runtimeId: UUID
       featureSchemaId: UUID
       secureAggregationRequired: Boolean
@@ -3501,6 +3526,8 @@ context TrainingOrchestration {
       selectedOrganizationCount: Int from TrainingRoundParticipantsSelected.selectedOrganizationCount
       selectedRuntimeCount: Int from TrainingRoundParticipantsSelected.selectedRuntimeCount
       minimumNodesPerRound: Int from TrainingRoundParticipantsSelected.minimumNodesPerRound
+      maxRounds: Int from TrainingRoundParticipantsSelected.maxRounds
+      minimumAccuracy: Decimal from TrainingRoundParticipantsSelected.minimumAccuracy
       secureAggregationRequired: Boolean from TrainingRoundParticipantsSelected.secureAggregationRequired
     }
 
@@ -3516,6 +3543,8 @@ context TrainingOrchestration {
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       secureAggregationRequired: Boolean
     }
 
@@ -3530,6 +3559,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID from SecureAggregationCompleted.featureSchemaId
       roundId: UUID from SecureAggregationCompleted.roundId
       roundNumber: Int from SecureAggregationCompleted.roundNumber
+      maxRounds: Int from SecureAggregationCompleted.maxRounds
+      minimumAccuracy: Decimal from SecureAggregationCompleted.minimumAccuracy
       secureAggregationSessionId: UUID from SecureAggregationCompleted.secureAggregationSessionId
       aggregatedModelId: UUID from SecureAggregationCompleted.aggregatedModelId
       aggregatedModelArtifactUri: String from SecureAggregationCompleted.aggregatedModelArtifactUri
@@ -3545,6 +3576,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       secureAggregationSessionId: UUID
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String
@@ -3572,6 +3605,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int from GlobalModelUpdated.roundNumber
+      maxRounds: Int from GlobalModelUpdated.maxRounds
+      minimumAccuracy: Decimal from GlobalModelUpdated.minimumAccuracy
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String from GlobalModelUpdated.aggregatedModelArtifactUri
       aggregatedModelRegistryRef: String from GlobalModelUpdated.aggregatedModelRegistryRef
@@ -3586,6 +3621,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
@@ -3611,6 +3648,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int from GlobalModelEvaluationSubmitted.roundNumber
+      maxRounds: Int from GlobalModelEvaluationSubmitted.maxRounds
+      minimumAccuracy: Decimal from GlobalModelEvaluationSubmitted.minimumAccuracy
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String from GlobalModelEvaluationSubmitted.aggregatedModelArtifactUri
       aggregatedModelRegistryRef: String from GlobalModelEvaluationSubmitted.aggregatedModelRegistryRef
@@ -3626,6 +3665,8 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
@@ -4812,6 +4853,8 @@ context SecureAggregation {
       selectedOrganizationCount: Int from SecureAggregationRequested.selectedOrganizationCount
       selectedRuntimeCount: Int from SecureAggregationRequested.selectedRuntimeCount
       minimumNodesPerRound: Int from SecureAggregationRequested.minimumNodesPerRound
+      maxRounds: Int from SecureAggregationRequested.maxRounds
+      minimumAccuracy: Decimal from SecureAggregationRequested.minimumAccuracy
       secureAggregationRequired: Boolean from SecureAggregationRequested.secureAggregationRequired
     }
 
@@ -4828,6 +4871,8 @@ context SecureAggregation {
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       secureAggregationRequired: Boolean
     }
 
@@ -4855,6 +4900,8 @@ context SecureAggregation {
       selectedOrganizationCount: Int from SecureAggregationSessionCreated.selectedOrganizationCount
       selectedParticipantCount: Int from SecureAggregationSessionCreated.requiredParticipantCount
       minimumNodesPerRound: Int from SecureAggregationSessionCreated.minimumNodesPerRound
+      maxRounds: Int from SecureAggregationSessionCreated.maxRounds
+      minimumAccuracy: Decimal from SecureAggregationSessionCreated.minimumAccuracy
       secureAggregationRequired: Boolean from SecureAggregationSessionCreated.secureAggregationRequired
     }
 
@@ -4870,6 +4917,8 @@ context SecureAggregation {
       selectedOrganizationCount: Int
       selectedParticipantCount: Int
       minimumNodesPerRound: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       secureAggregationRequired: Boolean
     }
 
@@ -4898,6 +4947,8 @@ context SecureAggregation {
       selectedOrganizationCount: Int from SecureAggregationParticipantsSelected.selectedOrganizationCount
       selectedRuntimeCount: Int from SecureAggregationParticipantsSelected.selectedParticipantCount
       minimumNodesPerRound: Int from SecureAggregationParticipantsSelected.minimumNodesPerRound
+      maxRounds: Int from SecureAggregationParticipantsSelected.maxRounds
+      minimumAccuracy: Decimal from SecureAggregationParticipantsSelected.minimumAccuracy
       secureAggregationRequired: Boolean from SecureAggregationParticipantsSelected.secureAggregationRequired
     }
 
@@ -4913,6 +4964,8 @@ context SecureAggregation {
       selectedOrganizationCount: Int
       selectedRuntimeCount: Int
       minimumNodesPerRound: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       secureAggregationRequired: Boolean
       // PAILLIER
       encryptionScheme: String portOutput
@@ -4943,6 +4996,8 @@ context SecureAggregation {
       featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
       roundId: UUID from ModelUpdateSubmissionAccepted.roundId
       roundNumber: Int from ModelUpdateSubmissionAccepted.roundNumber
+      maxRounds: Int from ModelUpdateSubmissionAccepted.maxRounds
+      minimumAccuracy: Decimal from ModelUpdateSubmissionAccepted.minimumAccuracy
       runtimeId: UUID from ModelUpdateSubmissionAccepted.runtimeId
       updateArtifactId: UUID from ModelUpdateSubmissionAccepted.updateArtifactId
       encryptedUpdateArtifactRef: String from ModelUpdateSubmissionAccepted.artifactRef
@@ -4959,6 +5014,8 @@ context SecureAggregation {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       runtimeId: UUID
       updateArtifactId: UUID
       encryptedUpdateArtifactRef: String
@@ -4986,6 +5043,8 @@ context SecureAggregation {
       featureSchemaId: UUID from EncryptedModelUpdateReceived.featureSchemaId
       roundId: UUID from EncryptedModelUpdateReceived.roundId
       roundNumber: Int from EncryptedModelUpdateReceived.roundNumber
+      maxRounds: Int from EncryptedModelUpdateReceived.maxRounds
+      minimumAccuracy: Decimal from EncryptedModelUpdateReceived.minimumAccuracy
       aggregatedModelId: UUID generated technical
     }
 
@@ -4996,6 +5055,8 @@ context SecureAggregation {
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
       aggregatedModelId: UUID
       aggregatedModelArtifactUri: String portOutput
       aggregatedModelRegistryRef: String portOutput
@@ -6110,6 +6171,7 @@ context RuntimeAgentOperations {
 
     command ReceiveParticipantExecutionPlan {
       executionPlanId: UUID id technical from ParticipantExecutionPlanDispatched.executionPlanId
+      roundExecutionId: UUID from ParticipantExecutionPlanDispatched.executionPlanId
       executionSessionId: UUID from ParticipantExecutionPlanDispatched.executionSessionId
       trainingJobId: UUID from ParticipantExecutionPlanDispatched.trainingJobId
       trainingRunConfigurationId: UUID from ParticipantExecutionPlanDispatched.trainingRunConfigurationId
@@ -6134,6 +6196,7 @@ context RuntimeAgentOperations {
 
     event ExecutionPlanReceived {
       executionPlanId: UUID id technical
+      roundExecutionId: UUID
       executionSessionId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
@@ -6170,6 +6233,7 @@ context RuntimeAgentOperations {
 
     command AcceptExecutionPlan {
       executionPlanId: UUID id technical from ExecutionPlanReceived.executionPlanId
+      roundExecutionId: UUID from ExecutionPlanReceived.roundExecutionId
       executionSessionId: UUID from ExecutionPlanReceived.executionSessionId
       trainingJobId: UUID from ExecutionPlanReceived.trainingJobId
       trainingRunConfigurationId: UUID from ExecutionPlanReceived.trainingRunConfigurationId
@@ -6194,6 +6258,7 @@ context RuntimeAgentOperations {
 
     event ExecutionPlanAccepted {
       executionPlanId: UUID id technical
+      roundExecutionId: UUID
       executionSessionId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
@@ -6226,6 +6291,7 @@ context RuntimeAgentOperations {
 
     event ExecutionPlanRejected {
       executionPlanId: UUID id technical
+      roundExecutionId: UUID
       executionSessionId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
@@ -6296,7 +6362,7 @@ context RuntimeAgentOperations {
     }
 
     command StartRoundExecution {
-      roundExecutionId: UUID id generated technical
+      roundExecutionId: UUID id technical from ExecutionPlanAccepted.roundExecutionId
       executionSessionId: UUID from ExecutionPlanAccepted.executionSessionId
       executionPlanId: UUID from ExecutionPlanAccepted.executionPlanId
       trainingJobId: UUID from ExecutionPlanAccepted.trainingJobId
@@ -6457,8 +6523,6 @@ context RuntimeAgentOperations {
       metricsArtifactRef: String?
       trainingLoss: Decimal?
     }
-
-    state Running
 
     specification "Runtime Engine Job Observation Outcome" {
       rule """
