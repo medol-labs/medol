@@ -212,6 +212,24 @@ Workspace is the persistence boundary. A workspace owns one MEDOL document and i
 
 When `workspaceId` is omitted, `/api/modeling/codegen-model` exports the latest updated workspace. Pass `locale` or `language` to include stored CodegenModel translations.
 
+## Built-in IAM Auth Guidance
+
+The built-in `IdentityAccessManagement` model describes account, role, permission, and assignment behavior. Fixed authentication flows remain implementation concerns around that model:
+
+- Local login and admin setup are generated auth infrastructure, not ordinary business slices.
+- Supabase login is handled by the selected security provider and resolved through generated IAM read-model adapters.
+- Portal SSO handoff is exposed as a fixed frontend page and backend auth endpoint, not as a modeled command page.
+
+Portal SSO callback URLs may pass a system source:
+
+```text
+/sso/portal?token=<portal-jwt>&redirect=/target-page&systemSource=PORTAL
+```
+
+The frontend sends `systemSource` to `POST /api/auth/exchange-portal-jwt`. When the portal user does not yet exist, the backend creates the account through `RegisterUserAccount` and writes that value to the technical `userSource` field. If `systemSource` is omitted, generated services fall back to `MEDOL_SECURITY_PORTAL_SSO_USER_SOURCE`, defaulting to `PORTAL_SSO`.
+
+`userSource` is used for audit and operational visibility. Authorization still depends on role and permission assignments, so newly created portal users can receive a system JWT but should remain blocked from protected menus and commands until an administrator assigns roles.
+
 ## Build
 
 ```bash

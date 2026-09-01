@@ -96,3 +96,15 @@ The working backlog is in `TODO.md` (medol-only) and `outputs/事件驱动的医
   - `uploadFile` means the generated frontend uploads binary content to the support file-upload endpoint and sends the returned reference.
   - `file` means the command carries an existing file reference string.
 - Keep `fl/` out of scope. It is an older generated federation-learning project and is currently not maintained.
+
+## Built-in IAM and auth generation rules
+
+- Keep the built-in `IdentityAccessManagement` MEDOL model focused on account, role, permission, and assignment domain behavior.
+- Do not model fixed auth infrastructure as ordinary slices unless the user explicitly asks for a domain workflow. Local login, admin setup, Supabase auth bridging, and Portal SSO exchange are generated infrastructure around the IAM model.
+- `RegisterUserAccount.userSource` is an optional technical field. Generated forms should not ask operators to fill it. Fixed auth flows set it:
+  - local admin setup: `LOCAL`
+  - Supabase admin setup: `SUPABASE`
+  - Portal SSO: request `systemSource`, falling back to `MEDOL_SECURITY_PORTAL_SSO_USER_SOURCE` / `PORTAL_SSO`
+- Portal SSO uses the fixed frontend route `/sso/portal?token=<portal-jwt>&redirect=/target-page&systemSource=<source>` and backend endpoint `POST /api/auth/exchange-portal-jwt`.
+- On Portal SSO auto-registration, create the account through the generated `RegisterUserAccount` command with `passwordHash=null` and the resolved `userSource`. Existing users keep their original source.
+- Authorization must be driven by role and permission assignments, not by `userSource`. A newly auto-registered portal user should receive a system JWT only for session continuity and should have no protected access until roles are assigned.

@@ -8,6 +8,7 @@ domain IdentityAccessManagement {
         userAccountId: UUID id generated technical
         username: String
         providerSubject: String? technical
+        userSource: String? technical
         passwordHash: String? technical
       }
 
@@ -15,6 +16,7 @@ domain IdentityAccessManagement {
         userAccountId: UUID id technical
         username: String
         providerSubject: String? technical
+        userSource: String? technical
         passwordHash: String? technical
       }
 
@@ -265,6 +267,7 @@ domain IdentityAccessManagement {
         userAccountId: UUID id
         username: String display
         providerSubject: String?
+        userSource: String? technical
         passwordHash: String? technical
         active: Boolean
         subscribe UserAccountRegistered
