@@ -21781,13 +21781,33 @@
           "slice": "Record Runtime Dataset Metadata",
           "fields": [
             {
-              "name": "metadataReportId",
+              "name": "runtimeDatasetBindingId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetMetadataReported.runtimeDatasetBindingId"
+                ]
+              }
+            },
+            {
+              "name": "metadataReportId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "display": false,
               "uploadFile": false,
@@ -22108,13 +22128,27 @@
           "slice": "Record Runtime Dataset Metadata",
           "fields": [
             {
-              "name": "metadataReportId",
+              "name": "runtimeDatasetBindingId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "metadataReportId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "display": false,
               "uploadFile": false,
@@ -22402,13 +22436,33 @@
           "slice": "Record Runtime Dataset Reprofiled Metadata",
           "fields": [
             {
-              "name": "metadataReportId",
+              "name": "runtimeDatasetBindingId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "AgentDatasetReprofiled.runtimeDatasetBindingId"
+                ]
+              }
+            },
+            {
+              "name": "metadataReportId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "display": false,
               "uploadFile": false,
@@ -22728,13 +22782,27 @@
           "slice": "Record Runtime Dataset Reprofiled Metadata",
           "fields": [
             {
-              "name": "metadataReportId",
+              "name": "runtimeDatasetBindingId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": true,
               "generated": false,
               "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "metadataReportId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
               "query": false,
               "display": false,
               "uploadFile": false,
@@ -23018,11 +23086,25 @@
           "slice": "Runtime Dataset Metadata Catalog",
           "fields": [
             {
-              "name": "metadataReportId",
+              "name": "runtimeDatasetBindingId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "metadataReportId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
               "query": false,

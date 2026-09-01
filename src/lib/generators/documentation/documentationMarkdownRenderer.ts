@@ -1642,7 +1642,7 @@ const buildInstallationMediaRows = (
     ...(hasUiWorkflows(bundle) ? [[`${productSlug(bundle.title)}-web`, medolSoftwareVersion, 'SHA256:<...>', text.webPackageDescription]] : []),
     ...(hasRuntimeAgent(bundle) ? [[`${productSlug(bundle.title)}-runtime-agent`, medolSoftwareVersion, 'SHA256:<...>', text.agentPackageDescription]] : []),
     ['docker-compose.yml / k8s manifests', medolSoftwareVersion, 'SHA256:<...>', text.deploymentManifestDescription],
-    ['.env.example / config/', medolSoftwareVersion, 'SHA256:<...>', text.configTemplateDescription],
+    ['.env-example / config/', medolSoftwareVersion, 'SHA256:<...>', text.configTemplateDescription],
     ['scripts/', medolSoftwareVersion, 'SHA256:<...>', text.scriptDescription],
     ['LICENSE / license.key', medolSoftwareVersion, 'SHA256:<...>', text.licenseDescription]
   ];
@@ -2194,7 +2194,7 @@ const installationGuideText = {
     mediaTree: (title: string) => [
       `${productSlug(title)}-${medolSoftwareVersion}/`,
       '|-- docker-compose.yml',
-      '|-- .env.example',
+      '|-- .env-example',
       '|-- config/',
       '|-- scripts/',
       '|   |-- install.sh',
@@ -2510,7 +2510,7 @@ const installationGuideText = {
     mediaTree: (title: string) => [
       `${productSlug(title)}-${medolSoftwareVersion}/`,
       '|-- docker-compose.yml',
-      '|-- .env.example',
+      '|-- .env-example',
       '|-- config/',
       '|-- scripts/',
       '|   |-- install.sh',

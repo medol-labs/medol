@@ -1876,7 +1876,8 @@ context DatasetGovernance {
     }
 
     command RecordRuntimeDatasetMetadata {
-      metadataReportId: UUID id technical from AgentDatasetMetadataReported.metadataReportId
+      runtimeDatasetBindingId: UUID id technical from AgentDatasetMetadataReported.runtimeDatasetBindingId
+      metadataReportId: UUID from AgentDatasetMetadataReported.metadataReportId
       datasetId: UUID from AgentDatasetMetadataReported.datasetId
       organizationId: UUID from AgentDatasetMetadataReported.organizationId
       runtimeId: UUID from AgentDatasetMetadataReported.runtimeId
@@ -1894,7 +1895,8 @@ context DatasetGovernance {
     }
 
     event DatasetMetadataReported {
-      metadataReportId: UUID id technical
+      runtimeDatasetBindingId: UUID id technical
+      metadataReportId: UUID
       datasetId: UUID
       organizationId: UUID
       runtimeId: UUID
@@ -1923,7 +1925,8 @@ context DatasetGovernance {
     }
 
     command RecordRuntimeDatasetReprofiledMetadata {
-      metadataReportId: UUID id technical from AgentDatasetReprofiled.metadataReportId
+      runtimeDatasetBindingId: UUID id technical from AgentDatasetReprofiled.runtimeDatasetBindingId
+      metadataReportId: UUID from AgentDatasetReprofiled.metadataReportId
       datasetId: UUID from AgentDatasetReprofiled.datasetId
       organizationId: UUID from AgentDatasetReprofiled.organizationId
       runtimeId: UUID from AgentDatasetReprofiled.runtimeId
@@ -1941,7 +1944,8 @@ context DatasetGovernance {
     }
 
     event DatasetMetadataReprofiled {
-      metadataReportId: UUID id technical
+      runtimeDatasetBindingId: UUID id technical
+      metadataReportId: UUID
       datasetId: UUID
       organizationId: UUID
       runtimeId: UUID
@@ -1963,7 +1967,8 @@ context DatasetGovernance {
 
   slice RuntimeDatasetMetadataCatalog {
     readmodel RuntimeDatasetMetadataCatalog[] {
-      metadataReportId: UUID id
+      runtimeDatasetBindingId: UUID id
+      metadataReportId: UUID
       datasetId: UUID
       organizationId: UUID
       runtimeId: UUID
