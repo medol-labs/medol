@@ -181,6 +181,7 @@
   - [ ] 组织状态流程，激活没有作用
   - [ ] 运行时基础设施包，是否直接放字典中就可以
 
+
 ## TODO: Refine Generator UI Type Adaptation
 
 当前 MEDOL 已支持 `ui <ScreenName> <type>` 建模，其中 `type` 包括 `list`、`detail`、`form`、`dialog`、`drawer`、`confirm`、`wizard`、`inline`、`background`。但 Refine generator 目前主要根据 `readmodel []` 和 command 生成资源、路由和表单页，尚未完整消费 `slice.screens[].ui.type`。

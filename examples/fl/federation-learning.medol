@@ -804,241 +804,291 @@ context DictionaryMaintenance {
 }
 
 context FileUpload {
-  note "File upload owns short-lived staged file references used by generated forms and backend adapters. Business commands store the stagedFileId returned by this context, not a browser-local file path or storage location."
+  note "FileUpload is the shared persistent file-storage boundary. It stores uploaded content through a replaceable storage adapter, records each uploaded file, exposes an authenticated content URI, and applies optional retention through expiresAt. Business domains reference the uploaded file record instead of creating another physical storage tier."
 
-  risk "Staged files can leak sensitive model or dataset content if retention, ownership, and content validation are not enforced."
-  risk "Business commands can fail later if staged files expire before the consuming adapter imports them."
-  metric stagedFileUploadLatency
-  metric stagedFileImportFailureRate
+  risk "Stored files can leak sensitive model or dataset content if retention, ownership, authorization, and content validation are not enforced."
+  risk "Business references can become invalid if retention expires a file that is still referenced by a domain record."
+  metric fileUploadLatency
+  metric fileUploadFailureRate
 
-  slice StageFileUpload {
+  slice UploadFile {
     startsLifecycle
 
     actor PlatformUser
     ui FileUploadDialog
 
-    command StageFileUpload {
-      stagedFileId: UUID id generated technical
+    command UploadFile {
+      fileId: UUID id generated technical
       uploadedFile: String uploadFile
       originalFileName: String technical
       contentType: String? technical
       sizeBytes: Long? technical
-      stagedFileLocation: String technical
+      fileLocation: String technical
       checksum: String? technical
       expiresAt: DateTime technical
       purpose: String
     }
 
-    event FileUploadStaged {
-      stagedFileId: UUID id technical
+    event FileUploaded {
+      fileId: UUID id technical
       originalFileName: String display
       contentType: String?
       sizeBytes: Long?
       purpose: String
-      stagedFileLocation: String
+      fileLocation: String
       checksum: String?
       expiresAt: DateTime
     }
 
-    state Staged
+    state Available
 
-    specification "Uploaded File Is Staged Before Business Command Submission" {
+    specification "Uploaded File Is Persisted And Recorded" {
       rule """
-        A file field in a generated form first stages the selected browser file through the FileUpload deployment. The upload adapter stores the file in server-side temporary storage, computes optional checksum metadata, assigns a stagedFileLocation, and returns a stagedFileId to the form. Business commands submit the stagedFileId as a reference and consuming adapters query FileUpload metadata or content before importing the file into durable business storage.
+        A file field uploads the selected content through the FileUpload deployment. The storage adapter persists the bytes in its configured backend, computes checksum metadata, assigns an authenticated content URI, and records the upload under fileId. Business domains keep the returned reference and own its business meaning. expiresAt is the retention policy for the same stored object.
       """
 
-      scenario "Stage Upload For Model Import" {
-        when StageFileUpload {
-          stagedFileId = "staged-file-1"
+      scenario "Upload File For Model Import" {
+        when UploadFile {
+          fileId = "file-1"
           uploadedFile = "file://credit-risk-initial.onnx"
           originalFileName = "credit-risk-initial.onnx"
           contentType = "application/octet-stream"
           sizeBytes = 2048
-          stagedFileLocation = "file://staged/staged-file-1/credit-risk-initial.onnx"
+          fileLocation = "file://uploads/file-1/credit-risk-initial.onnx"
           checksum = "sha256:model"
           expiresAt = "2026-07-25T12:00:00"
           purpose = "MODEL_ARTIFACT_IMPORT"
         }
-        then FileUploadStaged
+        then FileUploaded
       }
     }
   }
 
-  slice MarkStagedFileConsumed {
+  slice MarkFileReferenced {
     actor PlatformService
-    reactsTo FileUploadStaged
+    reactsTo FileUploaded
 
-    command MarkStagedFileConsumed {
-      stagedFileId: UUID id technical
-      consumedByContext: String
-      consumedByCommand: String
-      consumedByCommandId: UUID?
+    command MarkFileReferenced {
+      fileId: UUID id technical
+      referencedByContext: String
+      referencedByCommand: String
+      referencedByCommandId: UUID?
     }
 
-    event StagedFileConsumed {
-      stagedFileId: UUID id technical
-      consumedByContext: String
-      consumedByCommand: String
-      consumedByCommandId: UUID?
+    event FileReferenced {
+      fileId: UUID id technical
+      referencedByContext: String
+      referencedByCommand: String
+      referencedByCommandId: UUID?
     }
 
-    state Consumed
+    state Referenced
 
-    specification "Consumed Staged File Is No Longer User Discardable" {
+    specification "Referenced File Is Protected From User Discard" {
       rule """
-        A staged file is marked consumed when a business adapter has imported it into durable business storage, such as a model registry. After consumption, users cannot discard the staged file because the business command has already relied on it. Physical cleanup of the temporary object is handled by retention policy.
+        A file is marked referenced when a business record accepts its fileId. Referencing does not copy the bytes into another storage tier; it records which business operation relies on the shared stored object. Physical cleanup remains controlled by expiresAt and reference-aware storage management.
       """
 
-      scenario "Mark File Consumed By Model Import" {
-        given FileUploadStaged {
-          stagedFileId = "staged-file-1"
+      scenario "Mark File Referenced By Model Import" {
+        given FileUploaded {
+          fileId = "file-1"
         }
-        when MarkStagedFileConsumed {
-          stagedFileId = "staged-file-1"
-          consumedByContext = "ModelRepository"
-          consumedByCommand = "RegisterModelArtifact"
+        when MarkFileReferenced {
+          fileId = "file-1"
+          referencedByContext = "ModelRepository"
+          referencedByCommand = "RegisterModelArtifact"
         }
-        then StagedFileConsumed
+        then FileReferenced
       }
     }
   }
 
-  slice DiscardStagedFile {
+  slice DownloadFile {
+    actor PlatformUser
+    ui UploadedFileCatalogScreen
+    reactsTo FileUploaded
+    port
+
+    command DownloadFile {
+      fileId: UUID id technical
+    }
+
+    event FileDownloadAuthorized {
+      fileId: UUID id technical
+      originalFileName: String
+      contentType: String?
+      sizeBytes: Long?
+      downloadUri: String
+    }
+
+    specification "Only Available Stored Files Can Be Downloaded" {
+      rule """
+        DownloadFile resolves an authenticated content URI through the configured FileUpload storage adapter. The command carries only fileId; original file metadata and downloadUri are resolved from UploadedFile state and the storage backend. File bytes are streamed by the download resource and are never copied into an Axon command or event. Referenced files remain downloadable, while discarded or expired files are rejected.
+      """
+
+      scenario "Authorize Available File Download" {
+        given FileUploaded {
+          fileId = "file-1"
+          originalFileName = "credit-risk-initial.onnx"
+          contentType = "application/octet-stream"
+          sizeBytes = 2048
+          fileLocation = "file://uploads/file-1/credit-risk-initial.onnx"
+        }
+        when DownloadFile {
+          fileId = "file-1"
+        }
+        then FileDownloadAuthorized
+      }
+
+      scenario "Reject Expired File Download" {
+        given FileExpired {
+          fileId = "file-2"
+        }
+        when DownloadFile {
+          fileId = "file-2"
+        }
+        then error "File is not available for download."
+      }
+    }
+  }
+
+  slice DiscardFile {
     actor PlatformUser
     ui FileUploadDialog
-    reactsTo FileUploadStaged
+    reactsTo FileUploaded
 
-    command DiscardStagedFile {
-      stagedFileId: UUID id technical
+    command DiscardFile {
+      fileId: UUID id technical
       discardReason: String?
     }
 
-    event StagedFileDiscarded {
-      stagedFileId: UUID id technical
+    event FileDiscarded {
+      fileId: UUID id technical
       discardReason: String?
     }
 
     state Discarded
 
-    specification "Only Unconsumed Staged Files Can Be Discarded" {
+    specification "Only Unreferenced Files Can Be Discarded" {
       rule """
-        A user can discard a staged file while it has not been consumed by a business command. Discarding records the intent to remove the temporary file and prevents later business commands from using that staged location.
+        A user can discard an uploaded file while no business record references it. Discarding records the removal request and prevents later business commands from using the file location.
       """
 
-      scenario "Discard Unconsumed Staged File" {
-        given FileUploadStaged {
-          stagedFileId = "staged-file-1"
+      scenario "Discard Unreferenced File" {
+        given FileUploaded {
+          fileId = "file-1"
         }
-        when DiscardStagedFile {
-          stagedFileId = "staged-file-1"
+        when DiscardFile {
+          fileId = "file-1"
           discardReason = "Wrong file selected."
         }
-        then StagedFileDiscarded
+        then FileDiscarded
       }
 
       scenario "Reject Discard After Consumption" {
-        given StagedFileConsumed {
-          stagedFileId = "staged-file-2"
+        given FileReferenced {
+          fileId = "file-2"
         }
-        when DiscardStagedFile {
-          stagedFileId = "staged-file-2"
+        when DiscardFile {
+          fileId = "file-2"
         }
-        then reject "Staged File Already Consumed"
+        then reject "File Is Referenced"
       }
     }
   }
 
-  slice ExpireStagedFile {
-    reactsTo FileUploadStaged
+  slice ExpireFile {
+    reactsTo FileUploaded
 
-    automation ExpireStagedFileWhenRetentionElapsed {
-      on FileUploadStaged
-      condition stagedFileExpired == true
-      emits ExpireStagedFile
+    automation ExpireFileWhenRetentionElapsed {
+      on FileUploaded
+      condition fileExpired == true
+      emits ExpireFile
     }
 
-    command ExpireStagedFile {
-      stagedFileId: UUID id technical
+    command ExpireFile {
+      fileId: UUID id technical
       expiredAt: DateTime
       expirationReason: String
     }
 
-    event StagedFileExpired {
-      stagedFileId: UUID id technical
+    event FileExpired {
+      fileId: UUID id technical
       expiredAt: DateTime
       expirationReason: String
     }
 
     state Expired
 
-    specification "Expired Staged File Cannot Be Consumed" {
+    specification "Expired File Cannot Be Referenced" {
       rule """
-        A staged file expires when its retention window elapses before any business command consumes it. Expiration prevents later use of the staged location and allows storage cleanup to remove the temporary object.
+        An uploaded file expires when its configured expiresAt is reached. Expiration prevents later use of the file location and allows the configured storage adapter to remove that stored object.
       """
 
-      scenario "Expire Unconsumed Staged File" {
-        given FileUploadStaged {
-          stagedFileId = "staged-file-1"
+      scenario "Expire Uploaded File" {
+        given FileUploaded {
+          fileId = "file-1"
         }
-        when ExpireStagedFile {
-          stagedFileId = "staged-file-1"
+        when ExpireFile {
+          fileId = "file-1"
           expirationReason = "Retention window elapsed."
         }
-        then StagedFileExpired
+        then FileExpired
       }
 
       scenario "Reject Consumption After Expiration" {
-        given StagedFileExpired {
-          stagedFileId = "staged-file-2"
+        given FileExpired {
+          fileId = "file-2"
         }
-        when MarkStagedFileConsumed {
-          stagedFileId = "staged-file-2"
-          consumedByContext = "ModelRepository"
-          consumedByCommand = "RegisterModelArtifact"
+        when MarkFileReferenced {
+          fileId = "file-2"
+          referencedByContext = "ModelRepository"
+          referencedByCommand = "RegisterModelArtifact"
         }
-        then reject "Staged File Expired"
+        then reject "File Expired"
       }
     }
   }
 
-  slice StagedFileCatalog {
-    readmodel StagedFileCatalog[] {
-      stagedFileId: UUID id
+  slice UploadedFileCatalog {
+    readmodel UploadedFileCatalog[] {
+      fileId: UUID id
       originalFileName: String display
       contentType: String?
       sizeBytes: Long?
       purpose: String query
-      stagedFileLocation: String
+      fileLocation: String
       checksum: String?
-      state: StagedFile.State
-      stagedAt: DateTime?
-      consumedAt: DateTime?
-      consumedByContext: String?
-      consumedByCommand: String?
-      consumedByCommandId: UUID?
+      state: UploadedFile.State
+      uploadedAt: DateTime?
+      referencedAt: DateTime?
+      referencedByContext: String?
+      referencedByCommand: String?
+      referencedByCommandId: UUID?
       discardedAt: DateTime?
       discardReason: String?
       expiresAt: DateTime?
       expiredAt: DateTime?
       expirationReason: String?
-      subscribe FileUploadStaged
-      subscribe StagedFileConsumed
-      subscribe StagedFileDiscarded
-      subscribe StagedFileExpired
+      subscribe FileUploaded
+      subscribe FileReferenced
+      subscribe FileDiscarded
+      subscribe FileExpired
     }
   }
 
-  concept StagedFile {
-    state Staged
-    state Consumed
+  concept UploadedFile {
+    state Available
+    state Referenced
     state Discarded
     state Expired
 
-    slice StageFileUpload
-    slice MarkStagedFileConsumed
-    slice DiscardStagedFile
-    slice ExpireStagedFile
-    slice StagedFileCatalog
+    slice UploadFile
+    slice MarkFileReferenced
+    slice DownloadFile
+    slice DiscardFile
+    slice ExpireFile
+    slice UploadedFileCatalog
   }
 }
 
@@ -2042,7 +2092,7 @@ context DatasetGovernance {
 }
 
 context ModelRepository {
-  note "Model repository owns model identity and immutable, pullable model artifact locations used by training orchestration and runtime agents."
+  note "Model repository owns model identity, versioning, lineage, and pullable artifact references used by training orchestration and runtime agents. FileUpload owns the underlying bytes and storage adapter; ModelArtifact owns their model-specific lifecycle and metadata."
 
   risk "Runtime agents can pull stale or tampered models if artifact URI, digest, registry, format, and signature are not snapshotted with the training run."
   risk "Aggregated round models can lose lineage if their producing training job and round are not recorded."
@@ -2066,7 +2116,7 @@ context ModelRepository {
       modelVersion: String
       modelDescription: String?
       sourceType: String dictionary "MODEL_ARTIFACT_SOURCE_TYPE"
-      stagedFileId: UUID? file
+      fileId: UUID? file
       modelFormat: String? dictionary "MODEL_FORMAT"
     }
 
@@ -2088,7 +2138,7 @@ context ModelRepository {
 
     specification "Model Artifact Must Be Pullable And Verifiable" {
       rule """
-        Registering a model artifact is a port-backed import operation. modelName identifies the logical model, modelVersion identifies the business version under that model, and modelDescription captures the business purpose, training background, applicable scenarios, or limitations that operators need when selecting the model. The pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. sourceType is maintained by the MODEL_ARTIFACT_SOURCE_TYPE dictionary and distinguishes externally imported artifacts from artifacts produced by federated training; expected values include EXTERNAL and FEDERATED_TRAINING. For uploaded files, stagedFileId references a file previously staged by FileUpload, not a browser-local file path. The adapter queries FileUpload metadata or content, imports the staged source model into the managed model registry, marks the staged file consumed after a successful import, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelFormat is maintained by the MODEL_FORMAT dictionary; expected values include ONNX, PMML, TENSORFLOW_SAVED_MODEL, PYTORCH_STATE_DICT, XGBOOST, and SKLEARN_PICKLE. modelArtifactUri identifies the concrete pullable artifact for that version.
+        Registering a model artifact is a port-backed operation over a file already persisted by FileUpload. modelName identifies the logical model, modelVersion identifies the business version under that model, and modelDescription captures the business purpose, training background, applicable scenarios, or limitations that operators need when selecting the model. The pair must be unique. modelId remains the system identity for one imported or trained artifact version. sourceType distinguishes externally uploaded artifacts from artifacts produced by federated training. fileId identifies the shared FileUpload record; ModelRepository does not create a second physical copy or a second storage subsystem. The adapter resolves FileUpload metadata and content URI, validates the model format, records digest and size, and marks the file reference after registration. modelArtifactUri remains the authenticated FileUpload content URI.
 
         unique (ModelArtifact.modelName, ModelArtifact.modelVersion)
       """
@@ -2100,7 +2150,7 @@ context ModelRepository {
           modelVersion = "v1"
           modelDescription = "Baseline credit risk classifier for federated training"
           sourceType = "EXTERNAL"
-          stagedFileId = "staged-file-1"
+          fileId = "file-1"
           modelFormat = "ONNX"
         }
         then ModelArtifactRegistered
@@ -2131,7 +2181,117 @@ context ModelRepository {
       registeredAt: DateTime?
       subscribe TrainingJobCreated
       subscribe ModelArtifactRegistered
+      subscribe FederatedModelArtifactRegistered
       subscribe GlobalModelUpdated
+    }
+  }
+
+  slice DownloadModelArtifact {
+    actor MLOpsEngineer
+    ui ModelRepositoryScreen
+    reactsTo ModelArtifactRegistered
+    reactsTo FederatedModelArtifactRegistered
+    port
+
+    command DownloadModelArtifact {
+      modelId: UUID id technical
+    }
+
+    event ModelArtifactDownloadAuthorized {
+      modelId: UUID id technical
+      modelName: String
+      modelVersion: String
+      modelFormat: String
+      modelArtifactDigest: String
+      downloadUri: String
+    }
+
+    specification "Registered Model Artifact Resolves To Stored File Download" {
+      rule """
+        DownloadModelArtifact accepts only modelId. The adapter loads the registered ModelArtifact snapshot, verifies that its referenced FileUpload object is still available, and returns an authenticated downloadUri. ModelRepository owns model identity, version, format, and digest; FileUpload remains responsible for streaming the underlying bytes. No model content is carried in the command or event.
+      """
+
+      scenario "Authorize Registered Model Artifact Download" {
+        given ModelArtifactRegistered {
+          modelId = "model-1"
+          modelName = "credit-risk"
+          modelVersion = "v1"
+          modelFormat = "ONNX"
+          modelArtifactDigest = "sha256:model"
+          modelArtifactUri = "http://support/api/files/file-1/content"
+        }
+        when DownloadModelArtifact {
+          modelId = "model-1"
+        }
+        then ModelArtifactDownloadAuthorized
+      }
+
+      scenario "Reject Missing Model Artifact Content" {
+        given ModelArtifactRegistered {
+          modelId = "model-2"
+          modelName = "credit-risk"
+          modelVersion = "v2"
+          modelArtifactUri = "http://support/api/files/file-2/content"
+        }
+        when DownloadModelArtifact {
+          modelId = "model-2"
+        }
+        then error "Model artifact content is not available for download."
+      }
+    }
+  }
+
+  slice RegisterFederatedModelArtifact {
+    reactsTo GlobalModelUpdated
+
+    automation RegisterFederatedModelWhenGlobalModelUpdated {
+      on GlobalModelUpdated
+      emits RegisterFederatedModelArtifact
+    }
+
+    command RegisterFederatedModelArtifact {
+      modelId: UUID id technical from GlobalModelUpdated.aggregatedModelId
+      modelName: String from GlobalModelUpdated.aggregatedModelName
+      modelVersion: String from GlobalModelUpdated.aggregatedModelVersion
+      modelDescription: String? from GlobalModelUpdated.aggregatedModelDescription
+      sourceType: String from GlobalModelUpdated.modelSourceType
+      modelArtifactUri: String from GlobalModelUpdated.aggregatedModelArtifactUri
+      modelRegistryRef: String from GlobalModelUpdated.aggregatedModelRegistryRef
+      modelFormat: String from GlobalModelUpdated.modelFormat
+      modelArtifactDigest: String from GlobalModelUpdated.modelArtifactDigest
+      modelSignatureUri: String? from GlobalModelUpdated.aggregatedModelSignatureUri
+      modelSizeBytes: Int? from GlobalModelUpdated.aggregatedModelSizeBytes
+      trainingJobId: UUID from GlobalModelUpdated.trainingJobId
+      roundId: UUID from GlobalModelUpdated.roundId
+    }
+
+    event FederatedModelArtifactRegistered {
+      modelId: UUID id technical
+      modelName: String
+      modelVersion: String
+      modelDescription: String?
+      sourceType: String
+      modelArtifactUri: String
+      modelRegistryRef: String
+      modelFormat: String
+      modelArtifactDigest: String
+      modelSignatureUri: String?
+      modelSizeBytes: Int?
+      trainingJobId: UUID
+      roundId: UUID
+    }
+
+    state Registered
+
+    specification "Federated Round Model Is Registered From Managed Storage" {
+      rule """
+        A global model produced by the aggregation runtime is uploaded through the shared FileUpload storage boundary before GlobalModelUpdated is emitted. ModelArtifact registration records that file URI together with digest, format, size, producing training job, and round; it does not create a second storage area. The generated modelId is reused as both the upload record identifier and ModelArtifact identity for traceability.
+      """
+
+      scenario "Register Aggregated Round Model" {
+        when RegisterFederatedModelArtifact
+        then FederatedModelArtifactRegistered
+      }
     }
   }
 
@@ -2139,6 +2299,8 @@ context ModelRepository {
     state Registered
 
     slice RegisterModelArtifact
+    slice RegisterFederatedModelArtifact
+    slice DownloadModelArtifact
     slice ModelArtifactCatalog
   }
 }
@@ -3558,6 +3720,11 @@ context TrainingOrchestration {
   slice CompleteSecureAggregation {
     reactsTo SecureAggregationCompleted
 
+    automation CompleteSecureAggregationWhenSessionCompleted {
+      on SecureAggregationCompleted
+      emits CompleteSecureAggregation
+    }
+
     command CompleteSecureAggregation {
       trainingJobId: UUID id technical from SecureAggregationCompleted.trainingJobId
       trainingRunConfigurationId: UUID from SecureAggregationCompleted.trainingRunConfigurationId
@@ -3568,11 +3735,16 @@ context TrainingOrchestration {
       minimumAccuracy: Decimal from SecureAggregationCompleted.minimumAccuracy
       secureAggregationSessionId: UUID from SecureAggregationCompleted.secureAggregationSessionId
       aggregatedModelId: UUID from SecureAggregationCompleted.aggregatedModelId
+      aggregatedModelName: String from SecureAggregationCompleted.aggregatedModelName
+      aggregatedModelVersion: String from SecureAggregationCompleted.aggregatedModelVersion
+      aggregatedModelDescription: String? from SecureAggregationCompleted.aggregatedModelDescription
+      modelSourceType: String from SecureAggregationCompleted.modelSourceType
       aggregatedModelArtifactUri: String from SecureAggregationCompleted.aggregatedModelArtifactUri
       aggregatedModelRegistryRef: String from SecureAggregationCompleted.aggregatedModelRegistryRef
       modelFormat: String from SecureAggregationCompleted.modelFormat
       modelArtifactDigest: String from SecureAggregationCompleted.modelArtifactDigest
       aggregatedModelSignatureUri: String? from SecureAggregationCompleted.aggregatedModelSignatureUri
+      aggregatedModelSizeBytes: Int? from SecureAggregationCompleted.aggregatedModelSizeBytes
     }
 
     event GlobalModelUpdated {
@@ -3585,11 +3757,16 @@ context TrainingOrchestration {
       minimumAccuracy: Decimal
       secureAggregationSessionId: UUID
       aggregatedModelId: UUID
+      aggregatedModelName: String
+      aggregatedModelVersion: String
+      aggregatedModelDescription: String?
+      modelSourceType: String
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
       modelFormat: String
       modelArtifactDigest: String
       aggregatedModelSignatureUri: String?
+      aggregatedModelSizeBytes: Int?
     }
 
     state EvaluatingGlobalModel
@@ -3754,12 +3931,6 @@ context TrainingOrchestration {
     automation FailRoundWhenRuntimeExecutionRetryFailureBreaksQuorum {
       on RoundExecutionRuntimeRetryFailed
       condition roundQuorumLost == true
-      emits FailTrainingRound
-    }
-
-    automation FailRoundWhenContributionDeadlineMissed {
-      on TrainingRoundStarted
-      condition roundContributionTimedOut == true
       emits FailTrainingRound
     }
 
@@ -5027,6 +5198,16 @@ context SecureAggregation {
       encryptedUpdateDigest: String
       encryptionScheme: String dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
       publicKeyVersion: String
+      receivedEncryptedUpdateCount: Int derived from EncryptedModelUpdateReceived.receivedRuntimeIds, RecordEncryptedModelUpdate.runtimeId {
+        rule "count(appendDistinct(EncryptedModelUpdateReceived.receivedRuntimeIds, RecordEncryptedModelUpdate.runtimeId))"
+      }
+      receivedRuntimeIds: UUID[] derived from EncryptedModelUpdateReceived.receivedRuntimeIds, RecordEncryptedModelUpdate.runtimeId {
+        rule "appendDistinct(EncryptedModelUpdateReceived.receivedRuntimeIds, RecordEncryptedModelUpdate.runtimeId)"
+      }
+      receivedEncryptedUpdateArtifactRefs: String[] derived from EncryptedModelUpdateReceived.receivedEncryptedUpdateArtifactRefs, RecordEncryptedModelUpdate.encryptedUpdateArtifactRef {
+        rule "appendDistinct(EncryptedModelUpdateReceived.receivedEncryptedUpdateArtifactRefs, RecordEncryptedModelUpdate.encryptedUpdateArtifactRef)"
+      }
+      selectedParticipantCount: Int from SecureAggregationParticipantsSelected.selectedParticipantCount
     }
   }
 
@@ -5051,6 +5232,7 @@ context SecureAggregation {
       maxRounds: Int from EncryptedModelUpdateReceived.maxRounds
       minimumAccuracy: Decimal from EncryptedModelUpdateReceived.minimumAccuracy
       aggregatedModelId: UUID generated technical
+      encryptedUpdateArtifactRefs: String[] from EncryptedModelUpdateReceived.receivedEncryptedUpdateArtifactRefs
     }
 
     event SecureAggregationCompleted {
@@ -5063,11 +5245,16 @@ context SecureAggregation {
       maxRounds: Int
       minimumAccuracy: Decimal
       aggregatedModelId: UUID
+      aggregatedModelName: String portOutput
+      aggregatedModelVersion: String portOutput
+      aggregatedModelDescription: String? portOutput
+      modelSourceType: String portOutput
       aggregatedModelArtifactUri: String portOutput
       aggregatedModelRegistryRef: String portOutput
       modelFormat: String portOutput
       modelArtifactDigest: String portOutput
       aggregatedModelSignatureUri: String? portOutput
+      aggregatedModelSizeBytes: Int? portOutput
     }
 
     state Completed
@@ -6885,7 +7072,7 @@ context RuntimeAgentOperations {
     event RuntimeEngineJobReleaseFailedOrSkipped {
       roundExecutionId: UUID id technical
       runtimeEngineJobId: String?
-      failureReason: String?
+      runtimeEngineReleaseFailureReason: String?
     }
 
     state RuntimeEngineReleaseHandled
@@ -6908,7 +7095,7 @@ context RuntimeAgentOperations {
     event RuntimeEngineJobReleaseFailedOrSkippedAfterStartFailure {
       roundExecutionId: UUID id technical
       runtimeEngineJobId: String?
-      failureReason: String?
+      runtimeEngineReleaseFailureReason: String?
     }
 
     state RuntimeEngineReleaseHandled
@@ -6931,7 +7118,7 @@ context RuntimeAgentOperations {
     event RuntimeEngineJobReleaseFailedOrSkippedAfterRetry {
       roundExecutionId: UUID id technical
       runtimeEngineJobId: String?
-      failureReason: String?
+      runtimeEngineReleaseFailureReason: String?
     }
 
     state RuntimeEngineReleaseHandled
@@ -6954,7 +7141,7 @@ context RuntimeAgentOperations {
     event RuntimeEngineJobReleaseFailedOrSkippedAfterRuntimeRetry {
       roundExecutionId: UUID id technical
       runtimeEngineJobId: String?
-      failureReason: String?
+      runtimeEngineReleaseFailureReason: String?
     }
 
     state RuntimeEngineReleaseHandled

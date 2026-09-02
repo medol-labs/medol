@@ -1,3 +1,7 @@
+
+> medol@0.1.0 medol:to-codegen-model
+> tsx src/lib/dslToCodegenModelCli.ts examples/fl/federation-learning.medol
+
 {
   "rootPackage": "tech.medo",
   "domain": "FederationLearningPlatform",
@@ -484,27 +488,27 @@
       "title": "File Upload",
       "domain": "FederationLearningPlatform",
       "notes": [
-        "File upload owns short-lived staged file references used by generated forms and backend adapters. Business commands store the stagedFileId returned by this context, not a browser-local file path or storage location."
+        "FileUpload is the shared persistent file-storage boundary. It stores uploaded content through a replaceable storage adapter, records each uploaded file, exposes an authenticated content URI, and applies optional retention through expiresAt. Business domains reference the uploaded file record instead of creating another physical storage tier."
       ],
       "risks": [
-        "Staged files can leak sensitive model or dataset content if retention, ownership, and content validation are not enforced.",
-        "Business commands can fail later if staged files expire before the consuming adapter imports them."
+        "Stored files can leak sensitive model or dataset content if retention, ownership, authorization, and content validation are not enforced.",
+        "Business references can become invalid if retention expires a file that is still referenced by a domain record."
       ],
       "decisions": [],
       "metrics": [
-        "stagedFileUploadLatency",
-        "stagedFileImportFailureRate"
+        "fileUploadLatency",
+        "fileUploadFailureRate"
       ],
       "valueTypes": [],
       "aggregates": [],
       "concepts": [
         {
-          "id": "concept-e0e37990",
-          "name": "StagedFile",
-          "title": "Staged File",
+          "id": "concept-da3ea666",
+          "name": "UploadedFile",
+          "title": "Uploaded File",
           "states": [
-            "Staged",
-            "Consumed",
+            "Available",
+            "Referenced",
             "Discarded",
             "Expired"
           ]
@@ -513,29 +517,34 @@
       "externalSystems": [],
       "slices": [
         {
-          "id": "slice-a6d081b3",
-          "name": "StageFileUpload",
-          "title": "Stage File Upload"
+          "id": "slice-d908c5ad",
+          "name": "UploadFile",
+          "title": "Upload File"
         },
         {
-          "id": "slice-8928f6ed",
-          "name": "MarkStagedFileConsumed",
-          "title": "Mark Staged File Consumed"
+          "id": "slice-f9f57e2e",
+          "name": "MarkFileReferenced",
+          "title": "Mark File Referenced"
         },
         {
-          "id": "slice-8e15c8a0",
-          "name": "DiscardStagedFile",
-          "title": "Discard Staged File"
+          "id": "slice-5fc4a980",
+          "name": "DownloadFile",
+          "title": "Download File"
         },
         {
-          "id": "slice-5d518349",
-          "name": "ExpireStagedFile",
-          "title": "Expire Staged File"
+          "id": "slice-1b67d38e",
+          "name": "DiscardFile",
+          "title": "Discard File"
         },
         {
-          "id": "slice-1b411581",
-          "name": "StagedFileCatalog",
-          "title": "Staged File Catalog"
+          "id": "slice-4b9d39f7",
+          "name": "ExpireFile",
+          "title": "Expire File"
+        },
+        {
+          "id": "slice-6e1f0ccb",
+          "name": "UploadedFileCatalog",
+          "title": "Uploaded File Catalog"
         }
       ]
     },
@@ -785,7 +794,7 @@
       "title": "Model Repository",
       "domain": "FederationLearningPlatform",
       "notes": [
-        "Model repository owns model identity and immutable, pullable model artifact locations used by training orchestration and runtime agents."
+        "Model repository owns model identity, versioning, lineage, and pullable artifact references used by training orchestration and runtime agents. FileUpload owns the underlying bytes and storage adapter; ModelArtifact owns their model-specific lifecycle and metadata."
       ],
       "risks": [
         "Runtime agents can pull stale or tampered models if artifact URI, digest, registry, format, and signature are not snapshotted with the training run.",
@@ -819,6 +828,16 @@
           "id": "slice-e846ef48",
           "name": "ModelArtifactCatalog",
           "title": "Model Artifact Catalog"
+        },
+        {
+          "id": "slice-d38fbaed",
+          "name": "DownloadModelArtifact",
+          "title": "Download Model Artifact"
+        },
+        {
+          "id": "slice-eef6ed6c",
+          "name": "RegisterFederatedModelArtifact",
+          "title": "Register Federated Model Artifact"
         }
       ]
     },
@@ -2776,41 +2795,46 @@
       ]
     },
     {
-      "id": "concept-e0e37990",
-      "name": "StagedFile",
-      "title": "Staged File",
+      "id": "concept-da3ea666",
+      "name": "UploadedFile",
+      "title": "Uploaded File",
       "context": "FileUpload",
       "states": [
-        "Staged",
-        "Consumed",
+        "Available",
+        "Referenced",
         "Discarded",
         "Expired"
       ],
       "slices": [
         {
-          "id": "slice-a6d081b3",
-          "name": "StageFileUpload",
-          "title": "Stage File Upload"
+          "id": "slice-d908c5ad",
+          "name": "UploadFile",
+          "title": "Upload File"
         },
         {
-          "id": "slice-8928f6ed",
-          "name": "MarkStagedFileConsumed",
-          "title": "Mark Staged File Consumed"
+          "id": "slice-f9f57e2e",
+          "name": "MarkFileReferenced",
+          "title": "Mark File Referenced"
         },
         {
-          "id": "slice-8e15c8a0",
-          "name": "DiscardStagedFile",
-          "title": "Discard Staged File"
+          "id": "slice-5fc4a980",
+          "name": "DownloadFile",
+          "title": "Download File"
         },
         {
-          "id": "slice-5d518349",
-          "name": "ExpireStagedFile",
-          "title": "Expire Staged File"
+          "id": "slice-1b67d38e",
+          "name": "DiscardFile",
+          "title": "Discard File"
         },
         {
-          "id": "slice-1b411581",
-          "name": "StagedFileCatalog",
-          "title": "Staged File Catalog"
+          "id": "slice-4b9d39f7",
+          "name": "ExpireFile",
+          "title": "Expire File"
+        },
+        {
+          "id": "slice-6e1f0ccb",
+          "name": "UploadedFileCatalog",
+          "title": "Uploaded File Catalog"
         }
       ]
     },
@@ -3012,6 +3036,16 @@
           "id": "slice-7ccc677e",
           "name": "RegisterModelArtifact",
           "title": "Register Model Artifact"
+        },
+        {
+          "id": "slice-eef6ed6c",
+          "name": "RegisterFederatedModelArtifact",
+          "title": "Register Federated Model Artifact"
+        },
+        {
+          "id": "slice-d38fbaed",
+          "name": "DownloadModelArtifact",
+          "title": "Download Model Artifact"
         },
         {
           "id": "slice-e846ef48",
@@ -4602,128 +4636,128 @@
       "startsLifecycle": false
     },
     {
-      "id": "transition-9afcb111",
+      "id": "transition-2e0c6a2b",
       "context": "FileUpload",
       "owner": {
-        "id": "concept-e0e37990",
+        "id": "concept-da3ea666",
         "type": "concept",
-        "name": "StagedFile",
-        "title": "Staged File"
+        "name": "UploadedFile",
+        "title": "Uploaded File"
       },
       "slice": {
-        "id": "slice-a6d081b3",
-        "name": "StageFileUpload",
-        "title": "Stage File Upload"
+        "id": "slice-d908c5ad",
+        "name": "UploadFile",
+        "title": "Upload File"
       },
       "command": {
-        "id": "command-bccf14fb",
-        "name": "StageFileUpload",
-        "title": "Stage File Upload"
+        "id": "command-e2eaed4f",
+        "name": "UploadFile",
+        "title": "Upload File"
       },
       "event": {
-        "id": "event-ada84578",
-        "name": "FileUploadStaged",
-        "title": "File Upload Staged"
+        "id": "event-911bc681",
+        "name": "FileUploaded",
+        "title": "File Uploaded"
       },
-      "to": "Staged",
+      "to": "Available",
       "startsLifecycle": true
     },
     {
-      "id": "transition-3a8915eb",
+      "id": "transition-0c07f204",
       "context": "FileUpload",
       "owner": {
-        "id": "concept-e0e37990",
+        "id": "concept-da3ea666",
         "type": "concept",
-        "name": "StagedFile",
-        "title": "Staged File"
+        "name": "UploadedFile",
+        "title": "Uploaded File"
       },
       "slice": {
-        "id": "slice-8928f6ed",
-        "name": "MarkStagedFileConsumed",
-        "title": "Mark Staged File Consumed"
+        "id": "slice-f9f57e2e",
+        "name": "MarkFileReferenced",
+        "title": "Mark File Referenced"
       },
       "command": {
-        "id": "command-0efadc6b",
-        "name": "MarkStagedFileConsumed",
-        "title": "Mark Staged File Consumed"
+        "id": "command-d016e04d",
+        "name": "MarkFileReferenced",
+        "title": "Mark File Referenced"
       },
       "event": {
-        "id": "event-e0dcc6f5",
-        "name": "StagedFileConsumed",
-        "title": "Staged File Consumed"
+        "id": "event-ba6d525f",
+        "name": "FileReferenced",
+        "title": "File Referenced"
       },
       "trigger": {
-        "id": "event-ada84578",
-        "name": "FileUploadStaged",
-        "title": "File Upload Staged"
+        "id": "event-911bc681",
+        "name": "FileUploaded",
+        "title": "File Uploaded"
       },
-      "from": "Staged",
-      "to": "Consumed",
+      "from": "Available",
+      "to": "Referenced",
       "startsLifecycle": false
     },
     {
-      "id": "transition-b112f95e",
+      "id": "transition-4ffa5288",
       "context": "FileUpload",
       "owner": {
-        "id": "concept-e0e37990",
+        "id": "concept-da3ea666",
         "type": "concept",
-        "name": "StagedFile",
-        "title": "Staged File"
+        "name": "UploadedFile",
+        "title": "Uploaded File"
       },
       "slice": {
-        "id": "slice-8e15c8a0",
-        "name": "DiscardStagedFile",
-        "title": "Discard Staged File"
+        "id": "slice-1b67d38e",
+        "name": "DiscardFile",
+        "title": "Discard File"
       },
       "command": {
-        "id": "command-e42f7ed7",
-        "name": "DiscardStagedFile",
-        "title": "Discard Staged File"
+        "id": "command-0220505f",
+        "name": "DiscardFile",
+        "title": "Discard File"
       },
       "event": {
-        "id": "event-0fd0ce9b",
-        "name": "StagedFileDiscarded",
-        "title": "Staged File Discarded"
+        "id": "event-7fafcecf",
+        "name": "FileDiscarded",
+        "title": "File Discarded"
       },
       "trigger": {
-        "id": "event-ada84578",
-        "name": "FileUploadStaged",
-        "title": "File Upload Staged"
+        "id": "event-911bc681",
+        "name": "FileUploaded",
+        "title": "File Uploaded"
       },
-      "from": "Staged",
+      "from": "Available",
       "to": "Discarded",
       "startsLifecycle": false
     },
     {
-      "id": "transition-9a5bad33",
+      "id": "transition-b1c09d25",
       "context": "FileUpload",
       "owner": {
-        "id": "concept-e0e37990",
+        "id": "concept-da3ea666",
         "type": "concept",
-        "name": "StagedFile",
-        "title": "Staged File"
+        "name": "UploadedFile",
+        "title": "Uploaded File"
       },
       "slice": {
-        "id": "slice-5d518349",
-        "name": "ExpireStagedFile",
-        "title": "Expire Staged File"
+        "id": "slice-4b9d39f7",
+        "name": "ExpireFile",
+        "title": "Expire File"
       },
       "command": {
-        "id": "command-0c65b827",
-        "name": "ExpireStagedFile",
-        "title": "Expire Staged File"
+        "id": "command-f1498c3b",
+        "name": "ExpireFile",
+        "title": "Expire File"
       },
       "event": {
-        "id": "event-a791decc",
-        "name": "StagedFileExpired",
-        "title": "Staged File Expired"
+        "id": "event-6d73f3a0",
+        "name": "FileExpired",
+        "title": "File Expired"
       },
       "trigger": {
-        "id": "event-ada84578",
-        "name": "FileUploadStaged",
-        "title": "File Upload Staged"
+        "id": "event-911bc681",
+        "name": "FileUploaded",
+        "title": "File Uploaded"
       },
-      "from": "Staged",
+      "from": "Available",
       "to": "Expired",
       "startsLifecycle": false
     },
@@ -5192,6 +5226,38 @@
       },
       "to": "Registered",
       "startsLifecycle": true
+    },
+    {
+      "id": "transition-412c472c",
+      "context": "ModelRepository",
+      "owner": {
+        "id": "concept-39629773",
+        "type": "concept",
+        "name": "ModelArtifact",
+        "title": "Model Artifact"
+      },
+      "slice": {
+        "id": "slice-eef6ed6c",
+        "name": "RegisterFederatedModelArtifact",
+        "title": "Register Federated Model Artifact"
+      },
+      "command": {
+        "id": "command-ed94cbfd",
+        "name": "RegisterFederatedModelArtifact",
+        "title": "Register Federated Model Artifact"
+      },
+      "event": {
+        "id": "event-cc810ecf",
+        "name": "FederatedModelArtifactRegistered",
+        "title": "Federated Model Artifact Registered"
+      },
+      "trigger": {
+        "id": "event-4759d38f",
+        "name": "GlobalModelUpdated",
+        "title": "Global Model Updated"
+      },
+      "to": "Registered",
+      "startsLifecycle": false
     },
     {
       "id": "transition-4f92d11a",
@@ -13690,27 +13756,27 @@
       "hotspots": []
     },
     {
-      "id": "slice-a6d081b3",
+      "id": "slice-d908c5ad",
       "index": 27,
-      "name": "StageFileUpload",
-      "title": "Stage File Upload",
+      "name": "UploadFile",
+      "title": "Upload File",
       "chapter": "FileUpload",
       "context": "FileUpload",
       "tags": [],
       "concepts": [
-        "StagedFile"
+        "UploadedFile"
       ],
       "commands": [
         {
-          "id": "command-bccf14fb",
-          "name": "StageFileUpload",
-          "title": "Stage File Upload",
+          "id": "command-e2eaed4f",
+          "name": "UploadFile",
+          "title": "Upload File",
           "type": "COMMAND",
           "modelContext": "FileUpload",
-          "slice": "Stage File Upload",
+          "slice": "Upload File",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -13780,7 +13846,7 @@
               "portOutput": false
             },
             {
-              "name": "stagedFileLocation",
+              "name": "fileLocation",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -13838,15 +13904,15 @@
           ],
           "dependencies": [
             {
-              "id": "screen-a6875dbe",
+              "id": "screen-d30d9238",
               "direction": "INBOUND",
               "title": "File Upload Dialog",
               "elementType": "SCREEN"
             },
             {
-              "id": "event-ada84578",
+              "id": "event-911bc681",
               "direction": "OUTBOUND",
-              "title": "File Upload Staged",
+              "title": "File Uploaded",
               "elementType": "EVENT"
             }
           ],
@@ -13855,15 +13921,15 @@
       ],
       "events": [
         {
-          "id": "event-ada84578",
-          "name": "FileUploadStaged",
-          "title": "File Upload Staged",
+          "id": "event-911bc681",
+          "name": "FileUploaded",
+          "title": "File Uploaded",
           "type": "EVENT",
           "modelContext": "FileUpload",
-          "slice": "Stage File Upload",
+          "slice": "Upload File",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -13933,7 +13999,7 @@
               "portOutput": false
             },
             {
-              "name": "stagedFileLocation",
+              "name": "fileLocation",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -13977,33 +14043,39 @@
           ],
           "dependencies": [
             {
-              "id": "command-bccf14fb",
+              "id": "command-e2eaed4f",
               "direction": "INBOUND",
-              "title": "Stage File Upload",
+              "title": "Upload File",
               "elementType": "COMMAND"
             },
             {
-              "id": "command-0efadc6b",
+              "id": "command-d016e04d",
               "direction": "OUTBOUND",
-              "title": "Mark Staged File Consumed",
+              "title": "Mark File Referenced",
               "elementType": "COMMAND"
             },
             {
-              "id": "command-e42f7ed7",
+              "id": "command-182af0f5",
               "direction": "OUTBOUND",
-              "title": "Discard Staged File",
+              "title": "Download File",
               "elementType": "COMMAND"
             },
             {
-              "id": "automation-a6da2e97",
+              "id": "command-0220505f",
               "direction": "OUTBOUND",
-              "title": "Expire Staged File When Retention Elapsed",
+              "title": "Discard File",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "automation-e3789daf",
+              "direction": "OUTBOUND",
+              "title": "Expire File When Retention Elapsed",
               "elementType": "PROCESSOR"
             },
             {
-              "id": "readmodel-3934a0f7",
+              "id": "readmodel-cb05d763",
               "direction": "OUTBOUND",
-              "title": "Staged File Catalog",
+              "title": "Uploaded File Catalog",
               "elementType": "READMODEL"
             }
           ]
@@ -14012,18 +14084,18 @@
       "readmodels": [],
       "screens": [
         {
-          "id": "screen-a6875dbe",
+          "id": "screen-d30d9238",
           "name": "FileUploadDialog",
           "title": "File Upload Dialog",
           "type": "SCREEN",
           "modelContext": "FileUpload",
-          "slice": "Stage File Upload",
+          "slice": "Upload File",
           "fields": [],
           "dependencies": [
             {
-              "id": "command-bccf14fb",
+              "id": "command-e2eaed4f",
               "direction": "OUTBOUND",
-              "title": "Stage File Upload",
+              "title": "Upload File",
               "elementType": "COMMAND"
             }
           ]
@@ -14032,24 +14104,24 @@
       "processors": [],
       "specifications": [
         {
-          "id": "gwt-18278ab8",
+          "id": "gwt-16870566",
           "chapter": "FileUpload",
-          "sliceName": "Stage File Upload",
-          "title": "Stage Upload For Model Import",
-          "specification": "Uploaded File Is Staged Before Business Command Submission",
-          "rule": "A file field in a generated form first stages the selected browser file through the FileUpload deployment. The upload adapter stores the file in server-side temporary storage, computes optional checksum metadata, assigns a stagedFileLocation, and returns a stagedFileId to the form. Business commands submit the stagedFileId as a reference and consuming adapters query FileUpload metadata or content before importing the file into durable business storage.",
+          "sliceName": "Upload File",
+          "title": "Upload File For Model Import",
+          "specification": "Uploaded File Is Persisted And Recorded",
+          "rule": "A file field uploads the selected content through the FileUpload deployment. The storage adapter persists the bytes in its configured backend, computes checksum metadata, assigns an authenticated content URI, and records the upload under fileId. Business domains keep the returned reference and own its business meaning. expiresAt is the retention policy for the same stored object.",
           "expressions": [],
           "validates": [],
           "given": [],
           "when": [
             {
-              "title": "Stage File Upload",
-              "id": "command-bccf14fb",
+              "title": "Upload File",
+              "id": "command-e2eaed4f",
               "type": "COMMAND",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "uploadedFile",
@@ -14068,8 +14140,8 @@
                   "example": "2048"
                 },
                 {
-                  "name": "stagedFileLocation",
-                  "example": "file://staged/staged-file-1/credit-risk-initial.onnx"
+                  "name": "fileLocation",
+                  "example": "file://uploads/file-1/credit-risk-initial.onnx"
                 },
                 {
                   "name": "checksum",
@@ -14088,13 +14160,13 @@
           ],
           "then": [
             {
-              "title": "File Upload Staged",
-              "id": "event-ada84578",
+              "title": "File Uploaded",
+              "id": "event-911bc681",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "originalFileName",
@@ -14113,8 +14185,8 @@
                   "example": "MODEL_ARTIFACT_IMPORT"
                 },
                 {
-                  "name": "stagedFileLocation",
-                  "example": "file://staged/staged-file-1/credit-risk-initial.onnx"
+                  "name": "fileLocation",
+                  "example": "file://uploads/file-1/credit-risk-initial.onnx"
                 },
                 {
                   "name": "checksum",
@@ -14138,33 +14210,33 @@
       ],
       "hotspots": [],
       "stateChange": {
-        "event": "FileUploadStaged",
-        "eventId": "event-ada84578",
-        "to": "Staged"
+        "event": "FileUploaded",
+        "eventId": "event-911bc681",
+        "to": "Available"
       }
     },
     {
-      "id": "slice-8928f6ed",
+      "id": "slice-f9f57e2e",
       "index": 28,
-      "name": "MarkStagedFileConsumed",
-      "title": "Mark Staged File Consumed",
+      "name": "MarkFileReferenced",
+      "title": "Mark File Referenced",
       "chapter": "FileUpload",
       "context": "FileUpload",
       "tags": [],
       "concepts": [
-        "StagedFile"
+        "UploadedFile"
       ],
       "commands": [
         {
-          "id": "command-0efadc6b",
-          "name": "MarkStagedFileConsumed",
-          "title": "Mark Staged File Consumed",
+          "id": "command-d016e04d",
+          "name": "MarkFileReferenced",
+          "title": "Mark File Referenced",
           "type": "COMMAND",
           "modelContext": "FileUpload",
-          "slice": "Mark Staged File Consumed",
+          "slice": "Mark File Referenced",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -14178,7 +14250,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByContext",
+              "name": "referencedByContext",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -14192,7 +14264,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByCommand",
+              "name": "referencedByCommand",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -14206,7 +14278,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByCommandId",
+              "name": "referencedByCommandId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": true,
@@ -14222,15 +14294,15 @@
           ],
           "dependencies": [
             {
-              "id": "event-ada84578",
+              "id": "event-911bc681",
               "direction": "INBOUND",
-              "title": "File Upload Staged",
+              "title": "File Uploaded",
               "elementType": "EVENT"
             },
             {
-              "id": "event-e0dcc6f5",
+              "id": "event-ba6d525f",
               "direction": "OUTBOUND",
-              "title": "Staged File Consumed",
+              "title": "File Referenced",
               "elementType": "EVENT"
             }
           ]
@@ -14238,15 +14310,15 @@
       ],
       "events": [
         {
-          "id": "event-e0dcc6f5",
-          "name": "StagedFileConsumed",
-          "title": "Staged File Consumed",
+          "id": "event-ba6d525f",
+          "name": "FileReferenced",
+          "title": "File Referenced",
           "type": "EVENT",
           "modelContext": "FileUpload",
-          "slice": "Mark Staged File Consumed",
+          "slice": "Mark File Referenced",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -14260,7 +14332,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByContext",
+              "name": "referencedByContext",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -14274,7 +14346,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByCommand",
+              "name": "referencedByCommand",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -14288,7 +14360,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByCommandId",
+              "name": "referencedByCommandId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": true,
@@ -14304,15 +14376,15 @@
           ],
           "dependencies": [
             {
-              "id": "command-0efadc6b",
+              "id": "command-d016e04d",
               "direction": "INBOUND",
-              "title": "Mark Staged File Consumed",
+              "title": "Mark File Referenced",
               "elementType": "COMMAND"
             },
             {
-              "id": "readmodel-3934a0f7",
+              "id": "readmodel-cb05d763",
               "direction": "OUTBOUND",
-              "title": "Staged File Catalog",
+              "title": "Uploaded File Catalog",
               "elementType": "READMODEL"
             }
           ]
@@ -14323,23 +14395,23 @@
       "processors": [],
       "specifications": [
         {
-          "id": "gwt-899b6c87",
+          "id": "gwt-1e26b52a",
           "chapter": "FileUpload",
-          "sliceName": "Mark Staged File Consumed",
-          "title": "Mark File Consumed By Model Import",
-          "specification": "Consumed Staged File Is No Longer User Discardable",
-          "rule": "A staged file is marked consumed when a business adapter has imported it into durable business storage, such as a model registry. After consumption, users cannot discard the staged file because the business command has already relied on it. Physical cleanup of the temporary object is handled by retention policy.",
+          "sliceName": "Mark File Referenced",
+          "title": "Mark File Referenced By Model Import",
+          "specification": "Referenced File Is Protected From User Discard",
+          "rule": "A file is marked referenced when a business record accepts its fileId. Referencing does not copy the bytes into another storage tier; it records which business operation relies on the shared stored object. Physical cleanup remains controlled by expiresAt and reference-aware storage management.",
           "expressions": [],
           "validates": [],
           "given": [
             {
-              "title": "File Upload Staged",
-              "id": "event-ada84578",
+              "title": "File Uploaded",
+              "id": "event-911bc681",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "originalFileName"
@@ -14354,7 +14426,7 @@
                   "name": "purpose"
                 },
                 {
-                  "name": "stagedFileLocation"
+                  "name": "fileLocation"
                 },
                 {
                   "name": "checksum"
@@ -14367,48 +14439,48 @@
           ],
           "when": [
             {
-              "title": "Mark Staged File Consumed",
-              "id": "command-0efadc6b",
+              "title": "Mark File Referenced",
+              "id": "command-d016e04d",
               "type": "COMMAND",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
-                  "name": "consumedByContext",
+                  "name": "referencedByContext",
                   "example": "ModelRepository"
                 },
                 {
-                  "name": "consumedByCommand",
+                  "name": "referencedByCommand",
                   "example": "RegisterModelArtifact"
                 },
                 {
-                  "name": "consumedByCommandId"
+                  "name": "referencedByCommandId"
                 }
               ]
             }
           ],
           "then": [
             {
-              "title": "Staged File Consumed",
-              "id": "event-e0dcc6f5",
+              "title": "File Referenced",
+              "id": "event-ba6d525f",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
-                  "name": "consumedByContext",
+                  "name": "referencedByContext",
                   "example": "ModelRepository"
                 },
                 {
-                  "name": "consumedByCommand",
+                  "name": "referencedByCommand",
                   "example": "RegisterModelArtifact"
                 },
                 {
-                  "name": "consumedByCommandId"
+                  "name": "referencedByCommandId"
                 }
               ]
             }
@@ -14424,33 +14496,34 @@
       ],
       "hotspots": [],
       "stateChange": {
-        "event": "StagedFileConsumed",
-        "eventId": "event-e0dcc6f5",
-        "to": "Consumed"
+        "event": "FileReferenced",
+        "eventId": "event-ba6d525f",
+        "to": "Referenced"
       }
     },
     {
-      "id": "slice-8e15c8a0",
+      "id": "slice-5fc4a980",
       "index": 29,
-      "name": "DiscardStagedFile",
-      "title": "Discard Staged File",
+      "name": "DownloadFile",
+      "title": "Download File",
       "chapter": "FileUpload",
       "context": "FileUpload",
       "tags": [],
+      "port": true,
       "concepts": [
-        "StagedFile"
+        "UploadedFile"
       ],
       "commands": [
         {
-          "id": "command-e42f7ed7",
-          "name": "DiscardStagedFile",
-          "title": "Discard Staged File",
+          "id": "command-182af0f5",
+          "name": "DownloadFile",
+          "title": "Download File",
           "type": "COMMAND",
           "modelContext": "FileUpload",
-          "slice": "Discard Staged File",
+          "slice": "Download File",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -14462,55 +14535,42 @@
               "uploadFile": false,
               "file": false,
               "portOutput": false
-            },
-            {
-              "name": "discardReason",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
             }
           ],
           "dependencies": [
             {
-              "id": "event-ada84578",
+              "id": "event-911bc681",
               "direction": "INBOUND",
-              "title": "File Upload Staged",
+              "title": "File Uploaded",
               "elementType": "EVENT"
             },
             {
-              "id": "screen-0f2fb0b9",
+              "id": "screen-516dca03",
               "direction": "INBOUND",
-              "title": "File Upload Dialog",
+              "title": "Uploaded File Catalog Screen",
               "elementType": "SCREEN"
             },
             {
-              "id": "event-0fd0ce9b",
+              "id": "event-ef1986d7",
               "direction": "OUTBOUND",
-              "title": "Staged File Discarded",
+              "title": "File Download Authorized",
               "elementType": "EVENT"
             }
-          ]
+          ],
+          "port": true
         }
       ],
       "events": [
         {
-          "id": "event-0fd0ce9b",
-          "name": "StagedFileDiscarded",
-          "title": "Staged File Discarded",
+          "id": "event-ef1986d7",
+          "name": "FileDownloadAuthorized",
+          "title": "File Download Authorized",
           "type": "EVENT",
           "modelContext": "FileUpload",
-          "slice": "Discard Staged File",
+          "slice": "Download File",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -14524,10 +14584,52 @@
               "portOutput": false
             },
             {
-              "name": "discardReason",
+              "name": "originalFileName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "contentType",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "sizeBytes",
+              "type": "Long",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "downloadUri",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
               "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
@@ -14540,16 +14642,10 @@
           ],
           "dependencies": [
             {
-              "id": "command-e42f7ed7",
+              "id": "command-182af0f5",
               "direction": "INBOUND",
-              "title": "Discard Staged File",
+              "title": "Download File",
               "elementType": "COMMAND"
-            },
-            {
-              "id": "readmodel-3934a0f7",
-              "direction": "OUTBOUND",
-              "title": "Staged File Catalog",
-              "elementType": "READMODEL"
             }
           ]
         }
@@ -14557,18 +14653,18 @@
       "readmodels": [],
       "screens": [
         {
-          "id": "screen-0f2fb0b9",
-          "name": "FileUploadDialog",
-          "title": "File Upload Dialog",
+          "id": "screen-516dca03",
+          "name": "UploadedFileCatalogScreen",
+          "title": "Uploaded File Catalog Screen",
           "type": "SCREEN",
           "modelContext": "FileUpload",
-          "slice": "Discard Staged File",
+          "slice": "Download File",
           "fields": [],
           "dependencies": [
             {
-              "id": "command-e42f7ed7",
+              "id": "command-182af0f5",
               "direction": "OUTBOUND",
-              "title": "Discard Staged File",
+              "title": "Download File",
               "elementType": "COMMAND"
             }
           ]
@@ -14577,23 +14673,314 @@
       "processors": [],
       "specifications": [
         {
-          "id": "gwt-c9b2ed1c",
+          "id": "gwt-6112aa2c",
           "chapter": "FileUpload",
-          "sliceName": "Discard Staged File",
-          "title": "Discard Unconsumed Staged File",
-          "specification": "Only Unconsumed Staged Files Can Be Discarded",
-          "rule": "A user can discard a staged file while it has not been consumed by a business command. Discarding records the intent to remove the temporary file and prevents later business commands from using that staged location.",
+          "sliceName": "Download File",
+          "title": "Authorize Available File Download",
+          "specification": "Only Available Stored Files Can Be Downloaded",
+          "rule": "DownloadFile resolves an authenticated content URI through the configured FileUpload storage adapter. The command carries only fileId; original file metadata and downloadUri are resolved from UploadedFile state and the storage backend. File bytes are streamed by the download resource and are never copied into an Axon command or event. Referenced files remain downloadable, while discarded or expired files are rejected.",
           "expressions": [],
           "validates": [],
           "given": [
             {
-              "title": "File Upload Staged",
-              "id": "event-ada84578",
+              "title": "File Uploaded",
+              "id": "event-911bc681",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
+                },
+                {
+                  "name": "originalFileName",
+                  "example": "credit-risk-initial.onnx"
+                },
+                {
+                  "name": "contentType",
+                  "example": "application/octet-stream"
+                },
+                {
+                  "name": "sizeBytes",
+                  "example": "2048"
+                },
+                {
+                  "name": "purpose"
+                },
+                {
+                  "name": "fileLocation",
+                  "example": "file://uploads/file-1/credit-risk-initial.onnx"
+                },
+                {
+                  "name": "checksum"
+                },
+                {
+                  "name": "expiresAt"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Download File",
+              "id": "command-182af0f5",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "fileId",
+                  "example": "file-1"
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "File Download Authorized",
+              "id": "event-ef1986d7",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "fileId",
+                  "example": "file-1"
+                },
+                {
+                  "name": "originalFileName"
+                },
+                {
+                  "name": "contentType"
+                },
+                {
+                  "name": "sizeBytes"
+                },
+                {
+                  "name": "downloadUri"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "gwt-1de64a6a",
+          "chapter": "FileUpload",
+          "sliceName": "Download File",
+          "title": "Reject Expired File Download",
+          "specification": "Only Available Stored Files Can Be Downloaded",
+          "rule": "DownloadFile resolves an authenticated content URI through the configured FileUpload storage adapter. The command carries only fileId; original file metadata and downloadUri are resolved from UploadedFile state and the storage backend. File bytes are streamed by the download resource and are never copied into an Axon command or event. Referenced files remain downloadable, while discarded or expired files are rejected.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "File Expired",
+              "id": "event-6d73f3a0",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "fileId",
+                  "example": "file-2"
+                },
+                {
+                  "name": "expiredAt"
+                },
+                {
+                  "name": "expirationReason"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Download File",
+              "id": "command-182af0f5",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "fileId",
+                  "example": "file-2"
+                }
+              ]
+            }
+          ],
+          "then": {
+            "title": "Error",
+            "id": "spec-error-1de64a6a",
+            "description": "File is not available for download.",
+            "outcome": "ERROR"
+          }
+        }
+      ],
+      "actors": [
+        {
+          "id": "actor-74c11659",
+          "name": "PlatformUser",
+          "title": "Platform User"
+        }
+      ],
+      "hotspots": []
+    },
+    {
+      "id": "slice-1b67d38e",
+      "index": 30,
+      "name": "DiscardFile",
+      "title": "Discard File",
+      "chapter": "FileUpload",
+      "context": "FileUpload",
+      "tags": [],
+      "concepts": [
+        "UploadedFile"
+      ],
+      "commands": [
+        {
+          "id": "command-0220505f",
+          "name": "DiscardFile",
+          "title": "Discard File",
+          "type": "COMMAND",
+          "modelContext": "FileUpload",
+          "slice": "Discard File",
+          "fields": [
+            {
+              "name": "fileId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "discardReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-911bc681",
+              "direction": "INBOUND",
+              "title": "File Uploaded",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "screen-ffca86e7",
+              "direction": "INBOUND",
+              "title": "File Upload Dialog",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-7fafcecf",
+              "direction": "OUTBOUND",
+              "title": "File Discarded",
+              "elementType": "EVENT"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "id": "event-7fafcecf",
+          "name": "FileDiscarded",
+          "title": "File Discarded",
+          "type": "EVENT",
+          "modelContext": "FileUpload",
+          "slice": "Discard File",
+          "fields": [
+            {
+              "name": "fileId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "discardReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-0220505f",
+              "direction": "INBOUND",
+              "title": "Discard File",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-cb05d763",
+              "direction": "OUTBOUND",
+              "title": "Uploaded File Catalog",
+              "elementType": "READMODEL"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-ffca86e7",
+          "name": "FileUploadDialog",
+          "title": "File Upload Dialog",
+          "type": "SCREEN",
+          "modelContext": "FileUpload",
+          "slice": "Discard File",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "command-0220505f",
+              "direction": "OUTBOUND",
+              "title": "Discard File",
+              "elementType": "COMMAND"
+            }
+          ]
+        }
+      ],
+      "processors": [],
+      "specifications": [
+        {
+          "id": "gwt-927bfed4",
+          "chapter": "FileUpload",
+          "sliceName": "Discard File",
+          "title": "Discard Unreferenced File",
+          "specification": "Only Unreferenced Files Can Be Discarded",
+          "rule": "A user can discard an uploaded file while no business record references it. Discarding records the removal request and prevents later business commands from using the file location.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "File Uploaded",
+              "id": "event-911bc681",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "originalFileName"
@@ -14608,7 +14995,7 @@
                   "name": "purpose"
                 },
                 {
-                  "name": "stagedFileLocation"
+                  "name": "fileLocation"
                 },
                 {
                   "name": "checksum"
@@ -14621,13 +15008,13 @@
           ],
           "when": [
             {
-              "title": "Discard Staged File",
-              "id": "command-e42f7ed7",
+              "title": "Discard File",
+              "id": "command-0220505f",
               "type": "COMMAND",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "discardReason",
@@ -14638,13 +15025,13 @@
           ],
           "then": [
             {
-              "title": "Staged File Discarded",
-              "id": "event-0fd0ce9b",
+              "title": "File Discarded",
+              "id": "event-7fafcecf",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "discardReason",
@@ -14655,45 +15042,45 @@
           ]
         },
         {
-          "id": "gwt-04eb7693",
+          "id": "gwt-2c61d470",
           "chapter": "FileUpload",
-          "sliceName": "Discard Staged File",
+          "sliceName": "Discard File",
           "title": "Reject Discard After Consumption",
-          "specification": "Only Unconsumed Staged Files Can Be Discarded",
-          "rule": "A user can discard a staged file while it has not been consumed by a business command. Discarding records the intent to remove the temporary file and prevents later business commands from using that staged location.",
+          "specification": "Only Unreferenced Files Can Be Discarded",
+          "rule": "A user can discard an uploaded file while no business record references it. Discarding records the removal request and prevents later business commands from using the file location.",
           "expressions": [],
           "validates": [],
           "given": [
             {
-              "title": "Staged File Consumed",
-              "id": "event-e0dcc6f5",
+              "title": "File Referenced",
+              "id": "event-ba6d525f",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-2"
+                  "name": "fileId",
+                  "example": "file-2"
                 },
                 {
-                  "name": "consumedByContext"
+                  "name": "referencedByContext"
                 },
                 {
-                  "name": "consumedByCommand"
+                  "name": "referencedByCommand"
                 },
                 {
-                  "name": "consumedByCommandId"
+                  "name": "referencedByCommandId"
                 }
               ]
             }
           ],
           "when": [
             {
-              "title": "Discard Staged File",
-              "id": "command-e42f7ed7",
+              "title": "Discard File",
+              "id": "command-0220505f",
               "type": "COMMAND",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-2"
+                  "name": "fileId",
+                  "example": "file-2"
                 },
                 {
                   "name": "discardReason"
@@ -14703,8 +15090,8 @@
           ],
           "then": {
             "title": "Rejected",
-            "id": "spec-reject-04eb7693",
-            "description": "Staged File Already Consumed",
+            "id": "spec-reject-2c61d470",
+            "description": "File Is Referenced",
             "outcome": "REJECT"
           }
         }
@@ -14718,33 +15105,33 @@
       ],
       "hotspots": [],
       "stateChange": {
-        "event": "StagedFileDiscarded",
-        "eventId": "event-0fd0ce9b",
+        "event": "FileDiscarded",
+        "eventId": "event-7fafcecf",
         "to": "Discarded"
       }
     },
     {
-      "id": "slice-5d518349",
-      "index": 30,
-      "name": "ExpireStagedFile",
-      "title": "Expire Staged File",
+      "id": "slice-4b9d39f7",
+      "index": 31,
+      "name": "ExpireFile",
+      "title": "Expire File",
       "chapter": "FileUpload",
       "context": "FileUpload",
       "tags": [],
       "concepts": [
-        "StagedFile"
+        "UploadedFile"
       ],
       "commands": [
         {
-          "id": "command-0c65b827",
-          "name": "ExpireStagedFile",
-          "title": "Expire Staged File",
+          "id": "command-f1498c3b",
+          "name": "ExpireFile",
+          "title": "Expire File",
           "type": "COMMAND",
           "modelContext": "FileUpload",
-          "slice": "Expire Staged File",
+          "slice": "Expire File",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -14788,15 +15175,15 @@
           ],
           "dependencies": [
             {
-              "id": "automation-a6da2e97",
+              "id": "automation-e3789daf",
               "direction": "INBOUND",
-              "title": "Expire Staged File When Retention Elapsed",
+              "title": "Expire File When Retention Elapsed",
               "elementType": "PROCESSOR"
             },
             {
-              "id": "event-a791decc",
+              "id": "event-6d73f3a0",
               "direction": "OUTBOUND",
-              "title": "Staged File Expired",
+              "title": "File Expired",
               "elementType": "EVENT"
             }
           ]
@@ -14804,15 +15191,15 @@
       ],
       "events": [
         {
-          "id": "event-a791decc",
-          "name": "StagedFileExpired",
-          "title": "Staged File Expired",
+          "id": "event-6d73f3a0",
+          "name": "FileExpired",
+          "title": "File Expired",
           "type": "EVENT",
           "modelContext": "FileUpload",
-          "slice": "Expire Staged File",
+          "slice": "Expire File",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -14856,15 +15243,15 @@
           ],
           "dependencies": [
             {
-              "id": "command-0c65b827",
+              "id": "command-f1498c3b",
               "direction": "INBOUND",
-              "title": "Expire Staged File",
+              "title": "Expire File",
               "elementType": "COMMAND"
             },
             {
-              "id": "readmodel-3934a0f7",
+              "id": "readmodel-cb05d763",
               "direction": "OUTBOUND",
-              "title": "Staged File Catalog",
+              "title": "Uploaded File Catalog",
               "elementType": "READMODEL"
             }
           ]
@@ -14874,54 +15261,54 @@
       "screens": [],
       "processors": [
         {
-          "id": "automation-a6da2e97",
-          "name": "ExpireStagedFileWhenRetentionElapsed",
-          "title": "Expire Staged File When Retention Elapsed",
+          "id": "automation-e3789daf",
+          "name": "ExpireFileWhenRetentionElapsed",
+          "title": "Expire File When Retention Elapsed",
           "type": "PROCESSOR",
           "modelContext": "FileUpload",
-          "slice": "Expire Staged File",
+          "slice": "Expire File",
           "fields": [],
           "dependencies": [
             {
-              "id": "event-ada84578",
+              "id": "event-911bc681",
               "direction": "INBOUND",
-              "title": "File Upload Staged",
+              "title": "File Uploaded",
               "elementType": "EVENT"
             },
             {
-              "id": "command-0c65b827",
+              "id": "command-f1498c3b",
               "direction": "OUTBOUND",
-              "title": "Expire Staged File",
+              "title": "Expire File",
               "elementType": "COMMAND"
             }
           ],
           "metadata": {
-            "on": "FileUploadStaged",
+            "on": "FileUploaded",
             "onKind": "event",
-            "condition": "stagedFileExpired == true",
-            "emits": "ExpireStagedFile"
+            "condition": "fileExpired == true",
+            "emits": "ExpireFile"
           }
         }
       ],
       "specifications": [
         {
-          "id": "gwt-649d9d4b",
+          "id": "gwt-22d49ad3",
           "chapter": "FileUpload",
-          "sliceName": "Expire Staged File",
-          "title": "Expire Unconsumed Staged File",
-          "specification": "Expired Staged File Cannot Be Consumed",
-          "rule": "A staged file expires when its retention window elapses before any business command consumes it. Expiration prevents later use of the staged location and allows storage cleanup to remove the temporary object.",
+          "sliceName": "Expire File",
+          "title": "Expire Uploaded File",
+          "specification": "Expired File Cannot Be Referenced",
+          "rule": "An uploaded file expires when its configured expiresAt is reached. Expiration prevents later use of the file location and allows the configured storage adapter to remove that stored object.",
           "expressions": [],
           "validates": [],
           "given": [
             {
-              "title": "File Upload Staged",
-              "id": "event-ada84578",
+              "title": "File Uploaded",
+              "id": "event-911bc681",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "originalFileName"
@@ -14936,7 +15323,7 @@
                   "name": "purpose"
                 },
                 {
-                  "name": "stagedFileLocation"
+                  "name": "fileLocation"
                 },
                 {
                   "name": "checksum"
@@ -14949,13 +15336,13 @@
           ],
           "when": [
             {
-              "title": "Expire Staged File",
-              "id": "command-0c65b827",
+              "title": "Expire File",
+              "id": "command-f1498c3b",
               "type": "COMMAND",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "expiredAt"
@@ -14969,13 +15356,13 @@
           ],
           "then": [
             {
-              "title": "Staged File Expired",
-              "id": "event-a791decc",
+              "title": "File Expired",
+              "id": "event-6d73f3a0",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "expiredAt"
@@ -14989,23 +15376,23 @@
           ]
         },
         {
-          "id": "gwt-af3cf7dc",
+          "id": "gwt-7a1e7191",
           "chapter": "FileUpload",
-          "sliceName": "Expire Staged File",
+          "sliceName": "Expire File",
           "title": "Reject Consumption After Expiration",
-          "specification": "Expired Staged File Cannot Be Consumed",
-          "rule": "A staged file expires when its retention window elapses before any business command consumes it. Expiration prevents later use of the staged location and allows storage cleanup to remove the temporary object.",
+          "specification": "Expired File Cannot Be Referenced",
+          "rule": "An uploaded file expires when its configured expiresAt is reached. Expiration prevents later use of the file location and allows the configured storage adapter to remove that stored object.",
           "expressions": [],
           "validates": [],
           "given": [
             {
-              "title": "Staged File Expired",
-              "id": "event-a791decc",
+              "title": "File Expired",
+              "id": "event-6d73f3a0",
               "type": "EVENT",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-2"
+                  "name": "fileId",
+                  "example": "file-2"
                 },
                 {
                   "name": "expiredAt"
@@ -15018,32 +15405,32 @@
           ],
           "when": [
             {
-              "title": "Mark Staged File Consumed",
-              "id": "command-0efadc6b",
+              "title": "Mark File Referenced",
+              "id": "command-d016e04d",
               "type": "COMMAND",
               "fields": [
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-2"
+                  "name": "fileId",
+                  "example": "file-2"
                 },
                 {
-                  "name": "consumedByContext",
+                  "name": "referencedByContext",
                   "example": "ModelRepository"
                 },
                 {
-                  "name": "consumedByCommand",
+                  "name": "referencedByCommand",
                   "example": "RegisterModelArtifact"
                 },
                 {
-                  "name": "consumedByCommandId"
+                  "name": "referencedByCommandId"
                 }
               ]
             }
           ],
           "then": {
             "title": "Rejected",
-            "id": "spec-reject-af3cf7dc",
-            "description": "Staged File Expired",
+            "id": "spec-reject-7a1e7191",
+            "description": "File Expired",
             "outcome": "REJECT"
           }
         }
@@ -15051,35 +15438,35 @@
       "actors": [],
       "hotspots": [],
       "stateChange": {
-        "event": "StagedFileExpired",
-        "eventId": "event-a791decc",
+        "event": "FileExpired",
+        "eventId": "event-6d73f3a0",
         "to": "Expired"
       }
     },
     {
-      "id": "slice-1b411581",
-      "index": 31,
-      "name": "StagedFileCatalog",
-      "title": "Staged File Catalog",
+      "id": "slice-6e1f0ccb",
+      "index": 32,
+      "name": "UploadedFileCatalog",
+      "title": "Uploaded File Catalog",
       "chapter": "FileUpload",
       "context": "FileUpload",
       "tags": [],
       "concepts": [
-        "StagedFile"
+        "UploadedFile"
       ],
       "commands": [],
       "events": [],
       "readmodels": [
         {
-          "id": "readmodel-3934a0f7",
-          "name": "StagedFileCatalog",
-          "title": "Staged File Catalog",
+          "id": "readmodel-cb05d763",
+          "name": "UploadedFileCatalog",
+          "title": "Uploaded File Catalog",
           "type": "READMODEL",
           "modelContext": "FileUpload",
-          "slice": "Staged File Catalog",
+          "slice": "Uploaded File Catalog",
           "fields": [
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
@@ -15149,7 +15536,7 @@
               "portOutput": false
             },
             {
-              "name": "stagedFileLocation",
+              "name": "fileLocation",
               "type": "String",
               "cardinality": "Single",
               "optional": false,
@@ -15178,7 +15565,7 @@
             },
             {
               "name": "state",
-              "type": "StagedFile.State",
+              "type": "UploadedFile.State",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -15191,7 +15578,7 @@
               "portOutput": false
             },
             {
-              "name": "stagedAt",
+              "name": "uploadedAt",
               "type": "DateTime",
               "cardinality": "Single",
               "optional": true,
@@ -15205,7 +15592,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedAt",
+              "name": "referencedAt",
               "type": "DateTime",
               "cardinality": "Single",
               "optional": true,
@@ -15219,7 +15606,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByContext",
+              "name": "referencedByContext",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
@@ -15233,7 +15620,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByCommand",
+              "name": "referencedByCommand",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
@@ -15247,7 +15634,7 @@
               "portOutput": false
             },
             {
-              "name": "consumedByCommandId",
+              "name": "referencedByCommandId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": true,
@@ -15333,27 +15720,27 @@
           ],
           "dependencies": [
             {
-              "id": "event-ada84578",
+              "id": "event-911bc681",
               "direction": "INBOUND",
-              "title": "File Upload Staged",
+              "title": "File Uploaded",
               "elementType": "EVENT"
             },
             {
-              "id": "event-e0dcc6f5",
+              "id": "event-ba6d525f",
               "direction": "INBOUND",
-              "title": "Staged File Consumed",
+              "title": "File Referenced",
               "elementType": "EVENT"
             },
             {
-              "id": "event-0fd0ce9b",
+              "id": "event-7fafcecf",
               "direction": "INBOUND",
-              "title": "Staged File Discarded",
+              "title": "File Discarded",
               "elementType": "EVENT"
             },
             {
-              "id": "event-a791decc",
+              "id": "event-6d73f3a0",
               "direction": "INBOUND",
-              "title": "Staged File Expired",
+              "title": "File Expired",
               "elementType": "EVENT"
             }
           ],
@@ -15368,7 +15755,7 @@
     },
     {
       "id": "slice-fadc8c3e",
-      "index": 32,
+      "index": 33,
       "name": "RegisterRuntimeInfrastructurePackage",
       "title": "Register Runtime Infrastructure Package",
       "chapter": "RuntimeProvisioning",
@@ -15608,7 +15995,7 @@
     },
     {
       "id": "slice-e15cefbe",
-      "index": 33,
+      "index": 34,
       "name": "RuntimeInfrastructurePackageCatalog",
       "title": "Runtime Infrastructure Package Catalog",
       "chapter": "RuntimeProvisioning",
@@ -15719,7 +16106,7 @@
     },
     {
       "id": "slice-f35904ad",
-      "index": 34,
+      "index": 35,
       "name": "CreateRuntimeInstallationPlan",
       "title": "Create Runtime Installation Plan",
       "chapter": "RuntimeProvisioning",
@@ -16037,7 +16424,7 @@
     },
     {
       "id": "slice-0e61278c",
-      "index": 35,
+      "index": 36,
       "name": "RuntimeInstallationPlanCatalog",
       "title": "Runtime Installation Plan Catalog",
       "chapter": "RuntimeProvisioning",
@@ -16513,7 +16900,7 @@
     },
     {
       "id": "slice-7d947a8a",
-      "index": 36,
+      "index": 37,
       "name": "RuntimeInstallationGuide",
       "title": "Runtime Installation Guide",
       "chapter": "RuntimeProvisioning",
@@ -16833,7 +17220,7 @@
     },
     {
       "id": "slice-ae3ed4a4",
-      "index": 37,
+      "index": 38,
       "name": "PlanRuntimeInfrastructure",
       "title": "Plan Runtime Infrastructure",
       "chapter": "RuntimeProvisioning",
@@ -17024,7 +17411,7 @@
     },
     {
       "id": "slice-f113419e",
-      "index": 38,
+      "index": 39,
       "name": "RegisterRuntimeInfrastructure",
       "title": "Register Runtime Infrastructure",
       "chapter": "RuntimeProvisioning",
@@ -17185,7 +17572,7 @@
     },
     {
       "id": "slice-1524114e",
-      "index": 39,
+      "index": 40,
       "name": "VerifyRuntimeInfrastructure",
       "title": "Verify Runtime Infrastructure",
       "chapter": "RuntimeProvisioning",
@@ -17738,7 +18125,7 @@
     },
     {
       "id": "slice-b8a32014",
-      "index": 40,
+      "index": 41,
       "name": "DeployRuntimeAgent",
       "title": "Deploy Runtime Agent",
       "chapter": "RuntimeProvisioning",
@@ -18159,7 +18546,7 @@
     },
     {
       "id": "slice-6432e41e",
-      "index": 41,
+      "index": 42,
       "name": "RetryRuntimeAgentDeployment",
       "title": "Retry Runtime Agent Deployment",
       "chapter": "RuntimeProvisioning",
@@ -18721,7 +19108,7 @@
     },
     {
       "id": "slice-15dea9b5",
-      "index": 42,
+      "index": 43,
       "name": "RecordRuntimeConnectionEstablished",
       "title": "Record Runtime Connection Established",
       "chapter": "RuntimeProvisioning",
@@ -19089,7 +19476,7 @@
     },
     {
       "id": "slice-0f1cd9f9",
-      "index": 43,
+      "index": 44,
       "name": "RuntimeAgentEndpointCatalog",
       "title": "Runtime Agent Endpoint Catalog",
       "chapter": "RuntimeProvisioning",
@@ -19294,7 +19681,7 @@
     },
     {
       "id": "slice-39822ec6",
-      "index": 44,
+      "index": 45,
       "name": "RuntimeInfrastructureAccessView",
       "title": "Runtime Infrastructure Access View",
       "chapter": "RuntimeProvisioning",
@@ -19777,7 +20164,7 @@
     },
     {
       "id": "slice-d92096fb",
-      "index": 45,
+      "index": 46,
       "name": "DefineFeatureSchema",
       "title": "Define Feature Schema",
       "chapter": "DatasetGovernance",
@@ -20205,7 +20592,7 @@
     },
     {
       "id": "slice-9a1a067d",
-      "index": 46,
+      "index": 47,
       "name": "PublishFeatureSchema",
       "title": "Publish Feature Schema",
       "chapter": "DatasetGovernance",
@@ -20470,7 +20857,7 @@
     },
     {
       "id": "slice-d0d6ce25",
-      "index": 47,
+      "index": 48,
       "name": "DeprecateFeatureSchema",
       "title": "Deprecate Feature Schema",
       "chapter": "DatasetGovernance",
@@ -20643,7 +21030,7 @@
     },
     {
       "id": "slice-50e78e0f",
-      "index": 48,
+      "index": 49,
       "name": "RetireFeatureSchema",
       "title": "Retire Feature Schema",
       "chapter": "DatasetGovernance",
@@ -20810,7 +21197,7 @@
     },
     {
       "id": "slice-c6a6a6c8",
-      "index": 49,
+      "index": 50,
       "name": "SupersedeFeatureSchemaVersion",
       "title": "Supersede Feature Schema Version",
       "chapter": "DatasetGovernance",
@@ -21149,7 +21536,7 @@
     },
     {
       "id": "slice-76cab273",
-      "index": 50,
+      "index": 51,
       "name": "MarkCurrentRecommendedFeatureSchemaVersion",
       "title": "Mark Current Recommended Feature Schema Version",
       "chapter": "DatasetGovernance",
@@ -21441,7 +21828,7 @@
     },
     {
       "id": "slice-73f5eccd",
-      "index": 51,
+      "index": 52,
       "name": "CurrentRecommendedFeatureSchemaCatalog",
       "title": "Current Recommended Feature Schema Catalog",
       "chapter": "DatasetGovernance",
@@ -21551,7 +21938,7 @@
     },
     {
       "id": "slice-8f30e501",
-      "index": 52,
+      "index": 53,
       "name": "FeatureSchemaCatalog",
       "title": "Feature Schema Catalog",
       "chapter": "DatasetGovernance",
@@ -21762,7 +22149,7 @@
     },
     {
       "id": "slice-ad05f2d9",
-      "index": 53,
+      "index": 54,
       "name": "RecordRuntimeDatasetMetadata",
       "title": "Record Runtime Dataset Metadata",
       "chapter": "DatasetGovernance",
@@ -22417,7 +22804,7 @@
     },
     {
       "id": "slice-c7f572a3",
-      "index": 54,
+      "index": 55,
       "name": "RecordRuntimeDatasetReprofiledMetadata",
       "title": "Record Runtime Dataset Reprofiled Metadata",
       "chapter": "DatasetGovernance",
@@ -23065,7 +23452,7 @@
     },
     {
       "id": "slice-1ed8c787",
-      "index": 55,
+      "index": 56,
       "name": "RuntimeDatasetMetadataCatalog",
       "title": "Runtime Dataset Metadata Catalog",
       "chapter": "DatasetGovernance",
@@ -23464,7 +23851,7 @@
     },
     {
       "id": "slice-7ccc677e",
-      "index": 56,
+      "index": 57,
       "name": "RegisterModelArtifact",
       "title": "Register Model Artifact",
       "chapter": "ModelRepository",
@@ -23561,7 +23948,7 @@
               "portOutput": false
             },
             {
-              "name": "stagedFileId",
+              "name": "fileId",
               "type": "UUID",
               "cardinality": "Single",
               "optional": true,
@@ -23785,6 +24172,12 @@
               "direction": "OUTBOUND",
               "title": "Model Artifact Catalog",
               "elementType": "READMODEL"
+            },
+            {
+              "id": "command-bbffe073",
+              "direction": "OUTBOUND",
+              "title": "Download Model Artifact",
+              "elementType": "COMMAND"
             }
           ]
         }
@@ -23817,7 +24210,7 @@
           "sliceName": "Register Model Artifact",
           "title": "Register Pullable Model Artifact",
           "specification": "Model Artifact Must Be Pullable And Verifiable",
-          "rule": "Registering a model artifact is a port-backed import operation. modelName identifies the logical model, modelVersion identifies the business version under that model, and modelDescription captures the business purpose, training background, applicable scenarios, or limitations that operators need when selecting the model. The pair must be unique. modelId remains the system identity for one immutable imported or trained artifact version. sourceType is maintained by the MODEL_ARTIFACT_SOURCE_TYPE dictionary and distinguishes externally imported artifacts from artifacts produced by federated training; expected values include EXTERNAL and FEDERATED_TRAINING. For uploaded files, stagedFileId references a file previously staged by FileUpload, not a browser-local file path. The adapter queries FileUpload metadata or content, imports the staged source model into the managed model registry, marks the staged file consumed after a successful import, detects or validates the model format, computes the artifact digest and size, optionally records a signature URI, and emits a pullable immutable artifact snapshot. modelFormat is maintained by the MODEL_FORMAT dictionary; expected values include ONNX, PMML, TENSORFLOW_SAVED_MODEL, PYTORCH_STATE_DICT, XGBOOST, and SKLEARN_PICKLE. modelArtifactUri identifies the concrete pullable artifact for that version.\n\nunique (ModelArtifact.modelName, ModelArtifact.modelVersion)",
+          "rule": "Registering a model artifact is a port-backed operation over a file already persisted by FileUpload. modelName identifies the logical model, modelVersion identifies the business version under that model, and modelDescription captures the business purpose, training background, applicable scenarios, or limitations that operators need when selecting the model. The pair must be unique. modelId remains the system identity for one imported or trained artifact version. sourceType distinguishes externally uploaded artifacts from artifacts produced by federated training. fileId identifies the shared FileUpload record; ModelRepository does not create a second physical copy or a second storage subsystem. The adapter resolves FileUpload metadata and content URI, validates the model format, records digest and size, and marks the file reference after registration. modelArtifactUri remains the authenticated FileUpload content URI.\n\nunique (ModelArtifact.modelName, ModelArtifact.modelVersion)",
           "expressions": [],
           "validates": [],
           "given": [],
@@ -23848,8 +24241,8 @@
                   "example": "EXTERNAL"
                 },
                 {
-                  "name": "stagedFileId",
-                  "example": "staged-file-1"
+                  "name": "fileId",
+                  "example": "file-1"
                 },
                 {
                   "name": "modelFormat",
@@ -23924,7 +24317,7 @@
     },
     {
       "id": "slice-e846ef48",
-      "index": 57,
+      "index": 58,
       "name": "ModelArtifactCatalog",
       "title": "Model Artifact Catalog",
       "chapter": "ModelRepository",
@@ -24192,6 +24585,12 @@
               "elementType": "EVENT"
             },
             {
+              "id": "event-cc810ecf",
+              "direction": "INBOUND",
+              "title": "Federated Model Artifact Registered",
+              "elementType": "EVENT"
+            },
+            {
               "id": "event-4759d38f",
               "direction": "INBOUND",
               "title": "Global Model Updated",
@@ -24208,8 +24607,1031 @@
       "hotspots": []
     },
     {
+      "id": "slice-d38fbaed",
+      "index": 59,
+      "name": "DownloadModelArtifact",
+      "title": "Download Model Artifact",
+      "chapter": "ModelRepository",
+      "context": "ModelRepository",
+      "tags": [],
+      "port": true,
+      "concepts": [
+        "ModelArtifact"
+      ],
+      "commands": [
+        {
+          "id": "command-bbffe073",
+          "name": "DownloadModelArtifact",
+          "title": "Download Model Artifact",
+          "type": "COMMAND",
+          "modelContext": "ModelRepository",
+          "slice": "Download Model Artifact",
+          "fields": [
+            {
+              "name": "modelId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-41a35505",
+              "direction": "INBOUND",
+              "title": "Model Artifact Registered",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "screen-ec8f1324",
+              "direction": "INBOUND",
+              "title": "Model Repository Screen",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-d97c5227",
+              "direction": "OUTBOUND",
+              "title": "Model Artifact Download Authorized",
+              "elementType": "EVENT"
+            }
+          ],
+          "port": true
+        }
+      ],
+      "events": [
+        {
+          "id": "event-d97c5227",
+          "name": "ModelArtifactDownloadAuthorized",
+          "title": "Model Artifact Download Authorized",
+          "type": "EVENT",
+          "modelContext": "ModelRepository",
+          "slice": "Download Model Artifact",
+          "fields": [
+            {
+              "name": "modelId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelFormat",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelArtifactDigest",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "downloadUri",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-bbffe073",
+              "direction": "INBOUND",
+              "title": "Download Model Artifact",
+              "elementType": "COMMAND"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-ec8f1324",
+          "name": "ModelRepositoryScreen",
+          "title": "Model Repository Screen",
+          "type": "SCREEN",
+          "modelContext": "ModelRepository",
+          "slice": "Download Model Artifact",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "command-bbffe073",
+              "direction": "OUTBOUND",
+              "title": "Download Model Artifact",
+              "elementType": "COMMAND"
+            }
+          ]
+        }
+      ],
+      "processors": [],
+      "specifications": [
+        {
+          "id": "gwt-36f339a0",
+          "chapter": "ModelRepository",
+          "sliceName": "Download Model Artifact",
+          "title": "Authorize Registered Model Artifact Download",
+          "specification": "Registered Model Artifact Resolves To Stored File Download",
+          "rule": "DownloadModelArtifact accepts only modelId. The adapter loads the registered ModelArtifact snapshot, verifies that its referenced FileUpload object is still available, and returns an authenticated downloadUri. ModelRepository owns model identity, version, format, and digest; FileUpload remains responsible for streaming the underlying bytes. No model content is carried in the command or event.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "Model Artifact Registered",
+              "id": "event-41a35505",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "modelId",
+                  "example": "model-1"
+                },
+                {
+                  "name": "modelName",
+                  "example": "credit-risk"
+                },
+                {
+                  "name": "modelVersion",
+                  "example": "v1"
+                },
+                {
+                  "name": "modelDescription"
+                },
+                {
+                  "name": "sourceType"
+                },
+                {
+                  "name": "modelArtifactUri",
+                  "example": "http://support/api/files/file-1/content"
+                },
+                {
+                  "name": "modelRegistryRef"
+                },
+                {
+                  "name": "modelFormat",
+                  "example": "ONNX"
+                },
+                {
+                  "name": "modelArtifactDigest",
+                  "example": "sha256:model"
+                },
+                {
+                  "name": "modelSignatureUri"
+                },
+                {
+                  "name": "modelSizeBytes"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Download Model Artifact",
+              "id": "command-bbffe073",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "modelId",
+                  "example": "model-1"
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "Model Artifact Download Authorized",
+              "id": "event-d97c5227",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "modelId",
+                  "example": "model-1"
+                },
+                {
+                  "name": "modelName"
+                },
+                {
+                  "name": "modelVersion"
+                },
+                {
+                  "name": "modelFormat"
+                },
+                {
+                  "name": "modelArtifactDigest"
+                },
+                {
+                  "name": "downloadUri"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "gwt-5ee99ff7",
+          "chapter": "ModelRepository",
+          "sliceName": "Download Model Artifact",
+          "title": "Reject Missing Model Artifact Content",
+          "specification": "Registered Model Artifact Resolves To Stored File Download",
+          "rule": "DownloadModelArtifact accepts only modelId. The adapter loads the registered ModelArtifact snapshot, verifies that its referenced FileUpload object is still available, and returns an authenticated downloadUri. ModelRepository owns model identity, version, format, and digest; FileUpload remains responsible for streaming the underlying bytes. No model content is carried in the command or event.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "Model Artifact Registered",
+              "id": "event-41a35505",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "modelId",
+                  "example": "model-2"
+                },
+                {
+                  "name": "modelName",
+                  "example": "credit-risk"
+                },
+                {
+                  "name": "modelVersion",
+                  "example": "v2"
+                },
+                {
+                  "name": "modelDescription"
+                },
+                {
+                  "name": "sourceType"
+                },
+                {
+                  "name": "modelArtifactUri",
+                  "example": "http://support/api/files/file-2/content"
+                },
+                {
+                  "name": "modelRegistryRef"
+                },
+                {
+                  "name": "modelFormat"
+                },
+                {
+                  "name": "modelArtifactDigest"
+                },
+                {
+                  "name": "modelSignatureUri"
+                },
+                {
+                  "name": "modelSizeBytes"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Download Model Artifact",
+              "id": "command-bbffe073",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "modelId",
+                  "example": "model-2"
+                }
+              ]
+            }
+          ],
+          "then": {
+            "title": "Error",
+            "id": "spec-error-5ee99ff7",
+            "description": "Model artifact content is not available for download.",
+            "outcome": "ERROR"
+          }
+        }
+      ],
+      "actors": [
+        {
+          "id": "actor-420dea2d",
+          "name": "MLOpsEngineer",
+          "title": "MLOps Engineer"
+        }
+      ],
+      "hotspots": []
+    },
+    {
+      "id": "slice-eef6ed6c",
+      "index": 60,
+      "name": "RegisterFederatedModelArtifact",
+      "title": "Register Federated Model Artifact",
+      "chapter": "ModelRepository",
+      "context": "ModelRepository",
+      "tags": [],
+      "concepts": [
+        "ModelArtifact"
+      ],
+      "commands": [
+        {
+          "id": "command-ed94cbfd",
+          "name": "RegisterFederatedModelArtifact",
+          "title": "Register Federated Model Artifact",
+          "type": "COMMAND",
+          "modelContext": "ModelRepository",
+          "slice": "Register Federated Model Artifact",
+          "fields": [
+            {
+              "name": "modelId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.aggregatedModelId"
+                ]
+              }
+            },
+            {
+              "name": "modelName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.aggregatedModelName"
+                ]
+              }
+            },
+            {
+              "name": "modelVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.aggregatedModelVersion"
+                ]
+              }
+            },
+            {
+              "name": "modelDescription",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.aggregatedModelDescription"
+                ]
+              }
+            },
+            {
+              "name": "sourceType",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.modelSourceType"
+                ]
+              }
+            },
+            {
+              "name": "modelArtifactUri",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.aggregatedModelArtifactUri"
+                ]
+              }
+            },
+            {
+              "name": "modelRegistryRef",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.aggregatedModelRegistryRef"
+                ]
+              }
+            },
+            {
+              "name": "modelFormat",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.modelFormat"
+                ]
+              }
+            },
+            {
+              "name": "modelArtifactDigest",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.modelArtifactDigest"
+                ]
+              }
+            },
+            {
+              "name": "modelSignatureUri",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.aggregatedModelSignatureUri"
+                ]
+              }
+            },
+            {
+              "name": "modelSizeBytes",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.aggregatedModelSizeBytes"
+                ]
+              }
+            },
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.trainingJobId"
+                ]
+              }
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "GlobalModelUpdated.roundId"
+                ]
+              }
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "automation-a789cfec",
+              "direction": "INBOUND",
+              "title": "Register Federated Model When Global Model Updated",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-cc810ecf",
+              "direction": "OUTBOUND",
+              "title": "Federated Model Artifact Registered",
+              "elementType": "EVENT"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "id": "event-cc810ecf",
+          "name": "FederatedModelArtifactRegistered",
+          "title": "Federated Model Artifact Registered",
+          "type": "EVENT",
+          "modelContext": "ModelRepository",
+          "slice": "Register Federated Model Artifact",
+          "fields": [
+            {
+              "name": "modelId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelDescription",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "sourceType",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelArtifactUri",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelRegistryRef",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelFormat",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelArtifactDigest",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelSignatureUri",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelSizeBytes",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "readmodel-a5834dad",
+              "direction": "OUTBOUND",
+              "title": "Model Artifact Catalog",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "command-ed94cbfd",
+              "direction": "INBOUND",
+              "title": "Register Federated Model Artifact",
+              "elementType": "COMMAND"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "processors": [
+        {
+          "id": "automation-a789cfec",
+          "name": "RegisterFederatedModelWhenGlobalModelUpdated",
+          "title": "Register Federated Model When Global Model Updated",
+          "type": "PROCESSOR",
+          "modelContext": "ModelRepository",
+          "slice": "Register Federated Model Artifact",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "event-4759d38f",
+              "direction": "INBOUND",
+              "title": "Global Model Updated",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-ed94cbfd",
+              "direction": "OUTBOUND",
+              "title": "Register Federated Model Artifact",
+              "elementType": "COMMAND"
+            }
+          ],
+          "metadata": {
+            "on": "GlobalModelUpdated",
+            "onKind": "event",
+            "emits": "RegisterFederatedModelArtifact"
+          }
+        }
+      ],
+      "specifications": [
+        {
+          "id": "gwt-b3dfabcd",
+          "chapter": "ModelRepository",
+          "sliceName": "Register Federated Model Artifact",
+          "title": "Register Aggregated Round Model",
+          "specification": "Federated Round Model Is Registered From Managed Storage",
+          "rule": "A global model produced by the aggregation runtime is uploaded through the shared FileUpload storage boundary before GlobalModelUpdated is emitted. ModelArtifact registration records that file URI together with digest, format, size, producing training job, and round; it does not create a second storage area. The generated modelId is reused as both the upload record identifier and ModelArtifact identity for traceability.",
+          "expressions": [],
+          "validates": [],
+          "given": [],
+          "when": [
+            {
+              "title": "Register Federated Model Artifact",
+              "id": "command-ed94cbfd",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "modelId"
+                },
+                {
+                  "name": "modelName"
+                },
+                {
+                  "name": "modelVersion"
+                },
+                {
+                  "name": "modelDescription"
+                },
+                {
+                  "name": "sourceType"
+                },
+                {
+                  "name": "modelArtifactUri"
+                },
+                {
+                  "name": "modelRegistryRef"
+                },
+                {
+                  "name": "modelFormat"
+                },
+                {
+                  "name": "modelArtifactDigest"
+                },
+                {
+                  "name": "modelSignatureUri"
+                },
+                {
+                  "name": "modelSizeBytes"
+                },
+                {
+                  "name": "trainingJobId"
+                },
+                {
+                  "name": "roundId"
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "Federated Model Artifact Registered",
+              "id": "event-cc810ecf",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "modelId"
+                },
+                {
+                  "name": "modelName"
+                },
+                {
+                  "name": "modelVersion"
+                },
+                {
+                  "name": "modelDescription"
+                },
+                {
+                  "name": "sourceType"
+                },
+                {
+                  "name": "modelArtifactUri"
+                },
+                {
+                  "name": "modelRegistryRef"
+                },
+                {
+                  "name": "modelFormat"
+                },
+                {
+                  "name": "modelArtifactDigest"
+                },
+                {
+                  "name": "modelSignatureUri"
+                },
+                {
+                  "name": "modelSizeBytes"
+                },
+                {
+                  "name": "trainingJobId"
+                },
+                {
+                  "name": "roundId"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actors": [],
+      "hotspots": [],
+      "stateChange": {
+        "event": "FederatedModelArtifactRegistered",
+        "eventId": "event-cc810ecf",
+        "to": "Registered"
+      }
+    },
+    {
       "id": "slice-83322758",
-      "index": 58,
+      "index": 61,
       "name": "DefineTrainingRunConfiguration",
       "title": "Define Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -25353,7 +26775,7 @@
     },
     {
       "id": "slice-017ad176",
-      "index": 59,
+      "index": 62,
       "name": "UpdateTrainingRunConfiguration",
       "title": "Update Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -26635,7 +28057,7 @@
     },
     {
       "id": "slice-e7dd4f24",
-      "index": 60,
+      "index": 63,
       "name": "LockTrainingRunConfiguration",
       "title": "Lock Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -26808,7 +28230,7 @@
     },
     {
       "id": "slice-04d3f902",
-      "index": 61,
+      "index": 64,
       "name": "TrainingRunConfigurationCatalog",
       "title": "Training Run Configuration Catalog",
       "chapter": "TrainingOrchestration",
@@ -27366,7 +28788,7 @@
     },
     {
       "id": "slice-6537d1cd",
-      "index": 62,
+      "index": 65,
       "name": "CreateTrainingJob",
       "title": "Create Training Job",
       "chapter": "TrainingOrchestration",
@@ -27862,7 +29284,7 @@
     },
     {
       "id": "slice-201ffbf1",
-      "index": 63,
+      "index": 66,
       "name": "SubmitTrainingJob",
       "title": "Submit Training Job",
       "chapter": "TrainingOrchestration",
@@ -28151,7 +29573,7 @@
     },
     {
       "id": "slice-b90f5d7f",
-      "index": 64,
+      "index": 67,
       "name": "TrainingJobDashboard",
       "title": "Training Job Dashboard",
       "chapter": "TrainingOrchestration",
@@ -28702,7 +30124,7 @@
     },
     {
       "id": "slice-ba4b3f70",
-      "index": 65,
+      "index": 68,
       "name": "TrainingParticipantEligibility",
       "title": "Training Participant Eligibility",
       "chapter": "TrainingOrchestration",
@@ -29388,7 +30810,7 @@
     },
     {
       "id": "slice-dde5a363",
-      "index": 66,
+      "index": 69,
       "name": "PauseTrainingJob",
       "title": "Pause Training Job",
       "chapter": "TrainingOrchestration",
@@ -29555,7 +30977,7 @@
     },
     {
       "id": "slice-c1c60d34",
-      "index": 67,
+      "index": 70,
       "name": "ResumeTrainingJob",
       "title": "Resume Training Job",
       "chapter": "TrainingOrchestration",
@@ -29716,7 +31138,7 @@
     },
     {
       "id": "slice-3af09f8b",
-      "index": 68,
+      "index": 71,
       "name": "CancelTrainingJob",
       "title": "Cancel Training Job",
       "chapter": "TrainingOrchestration",
@@ -29877,7 +31299,7 @@
     },
     {
       "id": "slice-6ad9864e",
-      "index": 69,
+      "index": 72,
       "name": "ScheduleNextTrainingRound",
       "title": "Schedule Next Training Round",
       "chapter": "TrainingOrchestration",
@@ -29927,7 +31349,7 @@
     },
     {
       "id": "slice-44fd29f8",
-      "index": 70,
+      "index": 73,
       "name": "CompleteTrainingJob",
       "title": "Complete Training Job",
       "chapter": "TrainingOrchestration",
@@ -30162,7 +31584,7 @@
     },
     {
       "id": "slice-093e2668",
-      "index": 71,
+      "index": 74,
       "name": "SelectTrainingRoundParticipants",
       "title": "Select Training Round Participants",
       "chapter": "TrainingOrchestration",
@@ -30941,7 +32363,7 @@
     },
     {
       "id": "slice-3afb3435",
-      "index": 72,
+      "index": 75,
       "name": "RetryTrainingRoundParticipantSelection",
       "title": "Retry Training Round Participant Selection",
       "chapter": "TrainingOrchestration",
@@ -31196,7 +32618,7 @@
     },
     {
       "id": "slice-6a16fc72",
-      "index": 73,
+      "index": 76,
       "name": "StartTrainingRound",
       "title": "Start Training Round",
       "chapter": "TrainingOrchestration",
@@ -31953,12 +33375,6 @@
               "elementType": "PROCESSOR"
             },
             {
-              "id": "automation-a1e0c4c0",
-              "direction": "OUTBOUND",
-              "title": "Fail Round When Contribution Deadline Missed",
-              "elementType": "PROCESSOR"
-            },
-            {
               "id": "readmodel-b866abe9",
               "direction": "OUTBOUND",
               "title": "Training Round Progress",
@@ -32658,7 +34074,7 @@
     },
     {
       "id": "slice-fabbea45",
-      "index": 74,
+      "index": 77,
       "name": "GenerateParticipantExecutionPlan",
       "title": "Generate Participant Execution Plan",
       "chapter": "TrainingOrchestration",
@@ -33934,7 +35350,7 @@
     },
     {
       "id": "slice-04a9daf0",
-      "index": 75,
+      "index": 78,
       "name": "DispatchParticipantExecutionPlan",
       "title": "Dispatch Participant Execution Plan",
       "chapter": "TrainingOrchestration",
@@ -34767,7 +36183,7 @@
     },
     {
       "id": "slice-ff26cad0",
-      "index": 76,
+      "index": 79,
       "name": "SubmitModelUpdateSubmission",
       "title": "Submit Model Update Submission",
       "chapter": "TrainingOrchestration",
@@ -35448,7 +36864,7 @@
     },
     {
       "id": "slice-fc1ff76d",
-      "index": 77,
+      "index": 80,
       "name": "EvaluateModelUpdateSubmission",
       "title": "Evaluate Model Update Submission",
       "chapter": "TrainingOrchestration",
@@ -36848,7 +38264,7 @@
     },
     {
       "id": "slice-a46e905e",
-      "index": 78,
+      "index": 81,
       "name": "RequestSecureAggregation",
       "title": "Request Secure Aggregation",
       "chapter": "TrainingOrchestration",
@@ -37430,7 +38846,7 @@
     },
     {
       "id": "slice-c044ec34",
-      "index": 79,
+      "index": 82,
       "name": "CompleteSecureAggregation",
       "title": "Complete Secure Aggregation",
       "chapter": "TrainingOrchestration",
@@ -37629,6 +39045,86 @@
               }
             },
             {
+              "name": "aggregatedModelName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "SecureAggregationCompleted.aggregatedModelName"
+                ]
+              }
+            },
+            {
+              "name": "aggregatedModelVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "SecureAggregationCompleted.aggregatedModelVersion"
+                ]
+              }
+            },
+            {
+              "name": "aggregatedModelDescription",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "SecureAggregationCompleted.aggregatedModelDescription"
+                ]
+              }
+            },
+            {
+              "name": "modelSourceType",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "SecureAggregationCompleted.modelSourceType"
+                ]
+              }
+            },
+            {
               "name": "aggregatedModelArtifactUri",
               "type": "String",
               "cardinality": "Single",
@@ -37727,14 +39223,34 @@
                   "SecureAggregationCompleted.aggregatedModelSignatureUri"
                 ]
               }
+            },
+            {
+              "name": "aggregatedModelSizeBytes",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "SecureAggregationCompleted.aggregatedModelSizeBytes"
+                ]
+              }
             }
           ],
           "dependencies": [
             {
-              "id": "event-986540d6",
+              "id": "automation-3dd1d9f0",
               "direction": "INBOUND",
-              "title": "Secure Aggregation Completed",
-              "elementType": "EVENT"
+              "title": "Complete Secure Aggregation When Session Completed",
+              "elementType": "PROCESSOR"
             },
             {
               "id": "event-4759d38f",
@@ -37881,6 +39397,62 @@
               "portOutput": false
             },
             {
+              "name": "aggregatedModelName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "aggregatedModelVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "aggregatedModelDescription",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelSourceType",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "aggregatedModelArtifactUri",
               "type": "String",
               "cardinality": "Single",
@@ -37949,6 +39521,20 @@
               "uploadFile": false,
               "file": false,
               "portOutput": false
+            },
+            {
+              "name": "aggregatedModelSizeBytes",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
             }
           ],
           "dependencies": [
@@ -37957,6 +39543,12 @@
               "direction": "OUTBOUND",
               "title": "Model Artifact Catalog",
               "elementType": "READMODEL"
+            },
+            {
+              "id": "automation-a789cfec",
+              "direction": "OUTBOUND",
+              "title": "Register Federated Model When Global Model Updated",
+              "elementType": "PROCESSOR"
             },
             {
               "id": "command-223cdee9",
@@ -37981,7 +39573,36 @@
       ],
       "readmodels": [],
       "screens": [],
-      "processors": [],
+      "processors": [
+        {
+          "id": "automation-3dd1d9f0",
+          "name": "CompleteSecureAggregationWhenSessionCompleted",
+          "title": "Complete Secure Aggregation When Session Completed",
+          "type": "PROCESSOR",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Complete Secure Aggregation",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "event-986540d6",
+              "direction": "INBOUND",
+              "title": "Secure Aggregation Completed",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-223cdee9",
+              "direction": "OUTBOUND",
+              "title": "Complete Secure Aggregation",
+              "elementType": "COMMAND"
+            }
+          ],
+          "metadata": {
+            "on": "SecureAggregationCompleted",
+            "onKind": "event",
+            "emits": "CompleteSecureAggregation"
+          }
+        }
+      ],
       "specifications": [],
       "actors": [],
       "hotspots": [],
@@ -37993,7 +39614,7 @@
     },
     {
       "id": "slice-129ead8e",
-      "index": 80,
+      "index": 83,
       "name": "SubmitGlobalModelEvaluation",
       "title": "Submit Global Model Evaluation",
       "chapter": "TrainingOrchestration",
@@ -38540,7 +40161,7 @@
     },
     {
       "id": "slice-4a16b8df",
-      "index": 81,
+      "index": 84,
       "name": "CompleteTrainingRound",
       "title": "Complete Training Round",
       "chapter": "TrainingOrchestration",
@@ -39320,6 +40941,18 @@
                   "example": "model-1"
                 },
                 {
+                  "name": "aggregatedModelName"
+                },
+                {
+                  "name": "aggregatedModelVersion"
+                },
+                {
+                  "name": "aggregatedModelDescription"
+                },
+                {
+                  "name": "modelSourceType"
+                },
+                {
                   "name": "aggregatedModelArtifactUri"
                 },
                 {
@@ -39333,6 +40966,9 @@
                 },
                 {
                   "name": "aggregatedModelSignatureUri"
+                },
+                {
+                  "name": "aggregatedModelSizeBytes"
                 }
               ]
             }
@@ -39410,7 +41046,7 @@
     },
     {
       "id": "slice-8107a71a",
-      "index": 82,
+      "index": 85,
       "name": "FailTrainingRound",
       "title": "Fail Training Round",
       "chapter": "TrainingOrchestration",
@@ -39556,12 +41192,6 @@
               "id": "automation-edc80780",
               "direction": "INBOUND",
               "title": "Fail Round When Runtime Execution Retry Failure Breaks Quorum",
-              "elementType": "PROCESSOR"
-            },
-            {
-              "id": "automation-a1e0c4c0",
-              "direction": "INBOUND",
-              "title": "Fail Round When Contribution Deadline Missed",
               "elementType": "PROCESSOR"
             },
             {
@@ -39886,35 +41516,6 @@
             "condition": "roundQuorumLost == true",
             "emits": "FailTrainingRound"
           }
-        },
-        {
-          "id": "automation-a1e0c4c0",
-          "name": "FailRoundWhenContributionDeadlineMissed",
-          "title": "Fail Round When Contribution Deadline Missed",
-          "type": "PROCESSOR",
-          "modelContext": "TrainingOrchestration",
-          "slice": "Fail Training Round",
-          "fields": [],
-          "dependencies": [
-            {
-              "id": "event-229f5549",
-              "direction": "INBOUND",
-              "title": "Training Round Started",
-              "elementType": "EVENT"
-            },
-            {
-              "id": "command-6b132cc9",
-              "direction": "OUTBOUND",
-              "title": "Fail Training Round",
-              "elementType": "COMMAND"
-            }
-          ],
-          "metadata": {
-            "on": "TrainingRoundStarted",
-            "onKind": "event",
-            "condition": "roundContributionTimedOut == true",
-            "emits": "FailTrainingRound"
-          }
         }
       ],
       "specifications": [],
@@ -39934,7 +41535,7 @@
     },
     {
       "id": "slice-158bd8b1",
-      "index": 83,
+      "index": 86,
       "name": "TrainingRoundProgress",
       "title": "Training Round Progress",
       "chapter": "TrainingOrchestration",
@@ -40833,7 +42434,7 @@
     },
     {
       "id": "slice-7806d9ed",
-      "index": 84,
+      "index": 87,
       "name": "RegisterCandidateModel",
       "title": "Register Candidate Model",
       "chapter": "ModelLifecycle",
@@ -41140,7 +42741,7 @@
     },
     {
       "id": "slice-c947b39a",
-      "index": 85,
+      "index": 88,
       "name": "RecordModelEvaluationPackage",
       "title": "Record Model Evaluation Package",
       "chapter": "ModelLifecycle",
@@ -41638,7 +43239,7 @@
     },
     {
       "id": "slice-a4c2bdcc",
-      "index": 86,
+      "index": 89,
       "name": "ApproveModel",
       "title": "Approve Model",
       "chapter": "ModelLifecycle",
@@ -41949,7 +43550,7 @@
     },
     {
       "id": "slice-e0aca431",
-      "index": 87,
+      "index": 90,
       "name": "PromoteModelToProduction",
       "title": "Promote Model To Production",
       "chapter": "ModelLifecycle",
@@ -42300,7 +43901,7 @@
     },
     {
       "id": "slice-33930733",
-      "index": 88,
+      "index": 91,
       "name": "RollbackModel",
       "title": "Rollback Model",
       "chapter": "ModelLifecycle",
@@ -42489,7 +44090,7 @@
     },
     {
       "id": "slice-9e8c0ad2",
-      "index": 89,
+      "index": 92,
       "name": "RetireModel",
       "title": "Retire Model",
       "chapter": "ModelLifecycle",
@@ -42650,7 +44251,7 @@
     },
     {
       "id": "slice-daa3e2fe",
-      "index": 90,
+      "index": 93,
       "name": "ModelCatalog",
       "title": "Model Catalog",
       "chapter": "ModelLifecycle",
@@ -43113,7 +44714,7 @@
     },
     {
       "id": "slice-97531d57",
-      "index": 91,
+      "index": 94,
       "name": "RuntimeTelemetryLatest",
       "title": "Runtime Telemetry Latest",
       "chapter": "RuntimeMonitoring",
@@ -43348,7 +44949,7 @@
     },
     {
       "id": "slice-d498ecb8",
-      "index": 92,
+      "index": 95,
       "name": "DetectRuntimeAgentOffline",
       "title": "Detect Runtime Agent Offline",
       "chapter": "RuntimeMonitoring",
@@ -43562,7 +45163,7 @@
     },
     {
       "id": "slice-fd282504",
-      "index": 93,
+      "index": 96,
       "name": "MarkRuntimeAgentRecovered",
       "title": "Mark Runtime Agent Recovered",
       "chapter": "RuntimeMonitoring",
@@ -43775,7 +45376,7 @@
     },
     {
       "id": "slice-7aeba98f",
-      "index": 94,
+      "index": 97,
       "name": "DetectRuntimeNodeResourcePressure",
       "title": "Detect Runtime Node Resource Pressure",
       "chapter": "RuntimeMonitoring",
@@ -44055,7 +45656,7 @@
     },
     {
       "id": "slice-3f7c280e",
-      "index": 95,
+      "index": 98,
       "name": "RecordRuntimeNodeInventory",
       "title": "Record Runtime Node Inventory",
       "chapter": "RuntimeMonitoring",
@@ -44564,7 +46165,7 @@
     },
     {
       "id": "slice-79929d9e",
-      "index": 96,
+      "index": 99,
       "name": "RuntimeNodeInventoryView",
       "title": "Runtime Node Inventory View",
       "chapter": "RuntimeMonitoring",
@@ -44888,7 +46489,7 @@
     },
     {
       "id": "slice-c5ab698a",
-      "index": 97,
+      "index": 100,
       "name": "RuntimeNodeResourceLatest",
       "title": "Runtime Node Resource Latest",
       "chapter": "RuntimeMonitoring",
@@ -45195,7 +46796,7 @@
     },
     {
       "id": "slice-17654acc",
-      "index": 98,
+      "index": 101,
       "name": "DetectRuntimeNodeCapacityChange",
       "title": "Detect Runtime Node Capacity Change",
       "chapter": "RuntimeMonitoring",
@@ -45497,7 +47098,7 @@
     },
     {
       "id": "slice-dc4e224d",
-      "index": 99,
+      "index": 102,
       "name": "RuntimeHealthDashboard",
       "title": "Runtime Health Dashboard",
       "chapter": "RuntimeMonitoring",
@@ -45859,7 +47460,7 @@
     },
     {
       "id": "slice-f43e8d0f",
-      "index": 100,
+      "index": 103,
       "name": "RaiseTrainingAlert",
       "title": "Raise Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -46134,7 +47735,7 @@
     },
     {
       "id": "slice-102e6798",
-      "index": 101,
+      "index": 104,
       "name": "TrainingAlertCatalog",
       "title": "Training Alert Catalog",
       "chapter": "RuntimeMonitoring",
@@ -46394,7 +47995,7 @@
     },
     {
       "id": "slice-63ac1487",
-      "index": 102,
+      "index": 105,
       "name": "AcknowledgeTrainingAlert",
       "title": "Acknowledge Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -46561,7 +48162,7 @@
     },
     {
       "id": "slice-c3edeeef",
-      "index": 103,
+      "index": 106,
       "name": "ResolveTrainingAlert",
       "title": "Resolve Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -46722,7 +48323,7 @@
     },
     {
       "id": "slice-bf4467da",
-      "index": 104,
+      "index": 107,
       "name": "AppendAuditTrail",
       "title": "Append Audit Trail",
       "chapter": "RuntimeMonitoring",
@@ -47273,7 +48874,7 @@
     },
     {
       "id": "slice-5556fb33",
-      "index": 105,
+      "index": 108,
       "name": "AuditRecordLog",
       "title": "Audit Record Log",
       "chapter": "RuntimeMonitoring",
@@ -47383,7 +48984,7 @@
     },
     {
       "id": "slice-6883883e",
-      "index": 106,
+      "index": 109,
       "name": "ActivateRuntimeIdentity",
       "title": "Activate Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -47749,7 +49350,7 @@
     },
     {
       "id": "slice-6949bdab",
-      "index": 107,
+      "index": 110,
       "name": "RevokeRuntimeIdentity",
       "title": "Revoke Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -47934,7 +49535,7 @@
     },
     {
       "id": "slice-267be0b4",
-      "index": 108,
+      "index": 111,
       "name": "DetectRuntimeCapabilities",
       "title": "Detect Runtime Capabilities",
       "chapter": "RuntimeGovernance",
@@ -48117,7 +49718,7 @@
     },
     {
       "id": "slice-53705008",
-      "index": 109,
+      "index": 112,
       "name": "RuntimeIdentityCatalog",
       "title": "Runtime Identity Catalog",
       "chapter": "RuntimeGovernance",
@@ -48308,7 +49909,7 @@
     },
     {
       "id": "slice-a09f6b28",
-      "index": 110,
+      "index": 113,
       "name": "RuntimeCapabilityCatalog",
       "title": "Runtime Capability Catalog",
       "chapter": "RuntimeGovernance",
@@ -48405,7 +50006,7 @@
     },
     {
       "id": "slice-0df6c6b1",
-      "index": 111,
+      "index": 114,
       "name": "CreateSecureAggregationSession",
       "title": "Create Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -49026,7 +50627,7 @@
     },
     {
       "id": "slice-af59eab5",
-      "index": 112,
+      "index": 115,
       "name": "SelectSecureAggregationParticipants",
       "title": "Select Secure Aggregation Participants",
       "chapter": "SecureAggregation",
@@ -49608,7 +51209,7 @@
     },
     {
       "id": "slice-a903d2aa",
-      "index": 113,
+      "index": 116,
       "name": "PrepareHomomorphicEncryptionContext",
       "title": "Prepare Homomorphic Encryption Context",
       "chapter": "SecureAggregation",
@@ -50252,7 +51853,7 @@
     },
     {
       "id": "slice-5d843deb",
-      "index": 114,
+      "index": 117,
       "name": "RecordEncryptedModelUpdate",
       "title": "Record Encrypted Model Update",
       "chapter": "SecureAggregation",
@@ -50806,6 +52407,92 @@
               "uploadFile": false,
               "file": false,
               "portOutput": false
+            },
+            {
+              "name": "receivedEncryptedUpdateCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "EncryptedModelUpdateReceived.receivedRuntimeIds",
+                  "RecordEncryptedModelUpdate.runtimeId"
+                ],
+                "rule": "count(appendDistinct(EncryptedModelUpdateReceived.receivedRuntimeIds, RecordEncryptedModelUpdate.runtimeId))"
+              }
+            },
+            {
+              "name": "receivedRuntimeIds",
+              "type": "UUID",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "EncryptedModelUpdateReceived.receivedRuntimeIds",
+                  "RecordEncryptedModelUpdate.runtimeId"
+                ],
+                "rule": "appendDistinct(EncryptedModelUpdateReceived.receivedRuntimeIds, RecordEncryptedModelUpdate.runtimeId)"
+              }
+            },
+            {
+              "name": "receivedEncryptedUpdateArtifactRefs",
+              "type": "String",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "EncryptedModelUpdateReceived.receivedEncryptedUpdateArtifactRefs",
+                  "RecordEncryptedModelUpdate.encryptedUpdateArtifactRef"
+                ],
+                "rule": "appendDistinct(EncryptedModelUpdateReceived.receivedEncryptedUpdateArtifactRefs, RecordEncryptedModelUpdate.encryptedUpdateArtifactRef)"
+              }
+            },
+            {
+              "name": "selectedParticipantCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "SecureAggregationParticipantsSelected.selectedParticipantCount"
+                ]
+              }
             }
           ],
           "dependencies": [
@@ -50875,7 +52562,7 @@
     },
     {
       "id": "slice-74fb7a88",
-      "index": 115,
+      "index": 118,
       "name": "CompleteHomomorphicAggregationSession",
       "title": "Complete Homomorphic Aggregation Session",
       "chapter": "SecureAggregation",
@@ -51061,6 +52748,26 @@
               "uploadFile": false,
               "file": false,
               "portOutput": false
+            },
+            {
+              "name": "encryptedUpdateArtifactRefs",
+              "type": "String",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "EncryptedModelUpdateReceived.receivedEncryptedUpdateArtifactRefs"
+                ]
+              }
             }
           ],
           "dependencies": [
@@ -51216,6 +52923,62 @@
               "portOutput": false
             },
             {
+              "name": "aggregatedModelName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "aggregatedModelVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "aggregatedModelDescription",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "modelSourceType",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
               "name": "aggregatedModelArtifactUri",
               "type": "String",
               "cardinality": "Single",
@@ -51284,14 +53047,28 @@
               "uploadFile": false,
               "file": false,
               "portOutput": true
+            },
+            {
+              "name": "aggregatedModelSizeBytes",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
             }
           ],
           "dependencies": [
             {
-              "id": "command-223cdee9",
+              "id": "automation-3dd1d9f0",
               "direction": "OUTBOUND",
-              "title": "Complete Secure Aggregation",
-              "elementType": "COMMAND"
+              "title": "Complete Secure Aggregation When Session Completed",
+              "elementType": "PROCESSOR"
             },
             {
               "id": "command-e4e6232b",
@@ -51358,7 +53135,7 @@
     },
     {
       "id": "slice-5c7bd7e5",
-      "index": 116,
+      "index": 119,
       "name": "FailSecureAggregationSession",
       "title": "Fail Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -51495,7 +53272,7 @@
     },
     {
       "id": "slice-ae5b24d8",
-      "index": 117,
+      "index": 120,
       "name": "SecureAggregationSessionCatalog",
       "title": "Secure Aggregation Session Catalog",
       "chapter": "SecureAggregation",
@@ -51972,7 +53749,7 @@
     },
     {
       "id": "slice-725195cc",
-      "index": 118,
+      "index": 121,
       "name": "DeclareDataset",
       "title": "Declare Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -52410,7 +54187,7 @@
     },
     {
       "id": "slice-5a2194a7",
-      "index": 119,
+      "index": 122,
       "name": "ConfigureRuntimeDatasetBinding",
       "title": "Configure Runtime Dataset Binding",
       "chapter": "RuntimeAgentOperations",
@@ -53212,7 +54989,7 @@
     },
     {
       "id": "slice-358d4122",
-      "index": 120,
+      "index": 123,
       "name": "RuntimeDatasetBindingCatalog",
       "title": "Runtime Dataset Binding Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -53512,7 +55289,7 @@
     },
     {
       "id": "slice-c31ba9a1",
-      "index": 121,
+      "index": 124,
       "name": "ValidateAgentDatasetAccess",
       "title": "Validate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -54628,7 +56405,7 @@
     },
     {
       "id": "slice-aa47e014",
-      "index": 122,
+      "index": 125,
       "name": "RevalidateAgentDatasetAccess",
       "title": "Revalidate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -55262,7 +57039,7 @@
     },
     {
       "id": "slice-ba3dc29b",
-      "index": 123,
+      "index": 126,
       "name": "AgentDatasetAccessValidationCatalog",
       "title": "Agent Dataset Access Validation Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -55508,7 +57285,7 @@
     },
     {
       "id": "slice-f44b66bc",
-      "index": 124,
+      "index": 127,
       "name": "ProfileAgentDataset",
       "title": "Profile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -56452,7 +58229,7 @@
     },
     {
       "id": "slice-d6f2a3cf",
-      "index": 125,
+      "index": 128,
       "name": "ReprofileAgentDataset",
       "title": "Reprofile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -57272,7 +59049,7 @@
     },
     {
       "id": "slice-2529cf36",
-      "index": 126,
+      "index": 129,
       "name": "ValidateDatasetContract",
       "title": "Validate Dataset Contract",
       "chapter": "RuntimeAgentOperations",
@@ -57848,7 +59625,7 @@
     },
     {
       "id": "slice-2e18bcb1",
-      "index": 127,
+      "index": 130,
       "name": "RetryDatasetContractValidation",
       "title": "Retry Dataset Contract Validation",
       "chapter": "RuntimeAgentOperations",
@@ -58487,7 +60264,7 @@
     },
     {
       "id": "slice-d28aff88",
-      "index": 128,
+      "index": 131,
       "name": "RejectDatasetForTraining",
       "title": "Reject Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -58654,7 +60431,7 @@
     },
     {
       "id": "slice-284a72da",
-      "index": 129,
+      "index": 132,
       "name": "ApproveDatasetForTraining",
       "title": "Approve Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -58942,7 +60719,7 @@
     },
     {
       "id": "slice-847c2855",
-      "index": 130,
+      "index": 133,
       "name": "RevokeDatasetTrainingApproval",
       "title": "Revoke Dataset Training Approval",
       "chapter": "RuntimeAgentOperations",
@@ -59121,7 +60898,7 @@
     },
     {
       "id": "slice-30869f70",
-      "index": 131,
+      "index": 134,
       "name": "DatasetCapability",
       "title": "Dataset Capability",
       "chapter": "RuntimeAgentOperations",
@@ -59582,7 +61359,7 @@
     },
     {
       "id": "slice-ff9e2f26",
-      "index": 132,
+      "index": 135,
       "name": "DatasetReadiness",
       "title": "Dataset Readiness",
       "chapter": "RuntimeAgentOperations",
@@ -60281,7 +62058,7 @@
     },
     {
       "id": "slice-5bf739cd",
-      "index": 133,
+      "index": 136,
       "name": "ReceiveParticipantExecutionPlan",
       "title": "Receive Participant Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -61141,7 +62918,7 @@
     },
     {
       "id": "slice-64faaa9b",
-      "index": 134,
+      "index": 137,
       "name": "AcceptExecutionPlan",
       "title": "Accept Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -63107,7 +64884,7 @@
     },
     {
       "id": "slice-4d4016d0",
-      "index": 135,
+      "index": 138,
       "name": "StartRoundExecution",
       "title": "Start Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -64913,7 +66690,7 @@
     },
     {
       "id": "slice-0cecfd3f",
-      "index": 136,
+      "index": 139,
       "name": "ObserveRuntimeEngineJob",
       "title": "Observe Runtime Engine Job",
       "chapter": "RuntimeAgentOperations",
@@ -66366,7 +68143,7 @@
     },
     {
       "id": "slice-b1a48287",
-      "index": 137,
+      "index": 140,
       "name": "CompleteRoundExecution",
       "title": "Complete Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -67267,7 +69044,7 @@
     },
     {
       "id": "slice-45c663e8",
-      "index": 138,
+      "index": 141,
       "name": "FailRoundExecution",
       "title": "Fail Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -67804,7 +69581,7 @@
     },
     {
       "id": "slice-ff352882",
-      "index": 139,
+      "index": 142,
       "name": "RetryRoundExecutionAfterStartFailure",
       "title": "Retry Round Execution After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -68573,7 +70350,7 @@
     },
     {
       "id": "slice-2cb34062",
-      "index": 140,
+      "index": 143,
       "name": "RetryRoundExecutionAfterRuntimeFailure",
       "title": "Retry Round Execution After Runtime Failure",
       "chapter": "RuntimeAgentOperations",
@@ -69370,7 +71147,7 @@
     },
     {
       "id": "slice-d54dcc12",
-      "index": 141,
+      "index": 144,
       "name": "SubmitAgentLocalModelUpdate",
       "title": "Submit Agent Local Model Update",
       "chapter": "RuntimeAgentOperations",
@@ -70152,7 +71929,7 @@
     },
     {
       "id": "slice-6485fdce",
-      "index": 142,
+      "index": 145,
       "name": "ReleaseRuntimeEngineJobAfterCompletion",
       "title": "Release Runtime Engine Job After Completion",
       "chapter": "RuntimeAgentOperations",
@@ -70326,7 +72103,7 @@
     },
     {
       "id": "slice-ef8420f2",
-      "index": 143,
+      "index": 146,
       "name": "ReleaseRuntimeEngineJobAfterFailure",
       "title": "Release Runtime Engine Job After Failure",
       "chapter": "RuntimeAgentOperations",
@@ -70441,7 +72218,7 @@
               "portOutput": false
             },
             {
-              "name": "failureReason",
+              "name": "runtimeEngineReleaseFailureReason",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
@@ -70514,7 +72291,7 @@
     },
     {
       "id": "slice-30156076",
-      "index": 144,
+      "index": 147,
       "name": "ReleaseRuntimeEngineJobAfterStartFailure",
       "title": "Release Runtime Engine Job After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -70629,7 +72406,7 @@
               "portOutput": false
             },
             {
-              "name": "failureReason",
+              "name": "runtimeEngineReleaseFailureReason",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
@@ -70702,7 +72479,7 @@
     },
     {
       "id": "slice-5d7a0380",
-      "index": 145,
+      "index": 148,
       "name": "ReleaseRuntimeEngineJobAfterRetryFailure",
       "title": "Release Runtime Engine Job After Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -70817,7 +72594,7 @@
               "portOutput": false
             },
             {
-              "name": "failureReason",
+              "name": "runtimeEngineReleaseFailureReason",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
@@ -70890,7 +72667,7 @@
     },
     {
       "id": "slice-bc1eac14",
-      "index": 146,
+      "index": 149,
       "name": "ReleaseRuntimeEngineJobAfterRuntimeRetryFailure",
       "title": "Release Runtime Engine Job After Runtime Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -71005,7 +72782,7 @@
               "portOutput": false
             },
             {
-              "name": "failureReason",
+              "name": "runtimeEngineReleaseFailureReason",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
@@ -71078,7 +72855,7 @@
     },
     {
       "id": "slice-eb00f5f7",
-      "index": 147,
+      "index": 150,
       "name": "RoundExecutionCatalog",
       "title": "Round Execution Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -71800,7 +73577,7 @@
     },
     {
       "id": "slice-d248addb",
-      "index": 148,
+      "index": 151,
       "name": "LoadRuntimeAgentBootstrapConfiguration",
       "title": "Load Runtime Agent Bootstrap Configuration",
       "chapter": "RuntimeAgentOperations",
@@ -72125,7 +73902,7 @@
     },
     {
       "id": "slice-c7d2df46",
-      "index": 149,
+      "index": 152,
       "name": "ReportRuntimeAgentStarted",
       "title": "Report Runtime Agent Started",
       "chapter": "RuntimeAgentOperations",
@@ -72343,7 +74120,7 @@
     },
     {
       "id": "slice-75635ed7",
-      "index": 150,
+      "index": 153,
       "name": "ReportRuntimeInstanceSelfCheckPassed",
       "title": "Report Runtime Instance Self Check Passed",
       "chapter": "RuntimeAgentOperations",
@@ -72758,7 +74535,7 @@
     },
     {
       "id": "slice-574f1d44",
-      "index": 151,
+      "index": 154,
       "name": "RuntimeAgentLifecycleCatalog",
       "title": "Runtime Agent Lifecycle Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -73054,7 +74831,7 @@
     },
     {
       "id": "slice-e5b0caa2",
-      "index": 152,
+      "index": 155,
       "name": "ReportRuntimeInstanceConnected",
       "title": "Report Runtime Instance Connected",
       "chapter": "RuntimeAgentOperations",
@@ -73870,7 +75647,7 @@
     },
     {
       "id": "slice-8d5d066d",
-      "index": 153,
+      "index": 156,
       "name": "AgentRuntimeInfrastructureConnectionCatalog",
       "title": "Agent Runtime Infrastructure Connection Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -74070,7 +75847,7 @@
     },
     {
       "id": "slice-ff0c55e7",
-      "index": 154,
+      "index": 157,
       "name": "AgentRuntimeTelemetryLatest",
       "title": "Agent Runtime Telemetry Latest",
       "chapter": "RuntimeAgentOperations",
@@ -74243,7 +76020,7 @@
     },
     {
       "id": "slice-d8eaacb9",
-      "index": 155,
+      "index": 158,
       "name": "ReportAgentRuntimeNodeInventory",
       "title": "Report Agent Runtime Node Inventory",
       "chapter": "RuntimeAgentOperations",
@@ -74711,7 +76488,7 @@
     },
     {
       "id": "slice-6a815e36",
-      "index": 156,
+      "index": 159,
       "name": "AgentRuntimeNodeInventoryCatalog",
       "title": "Agent Runtime Node Inventory Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -74974,7 +76751,7 @@
     },
     {
       "id": "slice-a56419ba",
-      "index": 157,
+      "index": 160,
       "name": "AgentRuntimeNodeResourceLatest",
       "title": "Agent Runtime Node Resource Latest",
       "chapter": "RuntimeAgentOperations",
@@ -75259,7 +77036,7 @@
     },
     {
       "id": "slice-4fcce762",
-      "index": 158,
+      "index": 161,
       "name": "RegisterUserAccount",
       "title": "Register User Account",
       "chapter": "IdentityAccessManagement",
@@ -75307,6 +77084,20 @@
             },
             {
               "name": "providerSubject",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "userSource",
               "type": "String",
               "cardinality": "Single",
               "optional": true,
@@ -75397,6 +77188,20 @@
               "portOutput": false
             },
             {
+              "name": "userSource",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "passwordHash",
               "type": "String",
               "cardinality": "Single",
@@ -75469,6 +77274,9 @@
                   "name": "providerSubject"
                 },
                 {
+                  "name": "userSource"
+                },
+                {
                   "name": "passwordHash"
                 }
               ]
@@ -75489,6 +77297,9 @@
                 },
                 {
                   "name": "providerSubject"
+                },
+                {
+                  "name": "userSource"
                 },
                 {
                   "name": "passwordHash"
@@ -75520,7 +77331,7 @@
     },
     {
       "id": "slice-2f4abaeb",
-      "index": 159,
+      "index": 162,
       "name": "DeactivateUserAccount",
       "title": "Deactivate User Account",
       "chapter": "IdentityAccessManagement",
@@ -75651,7 +77462,7 @@
     },
     {
       "id": "slice-5da5f728",
-      "index": 160,
+      "index": 163,
       "name": "GenerateUserAccountLoginPassword",
       "title": "Generate User Account Login Password",
       "chapter": "IdentityAccessManagement",
@@ -75815,7 +77626,7 @@
     },
     {
       "id": "slice-7b54b84c",
-      "index": 161,
+      "index": 164,
       "name": "RegisterRole",
       "title": "Register Role",
       "chapter": "IdentityAccessManagement",
@@ -75980,7 +77791,7 @@
     },
     {
       "id": "slice-1bda8ebb",
-      "index": 162,
+      "index": 165,
       "name": "RegisterPermission",
       "title": "Register Permission",
       "chapter": "IdentityAccessManagement",
@@ -76173,7 +77984,7 @@
     },
     {
       "id": "slice-1d773a87",
-      "index": 163,
+      "index": 166,
       "name": "GrantPermissionToRole",
       "title": "Grant Permission To Role",
       "chapter": "IdentityAccessManagement",
@@ -76403,7 +78214,7 @@
     },
     {
       "id": "slice-0766b926",
-      "index": 164,
+      "index": 167,
       "name": "AssignRoleToUser",
       "title": "Assign Role To User",
       "chapter": "IdentityAccessManagement",
@@ -76585,7 +78396,7 @@
     },
     {
       "id": "slice-b263007b",
-      "index": 165,
+      "index": 168,
       "name": "IssueServiceAccountApiToken",
       "title": "Issue Service Account Api Token",
       "chapter": "IdentityAccessManagement",
@@ -76868,6 +78679,9 @@
                   "name": "providerSubject"
                 },
                 {
+                  "name": "userSource"
+                },
+                {
                   "name": "passwordHash"
                 }
               ]
@@ -77116,7 +78930,7 @@
     },
     {
       "id": "slice-425842d5",
-      "index": 166,
+      "index": 169,
       "name": "UserAccountCatalogs",
       "title": "User Account Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -77172,6 +78986,20 @@
               "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "userSource",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
               "query": false,
               "display": false,
               "uploadFile": false,
@@ -77244,7 +79072,7 @@
     },
     {
       "id": "slice-10714181",
-      "index": 167,
+      "index": 170,
       "name": "RoleCatalogs",
       "title": "Role Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -77332,7 +79160,7 @@
     },
     {
       "id": "slice-9f1bec7a",
-      "index": 168,
+      "index": 171,
       "name": "PermissionCatalogs",
       "title": "Permission Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -77434,7 +79262,7 @@
     },
     {
       "id": "slice-33855446",
-      "index": 169,
+      "index": 172,
       "name": "UserRoleAssignmentCatalog",
       "title": "User Role Assignment Catalog",
       "chapter": "IdentityAccessManagement",
@@ -77562,7 +79390,7 @@
     },
     {
       "id": "slice-4d6e3a7f",
-      "index": 170,
+      "index": 173,
       "name": "RolePermissionGrantCatalog",
       "title": "Role Permission Grant Catalog",
       "chapter": "IdentityAccessManagement",
@@ -77717,7 +79545,7 @@
     },
     {
       "id": "slice-6047e82e",
-      "index": 171,
+      "index": 174,
       "name": "ServiceAccountApiTokenCatalogs",
       "title": "Service Account Api Token Catalogs",
       "chapter": "IdentityAccessManagement",

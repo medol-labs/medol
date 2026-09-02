@@ -28,6 +28,10 @@
 - [ ] runtime agent 需要支持 central console origin 的 CORS 与平台签发/校验的短期访问凭证。
 - [ ] 生成器层面只提供 dynamic endpoint/dataProvider 扩展点，不写入 federation-learning 具体业务查询逻辑。
 
+## Training Round Deadlines
+
+- [ ] 使用定时 deadline 检查或显式 `TrainingRoundContributionDeadlineMissed` 事件表达轮次贡献超时，再由该事件触发 `FailTrainingRound`。不能在 `TrainingRoundStarted` 到达时立即判断尚未发生的超时。
+
 
 
 ## Dictionary 
