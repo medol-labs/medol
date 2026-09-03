@@ -1,7 +1,3 @@
-
-> medol@0.1.0 medol:to-codegen-model
-> tsx src/lib/dslToCodegenModelCli.ts examples/fl/federation-learning.medol
-
 {
   "rootPackage": "tech.medo",
   "domain": "FederationLearningPlatform",
@@ -1018,14 +1014,19 @@
           "title": "Evaluate Model Update Submission"
         },
         {
+          "id": "slice-1a9b72f8",
+          "name": "AggregatePlainModelUpdates",
+          "title": "Aggregate Plain Model Updates"
+        },
+        {
           "id": "slice-a46e905e",
           "name": "RequestSecureAggregation",
           "title": "Request Secure Aggregation"
         },
         {
-          "id": "slice-c044ec34",
-          "name": "CompleteSecureAggregation",
-          "title": "Complete Secure Aggregation"
+          "id": "slice-4b6bcf1e",
+          "name": "CompleteModelAggregation",
+          "title": "Complete Model Aggregation"
         },
         {
           "id": "slice-129ead8e",
@@ -3188,14 +3189,19 @@
           "title": "Evaluate Model Update Submission"
         },
         {
+          "id": "slice-1a9b72f8",
+          "name": "AggregatePlainModelUpdates",
+          "title": "Aggregate Plain Model Updates"
+        },
+        {
           "id": "slice-a46e905e",
           "name": "RequestSecureAggregation",
           "title": "Request Secure Aggregation"
         },
         {
-          "id": "slice-c044ec34",
-          "name": "CompleteSecureAggregation",
-          "title": "Complete Secure Aggregation"
+          "id": "slice-4b6bcf1e",
+          "name": "CompleteModelAggregation",
+          "title": "Complete Model Aggregation"
         },
         {
           "id": "slice-129ead8e",
@@ -5252,7 +5258,7 @@
         "title": "Federated Model Artifact Registered"
       },
       "trigger": {
-        "id": "event-4759d38f",
+        "id": "event-45b8c5f5",
         "name": "GlobalModelUpdated",
         "title": "Global Model Updated"
       },
@@ -5741,7 +5747,7 @@
       "startsLifecycle": false
     },
     {
-      "id": "transition-435cb798",
+      "id": "transition-0a8ecaac",
       "context": "TrainingOrchestration",
       "owner": {
         "id": "concept-729766c8",
@@ -5750,17 +5756,50 @@
         "title": "Training Round"
       },
       "slice": {
-        "id": "slice-c044ec34",
-        "name": "CompleteSecureAggregation",
-        "title": "Complete Secure Aggregation"
+        "id": "slice-1a9b72f8",
+        "name": "AggregatePlainModelUpdates",
+        "title": "Aggregate Plain Model Updates"
       },
       "command": {
-        "id": "command-223cdee9",
-        "name": "CompleteSecureAggregation",
-        "title": "Complete Secure Aggregation"
+        "id": "command-451b6887",
+        "name": "AggregatePlainModelUpdates",
+        "title": "Aggregate Plain Model Updates"
       },
       "event": {
-        "id": "event-4759d38f",
+        "id": "event-d584a78e",
+        "name": "PlainModelAggregationCompleted",
+        "title": "Plain Model Aggregation Completed"
+      },
+      "trigger": {
+        "id": "event-62be80d4",
+        "name": "ModelUpdateSubmissionAccepted",
+        "title": "Model Update Submission Accepted"
+      },
+      "from": "Evaluated",
+      "to": "Completed",
+      "startsLifecycle": false
+    },
+    {
+      "id": "transition-0fa3f8fa",
+      "context": "TrainingOrchestration",
+      "owner": {
+        "id": "concept-729766c8",
+        "type": "concept",
+        "name": "TrainingRound",
+        "title": "Training Round"
+      },
+      "slice": {
+        "id": "slice-4b6bcf1e",
+        "name": "CompleteModelAggregation",
+        "title": "Complete Model Aggregation"
+      },
+      "command": {
+        "id": "command-6d1a8e33",
+        "name": "CompleteModelAggregation",
+        "title": "Complete Model Aggregation"
+      },
+      "event": {
+        "id": "event-45b8c5f5",
         "name": "GlobalModelUpdated",
         "title": "Global Model Updated"
       },
@@ -24591,7 +24630,7 @@
               "elementType": "EVENT"
             },
             {
-              "id": "event-4759d38f",
+              "id": "event-45b8c5f5",
               "direction": "INBOUND",
               "title": "Global Model Updated",
               "elementType": "EVENT"
@@ -25493,7 +25532,7 @@
           "fields": [],
           "dependencies": [
             {
-              "id": "event-4759d38f",
+              "id": "event-45b8c5f5",
               "direction": "INBOUND",
               "title": "Global Model Updated",
               "elementType": "EVENT"
@@ -26117,7 +26156,7 @@
                 "from": [
                   "ModelArtifact.modelRegistryRef"
                 ],
-                "rule": "Snapshot the model registry reference so runtime agents can identify where the initial global model is managed."
+                "rule": "Snapshot the model registry reference so runtime agents can identify where the initial global model is managed. For built-in runtime-engine models this value is the runtime engine model plugin code, copied from the selected ModelArtifact rather than read from runtime-agent environment variables."
               }
             },
             {
@@ -31768,6 +31807,21 @@
               "portOutput": false
             },
             {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "dictionary": "AGGREGATION_ALGORITHM",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "minimumNodesPerRound",
               "type": "Int",
               "cardinality": "Single",
@@ -31988,6 +32042,21 @@
             {
               "name": "minimumAccuracy",
               "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "dictionary": "AGGREGATION_ALGORITHM",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -32234,6 +32303,9 @@
                   "name": "minimumAccuracy"
                 },
                 {
+                  "name": "aggregationAlgorithm"
+                },
+                {
                   "name": "minimumNodesPerRound"
                 },
                 {
@@ -32323,6 +32395,9 @@
                 },
                 {
                   "name": "minimumAccuracy"
+                },
+                {
+                  "name": "aggregationAlgorithm"
                 },
                 {
                   "name": "minimumNodesPerRound"
@@ -32551,6 +32626,9 @@
                 },
                 {
                   "name": "minimumAccuracy"
+                },
+                {
+                  "name": "aggregationAlgorithm"
                 },
                 {
                   "name": "minimumNodesPerRound"
@@ -32902,6 +32980,26 @@
               }
             },
             {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "TrainingRoundParticipantsSelected.aggregationAlgorithm"
+                ]
+              }
+            },
+            {
               "name": "secureAggregationRequired",
               "type": "Boolean",
               "cardinality": "Single",
@@ -33248,6 +33346,20 @@
               "type": "Decimal",
               "cardinality": "Single",
               "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
               "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
@@ -33821,6 +33933,9 @@
                   "name": "minimumAccuracy"
                 },
                 {
+                  "name": "aggregationAlgorithm"
+                },
+                {
                   "name": "secureAggregationRequired"
                 },
                 {
@@ -33889,6 +34004,9 @@
                 },
                 {
                   "name": "minimumAccuracy"
+                },
+                {
+                  "name": "aggregationAlgorithm"
                 },
                 {
                   "name": "secureAggregationRequired"
@@ -33967,6 +34085,9 @@
                 },
                 {
                   "name": "minimumAccuracy"
+                },
+                {
+                  "name": "aggregationAlgorithm"
                 },
                 {
                   "name": "secureAggregationRequired"
@@ -34949,6 +35070,9 @@
                 },
                 {
                   "name": "minimumAccuracy"
+                },
+                {
+                  "name": "aggregationAlgorithm"
                 },
                 {
                   "name": "secureAggregationRequired"
@@ -37387,6 +37511,26 @@
               }
             },
             {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "TrainingRoundStarted.aggregationAlgorithm"
+                ]
+              }
+            },
+            {
               "name": "runtimeId",
               "type": "UUID",
               "cardinality": "Single",
@@ -37587,6 +37731,28 @@
               }
             },
             {
+              "name": "acceptedModelUpdateArtifactRefs",
+              "type": "String",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.acceptedModelUpdateArtifactRefs",
+                  "EvaluateModelUpdateSubmission.artifactRef"
+                ],
+                "rule": "appendDistinct(ModelUpdateSubmissionAccepted.acceptedModelUpdateArtifactRefs, EvaluateModelUpdateSubmission.artifactRef)"
+              }
+            },
+            {
               "name": "minimumNodesPerRound",
               "type": "Int",
               "cardinality": "Single",
@@ -37605,6 +37771,51 @@
                   "TrainingRoundStarted.minimumNodesPerRound"
                 ]
               }
+            },
+            {
+              "name": "requiredModelUpdateCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "TrainingRoundStarted.selectedRuntimeCount"
+                ]
+              }
+            },
+            {
+              "name": "plainAggregationReady",
+              "type": "Boolean",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "EvaluateModelUpdateSubmission.secureAggregationRequired",
+                  "EvaluateModelUpdateSubmission.runtimeId",
+                  "ModelUpdateSubmissionAccepted.acceptedRuntimeIds",
+                  "ModelUpdateSubmissionAccepted.acceptedModelUpdateCount",
+                  "ModelUpdateSubmissionAccepted.requiredModelUpdateCount"
+                ],
+                "rule": "True only when secure aggregation is disabled and a newly accepted runtime makes the cumulative accepted model update count reach the selected runtime count."
+              }
             }
           ],
           "dependencies": [
@@ -37613,6 +37824,12 @@
               "direction": "INBOUND",
               "title": "Evaluate Model Update Submission",
               "elementType": "COMMAND"
+            },
+            {
+              "id": "automation-f84c6e95",
+              "direction": "OUTBOUND",
+              "title": "Aggregate Plain Updates When Quorum Reached",
+              "elementType": "PROCESSOR"
             },
             {
               "id": "readmodel-b866abe9",
@@ -37866,6 +38083,9 @@
                   "name": "minimumAccuracy"
                 },
                 {
+                  "name": "aggregationAlgorithm"
+                },
+                {
                   "name": "secureAggregationRequired"
                 },
                 {
@@ -38053,6 +38273,9 @@
                   "name": "minimumAccuracy"
                 },
                 {
+                  "name": "aggregationAlgorithm"
+                },
+                {
                   "name": "runtimeId",
                   "example": "runtime-1"
                 },
@@ -38094,7 +38317,16 @@
                   "name": "acceptedRuntimeIds"
                 },
                 {
+                  "name": "acceptedModelUpdateArtifactRefs"
+                },
+                {
                   "name": "minimumNodesPerRound"
+                },
+                {
+                  "name": "requiredModelUpdateCount"
+                },
+                {
+                  "name": "plainAggregationReady"
                 }
               ]
             }
@@ -38263,8 +38495,773 @@
       }
     },
     {
-      "id": "slice-a46e905e",
+      "id": "slice-1a9b72f8",
       "index": 81,
+      "name": "AggregatePlainModelUpdates",
+      "title": "Aggregate Plain Model Updates",
+      "chapter": "TrainingOrchestration",
+      "context": "TrainingOrchestration",
+      "tags": [],
+      "port": true,
+      "concepts": [
+        "TrainingRound"
+      ],
+      "commands": [
+        {
+          "id": "command-451b6887",
+          "name": "AggregatePlainModelUpdates",
+          "title": "Aggregate Plain Model Updates",
+          "type": "COMMAND",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Aggregate Plain Model Updates",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.trainingJobId"
+                ]
+              }
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.trainingRunConfigurationId"
+                ]
+              }
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.featureSchemaId"
+                ]
+              }
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.roundId"
+                ]
+              }
+            },
+            {
+              "name": "roundNumber",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.roundNumber"
+                ]
+              }
+            },
+            {
+              "name": "maxRounds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.maxRounds"
+                ]
+              }
+            },
+            {
+              "name": "minimumAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.minimumAccuracy"
+                ]
+              }
+            },
+            {
+              "name": "aggregationAlgorithm",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.aggregationAlgorithm"
+                ]
+              }
+            },
+            {
+              "name": "aggregatedModelId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": true,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "modelUpdateArtifactRefs",
+              "type": "String",
+              "cardinality": "Multiple",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "ModelUpdateSubmissionAccepted.acceptedModelUpdateArtifactRefs"
+                ]
+              }
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "automation-f84c6e95",
+              "direction": "INBOUND",
+              "title": "Aggregate Plain Updates When Quorum Reached",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-d584a78e",
+              "direction": "OUTBOUND",
+              "title": "Plain Model Aggregation Completed",
+              "elementType": "EVENT"
+            }
+          ],
+          "port": true
+        }
+      ],
+      "events": [
+        {
+          "id": "event-d584a78e",
+          "name": "PlainModelAggregationCompleted",
+          "title": "Plain Model Aggregation Completed",
+          "type": "EVENT",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Aggregate Plain Model Updates",
+          "fields": [
+            {
+              "name": "trainingJobId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "trainingRunConfigurationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "featureSchemaId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "roundId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "roundNumber",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "maxRounds",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "minimumAccuracy",
+              "type": "Decimal",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "aggregatedModelId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "aggregatedModelName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "aggregatedModelVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "aggregatedModelDescription",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "modelSourceType",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "aggregatedModelArtifactUri",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "aggregatedModelRegistryRef",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "modelFormat",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "modelArtifactDigest",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "aggregatedModelSignatureUri",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "aggregatedModelSizeBytes",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "command-451b6887",
+              "direction": "INBOUND",
+              "title": "Aggregate Plain Model Updates",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "automation-69020f99",
+              "direction": "OUTBOUND",
+              "title": "Complete Plain Aggregation When Completed",
+              "elementType": "PROCESSOR"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [],
+      "processors": [
+        {
+          "id": "automation-f84c6e95",
+          "name": "AggregatePlainUpdatesWhenQuorumReached",
+          "title": "Aggregate Plain Updates When Quorum Reached",
+          "type": "PROCESSOR",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Aggregate Plain Model Updates",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "event-62be80d4",
+              "direction": "INBOUND",
+              "title": "Model Update Submission Accepted",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-451b6887",
+              "direction": "OUTBOUND",
+              "title": "Aggregate Plain Model Updates",
+              "elementType": "COMMAND"
+            }
+          ],
+          "metadata": {
+            "on": "ModelUpdateSubmissionAccepted",
+            "onKind": "event",
+            "condition": "plainAggregationReady == true",
+            "emits": "AggregatePlainModelUpdates"
+          }
+        }
+      ],
+      "specifications": [
+        {
+          "id": "gwt-1133e836",
+          "chapter": "TrainingOrchestration",
+          "sliceName": "Aggregate Plain Model Updates",
+          "title": "Aggregate Accepted Plain Updates",
+          "specification": "Plain Model Updates Are Aggregated After Quorum",
+          "rule": "A round that does not require secure aggregation must aggregate accepted plaintext model updates after every selected runtime has contributed an accepted update. The aggregation input is the cumulative immutable artifact reference snapshot carried by ModelUpdateSubmissionAccepted. Completion produces the same global model metadata required by evaluation and model registration without creating a secure aggregation session. Duplicate submissions from an already accepted runtime must not trigger aggregation again.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "Model Update Submission Accepted",
+              "id": "event-62be80d4",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "modelUpdateSubmissionId"
+                },
+                {
+                  "name": "executionSessionId"
+                },
+                {
+                  "name": "executionPlanId"
+                },
+                {
+                  "name": "trainingJobId",
+                  "example": "job-1"
+                },
+                {
+                  "name": "trainingRunConfigurationId"
+                },
+                {
+                  "name": "roundId",
+                  "example": "round-1"
+                },
+                {
+                  "name": "roundNumber"
+                },
+                {
+                  "name": "maxRounds"
+                },
+                {
+                  "name": "minimumAccuracy"
+                },
+                {
+                  "name": "aggregationAlgorithm"
+                },
+                {
+                  "name": "runtimeId"
+                },
+                {
+                  "name": "featureSchemaId"
+                },
+                {
+                  "name": "secureAggregationRequired",
+                  "example": "false"
+                },
+                {
+                  "name": "secureAggregationSessionId"
+                },
+                {
+                  "name": "encryptionScheme"
+                },
+                {
+                  "name": "publicKeyVersion"
+                },
+                {
+                  "name": "updateArtifactId"
+                },
+                {
+                  "name": "artifactRef"
+                },
+                {
+                  "name": "artifactDigest"
+                },
+                {
+                  "name": "updateProtectionType"
+                },
+                {
+                  "name": "anomalyScore"
+                },
+                {
+                  "name": "acceptedModelUpdateCount",
+                  "example": "1"
+                },
+                {
+                  "name": "acceptedRuntimeIds"
+                },
+                {
+                  "name": "acceptedModelUpdateArtifactRefs"
+                },
+                {
+                  "name": "minimumNodesPerRound",
+                  "example": "1"
+                },
+                {
+                  "name": "requiredModelUpdateCount"
+                },
+                {
+                  "name": "plainAggregationReady"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Aggregate Plain Model Updates",
+              "id": "command-451b6887",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "trainingJobId",
+                  "example": "job-1"
+                },
+                {
+                  "name": "trainingRunConfigurationId"
+                },
+                {
+                  "name": "featureSchemaId"
+                },
+                {
+                  "name": "roundId",
+                  "example": "round-1"
+                },
+                {
+                  "name": "roundNumber"
+                },
+                {
+                  "name": "maxRounds"
+                },
+                {
+                  "name": "minimumAccuracy"
+                },
+                {
+                  "name": "aggregationAlgorithm"
+                },
+                {
+                  "name": "aggregatedModelId"
+                },
+                {
+                  "name": "modelUpdateArtifactRefs"
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "Plain Model Aggregation Completed",
+              "id": "event-d584a78e",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "trainingJobId",
+                  "example": "job-1"
+                },
+                {
+                  "name": "trainingRunConfigurationId"
+                },
+                {
+                  "name": "featureSchemaId"
+                },
+                {
+                  "name": "roundId",
+                  "example": "round-1"
+                },
+                {
+                  "name": "roundNumber"
+                },
+                {
+                  "name": "maxRounds"
+                },
+                {
+                  "name": "minimumAccuracy"
+                },
+                {
+                  "name": "aggregatedModelId"
+                },
+                {
+                  "name": "aggregatedModelName"
+                },
+                {
+                  "name": "aggregatedModelVersion"
+                },
+                {
+                  "name": "aggregatedModelDescription"
+                },
+                {
+                  "name": "modelSourceType"
+                },
+                {
+                  "name": "aggregatedModelArtifactUri"
+                },
+                {
+                  "name": "aggregatedModelRegistryRef"
+                },
+                {
+                  "name": "modelFormat"
+                },
+                {
+                  "name": "modelArtifactDigest"
+                },
+                {
+                  "name": "aggregatedModelSignatureUri"
+                },
+                {
+                  "name": "aggregatedModelSizeBytes"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actors": [],
+      "hotspots": [],
+      "stateChange": {
+        "event": "PlainModelAggregationCompleted",
+        "eventId": "event-d584a78e",
+        "to": "Completed"
+      }
+    },
+    {
+      "id": "slice-a46e905e",
+      "index": 82,
       "name": "RequestSecureAggregation",
       "title": "Request Secure Aggregation",
       "chapter": "TrainingOrchestration",
@@ -38845,10 +39842,10 @@
       "hotspots": []
     },
     {
-      "id": "slice-c044ec34",
-      "index": 82,
-      "name": "CompleteSecureAggregation",
-      "title": "Complete Secure Aggregation",
+      "id": "slice-4b6bcf1e",
+      "index": 83,
+      "name": "CompleteModelAggregation",
+      "title": "Complete Model Aggregation",
       "chapter": "TrainingOrchestration",
       "context": "TrainingOrchestration",
       "tags": [],
@@ -38857,12 +39854,12 @@
       ],
       "commands": [
         {
-          "id": "command-223cdee9",
-          "name": "CompleteSecureAggregation",
-          "title": "Complete Secure Aggregation",
+          "id": "command-6d1a8e33",
+          "name": "CompleteModelAggregation",
+          "title": "Complete Model Aggregation",
           "type": "COMMAND",
           "modelContext": "TrainingOrchestration",
-          "slice": "Complete Secure Aggregation",
+          "slice": "Complete Model Aggregation",
           "fields": [
             {
               "name": "trainingJobId",
@@ -38878,10 +39875,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.trainingJobId"
-                ]
+                  "SecureAggregationCompleted.trainingJobId",
+                  "PlainModelAggregationCompleted.trainingJobId"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -38898,10 +39897,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.trainingRunConfigurationId"
-                ]
+                  "SecureAggregationCompleted.trainingRunConfigurationId",
+                  "PlainModelAggregationCompleted.trainingRunConfigurationId"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -38918,10 +39919,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.featureSchemaId"
-                ]
+                  "SecureAggregationCompleted.featureSchemaId",
+                  "PlainModelAggregationCompleted.featureSchemaId"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -38938,10 +39941,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.roundId"
-                ]
+                  "SecureAggregationCompleted.roundId",
+                  "PlainModelAggregationCompleted.roundId"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -38958,10 +39963,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.roundNumber"
-                ]
+                  "SecureAggregationCompleted.roundNumber",
+                  "PlainModelAggregationCompleted.roundNumber"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -38978,10 +39985,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.maxRounds"
-                ]
+                  "SecureAggregationCompleted.maxRounds",
+                  "PlainModelAggregationCompleted.maxRounds"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -38998,17 +40007,19 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.minimumAccuracy"
-                ]
+                  "SecureAggregationCompleted.minimumAccuracy",
+                  "PlainModelAggregationCompleted.minimumAccuracy"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
               "name": "secureAggregationSessionId",
               "type": "UUID",
               "cardinality": "Single",
-              "optional": false,
+              "optional": true,
               "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
@@ -39038,10 +40049,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.aggregatedModelId"
-                ]
+                  "SecureAggregationCompleted.aggregatedModelId",
+                  "PlainModelAggregationCompleted.aggregatedModelId"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39058,10 +40071,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.aggregatedModelName"
-                ]
+                  "SecureAggregationCompleted.aggregatedModelName",
+                  "PlainModelAggregationCompleted.aggregatedModelName"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39078,10 +40093,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.aggregatedModelVersion"
-                ]
+                  "SecureAggregationCompleted.aggregatedModelVersion",
+                  "PlainModelAggregationCompleted.aggregatedModelVersion"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39098,10 +40115,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.aggregatedModelDescription"
-                ]
+                  "SecureAggregationCompleted.aggregatedModelDescription",
+                  "PlainModelAggregationCompleted.aggregatedModelDescription"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39118,10 +40137,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.modelSourceType"
-                ]
+                  "SecureAggregationCompleted.modelSourceType",
+                  "PlainModelAggregationCompleted.modelSourceType"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39138,10 +40159,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.aggregatedModelArtifactUri"
-                ]
+                  "SecureAggregationCompleted.aggregatedModelArtifactUri",
+                  "PlainModelAggregationCompleted.aggregatedModelArtifactUri"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39158,10 +40181,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.aggregatedModelRegistryRef"
-                ]
+                  "SecureAggregationCompleted.aggregatedModelRegistryRef",
+                  "PlainModelAggregationCompleted.aggregatedModelRegistryRef"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39178,10 +40203,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.modelFormat"
-                ]
+                  "SecureAggregationCompleted.modelFormat",
+                  "PlainModelAggregationCompleted.modelFormat"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39198,10 +40225,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.modelArtifactDigest"
-                ]
+                  "SecureAggregationCompleted.modelArtifactDigest",
+                  "PlainModelAggregationCompleted.modelArtifactDigest"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39218,10 +40247,12 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.aggregatedModelSignatureUri"
-                ]
+                  "SecureAggregationCompleted.aggregatedModelSignatureUri",
+                  "PlainModelAggregationCompleted.aggregatedModelSignatureUri"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             },
             {
@@ -39238,22 +40269,30 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "SecureAggregationCompleted.aggregatedModelSizeBytes"
-                ]
+                  "SecureAggregationCompleted.aggregatedModelSizeBytes",
+                  "PlainModelAggregationCompleted.aggregatedModelSizeBytes"
+                ],
+                "rule": "Use the completed secure or plaintext aggregation result."
               }
             }
           ],
           "dependencies": [
             {
-              "id": "automation-3dd1d9f0",
+              "id": "automation-9183190a",
               "direction": "INBOUND",
               "title": "Complete Secure Aggregation When Session Completed",
               "elementType": "PROCESSOR"
             },
             {
-              "id": "event-4759d38f",
+              "id": "automation-69020f99",
+              "direction": "INBOUND",
+              "title": "Complete Plain Aggregation When Completed",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "event-45b8c5f5",
               "direction": "OUTBOUND",
               "title": "Global Model Updated",
               "elementType": "EVENT"
@@ -39263,12 +40302,12 @@
       ],
       "events": [
         {
-          "id": "event-4759d38f",
+          "id": "event-45b8c5f5",
           "name": "GlobalModelUpdated",
           "title": "Global Model Updated",
           "type": "EVENT",
           "modelContext": "TrainingOrchestration",
-          "slice": "Complete Secure Aggregation",
+          "slice": "Complete Model Aggregation",
           "fields": [
             {
               "name": "trainingJobId",
@@ -39372,7 +40411,7 @@
               "name": "secureAggregationSessionId",
               "type": "UUID",
               "cardinality": "Single",
-              "optional": false,
+              "optional": true,
               "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
@@ -39551,9 +40590,9 @@
               "elementType": "PROCESSOR"
             },
             {
-              "id": "command-223cdee9",
+              "id": "command-6d1a8e33",
               "direction": "INBOUND",
-              "title": "Complete Secure Aggregation",
+              "title": "Complete Model Aggregation",
               "elementType": "COMMAND"
             },
             {
@@ -39575,12 +40614,12 @@
       "screens": [],
       "processors": [
         {
-          "id": "automation-3dd1d9f0",
+          "id": "automation-9183190a",
           "name": "CompleteSecureAggregationWhenSessionCompleted",
           "title": "Complete Secure Aggregation When Session Completed",
           "type": "PROCESSOR",
           "modelContext": "TrainingOrchestration",
-          "slice": "Complete Secure Aggregation",
+          "slice": "Complete Model Aggregation",
           "fields": [],
           "dependencies": [
             {
@@ -39590,16 +40629,44 @@
               "elementType": "EVENT"
             },
             {
-              "id": "command-223cdee9",
+              "id": "command-6d1a8e33",
               "direction": "OUTBOUND",
-              "title": "Complete Secure Aggregation",
+              "title": "Complete Model Aggregation",
               "elementType": "COMMAND"
             }
           ],
           "metadata": {
             "on": "SecureAggregationCompleted",
             "onKind": "event",
-            "emits": "CompleteSecureAggregation"
+            "emits": "CompleteModelAggregation"
+          }
+        },
+        {
+          "id": "automation-69020f99",
+          "name": "CompletePlainAggregationWhenCompleted",
+          "title": "Complete Plain Aggregation When Completed",
+          "type": "PROCESSOR",
+          "modelContext": "TrainingOrchestration",
+          "slice": "Complete Model Aggregation",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "event-d584a78e",
+              "direction": "INBOUND",
+              "title": "Plain Model Aggregation Completed",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-6d1a8e33",
+              "direction": "OUTBOUND",
+              "title": "Complete Model Aggregation",
+              "elementType": "COMMAND"
+            }
+          ],
+          "metadata": {
+            "on": "PlainModelAggregationCompleted",
+            "onKind": "event",
+            "emits": "CompleteModelAggregation"
           }
         }
       ],
@@ -39608,13 +40675,13 @@
       "hotspots": [],
       "stateChange": {
         "event": "GlobalModelUpdated",
-        "eventId": "event-4759d38f",
+        "eventId": "event-45b8c5f5",
         "to": "EvaluatingGlobalModel"
       }
     },
     {
       "id": "slice-129ead8e",
-      "index": 83,
+      "index": 84,
       "name": "SubmitGlobalModelEvaluation",
       "title": "Submit Global Model Evaluation",
       "chapter": "TrainingOrchestration",
@@ -40136,7 +41203,7 @@
           "fields": [],
           "dependencies": [
             {
-              "id": "event-4759d38f",
+              "id": "event-45b8c5f5",
               "direction": "INBOUND",
               "title": "Global Model Updated",
               "elementType": "EVENT"
@@ -40161,7 +41228,7 @@
     },
     {
       "id": "slice-4a16b8df",
-      "index": 84,
+      "index": 85,
       "name": "CompleteTrainingRound",
       "title": "Complete Training Round",
       "chapter": "TrainingOrchestration",
@@ -40906,7 +41973,7 @@
           "given": [
             {
               "title": "Global Model Updated",
-              "id": "event-4759d38f",
+              "id": "event-45b8c5f5",
               "type": "EVENT",
               "fields": [
                 {
@@ -41046,7 +42113,7 @@
     },
     {
       "id": "slice-8107a71a",
-      "index": 85,
+      "index": 86,
       "name": "FailTrainingRound",
       "title": "Fail Training Round",
       "chapter": "TrainingOrchestration",
@@ -41535,7 +42602,7 @@
     },
     {
       "id": "slice-158bd8b1",
-      "index": 86,
+      "index": 87,
       "name": "TrainingRoundProgress",
       "title": "Training Round Progress",
       "chapter": "TrainingOrchestration",
@@ -42399,7 +43466,7 @@
               "elementType": "EVENT"
             },
             {
-              "id": "event-4759d38f",
+              "id": "event-45b8c5f5",
               "direction": "INBOUND",
               "title": "Global Model Updated",
               "elementType": "EVENT"
@@ -42434,7 +43501,7 @@
     },
     {
       "id": "slice-7806d9ed",
-      "index": 87,
+      "index": 88,
       "name": "RegisterCandidateModel",
       "title": "Register Candidate Model",
       "chapter": "ModelLifecycle",
@@ -42741,7 +43808,7 @@
     },
     {
       "id": "slice-c947b39a",
-      "index": 88,
+      "index": 89,
       "name": "RecordModelEvaluationPackage",
       "title": "Record Model Evaluation Package",
       "chapter": "ModelLifecycle",
@@ -43239,7 +44306,7 @@
     },
     {
       "id": "slice-a4c2bdcc",
-      "index": 89,
+      "index": 90,
       "name": "ApproveModel",
       "title": "Approve Model",
       "chapter": "ModelLifecycle",
@@ -43550,7 +44617,7 @@
     },
     {
       "id": "slice-e0aca431",
-      "index": 90,
+      "index": 91,
       "name": "PromoteModelToProduction",
       "title": "Promote Model To Production",
       "chapter": "ModelLifecycle",
@@ -43901,7 +44968,7 @@
     },
     {
       "id": "slice-33930733",
-      "index": 91,
+      "index": 92,
       "name": "RollbackModel",
       "title": "Rollback Model",
       "chapter": "ModelLifecycle",
@@ -44090,7 +45157,7 @@
     },
     {
       "id": "slice-9e8c0ad2",
-      "index": 92,
+      "index": 93,
       "name": "RetireModel",
       "title": "Retire Model",
       "chapter": "ModelLifecycle",
@@ -44251,7 +45318,7 @@
     },
     {
       "id": "slice-daa3e2fe",
-      "index": 93,
+      "index": 94,
       "name": "ModelCatalog",
       "title": "Model Catalog",
       "chapter": "ModelLifecycle",
@@ -44714,7 +45781,7 @@
     },
     {
       "id": "slice-97531d57",
-      "index": 94,
+      "index": 95,
       "name": "RuntimeTelemetryLatest",
       "title": "Runtime Telemetry Latest",
       "chapter": "RuntimeMonitoring",
@@ -44949,7 +46016,7 @@
     },
     {
       "id": "slice-d498ecb8",
-      "index": 95,
+      "index": 96,
       "name": "DetectRuntimeAgentOffline",
       "title": "Detect Runtime Agent Offline",
       "chapter": "RuntimeMonitoring",
@@ -45163,7 +46230,7 @@
     },
     {
       "id": "slice-fd282504",
-      "index": 96,
+      "index": 97,
       "name": "MarkRuntimeAgentRecovered",
       "title": "Mark Runtime Agent Recovered",
       "chapter": "RuntimeMonitoring",
@@ -45376,7 +46443,7 @@
     },
     {
       "id": "slice-7aeba98f",
-      "index": 97,
+      "index": 98,
       "name": "DetectRuntimeNodeResourcePressure",
       "title": "Detect Runtime Node Resource Pressure",
       "chapter": "RuntimeMonitoring",
@@ -45656,7 +46723,7 @@
     },
     {
       "id": "slice-3f7c280e",
-      "index": 98,
+      "index": 99,
       "name": "RecordRuntimeNodeInventory",
       "title": "Record Runtime Node Inventory",
       "chapter": "RuntimeMonitoring",
@@ -46165,7 +47232,7 @@
     },
     {
       "id": "slice-79929d9e",
-      "index": 99,
+      "index": 100,
       "name": "RuntimeNodeInventoryView",
       "title": "Runtime Node Inventory View",
       "chapter": "RuntimeMonitoring",
@@ -46489,7 +47556,7 @@
     },
     {
       "id": "slice-c5ab698a",
-      "index": 100,
+      "index": 101,
       "name": "RuntimeNodeResourceLatest",
       "title": "Runtime Node Resource Latest",
       "chapter": "RuntimeMonitoring",
@@ -46796,7 +47863,7 @@
     },
     {
       "id": "slice-17654acc",
-      "index": 101,
+      "index": 102,
       "name": "DetectRuntimeNodeCapacityChange",
       "title": "Detect Runtime Node Capacity Change",
       "chapter": "RuntimeMonitoring",
@@ -47098,7 +48165,7 @@
     },
     {
       "id": "slice-dc4e224d",
-      "index": 102,
+      "index": 103,
       "name": "RuntimeHealthDashboard",
       "title": "Runtime Health Dashboard",
       "chapter": "RuntimeMonitoring",
@@ -47460,7 +48527,7 @@
     },
     {
       "id": "slice-f43e8d0f",
-      "index": 103,
+      "index": 104,
       "name": "RaiseTrainingAlert",
       "title": "Raise Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -47735,7 +48802,7 @@
     },
     {
       "id": "slice-102e6798",
-      "index": 104,
+      "index": 105,
       "name": "TrainingAlertCatalog",
       "title": "Training Alert Catalog",
       "chapter": "RuntimeMonitoring",
@@ -47995,7 +49062,7 @@
     },
     {
       "id": "slice-63ac1487",
-      "index": 105,
+      "index": 106,
       "name": "AcknowledgeTrainingAlert",
       "title": "Acknowledge Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -48162,7 +49229,7 @@
     },
     {
       "id": "slice-c3edeeef",
-      "index": 106,
+      "index": 107,
       "name": "ResolveTrainingAlert",
       "title": "Resolve Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -48323,7 +49390,7 @@
     },
     {
       "id": "slice-bf4467da",
-      "index": 107,
+      "index": 108,
       "name": "AppendAuditTrail",
       "title": "Append Audit Trail",
       "chapter": "RuntimeMonitoring",
@@ -48874,7 +49941,7 @@
     },
     {
       "id": "slice-5556fb33",
-      "index": 108,
+      "index": 109,
       "name": "AuditRecordLog",
       "title": "Audit Record Log",
       "chapter": "RuntimeMonitoring",
@@ -48984,7 +50051,7 @@
     },
     {
       "id": "slice-6883883e",
-      "index": 109,
+      "index": 110,
       "name": "ActivateRuntimeIdentity",
       "title": "Activate Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -49350,7 +50417,7 @@
     },
     {
       "id": "slice-6949bdab",
-      "index": 110,
+      "index": 111,
       "name": "RevokeRuntimeIdentity",
       "title": "Revoke Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -49535,7 +50602,7 @@
     },
     {
       "id": "slice-267be0b4",
-      "index": 111,
+      "index": 112,
       "name": "DetectRuntimeCapabilities",
       "title": "Detect Runtime Capabilities",
       "chapter": "RuntimeGovernance",
@@ -49718,7 +50785,7 @@
     },
     {
       "id": "slice-53705008",
-      "index": 112,
+      "index": 113,
       "name": "RuntimeIdentityCatalog",
       "title": "Runtime Identity Catalog",
       "chapter": "RuntimeGovernance",
@@ -49909,7 +50976,7 @@
     },
     {
       "id": "slice-a09f6b28",
-      "index": 113,
+      "index": 114,
       "name": "RuntimeCapabilityCatalog",
       "title": "Runtime Capability Catalog",
       "chapter": "RuntimeGovernance",
@@ -50006,7 +51073,7 @@
     },
     {
       "id": "slice-0df6c6b1",
-      "index": 114,
+      "index": 115,
       "name": "CreateSecureAggregationSession",
       "title": "Create Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -50627,7 +51694,7 @@
     },
     {
       "id": "slice-af59eab5",
-      "index": 115,
+      "index": 116,
       "name": "SelectSecureAggregationParticipants",
       "title": "Select Secure Aggregation Participants",
       "chapter": "SecureAggregation",
@@ -51209,7 +52276,7 @@
     },
     {
       "id": "slice-a903d2aa",
-      "index": 116,
+      "index": 117,
       "name": "PrepareHomomorphicEncryptionContext",
       "title": "Prepare Homomorphic Encryption Context",
       "chapter": "SecureAggregation",
@@ -51853,7 +52920,7 @@
     },
     {
       "id": "slice-5d843deb",
-      "index": 117,
+      "index": 118,
       "name": "RecordEncryptedModelUpdate",
       "title": "Record Encrypted Model Update",
       "chapter": "SecureAggregation",
@@ -52562,7 +53629,7 @@
     },
     {
       "id": "slice-74fb7a88",
-      "index": 118,
+      "index": 119,
       "name": "CompleteHomomorphicAggregationSession",
       "title": "Complete Homomorphic Aggregation Session",
       "chapter": "SecureAggregation",
@@ -53065,7 +54132,7 @@
           ],
           "dependencies": [
             {
-              "id": "automation-3dd1d9f0",
+              "id": "automation-9183190a",
               "direction": "OUTBOUND",
               "title": "Complete Secure Aggregation When Session Completed",
               "elementType": "PROCESSOR"
@@ -53135,7 +54202,7 @@
     },
     {
       "id": "slice-5c7bd7e5",
-      "index": 119,
+      "index": 120,
       "name": "FailSecureAggregationSession",
       "title": "Fail Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -53272,7 +54339,7 @@
     },
     {
       "id": "slice-ae5b24d8",
-      "index": 120,
+      "index": 121,
       "name": "SecureAggregationSessionCatalog",
       "title": "Secure Aggregation Session Catalog",
       "chapter": "SecureAggregation",
@@ -53749,7 +54816,7 @@
     },
     {
       "id": "slice-725195cc",
-      "index": 121,
+      "index": 122,
       "name": "DeclareDataset",
       "title": "Declare Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -54187,7 +55254,7 @@
     },
     {
       "id": "slice-5a2194a7",
-      "index": 122,
+      "index": 123,
       "name": "ConfigureRuntimeDatasetBinding",
       "title": "Configure Runtime Dataset Binding",
       "chapter": "RuntimeAgentOperations",
@@ -54989,7 +56056,7 @@
     },
     {
       "id": "slice-358d4122",
-      "index": 123,
+      "index": 124,
       "name": "RuntimeDatasetBindingCatalog",
       "title": "Runtime Dataset Binding Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -55289,7 +56356,7 @@
     },
     {
       "id": "slice-c31ba9a1",
-      "index": 124,
+      "index": 125,
       "name": "ValidateAgentDatasetAccess",
       "title": "Validate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -56405,7 +57472,7 @@
     },
     {
       "id": "slice-aa47e014",
-      "index": 125,
+      "index": 126,
       "name": "RevalidateAgentDatasetAccess",
       "title": "Revalidate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -57039,7 +58106,7 @@
     },
     {
       "id": "slice-ba3dc29b",
-      "index": 126,
+      "index": 127,
       "name": "AgentDatasetAccessValidationCatalog",
       "title": "Agent Dataset Access Validation Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -57285,7 +58352,7 @@
     },
     {
       "id": "slice-f44b66bc",
-      "index": 127,
+      "index": 128,
       "name": "ProfileAgentDataset",
       "title": "Profile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -58229,7 +59296,7 @@
     },
     {
       "id": "slice-d6f2a3cf",
-      "index": 128,
+      "index": 129,
       "name": "ReprofileAgentDataset",
       "title": "Reprofile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -59049,7 +60116,7 @@
     },
     {
       "id": "slice-2529cf36",
-      "index": 129,
+      "index": 130,
       "name": "ValidateDatasetContract",
       "title": "Validate Dataset Contract",
       "chapter": "RuntimeAgentOperations",
@@ -59625,7 +60692,7 @@
     },
     {
       "id": "slice-2e18bcb1",
-      "index": 130,
+      "index": 131,
       "name": "RetryDatasetContractValidation",
       "title": "Retry Dataset Contract Validation",
       "chapter": "RuntimeAgentOperations",
@@ -60264,7 +61331,7 @@
     },
     {
       "id": "slice-d28aff88",
-      "index": 131,
+      "index": 132,
       "name": "RejectDatasetForTraining",
       "title": "Reject Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -60431,7 +61498,7 @@
     },
     {
       "id": "slice-284a72da",
-      "index": 132,
+      "index": 133,
       "name": "ApproveDatasetForTraining",
       "title": "Approve Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -60719,7 +61786,7 @@
     },
     {
       "id": "slice-847c2855",
-      "index": 133,
+      "index": 134,
       "name": "RevokeDatasetTrainingApproval",
       "title": "Revoke Dataset Training Approval",
       "chapter": "RuntimeAgentOperations",
@@ -60898,7 +61965,7 @@
     },
     {
       "id": "slice-30869f70",
-      "index": 134,
+      "index": 135,
       "name": "DatasetCapability",
       "title": "Dataset Capability",
       "chapter": "RuntimeAgentOperations",
@@ -61359,7 +62426,7 @@
     },
     {
       "id": "slice-ff9e2f26",
-      "index": 135,
+      "index": 136,
       "name": "DatasetReadiness",
       "title": "Dataset Readiness",
       "chapter": "RuntimeAgentOperations",
@@ -62058,7 +63125,7 @@
     },
     {
       "id": "slice-5bf739cd",
-      "index": 136,
+      "index": 137,
       "name": "ReceiveParticipantExecutionPlan",
       "title": "Receive Participant Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -62918,7 +63985,7 @@
     },
     {
       "id": "slice-64faaa9b",
-      "index": 137,
+      "index": 138,
       "name": "AcceptExecutionPlan",
       "title": "Accept Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -64884,7 +65951,7 @@
     },
     {
       "id": "slice-4d4016d0",
-      "index": 138,
+      "index": 139,
       "name": "StartRoundExecution",
       "title": "Start Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -66152,7 +67219,7 @@
           "sliceName": "Start Round Execution",
           "title": "Round Execution Started",
           "specification": "Round Execution Runtime Engine Start Outcome",
-          "rule": "Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.\nWhen secureAggregationRequired is true, StartRoundExecution must pass encryptionScheme, publicKeyVersion, publicKeyRef, and encryptedParameterScale to the runtime engine so the local model update is encrypted inside the participant runtime boundary before any update artifact is reported to the platform.",
+          "rule": "Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.\nRuntime engine model selection must come from the participant execution plan base model snapshot. Runtime agents must not decide the model plugin from local environment variables because the selected model is platform training configuration data.\nWhen secureAggregationRequired is true, StartRoundExecution must pass encryptionScheme, publicKeyVersion, publicKeyRef, and encryptedParameterScale to the runtime engine so the local model update is encrypted inside the participant runtime boundary before any update artifact is reported to the platform.",
           "expressions": [],
           "validates": [],
           "given": [
@@ -66417,7 +67484,7 @@
           "sliceName": "Start Round Execution",
           "title": "Round Execution Start Failed",
           "specification": "Round Execution Runtime Engine Start Outcome",
-          "rule": "Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.\nWhen secureAggregationRequired is true, StartRoundExecution must pass encryptionScheme, publicKeyVersion, publicKeyRef, and encryptedParameterScale to the runtime engine so the local model update is encrypted inside the participant runtime boundary before any update artifact is reported to the platform.",
+          "rule": "Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.\nRuntime engine model selection must come from the participant execution plan base model snapshot. Runtime agents must not decide the model plugin from local environment variables because the selected model is platform training configuration data.\nWhen secureAggregationRequired is true, StartRoundExecution must pass encryptionScheme, publicKeyVersion, publicKeyRef, and encryptedParameterScale to the runtime engine so the local model update is encrypted inside the participant runtime boundary before any update artifact is reported to the platform.",
           "expressions": [],
           "validates": [],
           "given": [
@@ -66690,7 +67757,7 @@
     },
     {
       "id": "slice-0cecfd3f",
-      "index": 139,
+      "index": 140,
       "name": "ObserveRuntimeEngineJob",
       "title": "Observe Runtime Engine Job",
       "chapter": "RuntimeAgentOperations",
@@ -68143,7 +69210,7 @@
     },
     {
       "id": "slice-b1a48287",
-      "index": 140,
+      "index": 141,
       "name": "CompleteRoundExecution",
       "title": "Complete Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -69044,7 +70111,7 @@
     },
     {
       "id": "slice-45c663e8",
-      "index": 141,
+      "index": 142,
       "name": "FailRoundExecution",
       "title": "Fail Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -69581,7 +70648,7 @@
     },
     {
       "id": "slice-ff352882",
-      "index": 142,
+      "index": 143,
       "name": "RetryRoundExecutionAfterStartFailure",
       "title": "Retry Round Execution After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -70350,7 +71417,7 @@
     },
     {
       "id": "slice-2cb34062",
-      "index": 143,
+      "index": 144,
       "name": "RetryRoundExecutionAfterRuntimeFailure",
       "title": "Retry Round Execution After Runtime Failure",
       "chapter": "RuntimeAgentOperations",
@@ -71147,7 +72214,7 @@
     },
     {
       "id": "slice-d54dcc12",
-      "index": 144,
+      "index": 145,
       "name": "SubmitAgentLocalModelUpdate",
       "title": "Submit Agent Local Model Update",
       "chapter": "RuntimeAgentOperations",
@@ -71929,7 +72996,7 @@
     },
     {
       "id": "slice-6485fdce",
-      "index": 145,
+      "index": 146,
       "name": "ReleaseRuntimeEngineJobAfterCompletion",
       "title": "Release Runtime Engine Job After Completion",
       "chapter": "RuntimeAgentOperations",
@@ -72103,7 +73170,7 @@
     },
     {
       "id": "slice-ef8420f2",
-      "index": 146,
+      "index": 147,
       "name": "ReleaseRuntimeEngineJobAfterFailure",
       "title": "Release Runtime Engine Job After Failure",
       "chapter": "RuntimeAgentOperations",
@@ -72291,7 +73358,7 @@
     },
     {
       "id": "slice-30156076",
-      "index": 147,
+      "index": 148,
       "name": "ReleaseRuntimeEngineJobAfterStartFailure",
       "title": "Release Runtime Engine Job After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -72479,7 +73546,7 @@
     },
     {
       "id": "slice-5d7a0380",
-      "index": 148,
+      "index": 149,
       "name": "ReleaseRuntimeEngineJobAfterRetryFailure",
       "title": "Release Runtime Engine Job After Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -72667,7 +73734,7 @@
     },
     {
       "id": "slice-bc1eac14",
-      "index": 149,
+      "index": 150,
       "name": "ReleaseRuntimeEngineJobAfterRuntimeRetryFailure",
       "title": "Release Runtime Engine Job After Runtime Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -72855,7 +73922,7 @@
     },
     {
       "id": "slice-eb00f5f7",
-      "index": 150,
+      "index": 151,
       "name": "RoundExecutionCatalog",
       "title": "Round Execution Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -73577,7 +74644,7 @@
     },
     {
       "id": "slice-d248addb",
-      "index": 151,
+      "index": 152,
       "name": "LoadRuntimeAgentBootstrapConfiguration",
       "title": "Load Runtime Agent Bootstrap Configuration",
       "chapter": "RuntimeAgentOperations",
@@ -73902,7 +74969,7 @@
     },
     {
       "id": "slice-c7d2df46",
-      "index": 152,
+      "index": 153,
       "name": "ReportRuntimeAgentStarted",
       "title": "Report Runtime Agent Started",
       "chapter": "RuntimeAgentOperations",
@@ -74120,7 +75187,7 @@
     },
     {
       "id": "slice-75635ed7",
-      "index": 153,
+      "index": 154,
       "name": "ReportRuntimeInstanceSelfCheckPassed",
       "title": "Report Runtime Instance Self Check Passed",
       "chapter": "RuntimeAgentOperations",
@@ -74535,7 +75602,7 @@
     },
     {
       "id": "slice-574f1d44",
-      "index": 154,
+      "index": 155,
       "name": "RuntimeAgentLifecycleCatalog",
       "title": "Runtime Agent Lifecycle Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -74831,7 +75898,7 @@
     },
     {
       "id": "slice-e5b0caa2",
-      "index": 155,
+      "index": 156,
       "name": "ReportRuntimeInstanceConnected",
       "title": "Report Runtime Instance Connected",
       "chapter": "RuntimeAgentOperations",
@@ -75647,7 +76714,7 @@
     },
     {
       "id": "slice-8d5d066d",
-      "index": 156,
+      "index": 157,
       "name": "AgentRuntimeInfrastructureConnectionCatalog",
       "title": "Agent Runtime Infrastructure Connection Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -75847,7 +76914,7 @@
     },
     {
       "id": "slice-ff0c55e7",
-      "index": 157,
+      "index": 158,
       "name": "AgentRuntimeTelemetryLatest",
       "title": "Agent Runtime Telemetry Latest",
       "chapter": "RuntimeAgentOperations",
@@ -76020,7 +77087,7 @@
     },
     {
       "id": "slice-d8eaacb9",
-      "index": 158,
+      "index": 159,
       "name": "ReportAgentRuntimeNodeInventory",
       "title": "Report Agent Runtime Node Inventory",
       "chapter": "RuntimeAgentOperations",
@@ -76488,7 +77555,7 @@
     },
     {
       "id": "slice-6a815e36",
-      "index": 159,
+      "index": 160,
       "name": "AgentRuntimeNodeInventoryCatalog",
       "title": "Agent Runtime Node Inventory Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -76751,7 +77818,7 @@
     },
     {
       "id": "slice-a56419ba",
-      "index": 160,
+      "index": 161,
       "name": "AgentRuntimeNodeResourceLatest",
       "title": "Agent Runtime Node Resource Latest",
       "chapter": "RuntimeAgentOperations",
@@ -77036,7 +78103,7 @@
     },
     {
       "id": "slice-4fcce762",
-      "index": 161,
+      "index": 162,
       "name": "RegisterUserAccount",
       "title": "Register User Account",
       "chapter": "IdentityAccessManagement",
@@ -77331,7 +78398,7 @@
     },
     {
       "id": "slice-2f4abaeb",
-      "index": 162,
+      "index": 163,
       "name": "DeactivateUserAccount",
       "title": "Deactivate User Account",
       "chapter": "IdentityAccessManagement",
@@ -77462,7 +78529,7 @@
     },
     {
       "id": "slice-5da5f728",
-      "index": 163,
+      "index": 164,
       "name": "GenerateUserAccountLoginPassword",
       "title": "Generate User Account Login Password",
       "chapter": "IdentityAccessManagement",
@@ -77626,7 +78693,7 @@
     },
     {
       "id": "slice-7b54b84c",
-      "index": 164,
+      "index": 165,
       "name": "RegisterRole",
       "title": "Register Role",
       "chapter": "IdentityAccessManagement",
@@ -77791,7 +78858,7 @@
     },
     {
       "id": "slice-1bda8ebb",
-      "index": 165,
+      "index": 166,
       "name": "RegisterPermission",
       "title": "Register Permission",
       "chapter": "IdentityAccessManagement",
@@ -77984,7 +79051,7 @@
     },
     {
       "id": "slice-1d773a87",
-      "index": 166,
+      "index": 167,
       "name": "GrantPermissionToRole",
       "title": "Grant Permission To Role",
       "chapter": "IdentityAccessManagement",
@@ -78214,7 +79281,7 @@
     },
     {
       "id": "slice-0766b926",
-      "index": 167,
+      "index": 168,
       "name": "AssignRoleToUser",
       "title": "Assign Role To User",
       "chapter": "IdentityAccessManagement",
@@ -78396,7 +79463,7 @@
     },
     {
       "id": "slice-b263007b",
-      "index": 168,
+      "index": 169,
       "name": "IssueServiceAccountApiToken",
       "title": "Issue Service Account Api Token",
       "chapter": "IdentityAccessManagement",
@@ -78930,7 +79997,7 @@
     },
     {
       "id": "slice-425842d5",
-      "index": 169,
+      "index": 170,
       "name": "UserAccountCatalogs",
       "title": "User Account Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -79072,7 +80139,7 @@
     },
     {
       "id": "slice-10714181",
-      "index": 170,
+      "index": 171,
       "name": "RoleCatalogs",
       "title": "Role Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -79160,7 +80227,7 @@
     },
     {
       "id": "slice-9f1bec7a",
-      "index": 171,
+      "index": 172,
       "name": "PermissionCatalogs",
       "title": "Permission Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -79262,7 +80329,7 @@
     },
     {
       "id": "slice-33855446",
-      "index": 172,
+      "index": 173,
       "name": "UserRoleAssignmentCatalog",
       "title": "User Role Assignment Catalog",
       "chapter": "IdentityAccessManagement",
@@ -79390,7 +80457,7 @@
     },
     {
       "id": "slice-4d6e3a7f",
-      "index": 173,
+      "index": 174,
       "name": "RolePermissionGrantCatalog",
       "title": "Role Permission Grant Catalog",
       "chapter": "IdentityAccessManagement",
@@ -79545,7 +80612,7 @@
     },
     {
       "id": "slice-6047e82e",
-      "index": 174,
+      "index": 175,
       "name": "ServiceAccountApiTokenCatalogs",
       "title": "Service Account Api Token Catalogs",
       "chapter": "IdentityAccessManagement",

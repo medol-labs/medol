@@ -2385,7 +2385,7 @@ context TrainingOrchestration {
       }
       initialModelRegistryRef: String derived {
         from ModelArtifact.modelRegistryRef
-        rule "Snapshot the model registry reference so runtime agents can identify where the initial global model is managed."
+        rule "Snapshot the model registry reference so runtime agents can identify where the initial global model is managed. For built-in runtime-engine models this value is the runtime engine model plugin code, copied from the selected ModelArtifact rather than read from runtime-agent environment variables."
       }
       initialModelFormat: String derived {
         from ModelArtifact.modelFormat
@@ -3082,6 +3082,7 @@ context TrainingOrchestration {
       roundNumber: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       minimumNodesPerRound: Int
       secureAggregationRequired: Boolean
       selectedOrganizationIds: UUID[]
@@ -3099,6 +3100,7 @@ context TrainingOrchestration {
       roundNumber: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       minimumNodesPerRound: Int
       secureAggregationRequired: Boolean
       selectedOrganizationIds: UUID[]
@@ -3239,6 +3241,7 @@ context TrainingOrchestration {
         from TrainingRoundParticipantsSelected.minimumAccuracy, HomomorphicEncryptionContextPrepared.minimumAccuracy
         rule "Carry the target global accuracy for downstream completion and next-round decisions."
       }
+      aggregationAlgorithm: String? from TrainingRoundParticipantsSelected.aggregationAlgorithm
       secureAggregationRequired: Boolean derived {
         from TrainingRoundParticipantsSelected.secureAggregationRequired, HomomorphicEncryptionContextPrepared.secureAggregationRequired
         rule "Plaintext rounds use false from participant selection; secure aggregation rounds use true from the prepared encryption context."
@@ -3264,6 +3267,7 @@ context TrainingOrchestration {
       minimumNodesPerRound: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      aggregationAlgorithm: String?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -3590,6 +3594,7 @@ context TrainingOrchestration {
       roundNumber: Int from TrainingRoundStarted.roundNumber
       maxRounds: Int from TrainingRoundStarted.maxRounds
       minimumAccuracy: Decimal from TrainingRoundStarted.minimumAccuracy
+      aggregationAlgorithm: String? from TrainingRoundStarted.aggregationAlgorithm
       runtimeId: UUID
       featureSchemaId: UUID
       secureAggregationRequired: Boolean
@@ -3607,7 +3612,15 @@ context TrainingOrchestration {
       acceptedRuntimeIds: UUID[] derived from ModelUpdateSubmissionAccepted.acceptedRuntimeIds, EvaluateModelUpdateSubmission.runtimeId {
         rule "appendDistinct(ModelUpdateSubmissionAccepted.acceptedRuntimeIds, EvaluateModelUpdateSubmission.runtimeId)"
       }
+      acceptedModelUpdateArtifactRefs: String[] derived from ModelUpdateSubmissionAccepted.acceptedModelUpdateArtifactRefs, EvaluateModelUpdateSubmission.artifactRef {
+        rule "appendDistinct(ModelUpdateSubmissionAccepted.acceptedModelUpdateArtifactRefs, EvaluateModelUpdateSubmission.artifactRef)"
+      }
       minimumNodesPerRound: Int from TrainingRoundStarted.minimumNodesPerRound
+      requiredModelUpdateCount: Int from TrainingRoundStarted.selectedRuntimeCount
+      plainAggregationReady: Boolean derived {
+        from EvaluateModelUpdateSubmission.secureAggregationRequired, EvaluateModelUpdateSubmission.runtimeId, ModelUpdateSubmissionAccepted.acceptedRuntimeIds, ModelUpdateSubmissionAccepted.acceptedModelUpdateCount, ModelUpdateSubmissionAccepted.requiredModelUpdateCount
+        rule "True only when secure aggregation is disabled and a newly accepted runtime makes the cumulative accepted model update count reach the selected runtime count."
+      }
     }
 
     event ModelUpdateSubmissionRejected {
@@ -3672,6 +3685,74 @@ context TrainingOrchestration {
     }
   }
 
+  slice AggregatePlainModelUpdates {
+    reactsTo ModelUpdateSubmissionAccepted
+    port
+
+    automation AggregatePlainUpdatesWhenQuorumReached {
+      on ModelUpdateSubmissionAccepted
+      condition plainAggregationReady == true
+      emits AggregatePlainModelUpdates
+    }
+
+    command AggregatePlainModelUpdates {
+      trainingJobId: UUID id technical from ModelUpdateSubmissionAccepted.trainingJobId
+      trainingRunConfigurationId: UUID from ModelUpdateSubmissionAccepted.trainingRunConfigurationId
+      featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
+      roundId: UUID from ModelUpdateSubmissionAccepted.roundId
+      roundNumber: Int from ModelUpdateSubmissionAccepted.roundNumber
+      maxRounds: Int from ModelUpdateSubmissionAccepted.maxRounds
+      minimumAccuracy: Decimal from ModelUpdateSubmissionAccepted.minimumAccuracy
+      aggregationAlgorithm: String from ModelUpdateSubmissionAccepted.aggregationAlgorithm
+      aggregatedModelId: UUID generated technical
+      modelUpdateArtifactRefs: String[] from ModelUpdateSubmissionAccepted.acceptedModelUpdateArtifactRefs
+    }
+
+    event PlainModelAggregationCompleted {
+      trainingJobId: UUID id technical
+      trainingRunConfigurationId: UUID
+      featureSchemaId: UUID
+      roundId: UUID
+      roundNumber: Int
+      maxRounds: Int
+      minimumAccuracy: Decimal
+      aggregatedModelId: UUID
+      aggregatedModelName: String portOutput
+      aggregatedModelVersion: String portOutput
+      aggregatedModelDescription: String? portOutput
+      modelSourceType: String portOutput
+      aggregatedModelArtifactUri: String portOutput
+      aggregatedModelRegistryRef: String portOutput
+      modelFormat: String portOutput
+      modelArtifactDigest: String portOutput
+      aggregatedModelSignatureUri: String? portOutput
+      aggregatedModelSizeBytes: Int? portOutput
+    }
+
+    state Completed
+
+    specification "Plain Model Updates Are Aggregated After Quorum" {
+      rule """
+        A round that does not require secure aggregation must aggregate accepted plaintext model updates after every selected runtime has contributed an accepted update. The aggregation input is the cumulative immutable artifact reference snapshot carried by ModelUpdateSubmissionAccepted. Completion produces the same global model metadata required by evaluation and model registration without creating a secure aggregation session. Duplicate submissions from an already accepted runtime must not trigger aggregation again.
+      """
+
+      scenario "Aggregate Accepted Plain Updates" {
+        given ModelUpdateSubmissionAccepted {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+          secureAggregationRequired = false
+          acceptedModelUpdateCount = 1
+          minimumNodesPerRound = 1
+        }
+        when AggregatePlainModelUpdates {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+        }
+        then PlainModelAggregationCompleted
+      }
+    }
+  }
+
   slice RequestSecureAggregation {
     reactsTo TrainingRoundParticipantsSelected
 
@@ -3717,34 +3798,94 @@ context TrainingOrchestration {
 
   }
 
-  slice CompleteSecureAggregation {
+  slice CompleteModelAggregation {
     reactsTo SecureAggregationCompleted
+    reactsTo PlainModelAggregationCompleted
 
     automation CompleteSecureAggregationWhenSessionCompleted {
       on SecureAggregationCompleted
-      emits CompleteSecureAggregation
+      emits CompleteModelAggregation
     }
 
-    command CompleteSecureAggregation {
-      trainingJobId: UUID id technical from SecureAggregationCompleted.trainingJobId
-      trainingRunConfigurationId: UUID from SecureAggregationCompleted.trainingRunConfigurationId
-      featureSchemaId: UUID from SecureAggregationCompleted.featureSchemaId
-      roundId: UUID from SecureAggregationCompleted.roundId
-      roundNumber: Int from SecureAggregationCompleted.roundNumber
-      maxRounds: Int from SecureAggregationCompleted.maxRounds
-      minimumAccuracy: Decimal from SecureAggregationCompleted.minimumAccuracy
-      secureAggregationSessionId: UUID from SecureAggregationCompleted.secureAggregationSessionId
-      aggregatedModelId: UUID from SecureAggregationCompleted.aggregatedModelId
-      aggregatedModelName: String from SecureAggregationCompleted.aggregatedModelName
-      aggregatedModelVersion: String from SecureAggregationCompleted.aggregatedModelVersion
-      aggregatedModelDescription: String? from SecureAggregationCompleted.aggregatedModelDescription
-      modelSourceType: String from SecureAggregationCompleted.modelSourceType
-      aggregatedModelArtifactUri: String from SecureAggregationCompleted.aggregatedModelArtifactUri
-      aggregatedModelRegistryRef: String from SecureAggregationCompleted.aggregatedModelRegistryRef
-      modelFormat: String from SecureAggregationCompleted.modelFormat
-      modelArtifactDigest: String from SecureAggregationCompleted.modelArtifactDigest
-      aggregatedModelSignatureUri: String? from SecureAggregationCompleted.aggregatedModelSignatureUri
-      aggregatedModelSizeBytes: Int? from SecureAggregationCompleted.aggregatedModelSizeBytes
+    automation CompletePlainAggregationWhenCompleted {
+      on PlainModelAggregationCompleted
+      emits CompleteModelAggregation
+    }
+
+    command CompleteModelAggregation {
+      trainingJobId: UUID id technical derived {
+        from SecureAggregationCompleted.trainingJobId, PlainModelAggregationCompleted.trainingJobId
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      trainingRunConfigurationId: UUID derived {
+        from SecureAggregationCompleted.trainingRunConfigurationId, PlainModelAggregationCompleted.trainingRunConfigurationId
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      featureSchemaId: UUID derived {
+        from SecureAggregationCompleted.featureSchemaId, PlainModelAggregationCompleted.featureSchemaId
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      roundId: UUID derived {
+        from SecureAggregationCompleted.roundId, PlainModelAggregationCompleted.roundId
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      roundNumber: Int derived {
+        from SecureAggregationCompleted.roundNumber, PlainModelAggregationCompleted.roundNumber
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      maxRounds: Int derived {
+        from SecureAggregationCompleted.maxRounds, PlainModelAggregationCompleted.maxRounds
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      minimumAccuracy: Decimal derived {
+        from SecureAggregationCompleted.minimumAccuracy, PlainModelAggregationCompleted.minimumAccuracy
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      secureAggregationSessionId: UUID? from SecureAggregationCompleted.secureAggregationSessionId
+      aggregatedModelId: UUID derived {
+        from SecureAggregationCompleted.aggregatedModelId, PlainModelAggregationCompleted.aggregatedModelId
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      aggregatedModelName: String derived {
+        from SecureAggregationCompleted.aggregatedModelName, PlainModelAggregationCompleted.aggregatedModelName
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      aggregatedModelVersion: String derived {
+        from SecureAggregationCompleted.aggregatedModelVersion, PlainModelAggregationCompleted.aggregatedModelVersion
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      aggregatedModelDescription: String? derived {
+        from SecureAggregationCompleted.aggregatedModelDescription, PlainModelAggregationCompleted.aggregatedModelDescription
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      modelSourceType: String derived {
+        from SecureAggregationCompleted.modelSourceType, PlainModelAggregationCompleted.modelSourceType
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      aggregatedModelArtifactUri: String derived {
+        from SecureAggregationCompleted.aggregatedModelArtifactUri, PlainModelAggregationCompleted.aggregatedModelArtifactUri
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      aggregatedModelRegistryRef: String derived {
+        from SecureAggregationCompleted.aggregatedModelRegistryRef, PlainModelAggregationCompleted.aggregatedModelRegistryRef
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      modelFormat: String derived {
+        from SecureAggregationCompleted.modelFormat, PlainModelAggregationCompleted.modelFormat
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      modelArtifactDigest: String derived {
+        from SecureAggregationCompleted.modelArtifactDigest, PlainModelAggregationCompleted.modelArtifactDigest
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      aggregatedModelSignatureUri: String? derived {
+        from SecureAggregationCompleted.aggregatedModelSignatureUri, PlainModelAggregationCompleted.aggregatedModelSignatureUri
+        rule "Use the completed secure or plaintext aggregation result."
+      }
+      aggregatedModelSizeBytes: Int? derived {
+        from SecureAggregationCompleted.aggregatedModelSizeBytes, PlainModelAggregationCompleted.aggregatedModelSizeBytes
+        rule "Use the completed secure or plaintext aggregation result."
+      }
     }
 
     event GlobalModelUpdated {
@@ -3755,7 +3896,7 @@ context TrainingOrchestration {
       roundNumber: Int
       maxRounds: Int
       minimumAccuracy: Decimal
-      secureAggregationSessionId: UUID
+      secureAggregationSessionId: UUID?
       aggregatedModelId: UUID
       aggregatedModelName: String
       aggregatedModelVersion: String
@@ -4059,8 +4200,9 @@ context TrainingOrchestration {
     slice StartTrainingRound
     slice SubmitModelUpdateSubmission
     slice EvaluateModelUpdateSubmission
+    slice AggregatePlainModelUpdates
     slice RequestSecureAggregation
-    slice CompleteSecureAggregation
+    slice CompleteModelAggregation
     slice SubmitGlobalModelEvaluation
     slice CompleteTrainingRound
     slice FailTrainingRound
@@ -6636,6 +6778,7 @@ context RuntimeAgentOperations {
     specification "Round Execution Runtime Engine Start Outcome" {
       rule """
         Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.
+        Runtime engine model selection must come from the participant execution plan base model snapshot. Runtime agents must not decide the model plugin from local environment variables because the selected model is platform training configuration data.
         When secureAggregationRequired is true, StartRoundExecution must pass encryptionScheme, publicKeyVersion, publicKeyRef, and encryptedParameterScale to the runtime engine so the local model update is encrypted inside the participant runtime boundary before any update artifact is reported to the platform.
       """
 
