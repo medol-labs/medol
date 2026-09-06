@@ -1159,6 +1159,7 @@ context RuntimeProvisioning {
     actor PlatformAdmin
     ui RuntimeInstallationPlanScreen
     reactsTo OrganizationActivated
+    port
 
     tags {
       organizationId
@@ -1166,6 +1167,7 @@ context RuntimeProvisioning {
 
     command CreateRuntimeInstallationPlan {
       runtimeInstallationPlanId: UUID id generated technical
+      runtimeInfrastructureId: UUID generated technical
       organizationId: UUID
       runtimeInfrastructurePackageId: UUID
       runtimeName: String
@@ -1177,10 +1179,16 @@ context RuntimeProvisioning {
 
     event RuntimeInstallationPlanCreated {
       runtimeInstallationPlanId: UUID id technical
-      runtimeInfrastructureId: UUID generated technical
+      runtimeInfrastructureId: UUID technical
       organizationId: UUID
       runtimeInfrastructurePackageId: UUID
       runtimeName: String
+      bootstrapCommand: Text portOutput
+      nodeLabelCommand: Text portOutput
+      nodeTaintCommand: Text portOutput
+      runtimeAgentNodeSelectorYaml: Text portOutput
+      runtimeAgentTolerationsYaml: Text portOutput
+      bootstrapConfigYaml: Text portOutput
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       expectedNodeCount: Int
     }
@@ -1204,6 +1212,8 @@ context RuntimeProvisioning {
       expectedNodeCount: Int
       planStatus: String
       runtimeInfrastructureId: UUID?
+      preparedAt: DateTime?
+      preparedNodeCount: Int?
       observedNodeCount: Int?
       runtimeAgentId: UUID?
       runtimeAgentVersion: String?
@@ -1222,6 +1232,7 @@ context RuntimeProvisioning {
       subscribe RuntimeInstallationPlanCreated
       subscribe RuntimeInfrastructurePlanned
       subscribe RuntimeInfrastructureRegistered
+      subscribe RuntimeInfrastructurePrepared
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
       subscribe RuntimeAgentInstallationSucceeded
@@ -1255,9 +1266,29 @@ context RuntimeProvisioning {
         from RuntimeInstallationPlanCreated.runtimeName
         rule "Lookup by runtimeInstallationPlanId and denormalize the planned runtime display name into the runtime installation guide."
       }
-      bootstrapCommand: String derived {
-        from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
+      bootstrapCommand: Text derived {
+        from RuntimeInstallationPlanCreated.bootstrapCommand
         rule "Render the copyable install/start command using the runtime installation plan and platform-managed bootstrap service."
+      }
+      nodeLabelCommand: Text derived {
+        from RuntimeInstallationPlanCreated.nodeLabelCommand
+        rule "Render the kubectl command that labels a joined K3s agent node with the generated runtimeInfrastructureId so platform-managed workloads can target that participant runtime."
+      }
+      nodeTaintCommand: Text derived {
+        from RuntimeInstallationPlanCreated.nodeTaintCommand
+        rule "Render the kubectl command that taints the joined participant node as runtime-only so unrelated workloads are not scheduled there."
+      }
+      runtimeAgentNodeSelectorYaml: Text derived {
+        from RuntimeInstallationPlanCreated.runtimeAgentNodeSelectorYaml
+        rule "Render the nodeSelector YAML fragment used by platform-managed runtime-agent and runtime-engine workloads."
+      }
+      runtimeAgentTolerationsYaml: Text derived {
+        from RuntimeInstallationPlanCreated.runtimeAgentTolerationsYaml
+        rule "Render the tolerations YAML fragment used by platform-managed runtime-agent and runtime-engine workloads."
+      }
+      bootstrapConfigYaml: Text derived {
+        from RuntimeInstallationPlanCreated.bootstrapConfigYaml
+        rule "Render a copyable participant node bootstrap configuration containing labels, taints, runtimeInfrastructureId, and the workload scheduling fragments."
       }
       runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
       agentInstallMode: String? dictionary "RUNTIME_AGENT_INSTALL_MODE" derived {
@@ -1304,79 +1335,116 @@ context RuntimeProvisioning {
 
     command RegisterRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructurePlanned.runtimeInfrastructureId
+      runtimeInstallationPlanId: UUID technical from RuntimeInfrastructurePlanned.runtimeInstallationPlanId
       runtimeAgentId: UUID generated technical
     }
 
     event RuntimeInfrastructureRegistered {
       runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
       runtimeAgentId: UUID technical
     }
 
     state Registered
   }
 
+  slice ConfirmRuntimeInfrastructurePrepared {
+    actor RuntimeInstaller
+    ui RuntimeInstallationGuideScreen
+    reactsTo RuntimeInfrastructureRegistered
+
+    command ConfirmRuntimeInfrastructurePrepared {
+      runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
+      runtimeInstallationPlanId: UUID technical from RuntimeInfrastructureRegistered.runtimeInstallationPlanId
+      runtimeAgentId: UUID technical from RuntimeInfrastructureRegistered.runtimeAgentId
+      preparedNodeCount: Int
+      preparationNotes: String?
+    }
+
+    event RuntimeInfrastructurePrepared {
+      runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
+      runtimeAgentId: UUID technical
+      preparedNodeCount: Int
+      preparationNotes: String?
+    }
+
+    state Prepared
+
+    specification "Runtime Infrastructure Prepared Before Verification" {
+      rule """
+        Runtime infrastructure registration records the planned participant infrastructure only. Verification and platform-managed runtime agent deployment must wait until the runtime installer confirms that the K3s agent node has joined the target cluster and the generated labels and taints have been applied.
+      """
+
+      scenario "Confirm Runtime Infrastructure Prepared" {
+        given RuntimeInfrastructureRegistered {
+          runtimeInfrastructureId = "runtime-infra-1"
+        }
+        when ConfirmRuntimeInfrastructurePrepared {
+          runtimeInfrastructureId = "runtime-infra-1"
+          preparedNodeCount = 1
+          preparationNotes = "K3s agent joined and node scheduling labels were applied."
+        }
+        then RuntimeInfrastructurePrepared
+      }
+    }
+  }
+
   slice VerifyRuntimeInfrastructure {
     actor PlatformAdmin
     ui RuntimeInstallationPlanScreen
-    reactsTo RuntimeInfrastructureRegistered
+    reactsTo RuntimeInfrastructurePrepared
     port
 
-    automation VerifyInfrastructureWhenRegistered {
-      on RuntimeInfrastructureRegistered
+    automation VerifyInfrastructureWhenPrepared {
+      on RuntimeInfrastructurePrepared
       emits VerifyRuntimeInfrastructure
     }
 
     command VerifyRuntimeInfrastructure {
-      runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
-      runtimeAgentId: UUID technical from RuntimeInfrastructureRegistered.runtimeAgentId
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInstallationPlanCreated.agentInstallMode by runtimeInfrastructureId
-      verificationPassed: Boolean
-      observedNodeCount: Int
-      failureReason: String?
+      runtimeInfrastructureId: UUID id technical from RuntimeInfrastructurePrepared.runtimeInfrastructureId
+      runtimeInstallationPlanId: UUID technical from RuntimeInfrastructurePrepared.runtimeInstallationPlanId
+      runtimeAgentId: UUID technical from RuntimeInfrastructurePrepared.runtimeAgentId
     }
 
     event RuntimeInfrastructureVerified {
       runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
       runtimeAgentId: UUID technical
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
-      observedNodeCount: Int
+      agentInstallMode: String portOutput dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      observedNodeCount: Int portOutput
     }
 
     event RuntimeInfrastructureVerificationFailed {
       runtimeInfrastructureId: UUID id technical
-      observedNodeCount: Int
-      failureReason: String
+      runtimeInstallationPlanId: UUID technical
+      observedNodeCount: Int? portOutput
+      failureReason: String portOutput
     }
 
     state Verified
 
     specification "Runtime Infrastructure Verification Outcome" {
       rule """
-        Runtime infrastructure verification runs once after the runtime infrastructure is registered. The verification processor resolves the selected runtime infrastructure package and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.
+        Runtime infrastructure verification runs once after the runtime installer confirms that the participant node has joined the target runtime infrastructure and the generated scheduling labels and taints have been applied. The verification processor resolves the selected runtime infrastructure package and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.
       """
 
       scenario "Runtime Infrastructure Verification Passed" {
-        given RuntimeInfrastructureRegistered {
+        given RuntimeInfrastructurePrepared {
           runtimeInfrastructureId = "runtime-infra-1"
         }
         when VerifyRuntimeInfrastructure {
           runtimeInfrastructureId = "runtime-infra-1"
-          agentInstallMode = "PLATFORM_MANAGED"
-          verificationPassed = true
-          observedNodeCount = 3
         }
         then RuntimeInfrastructureVerified
       }
 
       scenario "Runtime Infrastructure Verification Failed" {
-        given RuntimeInfrastructureRegistered {
+        given RuntimeInfrastructurePrepared {
           runtimeInfrastructureId = "runtime-infra-2"
         }
         when VerifyRuntimeInfrastructure {
           runtimeInfrastructureId = "runtime-infra-2"
-          verificationPassed = false
-          observedNodeCount = 0
-          failureReason = "Runtime infrastructure is unreachable."
         }
         then RuntimeInfrastructureVerificationFailed
       }
@@ -1584,6 +1652,8 @@ context RuntimeProvisioning {
       expectedNodeCount: Int
       runtimeAgentId: UUID?
       runtimeAgentVersion: String?
+      infrastructurePreparedAt: DateTime?
+      preparedNodeCount: Int?
       infrastructureVerifiedAt: DateTime?
       infrastructureVerificationFailedAt: DateTime?
       infrastructureVerificationFailureReason: String?
@@ -1599,6 +1669,7 @@ context RuntimeProvisioning {
       subscribe RuntimeInstallationPlanCreated
       subscribe RuntimeInfrastructurePlanned
       subscribe RuntimeInfrastructureRegistered
+      subscribe RuntimeInfrastructurePrepared
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
       subscribe RuntimeAgentInstallationSucceeded
@@ -1627,6 +1698,7 @@ context RuntimeProvisioning {
   concept RuntimeInfrastructure {
     state Planned
     state Registered
+    state Prepared
     state Verified
     state VerificationFailed
     state AgentReady
@@ -1636,6 +1708,7 @@ context RuntimeProvisioning {
 
     slice PlanRuntimeInfrastructure
     slice RegisterRuntimeInfrastructure
+    slice ConfirmRuntimeInfrastructurePrepared
     slice VerifyRuntimeInfrastructure
     slice DeployRuntimeAgent
     slice RetryRuntimeAgentDeployment

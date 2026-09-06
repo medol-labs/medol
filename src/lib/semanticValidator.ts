@@ -60,6 +60,7 @@ const builtinTypes = new Set([
   'Long',
   'Short',
   'String',
+  'Text',
   'Time',
   'UUID'
 ]);
@@ -84,6 +85,7 @@ const textualTypes = new Set([
   'LocalDate',
   'LocalDateTime',
   'String',
+  'Text',
   'Time',
   'UUID'
 ]);
