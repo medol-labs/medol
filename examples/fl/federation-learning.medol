@@ -1252,6 +1252,8 @@ context RuntimeProvisioning {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
       runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID? derived from RuntimeInfrastructureRegistered.runtimeAgentId by runtimeInfrastructureId
+      runtimeInfrastructureState: RuntimeInfrastructure.State?
       runtimeInfrastructurePackageId: UUID? derived {
         from RuntimeInstallationPlanCreated.runtimeInfrastructurePackageId
         rule "Lookup by runtimeInstallationPlanId and display the selected infrastructure installer package."
@@ -1302,6 +1304,11 @@ context RuntimeProvisioning {
       subscribe OrganizationRegistered
       subscribe RuntimeInfrastructurePackageRegistered
       subscribe RuntimeInstallationPlanCreated
+      subscribe RuntimeInfrastructurePlanned
+      subscribe RuntimeInfrastructureRegistered
+      subscribe RuntimeInfrastructurePrepared
+      subscribe RuntimeInfrastructureVerified
+      subscribe RuntimeInfrastructureVerificationFailed
     }
   }
 

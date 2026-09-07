@@ -588,6 +588,7 @@
           "states": [
             "Planned",
             "Registered",
+            "Prepared",
             "Verified",
             "VerificationFailed",
             "AgentReady",
@@ -639,6 +640,11 @@
           "id": "slice-f113419e",
           "name": "RegisterRuntimeInfrastructure",
           "title": "Register Runtime Infrastructure"
+        },
+        {
+          "id": "slice-bc1ece78",
+          "name": "ConfirmRuntimeInfrastructurePrepared",
+          "title": "Confirm Runtime Infrastructure Prepared"
         },
         {
           "id": "slice-1524114e",
@@ -2894,6 +2900,7 @@
       "states": [
         "Planned",
         "Registered",
+        "Prepared",
         "Verified",
         "VerificationFailed",
         "AgentReady",
@@ -2911,6 +2918,11 @@
           "id": "slice-f113419e",
           "name": "RegisterRuntimeInfrastructure",
           "title": "Register Runtime Infrastructure"
+        },
+        {
+          "id": "slice-bc1ece78",
+          "name": "ConfirmRuntimeInfrastructurePrepared",
+          "title": "Confirm Runtime Infrastructure Prepared"
         },
         {
           "id": "slice-1524114e",
@@ -4892,6 +4904,39 @@
       "startsLifecycle": false
     },
     {
+      "id": "transition-630b68d7",
+      "context": "RuntimeProvisioning",
+      "owner": {
+        "id": "concept-eecaaa9f",
+        "type": "concept",
+        "name": "RuntimeInfrastructure",
+        "title": "Runtime Infrastructure"
+      },
+      "slice": {
+        "id": "slice-bc1ece78",
+        "name": "ConfirmRuntimeInfrastructurePrepared",
+        "title": "Confirm Runtime Infrastructure Prepared"
+      },
+      "command": {
+        "id": "command-8568e8b1",
+        "name": "ConfirmRuntimeInfrastructurePrepared",
+        "title": "Confirm Runtime Infrastructure Prepared"
+      },
+      "event": {
+        "id": "event-2673bc36",
+        "name": "RuntimeInfrastructurePrepared",
+        "title": "Runtime Infrastructure Prepared"
+      },
+      "trigger": {
+        "id": "event-9d489759",
+        "name": "RuntimeInfrastructureRegistered",
+        "title": "Runtime Infrastructure Registered"
+      },
+      "from": "Registered",
+      "to": "Prepared",
+      "startsLifecycle": false
+    },
+    {
       "id": "transition-f9a1678f",
       "context": "RuntimeProvisioning",
       "owner": {
@@ -4916,11 +4961,11 @@
         "title": "Runtime Infrastructure Verified"
       },
       "trigger": {
-        "id": "event-9d489759",
-        "name": "RuntimeInfrastructureRegistered",
-        "title": "Runtime Infrastructure Registered"
+        "id": "event-2673bc36",
+        "name": "RuntimeInfrastructurePrepared",
+        "title": "Runtime Infrastructure Prepared"
       },
-      "from": "Registered",
+      "from": "Prepared",
       "to": "Verified",
       "startsLifecycle": false
     },
@@ -16155,6 +16200,7 @@
           "name": "organizationId"
         }
       ],
+      "port": true,
       "concepts": [
         "RuntimeInstallationPlan"
       ],
@@ -16173,6 +16219,20 @@
               "cardinality": "Single",
               "optional": false,
               "idAttribute": true,
+              "generated": true,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInfrastructureId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
               "generated": true,
               "technicalAttribute": true,
               "query": false,
@@ -16273,7 +16333,8 @@
               "elementType": "EVENT"
             }
           ],
-          "startsLifecycle": true
+          "startsLifecycle": true,
+          "port": true
         }
       ],
       "events": [
@@ -16305,7 +16366,7 @@
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
-              "generated": true,
+              "generated": false,
               "technicalAttribute": true,
               "query": false,
               "display": false,
@@ -16354,6 +16415,90 @@
               "uploadFile": false,
               "file": false,
               "portOutput": false
+            },
+            {
+              "name": "bootstrapCommand",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "nodeLabelCommand",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "nodeTaintCommand",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "runtimeAgentNodeSelectorYaml",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "runtimeAgentTolerationsYaml",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "bootstrapConfigYaml",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
             },
             {
               "name": "agentInstallMode",
@@ -16672,6 +16817,34 @@
               "portOutput": false
             },
             {
+              "name": "preparedAt",
+              "type": "DateTime",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "preparedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "observedNodeCount",
               "type": "Int",
               "cardinality": "Single",
@@ -16886,6 +17059,12 @@
               "elementType": "EVENT"
             },
             {
+              "id": "event-2673bc36",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Prepared",
+              "elementType": "EVENT"
+            },
+            {
               "id": "event-e8571c1d",
               "direction": "INBOUND",
               "title": "Runtime Infrastructure Verified",
@@ -16992,6 +17171,47 @@
               "type": "UUID",
               "cardinality": "Single",
               "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeAgentId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureRegistered.runtimeAgentId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureRegistered",
+                  "sourceField": "runtimeAgentId",
+                  "targetField": "runtimeAgentId",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "runtimeInfrastructureState",
+              "type": "RuntimeInfrastructure.State",
+              "cardinality": "Single",
+              "optional": true,
               "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
@@ -17120,7 +17340,7 @@
             },
             {
               "name": "bootstrapCommand",
-              "type": "String",
+              "type": "Text",
               "cardinality": "Single",
               "optional": false,
               "idAttribute": false,
@@ -17134,9 +17354,114 @@
               "source": {
                 "kind": "derived",
                 "from": [
-                  "RuntimeInstallationPlanCreated.runtimeInstallationPlanId"
+                  "RuntimeInstallationPlanCreated.bootstrapCommand"
                 ],
                 "rule": "Render the copyable install/start command using the runtime installation plan and platform-managed bootstrap service."
+              }
+            },
+            {
+              "name": "nodeLabelCommand",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInstallationPlanCreated.nodeLabelCommand"
+                ],
+                "rule": "Render the kubectl command that labels a joined K3s agent node with the generated runtimeInfrastructureId so platform-managed workloads can target that participant runtime."
+              }
+            },
+            {
+              "name": "nodeTaintCommand",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInstallationPlanCreated.nodeTaintCommand"
+                ],
+                "rule": "Render the kubectl command that taints the joined participant node as runtime-only so unrelated workloads are not scheduled there."
+              }
+            },
+            {
+              "name": "runtimeAgentNodeSelectorYaml",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInstallationPlanCreated.runtimeAgentNodeSelectorYaml"
+                ],
+                "rule": "Render the nodeSelector YAML fragment used by platform-managed runtime-agent and runtime-engine workloads."
+              }
+            },
+            {
+              "name": "runtimeAgentTolerationsYaml",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInstallationPlanCreated.runtimeAgentTolerationsYaml"
+                ],
+                "rule": "Render the tolerations YAML fragment used by platform-managed runtime-agent and runtime-engine workloads."
+              }
+            },
+            {
+              "name": "bootstrapConfigYaml",
+              "type": "Text",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInstallationPlanCreated.bootstrapConfigYaml"
+                ],
+                "rule": "Render a copyable participant node bootstrap configuration containing labels, taints, runtimeInfrastructureId, and the workload scheduling fragments."
               }
             },
             {
@@ -17228,6 +17553,36 @@
               "id": "event-88fc2922",
               "direction": "INBOUND",
               "title": "Runtime Installation Plan Created",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-71fb8f7b",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Planned",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-9d489759",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Registered",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-2673bc36",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Prepared",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-e8571c1d",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verified",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-9742d847",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verification Failed",
               "elementType": "EVENT"
             }
           ],
@@ -17381,6 +17736,12 @@
               "elementType": "READMODEL"
             },
             {
+              "id": "readmodel-da54e769",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Guide",
+              "elementType": "READMODEL"
+            },
+            {
               "id": "command-0812d2b7",
               "direction": "INBOUND",
               "title": "Plan Runtime Infrastructure",
@@ -17489,6 +17850,26 @@
               }
             },
             {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "RuntimeInfrastructurePlanned.runtimeInstallationPlanId"
+                ]
+              }
+            },
+            {
               "name": "runtimeAgentId",
               "type": "UUID",
               "cardinality": "Single",
@@ -17543,6 +17924,20 @@
               "portOutput": false
             },
             {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "runtimeAgentId",
               "type": "UUID",
               "cardinality": "Single",
@@ -17565,16 +17960,22 @@
               "elementType": "READMODEL"
             },
             {
+              "id": "readmodel-da54e769",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Guide",
+              "elementType": "READMODEL"
+            },
+            {
               "id": "command-1f153a8b",
               "direction": "INBOUND",
               "title": "Register Runtime Infrastructure",
               "elementType": "COMMAND"
             },
             {
-              "id": "automation-e6d38ca7",
+              "id": "command-8568e8b1",
               "direction": "OUTBOUND",
-              "title": "Verify Infrastructure When Registered",
-              "elementType": "PROCESSOR"
+              "title": "Confirm Runtime Infrastructure Prepared",
+              "elementType": "COMMAND"
             },
             {
               "id": "readmodel-02ea1fc7",
@@ -17610,8 +18011,373 @@
       }
     },
     {
-      "id": "slice-1524114e",
+      "id": "slice-bc1ece78",
       "index": 40,
+      "name": "ConfirmRuntimeInfrastructurePrepared",
+      "title": "Confirm Runtime Infrastructure Prepared",
+      "chapter": "RuntimeProvisioning",
+      "context": "RuntimeProvisioning",
+      "tags": [],
+      "concepts": [
+        "RuntimeInfrastructure"
+      ],
+      "commands": [
+        {
+          "id": "command-8568e8b1",
+          "name": "ConfirmRuntimeInfrastructurePrepared",
+          "title": "Confirm Runtime Infrastructure Prepared",
+          "type": "COMMAND",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Confirm Runtime Infrastructure Prepared",
+          "fields": [
+            {
+              "name": "runtimeInfrastructureId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "RuntimeInfrastructureRegistered.runtimeInfrastructureId"
+                ]
+              }
+            },
+            {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "RuntimeInfrastructureRegistered.runtimeInstallationPlanId"
+                ]
+              }
+            },
+            {
+              "name": "runtimeAgentId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "RuntimeInfrastructureRegistered.runtimeAgentId"
+                ]
+              }
+            },
+            {
+              "name": "preparedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "preparationNotes",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "event-9d489759",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Registered",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "screen-40e472b6",
+              "direction": "INBOUND",
+              "title": "Runtime Installation Guide Screen",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-2673bc36",
+              "direction": "OUTBOUND",
+              "title": "Runtime Infrastructure Prepared",
+              "elementType": "EVENT"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "id": "event-2673bc36",
+          "name": "RuntimeInfrastructurePrepared",
+          "title": "Runtime Infrastructure Prepared",
+          "type": "EVENT",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Confirm Runtime Infrastructure Prepared",
+          "fields": [
+            {
+              "name": "runtimeInfrastructureId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeAgentId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "preparedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "preparationNotes",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "readmodel-3be9a609",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Plan Catalog",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "readmodel-da54e769",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Guide",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "command-8568e8b1",
+              "direction": "INBOUND",
+              "title": "Confirm Runtime Infrastructure Prepared",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "automation-59198bd6",
+              "direction": "OUTBOUND",
+              "title": "Verify Infrastructure When Prepared",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "readmodel-02ea1fc7",
+              "direction": "OUTBOUND",
+              "title": "Runtime Infrastructure Access View",
+              "elementType": "READMODEL"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-40e472b6",
+          "name": "RuntimeInstallationGuideScreen",
+          "title": "Runtime Installation Guide Screen",
+          "type": "SCREEN",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Confirm Runtime Infrastructure Prepared",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "command-8568e8b1",
+              "direction": "OUTBOUND",
+              "title": "Confirm Runtime Infrastructure Prepared",
+              "elementType": "COMMAND"
+            }
+          ]
+        }
+      ],
+      "processors": [],
+      "specifications": [
+        {
+          "id": "gwt-bd1d476f",
+          "chapter": "RuntimeProvisioning",
+          "sliceName": "Confirm Runtime Infrastructure Prepared",
+          "title": "Confirm Runtime Infrastructure Prepared",
+          "specification": "Runtime Infrastructure Prepared Before Verification",
+          "rule": "Runtime infrastructure registration records the planned participant infrastructure only. Verification and platform-managed runtime agent deployment must wait until the runtime installer confirms that the K3s agent node has joined the target cluster and the generated labels and taints have been applied.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "Runtime Infrastructure Registered",
+              "id": "event-9d489759",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-1"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "runtimeAgentId"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Confirm Runtime Infrastructure Prepared",
+              "id": "command-8568e8b1",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-1"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "preparedNodeCount",
+                  "example": "1"
+                },
+                {
+                  "name": "preparationNotes",
+                  "example": "K3s agent joined and node scheduling labels were applied."
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "Runtime Infrastructure Prepared",
+              "id": "event-2673bc36",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-1"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "preparedNodeCount",
+                  "example": "1"
+                },
+                {
+                  "name": "preparationNotes",
+                  "example": "K3s agent joined and node scheduling labels were applied."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actors": [
+        {
+          "id": "actor-e3c1b889",
+          "name": "RuntimeInstaller",
+          "title": "Runtime Installer"
+        }
+      ],
+      "hotspots": [],
+      "stateChange": {
+        "event": "RuntimeInfrastructurePrepared",
+        "eventId": "event-2673bc36",
+        "to": "Prepared"
+      }
+    },
+    {
+      "id": "slice-1524114e",
+      "index": 41,
       "name": "VerifyRuntimeInfrastructure",
       "title": "Verify Runtime Infrastructure",
       "chapter": "RuntimeProvisioning",
@@ -17646,7 +18412,27 @@
               "source": {
                 "kind": "direct",
                 "from": [
-                  "RuntimeInfrastructureRegistered.runtimeInfrastructureId"
+                  "RuntimeInfrastructurePrepared.runtimeInfrastructureId"
+                ]
+              }
+            },
+            {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "direct",
+                "from": [
+                  "RuntimeInfrastructurePrepared.runtimeInstallationPlanId"
                 ]
               }
             },
@@ -17666,86 +18452,16 @@
               "source": {
                 "kind": "direct",
                 "from": [
-                  "RuntimeInfrastructureRegistered.runtimeAgentId"
+                  "RuntimeInfrastructurePrepared.runtimeAgentId"
                 ]
               }
-            },
-            {
-              "name": "agentInstallMode",
-              "type": "String",
-              "dictionary": "RUNTIME_AGENT_INSTALL_MODE",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "RuntimeInstallationPlanCreated.agentInstallMode"
-                ],
-                "lookup": {
-                  "key": "runtimeInfrastructureId",
-                  "cacheProjection": "RuntimeInstallationPlanCreated",
-                  "sourceField": "agentInstallMode",
-                  "targetField": "agentInstallMode",
-                  "missingValuePolicy": "keep"
-                }
-              }
-            },
-            {
-              "name": "verificationPassed",
-              "type": "Boolean",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "observedNodeCount",
-              "type": "Int",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
-            },
-            {
-              "name": "failureReason",
-              "type": "String",
-              "cardinality": "Single",
-              "optional": true,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false
             }
           ],
           "dependencies": [
             {
-              "id": "automation-e6d38ca7",
+              "id": "automation-59198bd6",
               "direction": "INBOUND",
-              "title": "Verify Infrastructure When Registered",
+              "title": "Verify Infrastructure When Prepared",
               "elementType": "PROCESSOR"
             },
             {
@@ -17794,6 +18510,20 @@
               "portOutput": false
             },
             {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "runtimeAgentId",
               "type": "UUID",
               "cardinality": "Single",
@@ -17820,7 +18550,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             },
             {
               "name": "observedNodeCount",
@@ -17834,7 +18564,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             }
           ],
           "dependencies": [
@@ -17842,6 +18572,12 @@
               "id": "readmodel-3be9a609",
               "direction": "OUTBOUND",
               "title": "Runtime Installation Plan Catalog",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "readmodel-da54e769",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Guide",
               "elementType": "READMODEL"
             },
             {
@@ -17887,10 +18623,24 @@
               "portOutput": false
             },
             {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "observedNodeCount",
               "type": "Int",
               "cardinality": "Single",
-              "optional": false,
+              "optional": true,
               "idAttribute": false,
               "generated": false,
               "technicalAttribute": false,
@@ -17898,7 +18648,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             },
             {
               "name": "failureReason",
@@ -17912,7 +18662,7 @@
               "display": false,
               "uploadFile": false,
               "file": false,
-              "portOutput": false
+              "portOutput": true
             }
           ],
           "dependencies": [
@@ -17920,6 +18670,12 @@
               "id": "readmodel-3be9a609",
               "direction": "OUTBOUND",
               "title": "Runtime Installation Plan Catalog",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "readmodel-da54e769",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Guide",
               "elementType": "READMODEL"
             },
             {
@@ -17959,18 +18715,18 @@
       ],
       "processors": [
         {
-          "id": "automation-e6d38ca7",
-          "name": "VerifyInfrastructureWhenRegistered",
-          "title": "Verify Infrastructure When Registered",
+          "id": "automation-59198bd6",
+          "name": "VerifyInfrastructureWhenPrepared",
+          "title": "Verify Infrastructure When Prepared",
           "type": "PROCESSOR",
           "modelContext": "RuntimeProvisioning",
           "slice": "Verify Runtime Infrastructure",
           "fields": [],
           "dependencies": [
             {
-              "id": "event-9d489759",
+              "id": "event-2673bc36",
               "direction": "INBOUND",
-              "title": "Runtime Infrastructure Registered",
+              "title": "Runtime Infrastructure Prepared",
               "elementType": "EVENT"
             },
             {
@@ -17981,7 +18737,7 @@
             }
           ],
           "metadata": {
-            "on": "RuntimeInfrastructureRegistered",
+            "on": "RuntimeInfrastructurePrepared",
             "onKind": "event",
             "emits": "VerifyRuntimeInfrastructure"
           }
@@ -17994,13 +18750,13 @@
           "sliceName": "Verify Runtime Infrastructure",
           "title": "Runtime Infrastructure Verification Passed",
           "specification": "Runtime Infrastructure Verification Outcome",
-          "rule": "Runtime infrastructure verification runs once after the runtime infrastructure is registered. The verification processor resolves the selected runtime infrastructure package and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.",
+          "rule": "Runtime infrastructure verification runs once after the runtime installer confirms that the participant node has joined the target runtime infrastructure and the generated scheduling labels and taints have been applied. The verification processor resolves the selected runtime infrastructure package and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.",
           "expressions": [],
           "validates": [],
           "given": [
             {
-              "title": "Runtime Infrastructure Registered",
-              "id": "event-9d489759",
+              "title": "Runtime Infrastructure Prepared",
+              "id": "event-2673bc36",
               "type": "EVENT",
               "fields": [
                 {
@@ -18008,7 +18764,16 @@
                   "example": "runtime-infra-1"
                 },
                 {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
                   "name": "runtimeAgentId"
+                },
+                {
+                  "name": "preparedNodeCount"
+                },
+                {
+                  "name": "preparationNotes"
                 }
               ]
             }
@@ -18024,22 +18789,10 @@
                   "example": "runtime-infra-1"
                 },
                 {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
                   "name": "runtimeAgentId"
-                },
-                {
-                  "name": "agentInstallMode",
-                  "example": "PLATFORM_MANAGED"
-                },
-                {
-                  "name": "verificationPassed",
-                  "example": "true"
-                },
-                {
-                  "name": "observedNodeCount",
-                  "example": "3"
-                },
-                {
-                  "name": "failureReason"
                 }
               ]
             }
@@ -18055,15 +18808,16 @@
                   "example": "runtime-infra-1"
                 },
                 {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
                   "name": "runtimeAgentId"
                 },
                 {
-                  "name": "agentInstallMode",
-                  "example": "PLATFORM_MANAGED"
+                  "name": "agentInstallMode"
                 },
                 {
-                  "name": "observedNodeCount",
-                  "example": "3"
+                  "name": "observedNodeCount"
                 }
               ]
             }
@@ -18075,13 +18829,13 @@
           "sliceName": "Verify Runtime Infrastructure",
           "title": "Runtime Infrastructure Verification Failed",
           "specification": "Runtime Infrastructure Verification Outcome",
-          "rule": "Runtime infrastructure verification runs once after the runtime infrastructure is registered. The verification processor resolves the selected runtime infrastructure package and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.",
+          "rule": "Runtime infrastructure verification runs once after the runtime installer confirms that the participant node has joined the target runtime infrastructure and the generated scheduling labels and taints have been applied. The verification processor resolves the selected runtime infrastructure package and records exactly one outcome: RuntimeInfrastructureVerified when the runtime environment is usable, or RuntimeInfrastructureVerificationFailed when required checks fail.",
           "expressions": [],
           "validates": [],
           "given": [
             {
-              "title": "Runtime Infrastructure Registered",
-              "id": "event-9d489759",
+              "title": "Runtime Infrastructure Prepared",
+              "id": "event-2673bc36",
               "type": "EVENT",
               "fields": [
                 {
@@ -18089,7 +18843,16 @@
                   "example": "runtime-infra-2"
                 },
                 {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
                   "name": "runtimeAgentId"
+                },
+                {
+                  "name": "preparedNodeCount"
+                },
+                {
+                  "name": "preparationNotes"
                 }
               ]
             }
@@ -18105,22 +18868,10 @@
                   "example": "runtime-infra-2"
                 },
                 {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
                   "name": "runtimeAgentId"
-                },
-                {
-                  "name": "agentInstallMode"
-                },
-                {
-                  "name": "verificationPassed",
-                  "example": "false"
-                },
-                {
-                  "name": "observedNodeCount",
-                  "example": "0"
-                },
-                {
-                  "name": "failureReason",
-                  "example": "Runtime infrastructure is unreachable."
                 }
               ]
             }
@@ -18136,12 +18887,13 @@
                   "example": "runtime-infra-2"
                 },
                 {
-                  "name": "observedNodeCount",
-                  "example": "0"
+                  "name": "runtimeInstallationPlanId"
                 },
                 {
-                  "name": "failureReason",
-                  "example": "Runtime infrastructure is unreachable."
+                  "name": "observedNodeCount"
+                },
+                {
+                  "name": "failureReason"
                 }
               ]
             }
@@ -18164,7 +18916,7 @@
     },
     {
       "id": "slice-b8a32014",
-      "index": 41,
+      "index": 42,
       "name": "DeployRuntimeAgent",
       "title": "Deploy Runtime Agent",
       "chapter": "RuntimeProvisioning",
@@ -18457,6 +19209,9 @@
                   "example": "runtime-infra-1"
                 },
                 {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
                   "name": "runtimeAgentId"
                 },
                 {
@@ -18524,6 +19279,9 @@
                   "example": "runtime-infra-2"
                 },
                 {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
                   "name": "runtimeAgentId"
                 },
                 {
@@ -18585,7 +19343,7 @@
     },
     {
       "id": "slice-6432e41e",
-      "index": 42,
+      "index": 43,
       "name": "RetryRuntimeAgentDeployment",
       "title": "Retry Runtime Agent Deployment",
       "chapter": "RuntimeProvisioning",
@@ -19147,7 +19905,7 @@
     },
     {
       "id": "slice-15dea9b5",
-      "index": 43,
+      "index": 44,
       "name": "RecordRuntimeConnectionEstablished",
       "title": "Record Runtime Connection Established",
       "chapter": "RuntimeProvisioning",
@@ -19515,7 +20273,7 @@
     },
     {
       "id": "slice-0f1cd9f9",
-      "index": 44,
+      "index": 45,
       "name": "RuntimeAgentEndpointCatalog",
       "title": "Runtime Agent Endpoint Catalog",
       "chapter": "RuntimeProvisioning",
@@ -19720,7 +20478,7 @@
     },
     {
       "id": "slice-39822ec6",
-      "index": 45,
+      "index": 46,
       "name": "RuntimeInfrastructureAccessView",
       "title": "Runtime Infrastructure Access View",
       "chapter": "RuntimeProvisioning",
@@ -19978,6 +20736,34 @@
               "portOutput": false
             },
             {
+              "name": "infrastructurePreparedAt",
+              "type": "DateTime",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "preparedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
               "name": "infrastructureVerifiedAt",
               "type": "DateTime",
               "cardinality": "Single",
@@ -20150,6 +20936,12 @@
               "elementType": "EVENT"
             },
             {
+              "id": "event-2673bc36",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Prepared",
+              "elementType": "EVENT"
+            },
+            {
               "id": "event-e8571c1d",
               "direction": "INBOUND",
               "title": "Runtime Infrastructure Verified",
@@ -20203,7 +20995,7 @@
     },
     {
       "id": "slice-d92096fb",
-      "index": 46,
+      "index": 47,
       "name": "DefineFeatureSchema",
       "title": "Define Feature Schema",
       "chapter": "DatasetGovernance",
@@ -20631,7 +21423,7 @@
     },
     {
       "id": "slice-9a1a067d",
-      "index": 47,
+      "index": 48,
       "name": "PublishFeatureSchema",
       "title": "Publish Feature Schema",
       "chapter": "DatasetGovernance",
@@ -20896,7 +21688,7 @@
     },
     {
       "id": "slice-d0d6ce25",
-      "index": 48,
+      "index": 49,
       "name": "DeprecateFeatureSchema",
       "title": "Deprecate Feature Schema",
       "chapter": "DatasetGovernance",
@@ -21069,7 +21861,7 @@
     },
     {
       "id": "slice-50e78e0f",
-      "index": 49,
+      "index": 50,
       "name": "RetireFeatureSchema",
       "title": "Retire Feature Schema",
       "chapter": "DatasetGovernance",
@@ -21236,7 +22028,7 @@
     },
     {
       "id": "slice-c6a6a6c8",
-      "index": 50,
+      "index": 51,
       "name": "SupersedeFeatureSchemaVersion",
       "title": "Supersede Feature Schema Version",
       "chapter": "DatasetGovernance",
@@ -21575,7 +22367,7 @@
     },
     {
       "id": "slice-76cab273",
-      "index": 51,
+      "index": 52,
       "name": "MarkCurrentRecommendedFeatureSchemaVersion",
       "title": "Mark Current Recommended Feature Schema Version",
       "chapter": "DatasetGovernance",
@@ -21867,7 +22659,7 @@
     },
     {
       "id": "slice-73f5eccd",
-      "index": 52,
+      "index": 53,
       "name": "CurrentRecommendedFeatureSchemaCatalog",
       "title": "Current Recommended Feature Schema Catalog",
       "chapter": "DatasetGovernance",
@@ -21977,7 +22769,7 @@
     },
     {
       "id": "slice-8f30e501",
-      "index": 53,
+      "index": 54,
       "name": "FeatureSchemaCatalog",
       "title": "Feature Schema Catalog",
       "chapter": "DatasetGovernance",
@@ -22188,7 +22980,7 @@
     },
     {
       "id": "slice-ad05f2d9",
-      "index": 54,
+      "index": 55,
       "name": "RecordRuntimeDatasetMetadata",
       "title": "Record Runtime Dataset Metadata",
       "chapter": "DatasetGovernance",
@@ -22843,7 +23635,7 @@
     },
     {
       "id": "slice-c7f572a3",
-      "index": 55,
+      "index": 56,
       "name": "RecordRuntimeDatasetReprofiledMetadata",
       "title": "Record Runtime Dataset Reprofiled Metadata",
       "chapter": "DatasetGovernance",
@@ -23491,7 +24283,7 @@
     },
     {
       "id": "slice-1ed8c787",
-      "index": 56,
+      "index": 57,
       "name": "RuntimeDatasetMetadataCatalog",
       "title": "Runtime Dataset Metadata Catalog",
       "chapter": "DatasetGovernance",
@@ -23890,7 +24682,7 @@
     },
     {
       "id": "slice-7ccc677e",
-      "index": 57,
+      "index": 58,
       "name": "RegisterModelArtifact",
       "title": "Register Model Artifact",
       "chapter": "ModelRepository",
@@ -24356,7 +25148,7 @@
     },
     {
       "id": "slice-e846ef48",
-      "index": 58,
+      "index": 59,
       "name": "ModelArtifactCatalog",
       "title": "Model Artifact Catalog",
       "chapter": "ModelRepository",
@@ -24647,7 +25439,7 @@
     },
     {
       "id": "slice-d38fbaed",
-      "index": 59,
+      "index": 60,
       "name": "DownloadModelArtifact",
       "title": "Download Model Artifact",
       "chapter": "ModelRepository",
@@ -25016,7 +25808,7 @@
     },
     {
       "id": "slice-eef6ed6c",
-      "index": 60,
+      "index": 61,
       "name": "RegisterFederatedModelArtifact",
       "title": "Register Federated Model Artifact",
       "chapter": "ModelRepository",
@@ -25670,7 +26462,7 @@
     },
     {
       "id": "slice-83322758",
-      "index": 61,
+      "index": 62,
       "name": "DefineTrainingRunConfiguration",
       "title": "Define Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -26814,7 +27606,7 @@
     },
     {
       "id": "slice-017ad176",
-      "index": 62,
+      "index": 63,
       "name": "UpdateTrainingRunConfiguration",
       "title": "Update Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -28096,7 +28888,7 @@
     },
     {
       "id": "slice-e7dd4f24",
-      "index": 63,
+      "index": 64,
       "name": "LockTrainingRunConfiguration",
       "title": "Lock Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -28269,7 +29061,7 @@
     },
     {
       "id": "slice-04d3f902",
-      "index": 64,
+      "index": 65,
       "name": "TrainingRunConfigurationCatalog",
       "title": "Training Run Configuration Catalog",
       "chapter": "TrainingOrchestration",
@@ -28827,7 +29619,7 @@
     },
     {
       "id": "slice-6537d1cd",
-      "index": 65,
+      "index": 66,
       "name": "CreateTrainingJob",
       "title": "Create Training Job",
       "chapter": "TrainingOrchestration",
@@ -29323,7 +30115,7 @@
     },
     {
       "id": "slice-201ffbf1",
-      "index": 66,
+      "index": 67,
       "name": "SubmitTrainingJob",
       "title": "Submit Training Job",
       "chapter": "TrainingOrchestration",
@@ -29612,7 +30404,7 @@
     },
     {
       "id": "slice-b90f5d7f",
-      "index": 67,
+      "index": 68,
       "name": "TrainingJobDashboard",
       "title": "Training Job Dashboard",
       "chapter": "TrainingOrchestration",
@@ -30163,7 +30955,7 @@
     },
     {
       "id": "slice-ba4b3f70",
-      "index": 68,
+      "index": 69,
       "name": "TrainingParticipantEligibility",
       "title": "Training Participant Eligibility",
       "chapter": "TrainingOrchestration",
@@ -30849,7 +31641,7 @@
     },
     {
       "id": "slice-dde5a363",
-      "index": 69,
+      "index": 70,
       "name": "PauseTrainingJob",
       "title": "Pause Training Job",
       "chapter": "TrainingOrchestration",
@@ -31016,7 +31808,7 @@
     },
     {
       "id": "slice-c1c60d34",
-      "index": 70,
+      "index": 71,
       "name": "ResumeTrainingJob",
       "title": "Resume Training Job",
       "chapter": "TrainingOrchestration",
@@ -31177,7 +31969,7 @@
     },
     {
       "id": "slice-3af09f8b",
-      "index": 71,
+      "index": 72,
       "name": "CancelTrainingJob",
       "title": "Cancel Training Job",
       "chapter": "TrainingOrchestration",
@@ -31338,7 +32130,7 @@
     },
     {
       "id": "slice-6ad9864e",
-      "index": 72,
+      "index": 73,
       "name": "ScheduleNextTrainingRound",
       "title": "Schedule Next Training Round",
       "chapter": "TrainingOrchestration",
@@ -31388,7 +32180,7 @@
     },
     {
       "id": "slice-44fd29f8",
-      "index": 73,
+      "index": 74,
       "name": "CompleteTrainingJob",
       "title": "Complete Training Job",
       "chapter": "TrainingOrchestration",
@@ -31623,7 +32415,7 @@
     },
     {
       "id": "slice-093e2668",
-      "index": 74,
+      "index": 75,
       "name": "SelectTrainingRoundParticipants",
       "title": "Select Training Round Participants",
       "chapter": "TrainingOrchestration",
@@ -32438,7 +33230,7 @@
     },
     {
       "id": "slice-3afb3435",
-      "index": 75,
+      "index": 76,
       "name": "RetryTrainingRoundParticipantSelection",
       "title": "Retry Training Round Participant Selection",
       "chapter": "TrainingOrchestration",
@@ -32696,7 +33488,7 @@
     },
     {
       "id": "slice-6a16fc72",
-      "index": 76,
+      "index": 77,
       "name": "StartTrainingRound",
       "title": "Start Training Round",
       "chapter": "TrainingOrchestration",
@@ -34195,7 +34987,7 @@
     },
     {
       "id": "slice-fabbea45",
-      "index": 77,
+      "index": 78,
       "name": "GenerateParticipantExecutionPlan",
       "title": "Generate Participant Execution Plan",
       "chapter": "TrainingOrchestration",
@@ -35474,7 +36266,7 @@
     },
     {
       "id": "slice-04a9daf0",
-      "index": 78,
+      "index": 79,
       "name": "DispatchParticipantExecutionPlan",
       "title": "Dispatch Participant Execution Plan",
       "chapter": "TrainingOrchestration",
@@ -36307,7 +37099,7 @@
     },
     {
       "id": "slice-ff26cad0",
-      "index": 79,
+      "index": 80,
       "name": "SubmitModelUpdateSubmission",
       "title": "Submit Model Update Submission",
       "chapter": "TrainingOrchestration",
@@ -36988,7 +37780,7 @@
     },
     {
       "id": "slice-fc1ff76d",
-      "index": 80,
+      "index": 81,
       "name": "EvaluateModelUpdateSubmission",
       "title": "Evaluate Model Update Submission",
       "chapter": "TrainingOrchestration",
@@ -38496,7 +39288,7 @@
     },
     {
       "id": "slice-1a9b72f8",
-      "index": 81,
+      "index": 82,
       "name": "AggregatePlainModelUpdates",
       "title": "Aggregate Plain Model Updates",
       "chapter": "TrainingOrchestration",
@@ -39261,7 +40053,7 @@
     },
     {
       "id": "slice-a46e905e",
-      "index": 82,
+      "index": 83,
       "name": "RequestSecureAggregation",
       "title": "Request Secure Aggregation",
       "chapter": "TrainingOrchestration",
@@ -39843,7 +40635,7 @@
     },
     {
       "id": "slice-4b6bcf1e",
-      "index": 83,
+      "index": 84,
       "name": "CompleteModelAggregation",
       "title": "Complete Model Aggregation",
       "chapter": "TrainingOrchestration",
@@ -40681,7 +41473,7 @@
     },
     {
       "id": "slice-129ead8e",
-      "index": 84,
+      "index": 85,
       "name": "SubmitGlobalModelEvaluation",
       "title": "Submit Global Model Evaluation",
       "chapter": "TrainingOrchestration",
@@ -41228,7 +42020,7 @@
     },
     {
       "id": "slice-4a16b8df",
-      "index": 85,
+      "index": 86,
       "name": "CompleteTrainingRound",
       "title": "Complete Training Round",
       "chapter": "TrainingOrchestration",
@@ -42113,7 +42905,7 @@
     },
     {
       "id": "slice-8107a71a",
-      "index": 86,
+      "index": 87,
       "name": "FailTrainingRound",
       "title": "Fail Training Round",
       "chapter": "TrainingOrchestration",
@@ -42602,7 +43394,7 @@
     },
     {
       "id": "slice-158bd8b1",
-      "index": 87,
+      "index": 88,
       "name": "TrainingRoundProgress",
       "title": "Training Round Progress",
       "chapter": "TrainingOrchestration",
@@ -43501,7 +44293,7 @@
     },
     {
       "id": "slice-7806d9ed",
-      "index": 88,
+      "index": 89,
       "name": "RegisterCandidateModel",
       "title": "Register Candidate Model",
       "chapter": "ModelLifecycle",
@@ -43808,7 +44600,7 @@
     },
     {
       "id": "slice-c947b39a",
-      "index": 89,
+      "index": 90,
       "name": "RecordModelEvaluationPackage",
       "title": "Record Model Evaluation Package",
       "chapter": "ModelLifecycle",
@@ -44306,7 +45098,7 @@
     },
     {
       "id": "slice-a4c2bdcc",
-      "index": 90,
+      "index": 91,
       "name": "ApproveModel",
       "title": "Approve Model",
       "chapter": "ModelLifecycle",
@@ -44617,7 +45409,7 @@
     },
     {
       "id": "slice-e0aca431",
-      "index": 91,
+      "index": 92,
       "name": "PromoteModelToProduction",
       "title": "Promote Model To Production",
       "chapter": "ModelLifecycle",
@@ -44968,7 +45760,7 @@
     },
     {
       "id": "slice-33930733",
-      "index": 92,
+      "index": 93,
       "name": "RollbackModel",
       "title": "Rollback Model",
       "chapter": "ModelLifecycle",
@@ -45157,7 +45949,7 @@
     },
     {
       "id": "slice-9e8c0ad2",
-      "index": 93,
+      "index": 94,
       "name": "RetireModel",
       "title": "Retire Model",
       "chapter": "ModelLifecycle",
@@ -45318,7 +46110,7 @@
     },
     {
       "id": "slice-daa3e2fe",
-      "index": 94,
+      "index": 95,
       "name": "ModelCatalog",
       "title": "Model Catalog",
       "chapter": "ModelLifecycle",
@@ -45781,7 +46573,7 @@
     },
     {
       "id": "slice-97531d57",
-      "index": 95,
+      "index": 96,
       "name": "RuntimeTelemetryLatest",
       "title": "Runtime Telemetry Latest",
       "chapter": "RuntimeMonitoring",
@@ -46016,7 +46808,7 @@
     },
     {
       "id": "slice-d498ecb8",
-      "index": 96,
+      "index": 97,
       "name": "DetectRuntimeAgentOffline",
       "title": "Detect Runtime Agent Offline",
       "chapter": "RuntimeMonitoring",
@@ -46230,7 +47022,7 @@
     },
     {
       "id": "slice-fd282504",
-      "index": 97,
+      "index": 98,
       "name": "MarkRuntimeAgentRecovered",
       "title": "Mark Runtime Agent Recovered",
       "chapter": "RuntimeMonitoring",
@@ -46443,7 +47235,7 @@
     },
     {
       "id": "slice-7aeba98f",
-      "index": 98,
+      "index": 99,
       "name": "DetectRuntimeNodeResourcePressure",
       "title": "Detect Runtime Node Resource Pressure",
       "chapter": "RuntimeMonitoring",
@@ -46723,7 +47515,7 @@
     },
     {
       "id": "slice-3f7c280e",
-      "index": 99,
+      "index": 100,
       "name": "RecordRuntimeNodeInventory",
       "title": "Record Runtime Node Inventory",
       "chapter": "RuntimeMonitoring",
@@ -47232,7 +48024,7 @@
     },
     {
       "id": "slice-79929d9e",
-      "index": 100,
+      "index": 101,
       "name": "RuntimeNodeInventoryView",
       "title": "Runtime Node Inventory View",
       "chapter": "RuntimeMonitoring",
@@ -47556,7 +48348,7 @@
     },
     {
       "id": "slice-c5ab698a",
-      "index": 101,
+      "index": 102,
       "name": "RuntimeNodeResourceLatest",
       "title": "Runtime Node Resource Latest",
       "chapter": "RuntimeMonitoring",
@@ -47863,7 +48655,7 @@
     },
     {
       "id": "slice-17654acc",
-      "index": 102,
+      "index": 103,
       "name": "DetectRuntimeNodeCapacityChange",
       "title": "Detect Runtime Node Capacity Change",
       "chapter": "RuntimeMonitoring",
@@ -48165,7 +48957,7 @@
     },
     {
       "id": "slice-dc4e224d",
-      "index": 103,
+      "index": 104,
       "name": "RuntimeHealthDashboard",
       "title": "Runtime Health Dashboard",
       "chapter": "RuntimeMonitoring",
@@ -48527,7 +49319,7 @@
     },
     {
       "id": "slice-f43e8d0f",
-      "index": 104,
+      "index": 105,
       "name": "RaiseTrainingAlert",
       "title": "Raise Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -48802,7 +49594,7 @@
     },
     {
       "id": "slice-102e6798",
-      "index": 105,
+      "index": 106,
       "name": "TrainingAlertCatalog",
       "title": "Training Alert Catalog",
       "chapter": "RuntimeMonitoring",
@@ -49062,7 +49854,7 @@
     },
     {
       "id": "slice-63ac1487",
-      "index": 106,
+      "index": 107,
       "name": "AcknowledgeTrainingAlert",
       "title": "Acknowledge Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -49229,7 +50021,7 @@
     },
     {
       "id": "slice-c3edeeef",
-      "index": 107,
+      "index": 108,
       "name": "ResolveTrainingAlert",
       "title": "Resolve Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -49390,7 +50182,7 @@
     },
     {
       "id": "slice-bf4467da",
-      "index": 108,
+      "index": 109,
       "name": "AppendAuditTrail",
       "title": "Append Audit Trail",
       "chapter": "RuntimeMonitoring",
@@ -49941,7 +50733,7 @@
     },
     {
       "id": "slice-5556fb33",
-      "index": 109,
+      "index": 110,
       "name": "AuditRecordLog",
       "title": "Audit Record Log",
       "chapter": "RuntimeMonitoring",
@@ -50051,7 +50843,7 @@
     },
     {
       "id": "slice-6883883e",
-      "index": 110,
+      "index": 111,
       "name": "ActivateRuntimeIdentity",
       "title": "Activate Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -50417,7 +51209,7 @@
     },
     {
       "id": "slice-6949bdab",
-      "index": 111,
+      "index": 112,
       "name": "RevokeRuntimeIdentity",
       "title": "Revoke Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -50602,7 +51394,7 @@
     },
     {
       "id": "slice-267be0b4",
-      "index": 112,
+      "index": 113,
       "name": "DetectRuntimeCapabilities",
       "title": "Detect Runtime Capabilities",
       "chapter": "RuntimeGovernance",
@@ -50785,7 +51577,7 @@
     },
     {
       "id": "slice-53705008",
-      "index": 113,
+      "index": 114,
       "name": "RuntimeIdentityCatalog",
       "title": "Runtime Identity Catalog",
       "chapter": "RuntimeGovernance",
@@ -50976,7 +51768,7 @@
     },
     {
       "id": "slice-a09f6b28",
-      "index": 114,
+      "index": 115,
       "name": "RuntimeCapabilityCatalog",
       "title": "Runtime Capability Catalog",
       "chapter": "RuntimeGovernance",
@@ -51073,7 +51865,7 @@
     },
     {
       "id": "slice-0df6c6b1",
-      "index": 115,
+      "index": 116,
       "name": "CreateSecureAggregationSession",
       "title": "Create Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -51694,7 +52486,7 @@
     },
     {
       "id": "slice-af59eab5",
-      "index": 116,
+      "index": 117,
       "name": "SelectSecureAggregationParticipants",
       "title": "Select Secure Aggregation Participants",
       "chapter": "SecureAggregation",
@@ -52276,7 +53068,7 @@
     },
     {
       "id": "slice-a903d2aa",
-      "index": 117,
+      "index": 118,
       "name": "PrepareHomomorphicEncryptionContext",
       "title": "Prepare Homomorphic Encryption Context",
       "chapter": "SecureAggregation",
@@ -52920,7 +53712,7 @@
     },
     {
       "id": "slice-5d843deb",
-      "index": 118,
+      "index": 119,
       "name": "RecordEncryptedModelUpdate",
       "title": "Record Encrypted Model Update",
       "chapter": "SecureAggregation",
@@ -53629,7 +54421,7 @@
     },
     {
       "id": "slice-74fb7a88",
-      "index": 119,
+      "index": 120,
       "name": "CompleteHomomorphicAggregationSession",
       "title": "Complete Homomorphic Aggregation Session",
       "chapter": "SecureAggregation",
@@ -54202,7 +54994,7 @@
     },
     {
       "id": "slice-5c7bd7e5",
-      "index": 120,
+      "index": 121,
       "name": "FailSecureAggregationSession",
       "title": "Fail Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -54339,7 +55131,7 @@
     },
     {
       "id": "slice-ae5b24d8",
-      "index": 121,
+      "index": 122,
       "name": "SecureAggregationSessionCatalog",
       "title": "Secure Aggregation Session Catalog",
       "chapter": "SecureAggregation",
@@ -54816,7 +55608,7 @@
     },
     {
       "id": "slice-725195cc",
-      "index": 122,
+      "index": 123,
       "name": "DeclareDataset",
       "title": "Declare Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -55254,7 +56046,7 @@
     },
     {
       "id": "slice-5a2194a7",
-      "index": 123,
+      "index": 124,
       "name": "ConfigureRuntimeDatasetBinding",
       "title": "Configure Runtime Dataset Binding",
       "chapter": "RuntimeAgentOperations",
@@ -56056,7 +56848,7 @@
     },
     {
       "id": "slice-358d4122",
-      "index": 124,
+      "index": 125,
       "name": "RuntimeDatasetBindingCatalog",
       "title": "Runtime Dataset Binding Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -56356,7 +57148,7 @@
     },
     {
       "id": "slice-c31ba9a1",
-      "index": 125,
+      "index": 126,
       "name": "ValidateAgentDatasetAccess",
       "title": "Validate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -57472,7 +58264,7 @@
     },
     {
       "id": "slice-aa47e014",
-      "index": 126,
+      "index": 127,
       "name": "RevalidateAgentDatasetAccess",
       "title": "Revalidate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -58106,7 +58898,7 @@
     },
     {
       "id": "slice-ba3dc29b",
-      "index": 127,
+      "index": 128,
       "name": "AgentDatasetAccessValidationCatalog",
       "title": "Agent Dataset Access Validation Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -58352,7 +59144,7 @@
     },
     {
       "id": "slice-f44b66bc",
-      "index": 128,
+      "index": 129,
       "name": "ProfileAgentDataset",
       "title": "Profile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -59296,7 +60088,7 @@
     },
     {
       "id": "slice-d6f2a3cf",
-      "index": 129,
+      "index": 130,
       "name": "ReprofileAgentDataset",
       "title": "Reprofile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -60116,7 +60908,7 @@
     },
     {
       "id": "slice-2529cf36",
-      "index": 130,
+      "index": 131,
       "name": "ValidateDatasetContract",
       "title": "Validate Dataset Contract",
       "chapter": "RuntimeAgentOperations",
@@ -60692,7 +61484,7 @@
     },
     {
       "id": "slice-2e18bcb1",
-      "index": 131,
+      "index": 132,
       "name": "RetryDatasetContractValidation",
       "title": "Retry Dataset Contract Validation",
       "chapter": "RuntimeAgentOperations",
@@ -61331,7 +62123,7 @@
     },
     {
       "id": "slice-d28aff88",
-      "index": 132,
+      "index": 133,
       "name": "RejectDatasetForTraining",
       "title": "Reject Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -61498,7 +62290,7 @@
     },
     {
       "id": "slice-284a72da",
-      "index": 133,
+      "index": 134,
       "name": "ApproveDatasetForTraining",
       "title": "Approve Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -61786,7 +62578,7 @@
     },
     {
       "id": "slice-847c2855",
-      "index": 134,
+      "index": 135,
       "name": "RevokeDatasetTrainingApproval",
       "title": "Revoke Dataset Training Approval",
       "chapter": "RuntimeAgentOperations",
@@ -61965,7 +62757,7 @@
     },
     {
       "id": "slice-30869f70",
-      "index": 135,
+      "index": 136,
       "name": "DatasetCapability",
       "title": "Dataset Capability",
       "chapter": "RuntimeAgentOperations",
@@ -62426,7 +63218,7 @@
     },
     {
       "id": "slice-ff9e2f26",
-      "index": 136,
+      "index": 137,
       "name": "DatasetReadiness",
       "title": "Dataset Readiness",
       "chapter": "RuntimeAgentOperations",
@@ -63125,7 +63917,7 @@
     },
     {
       "id": "slice-5bf739cd",
-      "index": 137,
+      "index": 138,
       "name": "ReceiveParticipantExecutionPlan",
       "title": "Receive Participant Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -63985,7 +64777,7 @@
     },
     {
       "id": "slice-64faaa9b",
-      "index": 138,
+      "index": 139,
       "name": "AcceptExecutionPlan",
       "title": "Accept Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -65951,7 +66743,7 @@
     },
     {
       "id": "slice-4d4016d0",
-      "index": 139,
+      "index": 140,
       "name": "StartRoundExecution",
       "title": "Start Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -67757,7 +68549,7 @@
     },
     {
       "id": "slice-0cecfd3f",
-      "index": 140,
+      "index": 141,
       "name": "ObserveRuntimeEngineJob",
       "title": "Observe Runtime Engine Job",
       "chapter": "RuntimeAgentOperations",
@@ -69210,7 +70002,7 @@
     },
     {
       "id": "slice-b1a48287",
-      "index": 141,
+      "index": 142,
       "name": "CompleteRoundExecution",
       "title": "Complete Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -70111,7 +70903,7 @@
     },
     {
       "id": "slice-45c663e8",
-      "index": 142,
+      "index": 143,
       "name": "FailRoundExecution",
       "title": "Fail Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -70648,7 +71440,7 @@
     },
     {
       "id": "slice-ff352882",
-      "index": 143,
+      "index": 144,
       "name": "RetryRoundExecutionAfterStartFailure",
       "title": "Retry Round Execution After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -71417,7 +72209,7 @@
     },
     {
       "id": "slice-2cb34062",
-      "index": 144,
+      "index": 145,
       "name": "RetryRoundExecutionAfterRuntimeFailure",
       "title": "Retry Round Execution After Runtime Failure",
       "chapter": "RuntimeAgentOperations",
@@ -72214,7 +73006,7 @@
     },
     {
       "id": "slice-d54dcc12",
-      "index": 145,
+      "index": 146,
       "name": "SubmitAgentLocalModelUpdate",
       "title": "Submit Agent Local Model Update",
       "chapter": "RuntimeAgentOperations",
@@ -72996,7 +73788,7 @@
     },
     {
       "id": "slice-6485fdce",
-      "index": 146,
+      "index": 147,
       "name": "ReleaseRuntimeEngineJobAfterCompletion",
       "title": "Release Runtime Engine Job After Completion",
       "chapter": "RuntimeAgentOperations",
@@ -73170,7 +73962,7 @@
     },
     {
       "id": "slice-ef8420f2",
-      "index": 147,
+      "index": 148,
       "name": "ReleaseRuntimeEngineJobAfterFailure",
       "title": "Release Runtime Engine Job After Failure",
       "chapter": "RuntimeAgentOperations",
@@ -73358,7 +74150,7 @@
     },
     {
       "id": "slice-30156076",
-      "index": 148,
+      "index": 149,
       "name": "ReleaseRuntimeEngineJobAfterStartFailure",
       "title": "Release Runtime Engine Job After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -73546,7 +74338,7 @@
     },
     {
       "id": "slice-5d7a0380",
-      "index": 149,
+      "index": 150,
       "name": "ReleaseRuntimeEngineJobAfterRetryFailure",
       "title": "Release Runtime Engine Job After Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -73734,7 +74526,7 @@
     },
     {
       "id": "slice-bc1eac14",
-      "index": 150,
+      "index": 151,
       "name": "ReleaseRuntimeEngineJobAfterRuntimeRetryFailure",
       "title": "Release Runtime Engine Job After Runtime Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -73922,7 +74714,7 @@
     },
     {
       "id": "slice-eb00f5f7",
-      "index": 151,
+      "index": 152,
       "name": "RoundExecutionCatalog",
       "title": "Round Execution Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -74644,7 +75436,7 @@
     },
     {
       "id": "slice-d248addb",
-      "index": 152,
+      "index": 153,
       "name": "LoadRuntimeAgentBootstrapConfiguration",
       "title": "Load Runtime Agent Bootstrap Configuration",
       "chapter": "RuntimeAgentOperations",
@@ -74969,7 +75761,7 @@
     },
     {
       "id": "slice-c7d2df46",
-      "index": 153,
+      "index": 154,
       "name": "ReportRuntimeAgentStarted",
       "title": "Report Runtime Agent Started",
       "chapter": "RuntimeAgentOperations",
@@ -75187,7 +75979,7 @@
     },
     {
       "id": "slice-75635ed7",
-      "index": 154,
+      "index": 155,
       "name": "ReportRuntimeInstanceSelfCheckPassed",
       "title": "Report Runtime Instance Self Check Passed",
       "chapter": "RuntimeAgentOperations",
@@ -75602,7 +76394,7 @@
     },
     {
       "id": "slice-574f1d44",
-      "index": 155,
+      "index": 156,
       "name": "RuntimeAgentLifecycleCatalog",
       "title": "Runtime Agent Lifecycle Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -75898,7 +76690,7 @@
     },
     {
       "id": "slice-e5b0caa2",
-      "index": 156,
+      "index": 157,
       "name": "ReportRuntimeInstanceConnected",
       "title": "Report Runtime Instance Connected",
       "chapter": "RuntimeAgentOperations",
@@ -76714,7 +77506,7 @@
     },
     {
       "id": "slice-8d5d066d",
-      "index": 157,
+      "index": 158,
       "name": "AgentRuntimeInfrastructureConnectionCatalog",
       "title": "Agent Runtime Infrastructure Connection Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -76914,7 +77706,7 @@
     },
     {
       "id": "slice-ff0c55e7",
-      "index": 158,
+      "index": 159,
       "name": "AgentRuntimeTelemetryLatest",
       "title": "Agent Runtime Telemetry Latest",
       "chapter": "RuntimeAgentOperations",
@@ -77087,7 +77879,7 @@
     },
     {
       "id": "slice-d8eaacb9",
-      "index": 159,
+      "index": 160,
       "name": "ReportAgentRuntimeNodeInventory",
       "title": "Report Agent Runtime Node Inventory",
       "chapter": "RuntimeAgentOperations",
@@ -77555,7 +78347,7 @@
     },
     {
       "id": "slice-6a815e36",
-      "index": 160,
+      "index": 161,
       "name": "AgentRuntimeNodeInventoryCatalog",
       "title": "Agent Runtime Node Inventory Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -77818,7 +78610,7 @@
     },
     {
       "id": "slice-a56419ba",
-      "index": 161,
+      "index": 162,
       "name": "AgentRuntimeNodeResourceLatest",
       "title": "Agent Runtime Node Resource Latest",
       "chapter": "RuntimeAgentOperations",
@@ -78103,7 +78895,7 @@
     },
     {
       "id": "slice-4fcce762",
-      "index": 162,
+      "index": 163,
       "name": "RegisterUserAccount",
       "title": "Register User Account",
       "chapter": "IdentityAccessManagement",
@@ -78398,7 +79190,7 @@
     },
     {
       "id": "slice-2f4abaeb",
-      "index": 163,
+      "index": 164,
       "name": "DeactivateUserAccount",
       "title": "Deactivate User Account",
       "chapter": "IdentityAccessManagement",
@@ -78529,7 +79321,7 @@
     },
     {
       "id": "slice-5da5f728",
-      "index": 164,
+      "index": 165,
       "name": "GenerateUserAccountLoginPassword",
       "title": "Generate User Account Login Password",
       "chapter": "IdentityAccessManagement",
@@ -78693,7 +79485,7 @@
     },
     {
       "id": "slice-7b54b84c",
-      "index": 165,
+      "index": 166,
       "name": "RegisterRole",
       "title": "Register Role",
       "chapter": "IdentityAccessManagement",
@@ -78858,7 +79650,7 @@
     },
     {
       "id": "slice-1bda8ebb",
-      "index": 166,
+      "index": 167,
       "name": "RegisterPermission",
       "title": "Register Permission",
       "chapter": "IdentityAccessManagement",
@@ -79051,7 +79843,7 @@
     },
     {
       "id": "slice-1d773a87",
-      "index": 167,
+      "index": 168,
       "name": "GrantPermissionToRole",
       "title": "Grant Permission To Role",
       "chapter": "IdentityAccessManagement",
@@ -79281,7 +80073,7 @@
     },
     {
       "id": "slice-0766b926",
-      "index": 168,
+      "index": 169,
       "name": "AssignRoleToUser",
       "title": "Assign Role To User",
       "chapter": "IdentityAccessManagement",
@@ -79463,7 +80255,7 @@
     },
     {
       "id": "slice-b263007b",
-      "index": 169,
+      "index": 170,
       "name": "IssueServiceAccountApiToken",
       "title": "Issue Service Account Api Token",
       "chapter": "IdentityAccessManagement",
@@ -79997,7 +80789,7 @@
     },
     {
       "id": "slice-425842d5",
-      "index": 170,
+      "index": 171,
       "name": "UserAccountCatalogs",
       "title": "User Account Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -80139,7 +80931,7 @@
     },
     {
       "id": "slice-10714181",
-      "index": 171,
+      "index": 172,
       "name": "RoleCatalogs",
       "title": "Role Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -80227,7 +81019,7 @@
     },
     {
       "id": "slice-9f1bec7a",
-      "index": 172,
+      "index": 173,
       "name": "PermissionCatalogs",
       "title": "Permission Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -80329,7 +81121,7 @@
     },
     {
       "id": "slice-33855446",
-      "index": 173,
+      "index": 174,
       "name": "UserRoleAssignmentCatalog",
       "title": "User Role Assignment Catalog",
       "chapter": "IdentityAccessManagement",
@@ -80457,7 +81249,7 @@
     },
     {
       "id": "slice-4d6e3a7f",
-      "index": 174,
+      "index": 175,
       "name": "RolePermissionGrantCatalog",
       "title": "Role Permission Grant Catalog",
       "chapter": "IdentityAccessManagement",
@@ -80612,7 +81404,7 @@
     },
     {
       "id": "slice-6047e82e",
-      "index": 175,
+      "index": 176,
       "name": "ServiceAccountApiTokenCatalogs",
       "title": "Service Account Api Token Catalogs",
       "chapter": "IdentityAccessManagement",
