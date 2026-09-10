@@ -144,14 +144,18 @@ context OrganizationManagement {
     command BindUserAccountToOrganization {
       userOrganizationMembershipId: UUID id generated technical
       userAccountId: UUID from UserAccountCatalog.userAccountId
+      username: String? derived from UserAccountCatalog.username by userAccountId
       organizationId: UUID from OrganizationDirectory.organizationId
+      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
       organizationUserRole: String?
     }
 
     event UserAccountBoundToOrganization {
       userOrganizationMembershipId: UUID id technical
       userAccountId: UUID
+      username: String?
       organizationId: UUID
+      organizationName: String?
       organizationUserRole: String?
     }
 
@@ -186,9 +190,9 @@ context OrganizationManagement {
     readmodel UserOrganizationMembershipDirectory[] {
       userOrganizationMembershipId: UUID id
       userAccountId: UUID
-      username: String? display derived from UserAccountCatalog.username by userAccountId
+      username: String?
       organizationId: UUID
-      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
+      organizationName: String?
       organizationUserRole: String?
       state: UserOrganizationMembership.State
       subscribe UserAccountBoundToOrganization
@@ -369,13 +373,17 @@ context FederationManagement {
 
     command InviteParticipant {
       federationId: UUID id technical
+      federationName: String? derived from FederationOverview.federationName by federationId
       organizationId: UUID
+      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
       invitationNote: String
     }
 
     event ParticipantInvited {
       federationId: UUID id technical
+      federationName: String?
       organizationId: UUID
+      organizationName: String?
       invitationNote: String
     }
 
@@ -389,8 +397,8 @@ context FederationManagement {
     readmodel FederationMembershipDirectory[] {
       federationId: UUID id
       organizationId: UUID id
-      federationName: String? derived from FederationOverview.federationName by federationId
-      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
+      federationName: String?
+      organizationName: String?
       membershipStatus: String
       invitationNote: String?
       approvalNote: String?
@@ -414,13 +422,17 @@ context FederationManagement {
 
     command ApproveParticipant {
       federationId: UUID id technical
+      federationName: String? from ParticipantInvited.federationName
       organizationId: UUID
+      organizationName: String? from ParticipantInvited.organizationName
       approvalNote: String?
     }
 
     event ParticipantJoined {
       federationId: UUID id technical
+      federationName: String?
       organizationId: UUID
+      organizationName: String?
       approvalNote: String?
     }
 
@@ -461,13 +473,17 @@ context FederationManagement {
 
     command RejectParticipant {
       federationId: UUID id technical
+      federationName: String? from ParticipantInvited.federationName
       organizationId: UUID
+      organizationName: String? from ParticipantInvited.organizationName
       rejectionReason: String
     }
 
     event ParticipantRejected {
       federationId: UUID id technical
+      federationName: String?
       organizationId: UUID
+      organizationName: String?
       rejectionReason: String
     }
 
@@ -481,13 +497,17 @@ context FederationManagement {
 
     command RevokeParticipantInvitation {
       federationId: UUID id technical
+      federationName: String? from ParticipantInvited.federationName
       organizationId: UUID
+      organizationName: String? from ParticipantInvited.organizationName
       revokeReason: String
     }
 
     event ParticipantInvitationRevoked {
       federationId: UUID id technical
+      federationName: String?
       organizationId: UUID
+      organizationName: String?
       revokeReason: String
     }
 
@@ -501,13 +521,17 @@ context FederationManagement {
 
     command SuspendParticipant {
       federationId: UUID id technical
+      federationName: String? from ParticipantJoined.federationName
       organizationId: UUID
+      organizationName: String? from ParticipantJoined.organizationName
       suspensionReason: String
     }
 
     event ParticipantSuspended {
       federationId: UUID id technical
+      federationName: String?
       organizationId: UUID
+      organizationName: String?
       suspensionReason: String
     }
 
@@ -521,13 +545,17 @@ context FederationManagement {
 
     command RemoveParticipant {
       federationId: UUID id technical
+      federationName: String? from ParticipantSuspended.federationName
       organizationId: UUID
+      organizationName: String? from ParticipantSuspended.organizationName
       removalReason: String
     }
 
     event ParticipantRemoved {
       federationId: UUID id technical
+      federationName: String?
       organizationId: UUID
+      organizationName: String?
       removalReason: String
     }
 
@@ -1123,7 +1151,7 @@ context RuntimeProvisioning {
 
     command RegisterRuntimeInfrastructurePackage {
       runtimeInfrastructurePackageId: UUID id generated technical
-      packageName: String
+      packageName: String display
       packageVersion: String
       // 安装包支持的 runtime 环境类型；真实包地址、签名、secret 由平台包服务按 packageId 解析。
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
@@ -1142,7 +1170,7 @@ context RuntimeProvisioning {
   slice RuntimeInfrastructurePackageCatalog {
     readmodel RuntimeInfrastructurePackageCatalog[] {
       runtimeInfrastructurePackageId: UUID id
-      packageName: String
+      packageName: String display
       packageVersion: String
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
       state: RuntimeInfrastructurePackage.State
@@ -1169,7 +1197,11 @@ context RuntimeProvisioning {
       runtimeInstallationPlanId: UUID id generated technical
       runtimeInfrastructureId: UUID generated technical
       organizationId: UUID
+      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
       runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
       runtimeName: String
       // agent 安装责任模式，表达是平台自动请求安装，还是仅生成指引由人工执行。
       // 例：PLATFORM_MANAGED、MANUAL_GUIDED。
@@ -1181,7 +1213,11 @@ context RuntimeProvisioning {
       runtimeInstallationPlanId: UUID id technical
       runtimeInfrastructureId: UUID technical
       organizationId: UUID
+      organizationName: String?
       runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
       runtimeName: String
       bootstrapCommand: Text portOutput
       nodeLabelCommand: Text portOutput
@@ -1200,13 +1236,10 @@ context RuntimeProvisioning {
     readmodel RuntimeInstallationPlanCatalog[] {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the runtime installation plan catalog."
-      }
+      organizationName: String?
       runtimeInfrastructurePackageId: UUID
-      runtimeInfrastructurePackageName: String? display derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
-      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
       runtimeName: String
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       expectedNodeCount: Int
@@ -1252,55 +1285,22 @@ context RuntimeProvisioning {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
       runtimeInfrastructureId: UUID
-      runtimeAgentId: UUID? derived from RuntimeInfrastructureRegistered.runtimeAgentId by runtimeInfrastructureId
+      runtimeAgentId: UUID?
       runtimeInfrastructureState: RuntimeInfrastructure.State?
-      runtimeInfrastructurePackageId: UUID? derived {
-        from RuntimeInstallationPlanCreated.runtimeInfrastructurePackageId
-        rule "Lookup by runtimeInstallationPlanId and display the selected infrastructure installer package."
-      }
-      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
-      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the runtime installation guide."
-      }
-      runtimeName: String? derived {
-        from RuntimeInstallationPlanCreated.runtimeName
-        rule "Lookup by runtimeInstallationPlanId and denormalize the planned runtime display name into the runtime installation guide."
-      }
-      bootstrapCommand: Text derived {
-        from RuntimeInstallationPlanCreated.bootstrapCommand
-        rule "Render the copyable install/start command using the runtime installation plan and platform-managed bootstrap service."
-      }
-      nodeLabelCommand: Text derived {
-        from RuntimeInstallationPlanCreated.nodeLabelCommand
-        rule "Render the kubectl command that labels a joined K3s agent node with the generated runtimeInfrastructureId so platform-managed workloads can target that participant runtime."
-      }
-      nodeTaintCommand: Text derived {
-        from RuntimeInstallationPlanCreated.nodeTaintCommand
-        rule "Render the kubectl command that taints the joined participant node as runtime-only so unrelated workloads are not scheduled there."
-      }
-      runtimeAgentNodeSelectorYaml: Text derived {
-        from RuntimeInstallationPlanCreated.runtimeAgentNodeSelectorYaml
-        rule "Render the nodeSelector YAML fragment used by platform-managed runtime-agent and runtime-engine workloads."
-      }
-      runtimeAgentTolerationsYaml: Text derived {
-        from RuntimeInstallationPlanCreated.runtimeAgentTolerationsYaml
-        rule "Render the tolerations YAML fragment used by platform-managed runtime-agent and runtime-engine workloads."
-      }
-      bootstrapConfigYaml: Text derived {
-        from RuntimeInstallationPlanCreated.bootstrapConfigYaml
-        rule "Render a copyable participant node bootstrap configuration containing labels, taints, runtimeInfrastructureId, and the workload scheduling fragments."
-      }
-      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
-      agentInstallMode: String? dictionary "RUNTIME_AGENT_INSTALL_MODE" derived {
-        from RuntimeInstallationPlanCreated.agentInstallMode
-        rule "Lookup by runtimeInstallationPlanId and display how the platform should request runtime agent installation."
-      }
-      expectedNodeCount: Int? derived {
-        from RuntimeInstallationPlanCreated.expectedNodeCount
-        rule "Lookup by runtimeInstallationPlanId and display the planned node count."
-      }
+      runtimeInfrastructurePackageId: UUID?
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      organizationName: String?
+      runtimeName: String?
+      bootstrapCommand: Text
+      nodeLabelCommand: Text
+      nodeTaintCommand: Text
+      runtimeAgentNodeSelectorYaml: Text
+      runtimeAgentTolerationsYaml: Text
+      bootstrapConfigYaml: Text
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      agentInstallMode: String? dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int?
       subscribe OrganizationRegistered
       subscribe RuntimeInfrastructurePackageRegistered
       subscribe RuntimeInstallationPlanCreated
@@ -1326,11 +1326,29 @@ context RuntimeProvisioning {
     command PlanRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInstallationPlanCreated.runtimeInfrastructureId
       runtimeInstallationPlanId: UUID technical from RuntimeInstallationPlanCreated.runtimeInstallationPlanId
+      organizationId: UUID from RuntimeInstallationPlanCreated.organizationId
+      organizationName: String? from RuntimeInstallationPlanCreated.organizationName
+      runtimeInfrastructurePackageId: UUID from RuntimeInstallationPlanCreated.runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageName: String? from RuntimeInstallationPlanCreated.runtimeInfrastructurePackageName
+      runtimeInfrastructurePackageVersion: String? from RuntimeInstallationPlanCreated.runtimeInfrastructurePackageVersion
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" from RuntimeInstallationPlanCreated.runtimeEnvironmentType
+      runtimeName: String from RuntimeInstallationPlanCreated.runtimeName
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" from RuntimeInstallationPlanCreated.agentInstallMode
+      expectedNodeCount: Int from RuntimeInstallationPlanCreated.expectedNodeCount
     }
 
     event RuntimeInfrastructurePlanned {
       runtimeInfrastructureId: UUID id technical
       runtimeInstallationPlanId: UUID technical
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
     }
 
     state Planned
@@ -1343,12 +1361,30 @@ context RuntimeProvisioning {
     command RegisterRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructurePlanned.runtimeInfrastructureId
       runtimeInstallationPlanId: UUID technical from RuntimeInfrastructurePlanned.runtimeInstallationPlanId
+      organizationId: UUID from RuntimeInfrastructurePlanned.organizationId
+      organizationName: String? from RuntimeInfrastructurePlanned.organizationName
+      runtimeInfrastructurePackageId: UUID from RuntimeInfrastructurePlanned.runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageName: String? from RuntimeInfrastructurePlanned.runtimeInfrastructurePackageName
+      runtimeInfrastructurePackageVersion: String? from RuntimeInfrastructurePlanned.runtimeInfrastructurePackageVersion
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" from RuntimeInfrastructurePlanned.runtimeEnvironmentType
+      runtimeName: String from RuntimeInfrastructurePlanned.runtimeName
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" from RuntimeInfrastructurePlanned.agentInstallMode
+      expectedNodeCount: Int from RuntimeInfrastructurePlanned.expectedNodeCount
       runtimeAgentId: UUID generated technical
     }
 
     event RuntimeInfrastructureRegistered {
       runtimeInfrastructureId: UUID id technical
       runtimeInstallationPlanId: UUID technical
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
       runtimeAgentId: UUID technical
     }
 
@@ -1363,6 +1399,15 @@ context RuntimeProvisioning {
     command ConfirmRuntimeInfrastructurePrepared {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructureRegistered.runtimeInfrastructureId
       runtimeInstallationPlanId: UUID technical from RuntimeInfrastructureRegistered.runtimeInstallationPlanId
+      organizationId: UUID from RuntimeInfrastructureRegistered.organizationId
+      organizationName: String? from RuntimeInfrastructureRegistered.organizationName
+      runtimeInfrastructurePackageId: UUID from RuntimeInfrastructureRegistered.runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageName: String? from RuntimeInfrastructureRegistered.runtimeInfrastructurePackageName
+      runtimeInfrastructurePackageVersion: String? from RuntimeInfrastructureRegistered.runtimeInfrastructurePackageVersion
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" from RuntimeInfrastructureRegistered.runtimeEnvironmentType
+      runtimeName: String from RuntimeInfrastructureRegistered.runtimeName
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" from RuntimeInfrastructureRegistered.agentInstallMode
+      expectedNodeCount: Int from RuntimeInfrastructureRegistered.expectedNodeCount
       runtimeAgentId: UUID technical from RuntimeInfrastructureRegistered.runtimeAgentId
       preparedNodeCount: Int
       preparationNotes: String?
@@ -1371,6 +1416,15 @@ context RuntimeProvisioning {
     event RuntimeInfrastructurePrepared {
       runtimeInfrastructureId: UUID id technical
       runtimeInstallationPlanId: UUID technical
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
       runtimeAgentId: UUID technical
       preparedNodeCount: Int
       preparationNotes: String?
@@ -1411,20 +1465,46 @@ context RuntimeProvisioning {
     command VerifyRuntimeInfrastructure {
       runtimeInfrastructureId: UUID id technical from RuntimeInfrastructurePrepared.runtimeInfrastructureId
       runtimeInstallationPlanId: UUID technical from RuntimeInfrastructurePrepared.runtimeInstallationPlanId
+      organizationId: UUID from RuntimeInfrastructurePrepared.organizationId
+      organizationName: String? from RuntimeInfrastructurePrepared.organizationName
+      runtimeInfrastructurePackageId: UUID from RuntimeInfrastructurePrepared.runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageName: String? from RuntimeInfrastructurePrepared.runtimeInfrastructurePackageName
+      runtimeInfrastructurePackageVersion: String? from RuntimeInfrastructurePrepared.runtimeInfrastructurePackageVersion
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" from RuntimeInfrastructurePrepared.runtimeEnvironmentType
+      runtimeName: String from RuntimeInfrastructurePrepared.runtimeName
+      expectedNodeCount: Int from RuntimeInfrastructurePrepared.expectedNodeCount
       runtimeAgentId: UUID technical from RuntimeInfrastructurePrepared.runtimeAgentId
     }
 
     event RuntimeInfrastructureVerified {
       runtimeInfrastructureId: UUID id technical
       runtimeInstallationPlanId: UUID technical
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
       runtimeAgentId: UUID technical
       agentInstallMode: String portOutput dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
       observedNodeCount: Int portOutput
     }
 
     event RuntimeInfrastructureVerificationFailed {
       runtimeInfrastructureId: UUID id technical
       runtimeInstallationPlanId: UUID technical
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      runtimeAgentId: UUID technical
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
       observedNodeCount: Int? portOutput
       failureReason: String portOutput
     }
@@ -1473,16 +1553,47 @@ context RuntimeProvisioning {
     command DeployRuntimeAgent {
       runtimeAgentId: UUID technical from RuntimeInfrastructureVerified.runtimeAgentId
       runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical from RuntimeInfrastructureVerified.runtimeInstallationPlanId
+      organizationId: UUID from RuntimeInfrastructureVerified.organizationId
+      organizationName: String? from RuntimeInfrastructureVerified.organizationName
+      runtimeInfrastructurePackageId: UUID from RuntimeInfrastructureVerified.runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageName: String? from RuntimeInfrastructureVerified.runtimeInfrastructurePackageName
+      runtimeInfrastructurePackageVersion: String? from RuntimeInfrastructureVerified.runtimeInfrastructurePackageVersion
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" from RuntimeInfrastructureVerified.runtimeEnvironmentType
+      runtimeName: String from RuntimeInfrastructureVerified.runtimeName
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" from RuntimeInfrastructureVerified.agentInstallMode
+      expectedNodeCount: Int from RuntimeInfrastructureVerified.expectedNodeCount
     }
 
     event RuntimeAgentInstallationSucceeded {
       runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
       runtimeAgentId: UUID
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
       agentVersion: String
     }
 
     event RuntimeAgentInstallationFailed {
       runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
+      runtimeAgentId: UUID
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
       failureReason: String
     }
 
@@ -1523,18 +1634,49 @@ context RuntimeProvisioning {
     command RetryRuntimeAgentDeployment {
       runtimeAgentId: UUID technical derived from RuntimeInfrastructureAccessView.runtimeAgentId by runtimeInfrastructureId
       runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical derived from RuntimeInfrastructureAccessView.runtimeInstallationPlanId by runtimeInfrastructureId
+      organizationId: UUID derived from RuntimeInfrastructureAccessView.organizationId by runtimeInfrastructureId
+      organizationName: String? derived from RuntimeInfrastructureAccessView.organizationName by runtimeInfrastructureId
+      runtimeInfrastructurePackageId: UUID derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageId by runtimeInfrastructureId
+      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageName by runtimeInfrastructureId
+      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageVersion by runtimeInfrastructureId
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructureAccessView.runtimeEnvironmentType by runtimeInfrastructureId
+      runtimeName: String derived from RuntimeInfrastructureAccessView.runtimeName by runtimeInfrastructureId
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInfrastructureAccessView.agentInstallMode by runtimeInfrastructureId
+      expectedNodeCount: Int derived from RuntimeInfrastructureAccessView.expectedNodeCount by runtimeInfrastructureId
       currentRuntimeInfrastructureState: RuntimeInfrastructure.State derived from RuntimeInfrastructureAccessView.state by runtimeInfrastructureId
       retryReason: String
     }
 
     event RuntimeAgentDeploymentRetrySucceeded {
       runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
       runtimeAgentId: UUID
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
       agentVersion: String
     }
 
     event RuntimeAgentDeploymentRetryFailed {
       runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
+      runtimeAgentId: UUID
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
       failureReason: String
     }
 
@@ -1598,9 +1740,10 @@ context RuntimeProvisioning {
     command RecordRuntimeConnectionEstablished {
       runtimeInfrastructureId: UUID id technical from AgentRuntimeConnectionEstablished.runtimeInfrastructureId
       runtimeAgentId: UUID from AgentRuntimeConnectionEstablished.runtimeAgentId
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInstallationPlanCreated.agentInstallMode by runtimeInfrastructureId
-      organizationId: UUID derived from RuntimeInstallationPlanCreated.organizationId by runtimeInfrastructureId
-      runtimeName: String derived from RuntimeInstallationPlanCreated.runtimeName by runtimeInfrastructureId
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInfrastructureAccessView.agentInstallMode by runtimeInfrastructureId
+      organizationId: UUID derived from RuntimeInfrastructureAccessView.organizationId by runtimeInfrastructureId
+      organizationName: String? derived from RuntimeInfrastructureAccessView.organizationName by runtimeInfrastructureId
+      runtimeName: String derived from RuntimeInfrastructureAccessView.runtimeName by runtimeInfrastructureId
       runtimeAgentEndpoint: String from AgentRuntimeConnectionEstablished.runtimeAgentEndpoint
       endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE" from AgentRuntimeConnectionEstablished.endpointScope
     }
@@ -1610,6 +1753,7 @@ context RuntimeProvisioning {
       runtimeAgentId: UUID
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       organizationId: UUID
+      organizationName: String?
       runtimeName: String
       runtimeAgentEndpoint: String
       endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
@@ -1644,17 +1788,11 @@ context RuntimeProvisioning {
       organizationId: UUID
       runtimeInstallationPlanId: UUID
       runtimeInfrastructurePackageId: UUID
-      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
-      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the runtime infrastructure access view."
-      }
-      runtimeName: String? derived {
-        from RuntimeInstallationPlanCreated.runtimeName
-        rule "Lookup by runtimeInfrastructureId and denormalize the runtime display name into the access view."
-      }
-      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      organizationName: String?
+      runtimeName: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
       expectedNodeCount: Int
       runtimeAgentId: UUID?
@@ -2010,8 +2148,12 @@ context DatasetGovernance {
       metadataReportId: UUID from AgentDatasetMetadataReported.metadataReportId
       datasetId: UUID from AgentDatasetMetadataReported.datasetId
       organizationId: UUID from AgentDatasetMetadataReported.organizationId
+      organizationName: String? from AgentDatasetMetadataReported.organizationName
       runtimeId: UUID from AgentDatasetMetadataReported.runtimeId
+      runtimeName: String? from AgentDatasetMetadataReported.runtimeName
       featureSchemaId: UUID from AgentDatasetMetadataReported.featureSchemaId
+      featureDomain: String? from AgentDatasetMetadataReported.featureDomain
+      featureSchemaVersion: String? from AgentDatasetMetadataReported.featureSchemaVersion
       datasetName: String from AgentDatasetMetadataReported.datasetName
       sampleCount: Int from AgentDatasetMetadataReported.sampleCount
       featureCount: Int from AgentDatasetMetadataReported.featureCount
@@ -2029,8 +2171,12 @@ context DatasetGovernance {
       metadataReportId: UUID
       datasetId: UUID
       organizationId: UUID
+      organizationName: String?
       runtimeId: UUID
+      runtimeName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       datasetName: String
       sampleCount: Int
       featureCount: Int
@@ -2059,8 +2205,12 @@ context DatasetGovernance {
       metadataReportId: UUID from AgentDatasetReprofiled.metadataReportId
       datasetId: UUID from AgentDatasetReprofiled.datasetId
       organizationId: UUID from AgentDatasetReprofiled.organizationId
+      organizationName: String? from AgentDatasetReprofiled.organizationName
       runtimeId: UUID from AgentDatasetReprofiled.runtimeId
+      runtimeName: String? from AgentDatasetReprofiled.runtimeName
       featureSchemaId: UUID from AgentDatasetReprofiled.featureSchemaId
+      featureDomain: String? from AgentDatasetReprofiled.featureDomain
+      featureSchemaVersion: String? from AgentDatasetReprofiled.featureSchemaVersion
       datasetName: String from AgentDatasetReprofiled.datasetName
       sampleCount: Int from AgentDatasetReprofiled.sampleCount
       featureCount: Int from AgentDatasetReprofiled.featureCount
@@ -2078,8 +2228,12 @@ context DatasetGovernance {
       metadataReportId: UUID
       datasetId: UUID
       organizationId: UUID
+      organizationName: String?
       runtimeId: UUID
+      runtimeName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       datasetName: String
       sampleCount: Int
       featureCount: Int
@@ -2101,21 +2255,13 @@ context DatasetGovernance {
       metadataReportId: UUID
       datasetId: UUID
       organizationId: UUID
+      organizationName: String?
       runtimeId: UUID
+      runtimeName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       datasetName: String? display
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the platform runtime dataset metadata catalog."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the platform runtime dataset metadata catalog."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the platform runtime dataset metadata catalog."
-      }
       sampleCount: Int
       featureCount: Int
       schemaCompatible: Boolean?
@@ -2253,10 +2399,7 @@ context ModelRepository {
       modelSizeBytes: Int?
       trainingJobId: UUID?
       roundId: UUID?
-      trainingJobObjective: String? derived {
-        from TrainingJobCreated.objective
-        rule "Lookup by trainingJobId and denormalize the training job objective into the model artifact catalog."
-      }
+      trainingJobObjective: String?
       state: ModelArtifact.State
       registeredAt: DateTime?
       subscribe TrainingJobCreated
@@ -2342,6 +2485,7 @@ context ModelRepository {
       modelSignatureUri: String? from GlobalModelUpdated.aggregatedModelSignatureUri
       modelSizeBytes: Int? from GlobalModelUpdated.aggregatedModelSizeBytes
       trainingJobId: UUID from GlobalModelUpdated.trainingJobId
+      trainingJobObjective: String from GlobalModelUpdated.trainingJobObjective
       roundId: UUID from GlobalModelUpdated.roundId
     }
 
@@ -2358,6 +2502,7 @@ context ModelRepository {
       modelSignatureUri: String?
       modelSizeBytes: Int?
       trainingJobId: UUID
+      trainingJobObjective: String
       roundId: UUID
     }
 
@@ -2426,8 +2571,13 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id generated technical
       configurationName: String display
       federationId: UUID
+      federationName: String? derived from FederationOverview.federationName by federationId
       featureSchemaId: UUID
+      featureDomain: String? derived from FeatureSchemaCatalog.featureDomain by featureSchemaId
+      featureSchemaVersion: String? derived from FeatureSchemaCatalog.version by featureSchemaId
       initialModelId: UUID from ModelArtifactCatalog.modelId
+      initialModelName: String? derived from ModelArtifactCatalog.modelName by initialModelId
+      initialModelVersion: String? derived from ModelArtifactCatalog.modelVersion by initialModelId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -2449,16 +2599,13 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id technical
       configurationName: String display
       federationId: UUID
+      federationName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       initialModelId: UUID
-      initialModelName: String derived {
-        from ModelArtifact.modelName
-        rule "Snapshot the logical model display name selected by the initial model."
-      }
-      initialModelVersion: String derived {
-        from ModelArtifact.modelVersion
-        rule "Snapshot the business version label selected by the initial model."
-      }
+      initialModelName: String?
+      initialModelVersion: String?
       initialModelArtifactUri: String derived {
         from ModelArtifact.modelArtifactUri
         rule "Snapshot the initial model artifact URI selected from the model repository."
@@ -2562,8 +2709,13 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id technical
       configurationName: String display
       federationId: UUID
+      federationName: String? derived from FederationOverview.federationName by federationId
       featureSchemaId: UUID
+      featureDomain: String? derived from FeatureSchemaCatalog.featureDomain by featureSchemaId
+      featureSchemaVersion: String? derived from FeatureSchemaCatalog.version by featureSchemaId
       initialModelId: UUID from ModelArtifactCatalog.modelId
+      initialModelName: String? derived from ModelArtifactCatalog.modelName by initialModelId
+      initialModelVersion: String? derived from ModelArtifactCatalog.modelVersion by initialModelId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -2586,16 +2738,13 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID id technical
       configurationName: String display
       federationId: UUID
+      federationName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       initialModelId: UUID
-      initialModelName: String derived {
-        from ModelArtifact.modelName
-        rule "Snapshot the updated logical model display name selected by the initial model."
-      }
-      initialModelVersion: String derived {
-        from ModelArtifact.modelVersion
-        rule "Snapshot the updated business version label selected by the initial model."
-      }
+      initialModelName: String?
+      initialModelVersion: String?
       initialModelArtifactUri: String derived {
         from ModelArtifact.modelArtifactUri
         rule "Snapshot the updated initial model artifact URI selected from the model repository."
@@ -2732,18 +2881,9 @@ context TrainingOrchestration {
       initialModelId: UUID
       initialModelName: String
       initialModelVersion: String
-      federationName: String? display derived {
-        from FederationCreated.federationName
-        rule "Lookup by federationId and denormalize the federation display name into the training run configuration catalog."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training run configuration catalog."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the training run configuration catalog."
-      }
+      federationName: String?
+      featureDomain: String?
+      featureSchemaVersion: String?
       initialModelArtifactUri: String
       initialModelRegistryRef: String
       initialModelFormat: String
@@ -2765,10 +2905,7 @@ context TrainingOrchestration {
       minimumAccuracy: Decimal
       minimumFairnessScore: Decimal?
       updateReason: String?
-      lockedByTrainingJobId: UUID? derived {
-        from TrainingRunConfigurationLocked.trainingJobId
-        rule "Record the training job that locked this configuration after submission."
-      }
+      lockedByTrainingJobId: UUID?
       state: TrainingRunConfiguration.State
       subscribe FederationCreated
       subscribe FeatureSchemaDefined
@@ -2799,7 +2936,11 @@ context TrainingOrchestration {
     command CreateTrainingJob {
       trainingJobId: UUID id generated technical
       federationId: UUID
+      federationName: String? derived from FederationOverview.federationName by federationId
       trainingRunConfigurationId: UUID
+      configurationName: String? derived from TrainingRunConfigurationCatalog.configurationName by trainingRunConfigurationId
+      featureDomain: String? derived from TrainingRunConfigurationCatalog.featureDomain by trainingRunConfigurationId
+      featureSchemaVersion: String? derived from TrainingRunConfigurationCatalog.featureSchemaVersion by trainingRunConfigurationId
       // 本次训练任务的业务目标或实验目的，用于列表、审计和结果解释；不承载训练超参数。
       objective: String
     }
@@ -2807,6 +2948,7 @@ context TrainingOrchestration {
     event TrainingJobCreated {
       trainingJobId: UUID id technical
       federationId: UUID
+      federationName: String?
       initialModelId: UUID derived {
         from TrainingRunConfiguration.initialModelId
         rule "Carry the initial model selected by the training run configuration."
@@ -2816,6 +2958,10 @@ context TrainingOrchestration {
         rule "Use the feature schema selected in the runnable training run configuration."
       }
       trainingRunConfigurationId: UUID
+      configurationName: String?
+      featureDomain: String?
+      featureSchemaVersion: String?
+      trainingJobObjective: String
       // 本次训练任务的业务目标或实验目的，用于列表、审计和结果解释；不承载训练超参数。
       objective: String
     }
@@ -2863,6 +3009,14 @@ context TrainingOrchestration {
         from TrainingJob.trainingRunConfigurationId
         rule "Carry the submitted job's training run configuration so automation can lock the exact configuration instead of creating a new one."
       }
+      federationId: UUID derived from TrainingJob.federationId by trainingJobId
+      federationName: String? derived from TrainingJob.federationName by trainingJobId
+      configurationName: String? derived from TrainingJob.configurationName by trainingJobId
+      featureSchemaId: UUID derived from TrainingJob.featureSchemaId by trainingJobId
+      featureDomain: String? derived from TrainingJob.featureDomain by trainingJobId
+      featureSchemaVersion: String? derived from TrainingJob.featureSchemaVersion by trainingJobId
+      trainingJobObjective: String derived from TrainingJob.objective by trainingJobId
+      objective: String derived from TrainingJob.objective by trainingJobId
     }
 
     state Submitted
@@ -2898,18 +3052,9 @@ context TrainingOrchestration {
       federationId: UUID
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
-      federationName: String? derived {
-        from FederationCreated.federationName
-        rule "Lookup by federationId and denormalize the federation display name into the training job dashboard."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the training job dashboard."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the training job dashboard."
-      }
+      federationName: String?
+      featureDomain: String?
+      featureSchemaVersion: String?
       objective: String
       strategyName: String? dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String? dictionary "AGGREGATION_ALGORITHM"
@@ -2956,22 +3101,10 @@ context TrainingOrchestration {
       organizationId: UUID
       runtimeId: UUID?
       featureSchemaId: UUID
-      federationName: String? derived {
-        from FederationCreated.federationName
-        rule "Lookup by federationId and denormalize the federation display name into participant eligibility."
-      }
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into participant eligibility."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into participant eligibility."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into participant eligibility."
-      }
+      federationName: String?
+      organizationName: String?
+      featureDomain: String?
+      featureSchemaVersion: String?
       participantStatus: String
       readinessStatus: String
       readinessStage: String
@@ -3099,6 +3232,7 @@ context TrainingOrchestration {
       trainingJobId: UUID id technical
       finalRoundId: UUID from TrainingRoundCompleted.roundId
       finalModelId: UUID from TrainingRoundCompleted.aggregatedModelId
+      trainingJobObjective: String from TrainingRoundCompleted.trainingJobObjective
       stopReason: String generated technical
     }
 
@@ -3106,6 +3240,7 @@ context TrainingOrchestration {
       trainingJobId: UUID id technical
       finalRoundId: UUID
       finalModelId: UUID
+      trainingJobObjective: String
       stopReason: String
     }
 
@@ -3152,12 +3287,26 @@ context TrainingOrchestration {
 
     command SelectTrainingRoundParticipants {
       trainingJobId: UUID id technical from TrainingJobSubmitted.trainingJobId
+      federationId: UUID from TrainingJobSubmitted.federationId
+      federationName: String? from TrainingJobSubmitted.federationName
+      trainingRunConfigurationId: UUID from TrainingJobSubmitted.trainingRunConfigurationId
+      configurationName: String? from TrainingJobSubmitted.configurationName
+      featureSchemaId: UUID from TrainingJobSubmitted.featureSchemaId
+      featureDomain: String? from TrainingJobSubmitted.featureDomain
+      featureSchemaVersion: String? from TrainingJobSubmitted.featureSchemaVersion
+      trainingJobObjective: String from TrainingJobSubmitted.trainingJobObjective
     }
 
     event TrainingRoundParticipantsSelected {
       trainingJobId: UUID id technical
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
+      trainingJobObjective: String
       roundId: UUID
       roundNumber: Int
       maxRounds: Int
@@ -3174,8 +3323,14 @@ context TrainingOrchestration {
 
     event TrainingRoundParticipantSelectionFailed {
       trainingJobId: UUID id technical
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
+      trainingJobObjective: String
       roundId: UUID
       roundNumber: Int
       maxRounds: Int
@@ -3277,14 +3432,20 @@ context TrainingOrchestration {
         from TrainingRoundParticipantsSelected.trainingJobId, HomomorphicEncryptionContextPrepared.trainingJobId
         rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
       }
+      federationId: UUID from TrainingRoundParticipantsSelected.federationId
+      federationName: String? from TrainingRoundParticipantsSelected.federationName
       trainingRunConfigurationId: UUID derived {
         from TrainingRoundParticipantsSelected.trainingRunConfigurationId, HomomorphicEncryptionContextPrepared.trainingRunConfigurationId
         rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
       }
+      configurationName: String? from TrainingRoundParticipantsSelected.configurationName
+      trainingJobObjective: String from TrainingRoundParticipantsSelected.trainingJobObjective
       featureSchemaId: UUID derived {
         from TrainingRoundParticipantsSelected.featureSchemaId, HomomorphicEncryptionContextPrepared.featureSchemaId
         rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
       }
+      featureDomain: String? from TrainingRoundParticipantsSelected.featureDomain
+      featureSchemaVersion: String? from TrainingRoundParticipantsSelected.featureSchemaVersion
       roundId: UUID derived {
         from TrainingRoundParticipantsSelected.roundId, HomomorphicEncryptionContextPrepared.roundId
         rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
@@ -3335,8 +3496,14 @@ context TrainingOrchestration {
 
     event TrainingRoundStarted {
       trainingJobId: UUID id technical
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
+      trainingJobObjective: String
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       roundId: UUID
       roundNumber: Int
       selectedOrganizationIds: UUID[]
@@ -3358,8 +3525,14 @@ context TrainingOrchestration {
 
     event TrainingRoundStartFailed {
       trainingJobId: UUID id technical
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
+      trainingJobObjective: String
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       roundId: UUID
       roundNumber: Int
       selectedOrganizationIds: UUID[]
@@ -3423,7 +3596,11 @@ context TrainingOrchestration {
       executionPlanId: UUID id generated technical
       executionSessionId: UUID generated technical
       trainingJobId: UUID from TrainingRoundStarted.trainingJobId
+      federationId: UUID from TrainingRoundStarted.federationId
+      federationName: String? from TrainingRoundStarted.federationName
       trainingRunConfigurationId: UUID from TrainingRoundStarted.trainingRunConfigurationId
+      configurationName: String? from TrainingRoundStarted.configurationName
+      trainingJobObjective: String from TrainingRoundStarted.trainingJobObjective
       featureSchemaId: UUID from TrainingRoundStarted.featureSchemaId
       roundId: UUID from TrainingRoundStarted.roundId
       roundNumber: Int from TrainingRoundStarted.roundNumber
@@ -3465,7 +3642,11 @@ context TrainingOrchestration {
       executionPlanId: UUID id technical
       executionSessionId: UUID
       trainingJobId: UUID
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
+      trainingJobObjective: String
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
@@ -3670,6 +3851,7 @@ context TrainingOrchestration {
       executionPlanId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String from TrainingRoundStarted.trainingJobObjective
       roundId: UUID
       roundNumber: Int from TrainingRoundStarted.roundNumber
       maxRounds: Int from TrainingRoundStarted.maxRounds
@@ -3778,6 +3960,7 @@ context TrainingOrchestration {
     command AggregatePlainModelUpdates {
       trainingJobId: UUID id technical from ModelUpdateSubmissionAccepted.trainingJobId
       trainingRunConfigurationId: UUID from ModelUpdateSubmissionAccepted.trainingRunConfigurationId
+      trainingJobObjective: String from ModelUpdateSubmissionAccepted.trainingJobObjective
       featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
       roundId: UUID from ModelUpdateSubmissionAccepted.roundId
       roundNumber: Int from ModelUpdateSubmissionAccepted.roundNumber
@@ -3791,6 +3974,7 @@ context TrainingOrchestration {
     event PlainModelAggregationCompleted {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
@@ -3844,8 +4028,14 @@ context TrainingOrchestration {
 
     command RequestSecureAggregation {
       trainingJobId: UUID id technical from TrainingRoundParticipantsSelected.trainingJobId
+      federationId: UUID from TrainingRoundParticipantsSelected.federationId
+      federationName: String? from TrainingRoundParticipantsSelected.federationName
       trainingRunConfigurationId: UUID from TrainingRoundParticipantsSelected.trainingRunConfigurationId
+      configurationName: String? from TrainingRoundParticipantsSelected.configurationName
+      trainingJobObjective: String from TrainingRoundParticipantsSelected.trainingJobObjective
       featureSchemaId: UUID from TrainingRoundParticipantsSelected.featureSchemaId
+      featureDomain: String? from TrainingRoundParticipantsSelected.featureDomain
+      featureSchemaVersion: String? from TrainingRoundParticipantsSelected.featureSchemaVersion
       roundId: UUID from TrainingRoundParticipantsSelected.roundId
       roundNumber: Int from TrainingRoundParticipantsSelected.roundNumber
       requiredParticipantCount: Int from TrainingRoundParticipantsSelected.selectedRuntimeCount
@@ -3861,8 +4051,14 @@ context TrainingOrchestration {
 
     event SecureAggregationRequested {
       trainingJobId: UUID id technical
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
+      trainingJobObjective: String
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       roundId: UUID
       roundNumber: Int
       requiredParticipantCount: Int
@@ -3900,6 +4096,10 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID derived {
         from SecureAggregationCompleted.trainingRunConfigurationId, PlainModelAggregationCompleted.trainingRunConfigurationId
         rule "Use the completed secure or plaintext aggregation result."
+      }
+      trainingJobObjective: String derived {
+        from SecureAggregationCompleted.trainingJobObjective, PlainModelAggregationCompleted.trainingJobObjective
+        rule "Carry the training job objective snapshot into the produced global model artifact."
       }
       featureSchemaId: UUID derived {
         from SecureAggregationCompleted.featureSchemaId, PlainModelAggregationCompleted.featureSchemaId
@@ -3971,6 +4171,7 @@ context TrainingOrchestration {
     event GlobalModelUpdated {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
@@ -4005,6 +4206,7 @@ context TrainingOrchestration {
     command SubmitGlobalModelEvaluation {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String from GlobalModelUpdated.trainingJobObjective
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int from GlobalModelUpdated.roundNumber
@@ -4021,6 +4223,7 @@ context TrainingOrchestration {
     event GlobalModelEvaluationSubmitted {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
@@ -4048,6 +4251,7 @@ context TrainingOrchestration {
     command CompleteTrainingRound {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String from GlobalModelEvaluationSubmitted.trainingJobObjective
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int from GlobalModelEvaluationSubmitted.roundNumber
@@ -4065,6 +4269,7 @@ context TrainingOrchestration {
     event TrainingRoundCompleted {
       trainingJobId: UUID id technical
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
@@ -4184,18 +4389,9 @@ context TrainingOrchestration {
       trainingRunConfigurationId: UUID
       featureSchemaId: UUID
       roundId: UUID id
-      trainingJobObjective: String? derived {
-        from TrainingJobCreated.objective
-        rule "Lookup by trainingJobId and denormalize the training job objective into round progress."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into round progress."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into round progress."
-      }
+      trainingJobObjective: String?
+      featureDomain: String?
+      featureSchemaVersion: String?
       roundNumber: Int
       state: TrainingRound.State
       selectedOrganizationIds: UUID[]
@@ -4317,8 +4513,9 @@ context ModelLifecycle {
 
     command RegisterCandidateModel {
       modelId: UUID id technical
-      trainingJobId: UUID
-      finalRoundId: UUID
+      trainingJobId: UUID from TrainingJobCompleted.trainingJobId
+      trainingJobObjective: String from TrainingJobCompleted.trainingJobObjective
+      finalRoundId: UUID from TrainingJobCompleted.finalRoundId
       modelArtifactId: UUID
       modelArtifactDigest: String
       evaluationReportId: UUID
@@ -4328,6 +4525,7 @@ context ModelLifecycle {
     event ModelCandidateRegistered {
       modelId: UUID id technical
       trainingJobId: UUID
+      trainingJobObjective: String
       finalRoundId: UUID
       modelArtifactId: UUID
       modelArtifactDigest: String
@@ -4529,10 +4727,7 @@ context ModelLifecycle {
       trainingJobId: UUID
       finalRoundId: UUID
       modelArtifactId: UUID
-      trainingJobObjective: String? derived {
-        from TrainingJobCreated.objective
-        rule "Lookup by trainingJobId and denormalize the training job objective into the model catalog."
-      }
+      trainingJobObjective: String?
       modelArtifactDigest: String
       evaluationReportId: UUID
       finalGlobalAccuracy: Decimal
@@ -4596,8 +4791,11 @@ context RuntimeMonitoring {
       nodeId: UUID id
       runtimeAgentId: UUID
       federationId: UUID?
+      federationName: String?
       trainingJobId: UUID?
+      trainingJobObjective: String?
       roundExecutionId: UUID?
+      runtimeNodeName: String?
       cpuLoad: Decimal?
       gpuLoad: Decimal?
       memoryLoad: Decimal?
@@ -4621,12 +4819,24 @@ context RuntimeMonitoring {
     command DetectRuntimeAgentOffline {
       nodeId: UUID id technical
       runtimeAgentId: UUID
+      federationId: UUID?
+      federationName: String?
+      trainingJobId: UUID?
+      trainingJobObjective: String?
+      roundExecutionId: UUID?
+      runtimeNodeName: String?
       offlineReason: String
     }
 
     event RuntimeAgentOfflineDetected {
       nodeId: UUID id technical
       runtimeAgentId: UUID
+      federationId: UUID?
+      federationName: String?
+      trainingJobId: UUID?
+      trainingJobObjective: String?
+      roundExecutionId: UUID?
+      runtimeNodeName: String?
       offlineReason: String
     }
 
@@ -4645,12 +4855,24 @@ context RuntimeMonitoring {
     command MarkRuntimeAgentRecovered {
       nodeId: UUID id technical
       runtimeAgentId: UUID
+      federationId: UUID?
+      federationName: String?
+      trainingJobId: UUID?
+      trainingJobObjective: String?
+      roundExecutionId: UUID?
+      runtimeNodeName: String?
       recoveryReason: String?
     }
 
     event RuntimeAgentRecovered {
       nodeId: UUID id technical
       runtimeAgentId: UUID
+      federationId: UUID?
+      federationName: String?
+      trainingJobId: UUID?
+      trainingJobObjective: String?
+      roundExecutionId: UUID?
+      runtimeNodeName: String?
       recoveryReason: String?
     }
 
@@ -4669,7 +4891,12 @@ context RuntimeMonitoring {
     command DetectRuntimeNodeResourcePressure {
       nodeId: UUID id technical
       runtimeAgentId: UUID
+      federationId: UUID?
+      federationName: String?
       trainingJobId: UUID?
+      trainingJobObjective: String?
+      roundExecutionId: UUID?
+      runtimeNodeName: String?
       pressureType: String
       observedValue: Decimal
       thresholdValue: Decimal
@@ -4678,7 +4905,12 @@ context RuntimeMonitoring {
     event RuntimeNodeResourcePressureDetected {
       nodeId: UUID id technical
       runtimeAgentId: UUID
+      federationId: UUID?
+      federationName: String?
       trainingJobId: UUID?
+      trainingJobObjective: String?
+      roundExecutionId: UUID?
+      runtimeNodeName: String?
       pressureType: String
       observedValue: Decimal
       thresholdValue: Decimal
@@ -4700,8 +4932,10 @@ context RuntimeMonitoring {
       nodeId: UUID id technical
       runtimeNodeInventoryReportId: UUID
       organizationId: UUID
+      organizationName: String?
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
+      runtimeName: String?
       runtimeNodeName: String
       infrastructureNodeId: String?
       runtimeNodeRole: String
@@ -4717,8 +4951,10 @@ context RuntimeMonitoring {
       nodeId: UUID id technical
       runtimeNodeInventoryReportId: UUID
       organizationId: UUID
+      organizationName: String?
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
+      runtimeName: String?
       runtimeNodeName: String
       infrastructureNodeId: String?
       runtimeNodeRole: String
@@ -4740,14 +4976,8 @@ context RuntimeMonitoring {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the runtime node inventory view."
-      }
-      runtimeName: String? derived {
-        from RuntimeInstallationPlanCreated.runtimeName
-        rule "Lookup by runtimeInfrastructureId and denormalize the runtime display name into the runtime node inventory view."
-      }
+      organizationName: String?
+      runtimeName: String?
       runtimeNodeName: String
       infrastructureNodeId: String?
       runtimeNodeRole: String
@@ -4829,14 +5059,8 @@ context RuntimeMonitoring {
       federationId: UUID
       trainingJobId: UUID?
       roundExecutionId: UUID?
-      federationName: String? derived {
-        from FederationCreated.federationName
-        rule "Lookup by federationId and denormalize the federation display name into the runtime health dashboard."
-      }
-      trainingJobObjective: String? derived {
-        from TrainingJobCreated.objective
-        rule "Lookup by trainingJobId and denormalize the training job objective into the runtime health dashboard."
-      }
+      federationName: String?
+      trainingJobObjective: String?
       cpuLoad: Decimal
       gpuLoad: Decimal
       memoryLoad: Decimal
@@ -4906,6 +5130,8 @@ context RuntimeMonitoring {
       alertId: UUID id generated technical
       nodeId: UUID from RuntimeNodeResourcePressureDetected.nodeId
       trainingJobId: UUID? from RuntimeNodeResourcePressureDetected.trainingJobId
+      runtimeNodeName: String? from RuntimeNodeResourcePressureDetected.runtimeNodeName
+      trainingJobObjective: String? from RuntimeNodeResourcePressureDetected.trainingJobObjective
       severity: String
       message: String
     }
@@ -4914,6 +5140,8 @@ context RuntimeMonitoring {
       alertId: UUID id technical
       nodeId: UUID
       trainingJobId: UUID?
+      runtimeNodeName: String?
+      trainingJobObjective: String?
       severity: String
       message: String
     }
@@ -4926,14 +5154,8 @@ context RuntimeMonitoring {
       alertId: UUID id
       nodeId: UUID
       trainingJobId: UUID?
-      runtimeNodeName: String? derived {
-        from RuntimeNodeInventoryReported.runtimeNodeName
-        rule "Lookup by nodeId and denormalize the runtime node display name into the training alert catalog."
-      }
-      trainingJobObjective: String? derived {
-        from TrainingJobCreated.objective
-        rule "Lookup by trainingJobId and denormalize the training job objective into the training alert catalog."
-      }
+      runtimeNodeName: String?
+      trainingJobObjective: String?
       severity: String
       message: String
       state: TrainingAlert.State
@@ -5121,8 +5343,18 @@ context RuntimeGovernance {
       runtimeId: UUID id generated technical
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
-      organizationId: UUID derived from RuntimeInstallationPlanCreated.organizationId by runtimeInfrastructureId
-      runtimeName: String derived from RuntimeInstallationPlanCreated.runtimeName by runtimeInfrastructureId
+      organizationId: UUID derived {
+        from RuntimeAgentInstallationSucceeded.organizationId, RuntimeConnectionEstablished.organizationId
+        rule "Use the runtime identity activation source event."
+      }
+      organizationName: String? derived {
+        from RuntimeAgentInstallationSucceeded.organizationName, RuntimeConnectionEstablished.organizationName
+        rule "Use the runtime identity activation source event."
+      }
+      runtimeName: String derived {
+        from RuntimeAgentInstallationSucceeded.runtimeName, RuntimeConnectionEstablished.runtimeName
+        rule "Use the runtime identity activation source event."
+      }
     }
 
     event RuntimeIdentityActivated {
@@ -5130,6 +5362,7 @@ context RuntimeGovernance {
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
       organizationId: UUID
+      organizationName: String?
       runtimeName: String
     }
 
@@ -5184,7 +5417,7 @@ context RuntimeGovernance {
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
       organizationId: UUID
-      organizationName: String? derived from OrganizationRegistered.organizationName by organizationId
+      organizationName: String?
       runtimeName: String display
       identityStatus: String
       activatedAt: DateTime?
@@ -5241,8 +5474,14 @@ context SecureAggregation {
     command CreateSecureAggregationSession {
       secureAggregationSessionId: UUID id generated technical
       trainingJobId: UUID from SecureAggregationRequested.trainingJobId
+      federationId: UUID from SecureAggregationRequested.federationId
+      federationName: String? from SecureAggregationRequested.federationName
       trainingRunConfigurationId: UUID from SecureAggregationRequested.trainingRunConfigurationId
+      configurationName: String? from SecureAggregationRequested.configurationName
+      trainingJobObjective: String from SecureAggregationRequested.trainingJobObjective
       featureSchemaId: UUID from SecureAggregationRequested.featureSchemaId
+      featureDomain: String? from SecureAggregationRequested.featureDomain
+      featureSchemaVersion: String? from SecureAggregationRequested.featureSchemaVersion
       roundId: UUID from SecureAggregationRequested.roundId
       roundNumber: Int from SecureAggregationRequested.roundNumber
       requiredParticipantCount: Int from SecureAggregationRequested.requiredParticipantCount
@@ -5259,8 +5498,14 @@ context SecureAggregation {
     event SecureAggregationSessionCreated {
       secureAggregationSessionId: UUID id technical
       trainingJobId: UUID
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
+      trainingJobObjective: String
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       roundId: UUID
       roundNumber: Int
       requiredParticipantCount: Int
@@ -5290,8 +5535,14 @@ context SecureAggregation {
       secureAggregationSessionId: UUID id technical
       roundId: UUID from SecureAggregationSessionCreated.roundId
       trainingJobId: UUID from SecureAggregationSessionCreated.trainingJobId
+      federationId: UUID from SecureAggregationSessionCreated.federationId
+      federationName: String? from SecureAggregationSessionCreated.federationName
       trainingRunConfigurationId: UUID from SecureAggregationSessionCreated.trainingRunConfigurationId
+      configurationName: String? from SecureAggregationSessionCreated.configurationName
+      trainingJobObjective: String from SecureAggregationSessionCreated.trainingJobObjective
       featureSchemaId: UUID from SecureAggregationSessionCreated.featureSchemaId
+      featureDomain: String? from SecureAggregationSessionCreated.featureDomain
+      featureSchemaVersion: String? from SecureAggregationSessionCreated.featureSchemaVersion
       roundNumber: Int from SecureAggregationSessionCreated.roundNumber
       selectedOrganizationIds: UUID[] from SecureAggregationSessionCreated.selectedOrganizationIds
       selectedRuntimeIds: UUID[] from SecureAggregationSessionCreated.selectedRuntimeIds
@@ -5307,8 +5558,14 @@ context SecureAggregation {
       secureAggregationSessionId: UUID id technical
       roundId: UUID
       trainingJobId: UUID
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
+      trainingJobObjective: String
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       roundNumber: Int
       selectedOrganizationIds: UUID[]
       selectedRuntimeIds: UUID[]
@@ -5336,8 +5593,14 @@ context SecureAggregation {
     command PrepareHomomorphicEncryptionContext {
       secureAggregationSessionId: UUID id technical
       trainingJobId: UUID from SecureAggregationParticipantsSelected.trainingJobId
+      federationId: UUID from SecureAggregationParticipantsSelected.federationId
+      federationName: String? from SecureAggregationParticipantsSelected.federationName
       trainingRunConfigurationId: UUID from SecureAggregationParticipantsSelected.trainingRunConfigurationId
+      configurationName: String? from SecureAggregationParticipantsSelected.configurationName
+      trainingJobObjective: String from SecureAggregationParticipantsSelected.trainingJobObjective
       featureSchemaId: UUID from SecureAggregationParticipantsSelected.featureSchemaId
+      featureDomain: String? from SecureAggregationParticipantsSelected.featureDomain
+      featureSchemaVersion: String? from SecureAggregationParticipantsSelected.featureSchemaVersion
       roundId: UUID from SecureAggregationParticipantsSelected.roundId
       roundNumber: Int from SecureAggregationParticipantsSelected.roundNumber
       selectedOrganizationIds: UUID[] from SecureAggregationParticipantsSelected.selectedOrganizationIds
@@ -5353,8 +5616,14 @@ context SecureAggregation {
     event HomomorphicEncryptionContextPrepared {
       secureAggregationSessionId: UUID id technical
       trainingJobId: UUID
+      federationId: UUID
+      federationName: String?
       trainingRunConfigurationId: UUID
+      configurationName: String?
+      trainingJobObjective: String
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       roundId: UUID
       roundNumber: Int
       selectedOrganizationIds: UUID[]
@@ -5391,6 +5660,7 @@ context SecureAggregation {
       submissionId: UUID from ModelUpdateSubmissionAccepted.modelUpdateSubmissionId
       trainingJobId: UUID from ModelUpdateSubmissionAccepted.trainingJobId
       trainingRunConfigurationId: UUID from ModelUpdateSubmissionAccepted.trainingRunConfigurationId
+      trainingJobObjective: String from ModelUpdateSubmissionAccepted.trainingJobObjective
       featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
       roundId: UUID from ModelUpdateSubmissionAccepted.roundId
       roundNumber: Int from ModelUpdateSubmissionAccepted.roundNumber
@@ -5409,6 +5679,7 @@ context SecureAggregation {
       submissionId: UUID
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
@@ -5448,6 +5719,7 @@ context SecureAggregation {
       secureAggregationSessionId: UUID id technical
       trainingJobId: UUID from EncryptedModelUpdateReceived.trainingJobId
       trainingRunConfigurationId: UUID from EncryptedModelUpdateReceived.trainingRunConfigurationId
+      trainingJobObjective: String from EncryptedModelUpdateReceived.trainingJobObjective
       featureSchemaId: UUID from EncryptedModelUpdateReceived.featureSchemaId
       roundId: UUID from EncryptedModelUpdateReceived.roundId
       roundNumber: Int from EncryptedModelUpdateReceived.roundNumber
@@ -5461,6 +5733,7 @@ context SecureAggregation {
       secureAggregationSessionId: UUID id technical
       trainingJobId: UUID
       trainingRunConfigurationId: UUID
+      trainingJobObjective: String
       featureSchemaId: UUID
       roundId: UUID
       roundNumber: Int
@@ -5686,7 +5959,10 @@ context RuntimeAgentOperations {
     command DeclareDataset {
       datasetId: UUID id generated technical
       organizationId: UUID
+      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
       featureSchemaId: UUID
+      featureDomain: String? derived from FeatureSchemaCatalog.featureDomain by featureSchemaId
+      featureSchemaVersion: String? derived from FeatureSchemaCatalog.version by featureSchemaId
       datasetName: String
       datasetUsage: String
     }
@@ -5694,7 +5970,10 @@ context RuntimeAgentOperations {
     event DatasetDeclared {
       datasetId: UUID id technical
       organizationId: UUID
+      organizationName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       datasetName: String
       datasetUsage: String
       features: FeatureDefinition[]
@@ -5748,8 +6027,12 @@ context RuntimeAgentOperations {
       datasetId: UUID from DatasetDeclared.datasetId
       organizationId: UUID from DatasetDeclared.organizationId
       featureSchemaId: UUID from DatasetDeclared.featureSchemaId
+      organizationName: String? from DatasetDeclared.organizationName
+      featureDomain: String? from DatasetDeclared.featureDomain
+      featureSchemaVersion: String? from DatasetDeclared.featureSchemaVersion
       datasetName: String from DatasetDeclared.datasetName
       runtimeId: UUID
+      runtimeName: String? derived from RuntimeIdentityCatalog.runtimeName by runtimeId
       dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
       host: String?
       port: Int?
@@ -5770,8 +6053,12 @@ context RuntimeAgentOperations {
       datasetId: UUID
       organizationId: UUID
       featureSchemaId: UUID
+      organizationName: String?
+      featureDomain: String?
+      featureSchemaVersion: String?
       datasetName: String
       runtimeId: UUID
+      runtimeName: String?
       dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
       host: String?
       port: Int?
@@ -5817,7 +6104,12 @@ context RuntimeAgentOperations {
       datasetId: UUID
       organizationId: UUID
       runtimeId: UUID
+      organizationName: String?
+      featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       datasetName: String? display
+      runtimeName: String?
       dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
       host: String?
       port: Int?
@@ -5876,9 +6168,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID from RuntimeDatasetBindingConfigured.runtimeDatasetBindingId
       datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
       organizationId: UUID from RuntimeDatasetBindingConfigured.organizationId
+      organizationName: String? from RuntimeDatasetBindingConfigured.organizationName
       featureSchemaId: UUID from RuntimeDatasetBindingConfigured.featureSchemaId
+      featureDomain: String? from RuntimeDatasetBindingConfigured.featureDomain
+      featureSchemaVersion: String? from RuntimeDatasetBindingConfigured.featureSchemaVersion
       datasetName: String from RuntimeDatasetBindingConfigured.datasetName
       runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
+      runtimeName: String? from RuntimeDatasetBindingConfigured.runtimeName
       dataSourceType: String from RuntimeDatasetBindingConfigured.dataSourceType
       host: String? from RuntimeDatasetBindingConfigured.host
       port: Int? from RuntimeDatasetBindingConfigured.port
@@ -5898,9 +6194,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
       organizationId: UUID from RuntimeDatasetBindingConfigured.organizationId
+      organizationName: String? from RuntimeDatasetBindingConfigured.organizationName
       featureSchemaId: UUID from RuntimeDatasetBindingConfigured.featureSchemaId
+      featureDomain: String? from RuntimeDatasetBindingConfigured.featureDomain
+      featureSchemaVersion: String? from RuntimeDatasetBindingConfigured.featureSchemaVersion
       datasetName: String from RuntimeDatasetBindingConfigured.datasetName
       runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
+      runtimeName: String? from RuntimeDatasetBindingConfigured.runtimeName
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
@@ -5911,9 +6211,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID from RuntimeDatasetBindingConfigured.datasetId
       organizationId: UUID from RuntimeDatasetBindingConfigured.organizationId
+      organizationName: String? from RuntimeDatasetBindingConfigured.organizationName
       featureSchemaId: UUID from RuntimeDatasetBindingConfigured.featureSchemaId
+      featureDomain: String? from RuntimeDatasetBindingConfigured.featureDomain
+      featureSchemaVersion: String? from RuntimeDatasetBindingConfigured.featureSchemaVersion
       datasetName: String from RuntimeDatasetBindingConfigured.datasetName
       runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
+      runtimeName: String? from RuntimeDatasetBindingConfigured.runtimeName
       failureReason: String
     }
 
@@ -5972,9 +6276,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID from AgentDatasetAccessValidationFailed.datasetId
       organizationId: UUID from AgentDatasetAccessValidationFailed.organizationId
+      organizationName: String? from AgentDatasetAccessValidationFailed.organizationName
       featureSchemaId: UUID from AgentDatasetAccessValidationFailed.featureSchemaId
+      featureDomain: String? from AgentDatasetAccessValidationFailed.featureDomain
+      featureSchemaVersion: String? from AgentDatasetAccessValidationFailed.featureSchemaVersion
       datasetName: String from AgentDatasetAccessValidationFailed.datasetName
       runtimeId: UUID from AgentDatasetAccessValidationFailed.runtimeId
+      runtimeName: String? from AgentDatasetAccessValidationFailed.runtimeName
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
@@ -5985,9 +6293,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID from AgentDatasetAccessValidationFailed.datasetId
       organizationId: UUID from AgentDatasetAccessValidationFailed.organizationId
+      organizationName: String? from AgentDatasetAccessValidationFailed.organizationName
       featureSchemaId: UUID from AgentDatasetAccessValidationFailed.featureSchemaId
+      featureDomain: String? from AgentDatasetAccessValidationFailed.featureDomain
+      featureSchemaVersion: String? from AgentDatasetAccessValidationFailed.featureSchemaVersion
       datasetName: String from AgentDatasetAccessValidationFailed.datasetName
       runtimeId: UUID from AgentDatasetAccessValidationFailed.runtimeId
+      runtimeName: String? from AgentDatasetAccessValidationFailed.runtimeName
       failureReason: String
     }
 
@@ -6022,9 +6334,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID
       organizationId: UUID
+      organizationName: String?
       featureSchemaId: UUID
+      featureDomain: String?
+      featureSchemaVersion: String?
       runtimeId: UUID
       datasetName: String?
+      runtimeName: String?
       readable: Boolean
       schemaReadable: Boolean
       sampleBatchReadable: Boolean
@@ -6073,9 +6389,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID from AgentDatasetAccessValidated.runtimeDatasetBindingId
       datasetId: UUID from AgentDatasetAccessValidated.datasetId
       organizationId: UUID from AgentDatasetAccessValidated.organizationId
+      organizationName: String? from AgentDatasetAccessValidated.organizationName
       featureSchemaId: UUID from AgentDatasetAccessValidated.featureSchemaId
+      featureDomain: String? from AgentDatasetAccessValidated.featureDomain
+      featureSchemaVersion: String? from AgentDatasetAccessValidated.featureSchemaVersion
       datasetName: String from AgentDatasetAccessValidated.datasetName
       runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
+      runtimeName: String? from AgentDatasetAccessValidated.runtimeName
     }
 
     event AgentDatasetMetadataReported {
@@ -6083,8 +6403,12 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID from AgentDatasetAccessValidated.datasetId
       organizationId: UUID from AgentDatasetAccessValidated.organizationId
+      organizationName: String? from AgentDatasetAccessValidated.organizationName
       runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
+      runtimeName: String? from AgentDatasetAccessValidated.runtimeName
       featureSchemaId: UUID from AgentDatasetAccessValidated.featureSchemaId
+      featureDomain: String? from AgentDatasetAccessValidated.featureDomain
+      featureSchemaVersion: String? from AgentDatasetAccessValidated.featureSchemaVersion
       datasetName: String from AgentDatasetAccessValidated.datasetName
       sampleCount: Int
       featureCount: Int
@@ -6102,9 +6426,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID from AgentDatasetAccessValidated.datasetId
       organizationId: UUID from AgentDatasetAccessValidated.organizationId
+      organizationName: String? from AgentDatasetAccessValidated.organizationName
       featureSchemaId: UUID from AgentDatasetAccessValidated.featureSchemaId
+      featureDomain: String? from AgentDatasetAccessValidated.featureDomain
+      featureSchemaVersion: String? from AgentDatasetAccessValidated.featureSchemaVersion
       datasetName: String from AgentDatasetAccessValidated.datasetName
       runtimeId: UUID from AgentDatasetAccessValidated.runtimeId
+      runtimeName: String? from AgentDatasetAccessValidated.runtimeName
       failureReason: String
     }
 
@@ -6157,8 +6485,12 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID from AgentDatasetProfilingFailed.datasetId
       organizationId: UUID from AgentDatasetProfilingFailed.organizationId
+      organizationName: String? from AgentDatasetProfilingFailed.organizationName
       runtimeId: UUID from AgentDatasetProfilingFailed.runtimeId
+      runtimeName: String? from AgentDatasetProfilingFailed.runtimeName
       featureSchemaId: UUID from AgentDatasetProfilingFailed.featureSchemaId
+      featureDomain: String? from AgentDatasetProfilingFailed.featureDomain
+      featureSchemaVersion: String? from AgentDatasetProfilingFailed.featureSchemaVersion
       datasetName: String from AgentDatasetProfilingFailed.datasetName
       sampleCount: Int
       featureCount: Int
@@ -6176,9 +6508,13 @@ context RuntimeAgentOperations {
       runtimeDatasetBindingId: UUID
       datasetId: UUID from AgentDatasetProfilingFailed.datasetId
       organizationId: UUID from AgentDatasetProfilingFailed.organizationId
+      organizationName: String? from AgentDatasetProfilingFailed.organizationName
       featureSchemaId: UUID from AgentDatasetProfilingFailed.featureSchemaId
+      featureDomain: String? from AgentDatasetProfilingFailed.featureDomain
+      featureSchemaVersion: String? from AgentDatasetProfilingFailed.featureSchemaVersion
       datasetName: String from AgentDatasetProfilingFailed.datasetName
       runtimeId: UUID from AgentDatasetProfilingFailed.runtimeId
+      runtimeName: String? from AgentDatasetProfilingFailed.runtimeName
       failureReason: String
     }
 
@@ -6459,18 +6795,9 @@ context RuntimeAgentOperations {
       featureSchemaId: UUID
       features: FeatureDefinition[]
       labels: LabelDefinition[]?
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the dataset capability catalog."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset capability catalog."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset capability catalog."
-      }
+      organizationName: String?
+      featureDomain: String?
+      featureSchemaVersion: String?
       datasetName: String display
       datasetUsage: String
       sampleCount: Int?
@@ -6509,18 +6836,9 @@ context RuntimeAgentOperations {
       runtimeId: UUID?
       featureSchemaId: UUID
       datasetName: String display
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the dataset readiness view."
-      }
-      featureDomain: String? derived {
-        from FeatureSchemaDefined.featureDomain
-        rule "Lookup by featureSchemaId and denormalize the feature schema domain into the dataset readiness view."
-      }
-      featureSchemaVersion: String? derived {
-        from FeatureSchemaDefined.version
-        rule "Lookup by featureSchemaId and denormalize the feature schema version into the dataset readiness view."
-      }
+      organizationName: String?
+      featureDomain: String?
+      featureSchemaVersion: String?
       datasetUsage: String
       metadataStatus: String
       contractStatus: String
@@ -7760,8 +8078,10 @@ context RuntimeAgentOperations {
     command ReportAgentRuntimeNodeInventory {
       runtimeNodeInventoryReportId: UUID id generated technical
       organizationId: UUID
+      organizationName: String?
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
+      runtimeName: String?
       runtimeNodeName: String
       infrastructureNodeId: String?
       runtimeNodeRole: String
@@ -7776,8 +8096,10 @@ context RuntimeAgentOperations {
     event AgentRuntimeNodeInventoryReported {
       runtimeNodeInventoryReportId: UUID id technical
       organizationId: UUID
+      organizationName: String?
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
+      runtimeName: String?
       runtimeNodeName: String
       infrastructureNodeId: String?
       runtimeNodeRole: String
@@ -7798,10 +8120,7 @@ context RuntimeAgentOperations {
       organizationId: UUID
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
-      organizationName: String? derived {
-        from OrganizationRegistered.organizationName
-        rule "Lookup by organizationId and denormalize the organization display name into the agent runtime node inventory catalog."
-      }
+      organizationName: String?
       runtimeNodeName: String
       infrastructureNodeId: String?
       runtimeNodeRole: String
