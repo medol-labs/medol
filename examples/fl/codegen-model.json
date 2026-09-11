@@ -657,6 +657,11 @@
           "title": "Deploy Runtime Agent"
         },
         {
+          "id": "slice-dea247c4",
+          "name": "RetryRuntimeInfrastructureVerification",
+          "title": "Retry Runtime Infrastructure Verification"
+        },
+        {
           "id": "slice-6432e41e",
           "name": "RetryRuntimeAgentDeployment",
           "title": "Retry Runtime Agent Deployment"
@@ -2935,6 +2940,11 @@
           "title": "Deploy Runtime Agent"
         },
         {
+          "id": "slice-dea247c4",
+          "name": "RetryRuntimeInfrastructureVerification",
+          "title": "Retry Runtime Infrastructure Verification"
+        },
+        {
           "id": "slice-6432e41e",
           "name": "RetryRuntimeAgentDeployment",
           "title": "Retry Runtime Agent Deployment"
@@ -5000,6 +5010,33 @@
       },
       "from": "Verified",
       "to": "AgentReady",
+      "startsLifecycle": false
+    },
+    {
+      "id": "transition-2d3e6cd7",
+      "context": "RuntimeProvisioning",
+      "owner": {
+        "id": "concept-eecaaa9f",
+        "type": "concept",
+        "name": "RuntimeInfrastructure",
+        "title": "Runtime Infrastructure"
+      },
+      "slice": {
+        "id": "slice-dea247c4",
+        "name": "RetryRuntimeInfrastructureVerification",
+        "title": "Retry Runtime Infrastructure Verification"
+      },
+      "command": {
+        "id": "command-2c329e29",
+        "name": "RetryRuntimeInfrastructureVerification",
+        "title": "Retry Runtime Infrastructure Verification"
+      },
+      "event": {
+        "id": "event-4bb1cadf",
+        "name": "RuntimeInfrastructureVerificationRetrySucceeded",
+        "title": "Runtime Infrastructure Verification Retry Succeeded"
+      },
+      "to": "Verified",
       "startsLifecycle": false
     },
     {
@@ -17698,6 +17735,18 @@
               "elementType": "EVENT"
             },
             {
+              "id": "event-4bb1cadf",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verification Retry Succeeded",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-8da56703",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verification Retry Failed",
+              "elementType": "EVENT"
+            },
+            {
               "id": "event-05ba48a6",
               "direction": "INBOUND",
               "title": "Runtime Agent Installation Succeeded",
@@ -17731,7 +17780,18 @@
           "listElement": true
         }
       ],
-      "screens": [],
+      "screens": [
+        {
+          "id": "screen-95da95e1",
+          "name": "RuntimeInstallationPlanScreen",
+          "title": "Runtime Installation Plan Screen",
+          "type": "SCREEN",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Runtime Installation Plan Catalog",
+          "fields": [],
+          "dependencies": []
+        }
+      ],
       "processors": [],
       "specifications": [],
       "actors": [],
@@ -18075,6 +18135,18 @@
               "id": "event-9742d847",
               "direction": "INBOUND",
               "title": "Runtime Infrastructure Verification Failed",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-4bb1cadf",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verification Retry Succeeded",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-8da56703",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verification Retry Failed",
               "elementType": "EVENT"
             }
           ],
@@ -21024,10 +21096,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.runtimeAgentId"
-                ]
+                  "RuntimeInfrastructureAccessView.runtimeAgentId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeAgentId",
+                  "targetField": "runtimeAgentId",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21058,10 +21137,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.runtimeInstallationPlanId"
-                ]
+                  "RuntimeInfrastructureAccessView.runtimeInstallationPlanId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeInstallationPlanId",
+                  "targetField": "runtimeInstallationPlanId",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21078,10 +21164,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.organizationId"
-                ]
+                  "RuntimeInfrastructureAccessView.organizationId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "organizationId",
+                  "targetField": "organizationId",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21098,10 +21191,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.organizationName"
-                ]
+                  "RuntimeInfrastructureAccessView.organizationName"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "organizationName",
+                  "targetField": "organizationName",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21118,10 +21218,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.runtimeInfrastructurePackageId"
-                ]
+                  "RuntimeInfrastructureAccessView.runtimeInfrastructurePackageId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeInfrastructurePackageId",
+                  "targetField": "runtimeInfrastructurePackageId",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21138,10 +21245,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.runtimeInfrastructurePackageName"
-                ]
+                  "RuntimeInfrastructureAccessView.runtimeInfrastructurePackageName"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeInfrastructurePackageName",
+                  "targetField": "runtimeInfrastructurePackageName",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21158,10 +21272,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.runtimeInfrastructurePackageVersion"
-                ]
+                  "RuntimeInfrastructureAccessView.runtimeInfrastructurePackageVersion"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeInfrastructurePackageVersion",
+                  "targetField": "runtimeInfrastructurePackageVersion",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21179,10 +21300,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.runtimeEnvironmentType"
-                ]
+                  "RuntimeInfrastructureAccessView.runtimeEnvironmentType"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeEnvironmentType",
+                  "targetField": "runtimeEnvironmentType",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21199,10 +21327,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.runtimeName"
-                ]
+                  "RuntimeInfrastructureAccessView.runtimeName"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeName",
+                  "targetField": "runtimeName",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21220,10 +21355,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.agentInstallMode"
-                ]
+                  "RuntimeInfrastructureAccessView.agentInstallMode"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "agentInstallMode",
+                  "targetField": "agentInstallMode",
+                  "missingValuePolicy": "keep"
+                }
               }
             },
             {
@@ -21240,10 +21382,17 @@
               "file": false,
               "portOutput": false,
               "source": {
-                "kind": "direct",
+                "kind": "derived",
                 "from": [
-                  "RuntimeInfrastructureVerified.expectedNodeCount"
-                ]
+                  "RuntimeInfrastructureAccessView.expectedNodeCount"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "expectedNodeCount",
+                  "targetField": "expectedNodeCount",
+                  "missingValuePolicy": "keep"
+                }
               }
             }
           ],
@@ -21252,6 +21401,12 @@
               "id": "automation-a33955d2",
               "direction": "INBOUND",
               "title": "Deploy Runtime Agent When Infrastructure Verified",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "automation-bc1a2546",
+              "direction": "INBOUND",
+              "title": "Deploy Runtime Agent When Infrastructure Verification Retry Succeeded",
               "elementType": "PROCESSOR"
             },
             {
@@ -21761,6 +21916,35 @@
             "condition": "agentInstallMode == PLATFORM_MANAGED",
             "emits": "DeployRuntimeAgent"
           }
+        },
+        {
+          "id": "automation-bc1a2546",
+          "name": "DeployRuntimeAgentWhenInfrastructureVerificationRetrySucceeded",
+          "title": "Deploy Runtime Agent When Infrastructure Verification Retry Succeeded",
+          "type": "PROCESSOR",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Deploy Runtime Agent",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "event-4bb1cadf",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verification Retry Succeeded",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "command-24f17fc5",
+              "direction": "OUTBOUND",
+              "title": "Deploy Runtime Agent",
+              "elementType": "COMMAND"
+            }
+          ],
+          "metadata": {
+            "on": "RuntimeInfrastructureVerificationRetrySucceeded",
+            "onKind": "event",
+            "condition": "agentInstallMode == PLATFORM_MANAGED",
+            "emits": "DeployRuntimeAgent"
+          }
         }
       ],
       "specifications": [
@@ -22088,8 +22272,1400 @@
       }
     },
     {
-      "id": "slice-6432e41e",
+      "id": "slice-dea247c4",
       "index": 43,
+      "name": "RetryRuntimeInfrastructureVerification",
+      "title": "Retry Runtime Infrastructure Verification",
+      "chapter": "RuntimeProvisioning",
+      "context": "RuntimeProvisioning",
+      "tags": [],
+      "port": true,
+      "concepts": [
+        "RuntimeInfrastructure"
+      ],
+      "commands": [
+        {
+          "id": "command-2c329e29",
+          "name": "RetryRuntimeInfrastructureVerification",
+          "title": "Retry Runtime Infrastructure Verification",
+          "type": "COMMAND",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Retry Runtime Infrastructure Verification",
+          "fields": [
+            {
+              "name": "runtimeInfrastructureId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.runtimeInstallationPlanId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeInstallationPlanId",
+                  "targetField": "runtimeInstallationPlanId",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.organizationId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "organizationId",
+                  "targetField": "organizationId",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "organizationName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.organizationName"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "organizationName",
+                  "targetField": "organizationName",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "runtimeInfrastructurePackageId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.runtimeInfrastructurePackageId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeInfrastructurePackageId",
+                  "targetField": "runtimeInfrastructurePackageId",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "runtimeInfrastructurePackageName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.runtimeInfrastructurePackageName"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeInfrastructurePackageName",
+                  "targetField": "runtimeInfrastructurePackageName",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "runtimeInfrastructurePackageVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.runtimeInfrastructurePackageVersion"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeInfrastructurePackageVersion",
+                  "targetField": "runtimeInfrastructurePackageVersion",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "runtimeEnvironmentType",
+              "type": "String",
+              "dictionary": "RUNTIME_ENVIRONMENT_TYPE",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.runtimeEnvironmentType"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeEnvironmentType",
+                  "targetField": "runtimeEnvironmentType",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "runtimeName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.runtimeName"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeName",
+                  "targetField": "runtimeName",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "runtimeAgentId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.runtimeAgentId"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "runtimeAgentId",
+                  "targetField": "runtimeAgentId",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "agentInstallMode",
+              "type": "String",
+              "dictionary": "RUNTIME_AGENT_INSTALL_MODE",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.agentInstallMode"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "agentInstallMode",
+                  "targetField": "agentInstallMode",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "expectedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.expectedNodeCount"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "expectedNodeCount",
+                  "targetField": "expectedNodeCount",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "currentRuntimeInfrastructureState",
+              "type": "RuntimeInfrastructure.State",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false,
+              "source": {
+                "kind": "derived",
+                "from": [
+                  "RuntimeInfrastructureAccessView.state"
+                ],
+                "lookup": {
+                  "key": "runtimeInfrastructureId",
+                  "cacheProjection": "RuntimeInfrastructureAccessView",
+                  "sourceField": "state",
+                  "targetField": "currentRuntimeInfrastructureState",
+                  "missingValuePolicy": "keep"
+                }
+              }
+            },
+            {
+              "name": "retryReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "screen-a7b6d709",
+              "direction": "INBOUND",
+              "title": "Runtime Installation Plan Screen",
+              "elementType": "SCREEN"
+            },
+            {
+              "id": "event-4bb1cadf",
+              "direction": "OUTBOUND",
+              "title": "Runtime Infrastructure Verification Retry Succeeded",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-8da56703",
+              "direction": "OUTBOUND",
+              "title": "Runtime Infrastructure Verification Retry Failed",
+              "elementType": "EVENT"
+            }
+          ],
+          "port": true,
+          "ui": {
+            "type": "confirm"
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "event-4bb1cadf",
+          "name": "RuntimeInfrastructureVerificationRetrySucceeded",
+          "title": "Runtime Infrastructure Verification Retry Succeeded",
+          "type": "EVENT",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Retry Runtime Infrastructure Verification",
+          "fields": [
+            {
+              "name": "runtimeInfrastructureId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "organizationName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInfrastructurePackageId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInfrastructurePackageName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInfrastructurePackageVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeEnvironmentType",
+              "type": "String",
+              "dictionary": "RUNTIME_ENVIRONMENT_TYPE",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeAgentId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "agentInstallMode",
+              "type": "String",
+              "dictionary": "RUNTIME_AGENT_INSTALL_MODE",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "expectedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "observedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "retryReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "readmodel-3be9a609",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Plan Catalog",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "readmodel-da54e769",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Guide",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "automation-bc1a2546",
+              "direction": "OUTBOUND",
+              "title": "Deploy Runtime Agent When Infrastructure Verification Retry Succeeded",
+              "elementType": "PROCESSOR"
+            },
+            {
+              "id": "command-2c329e29",
+              "direction": "INBOUND",
+              "title": "Retry Runtime Infrastructure Verification",
+              "elementType": "COMMAND"
+            },
+            {
+              "id": "readmodel-02ea1fc7",
+              "direction": "OUTBOUND",
+              "title": "Runtime Infrastructure Access View",
+              "elementType": "READMODEL"
+            }
+          ]
+        },
+        {
+          "id": "event-8da56703",
+          "name": "RuntimeInfrastructureVerificationRetryFailed",
+          "title": "Runtime Infrastructure Verification Retry Failed",
+          "type": "EVENT",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Retry Runtime Infrastructure Verification",
+          "fields": [
+            {
+              "name": "runtimeInfrastructureId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": true,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInstallationPlanId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "organizationId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "organizationName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInfrastructurePackageId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInfrastructurePackageName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeInfrastructurePackageVersion",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeEnvironmentType",
+              "type": "String",
+              "dictionary": "RUNTIME_ENVIRONMENT_TYPE",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeName",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "runtimeAgentId",
+              "type": "UUID",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": true,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "agentInstallMode",
+              "type": "String",
+              "dictionary": "RUNTIME_AGENT_INSTALL_MODE",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "expectedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "observedNodeCount",
+              "type": "Int",
+              "cardinality": "Single",
+              "optional": true,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            },
+            {
+              "name": "retryReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": false
+            },
+            {
+              "name": "failureReason",
+              "type": "String",
+              "cardinality": "Single",
+              "optional": false,
+              "idAttribute": false,
+              "generated": false,
+              "technicalAttribute": false,
+              "query": false,
+              "display": false,
+              "uploadFile": false,
+              "file": false,
+              "portOutput": true
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "readmodel-3be9a609",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Plan Catalog",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "readmodel-da54e769",
+              "direction": "OUTBOUND",
+              "title": "Runtime Installation Guide",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "readmodel-02ea1fc7",
+              "direction": "OUTBOUND",
+              "title": "Runtime Infrastructure Access View",
+              "elementType": "READMODEL"
+            },
+            {
+              "id": "command-2c329e29",
+              "direction": "INBOUND",
+              "title": "Retry Runtime Infrastructure Verification",
+              "elementType": "COMMAND"
+            }
+          ]
+        }
+      ],
+      "readmodels": [],
+      "screens": [
+        {
+          "id": "screen-a7b6d709",
+          "name": "RuntimeInstallationPlanScreen",
+          "title": "Runtime Installation Plan Screen",
+          "type": "SCREEN",
+          "modelContext": "RuntimeProvisioning",
+          "slice": "Retry Runtime Infrastructure Verification",
+          "fields": [],
+          "dependencies": [
+            {
+              "id": "command-2c329e29",
+              "direction": "OUTBOUND",
+              "title": "Retry Runtime Infrastructure Verification",
+              "elementType": "COMMAND"
+            }
+          ],
+          "ui": {
+            "type": "confirm"
+          }
+        }
+      ],
+      "processors": [],
+      "specifications": [
+        {
+          "id": "gwt-b9004fd0",
+          "chapter": "RuntimeProvisioning",
+          "sliceName": "Retry Runtime Infrastructure Verification",
+          "title": "Runtime Infrastructure Verification Retry Succeeded",
+          "specification": "Runtime Infrastructure Verification Retry Outcome",
+          "rule": "A platform admin can retry runtime infrastructure verification after fixing external runtime preparation problems such as missing Kubernetes node labels, unavailable nodes, registry access, or scheduler RBAC. The retry is allowed only from the VerificationFailed state and records exactly one new outcome without rewriting the original failed verification event.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "Runtime Infrastructure Verification Failed",
+              "id": "event-9742d847",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-2"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "organizationName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageId"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageVersion"
+                },
+                {
+                  "name": "runtimeEnvironmentType"
+                },
+                {
+                  "name": "runtimeName"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "agentInstallMode"
+                },
+                {
+                  "name": "expectedNodeCount"
+                },
+                {
+                  "name": "observedNodeCount"
+                },
+                {
+                  "name": "failureReason"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Retry Runtime Infrastructure Verification",
+              "id": "command-2c329e29",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-2"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "organizationName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageId"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageVersion"
+                },
+                {
+                  "name": "runtimeEnvironmentType"
+                },
+                {
+                  "name": "runtimeName"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "agentInstallMode"
+                },
+                {
+                  "name": "expectedNodeCount"
+                },
+                {
+                  "name": "currentRuntimeInfrastructureState",
+                  "example": "VerificationFailed"
+                },
+                {
+                  "name": "retryReason",
+                  "example": "Retry after applying runtime scheduling labels and RBAC."
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "Runtime Infrastructure Verification Retry Succeeded",
+              "id": "event-4bb1cadf",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-2"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "organizationName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageId"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageVersion"
+                },
+                {
+                  "name": "runtimeEnvironmentType"
+                },
+                {
+                  "name": "runtimeName"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "agentInstallMode"
+                },
+                {
+                  "name": "expectedNodeCount"
+                },
+                {
+                  "name": "observedNodeCount"
+                },
+                {
+                  "name": "retryReason",
+                  "example": "Retry after applying runtime scheduling labels and RBAC."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "gwt-2bbab5f6",
+          "chapter": "RuntimeProvisioning",
+          "sliceName": "Retry Runtime Infrastructure Verification",
+          "title": "Runtime Infrastructure Verification Retry Failed",
+          "specification": "Runtime Infrastructure Verification Retry Outcome",
+          "rule": "A platform admin can retry runtime infrastructure verification after fixing external runtime preparation problems such as missing Kubernetes node labels, unavailable nodes, registry access, or scheduler RBAC. The retry is allowed only from the VerificationFailed state and records exactly one new outcome without rewriting the original failed verification event.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "Runtime Infrastructure Verification Failed",
+              "id": "event-9742d847",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-3"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "organizationName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageId"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageVersion"
+                },
+                {
+                  "name": "runtimeEnvironmentType"
+                },
+                {
+                  "name": "runtimeName"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "agentInstallMode"
+                },
+                {
+                  "name": "expectedNodeCount"
+                },
+                {
+                  "name": "observedNodeCount"
+                },
+                {
+                  "name": "failureReason"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Retry Runtime Infrastructure Verification",
+              "id": "command-2c329e29",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-3"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "organizationName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageId"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageVersion"
+                },
+                {
+                  "name": "runtimeEnvironmentType"
+                },
+                {
+                  "name": "runtimeName"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "agentInstallMode"
+                },
+                {
+                  "name": "expectedNodeCount"
+                },
+                {
+                  "name": "currentRuntimeInfrastructureState",
+                  "example": "VerificationFailed"
+                },
+                {
+                  "name": "retryReason",
+                  "example": "Retry after adding the participant node."
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "title": "Runtime Infrastructure Verification Retry Failed",
+              "id": "event-8da56703",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-3"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "organizationName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageId"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageVersion"
+                },
+                {
+                  "name": "runtimeEnvironmentType"
+                },
+                {
+                  "name": "runtimeName"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "agentInstallMode"
+                },
+                {
+                  "name": "expectedNodeCount"
+                },
+                {
+                  "name": "observedNodeCount"
+                },
+                {
+                  "name": "retryReason",
+                  "example": "Retry after adding the participant node."
+                },
+                {
+                  "name": "failureReason"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "gwt-96e2805f",
+          "chapter": "RuntimeProvisioning",
+          "sliceName": "Retry Runtime Infrastructure Verification",
+          "title": "Reject Runtime Infrastructure Verification Retry While Verified",
+          "specification": "Runtime Infrastructure Verification Retry Outcome",
+          "rule": "A platform admin can retry runtime infrastructure verification after fixing external runtime preparation problems such as missing Kubernetes node labels, unavailable nodes, registry access, or scheduler RBAC. The retry is allowed only from the VerificationFailed state and records exactly one new outcome without rewriting the original failed verification event.",
+          "expressions": [],
+          "validates": [],
+          "given": [
+            {
+              "title": "Runtime Infrastructure Verified",
+              "id": "event-e8571c1d",
+              "type": "EVENT",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-4"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "organizationName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageId"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageVersion"
+                },
+                {
+                  "name": "runtimeEnvironmentType"
+                },
+                {
+                  "name": "runtimeName"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "agentInstallMode"
+                },
+                {
+                  "name": "expectedNodeCount"
+                },
+                {
+                  "name": "observedNodeCount"
+                }
+              ]
+            }
+          ],
+          "when": [
+            {
+              "title": "Retry Runtime Infrastructure Verification",
+              "id": "command-2c329e29",
+              "type": "COMMAND",
+              "fields": [
+                {
+                  "name": "runtimeInfrastructureId",
+                  "example": "runtime-infra-4"
+                },
+                {
+                  "name": "runtimeInstallationPlanId"
+                },
+                {
+                  "name": "organizationId"
+                },
+                {
+                  "name": "organizationName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageId"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageName"
+                },
+                {
+                  "name": "runtimeInfrastructurePackageVersion"
+                },
+                {
+                  "name": "runtimeEnvironmentType"
+                },
+                {
+                  "name": "runtimeName"
+                },
+                {
+                  "name": "runtimeAgentId"
+                },
+                {
+                  "name": "agentInstallMode"
+                },
+                {
+                  "name": "expectedNodeCount"
+                },
+                {
+                  "name": "currentRuntimeInfrastructureState",
+                  "example": "Verified"
+                },
+                {
+                  "name": "retryReason",
+                  "example": "Retry already verified infrastructure."
+                }
+              ]
+            }
+          ],
+          "then": {
+            "title": "Rejected",
+            "id": "spec-reject-96e2805f",
+            "description": "Runtime Infrastructure Verification Retry Not Allowed",
+            "outcome": "REJECT"
+          }
+        }
+      ],
+      "actors": [
+        {
+          "id": "actor-ea699d05",
+          "name": "PlatformAdmin",
+          "title": "Platform Admin"
+        }
+      ],
+      "hotspots": [],
+      "stateChange": {
+        "event": "RuntimeInfrastructureVerificationRetrySucceeded",
+        "eventId": "event-4bb1cadf",
+        "to": "Verified"
+      }
+    },
+    {
+      "id": "slice-6432e41e",
+      "index": 44,
       "name": "RetryRuntimeAgentDeployment",
       "title": "Retry Runtime Agent Deployment",
       "chapter": "RuntimeProvisioning",
@@ -23503,7 +25079,7 @@
     },
     {
       "id": "slice-15dea9b5",
-      "index": 44,
+      "index": 45,
       "name": "RecordRuntimeConnectionEstablished",
       "title": "Record Runtime Connection Established",
       "chapter": "RuntimeProvisioning",
@@ -23912,7 +25488,7 @@
     },
     {
       "id": "slice-0f1cd9f9",
-      "index": 45,
+      "index": 46,
       "name": "RuntimeAgentEndpointCatalog",
       "title": "Runtime Agent Endpoint Catalog",
       "chapter": "RuntimeProvisioning",
@@ -24117,7 +25693,7 @@
     },
     {
       "id": "slice-39822ec6",
-      "index": 46,
+      "index": 47,
       "name": "RuntimeInfrastructureAccessView",
       "title": "Runtime Infrastructure Access View",
       "chapter": "RuntimeProvisioning",
@@ -24540,6 +26116,18 @@
               "elementType": "EVENT"
             },
             {
+              "id": "event-4bb1cadf",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verification Retry Succeeded",
+              "elementType": "EVENT"
+            },
+            {
+              "id": "event-8da56703",
+              "direction": "INBOUND",
+              "title": "Runtime Infrastructure Verification Retry Failed",
+              "elementType": "EVENT"
+            },
+            {
               "id": "event-05ba48a6",
               "direction": "INBOUND",
               "title": "Runtime Agent Installation Succeeded",
@@ -24581,7 +26169,7 @@
     },
     {
       "id": "slice-d92096fb",
-      "index": 47,
+      "index": 48,
       "name": "DefineFeatureSchema",
       "title": "Define Feature Schema",
       "chapter": "DatasetGovernance",
@@ -25009,7 +26597,7 @@
     },
     {
       "id": "slice-9a1a067d",
-      "index": 48,
+      "index": 49,
       "name": "PublishFeatureSchema",
       "title": "Publish Feature Schema",
       "chapter": "DatasetGovernance",
@@ -25274,7 +26862,7 @@
     },
     {
       "id": "slice-d0d6ce25",
-      "index": 49,
+      "index": 50,
       "name": "DeprecateFeatureSchema",
       "title": "Deprecate Feature Schema",
       "chapter": "DatasetGovernance",
@@ -25447,7 +27035,7 @@
     },
     {
       "id": "slice-50e78e0f",
-      "index": 50,
+      "index": 51,
       "name": "RetireFeatureSchema",
       "title": "Retire Feature Schema",
       "chapter": "DatasetGovernance",
@@ -25614,7 +27202,7 @@
     },
     {
       "id": "slice-c6a6a6c8",
-      "index": 51,
+      "index": 52,
       "name": "SupersedeFeatureSchemaVersion",
       "title": "Supersede Feature Schema Version",
       "chapter": "DatasetGovernance",
@@ -25953,7 +27541,7 @@
     },
     {
       "id": "slice-76cab273",
-      "index": 52,
+      "index": 53,
       "name": "MarkCurrentRecommendedFeatureSchemaVersion",
       "title": "Mark Current Recommended Feature Schema Version",
       "chapter": "DatasetGovernance",
@@ -26245,7 +27833,7 @@
     },
     {
       "id": "slice-73f5eccd",
-      "index": 53,
+      "index": 54,
       "name": "CurrentRecommendedFeatureSchemaCatalog",
       "title": "Current Recommended Feature Schema Catalog",
       "chapter": "DatasetGovernance",
@@ -26355,7 +27943,7 @@
     },
     {
       "id": "slice-8f30e501",
-      "index": 54,
+      "index": 55,
       "name": "FeatureSchemaCatalog",
       "title": "Feature Schema Catalog",
       "chapter": "DatasetGovernance",
@@ -26566,7 +28154,7 @@
     },
     {
       "id": "slice-ad05f2d9",
-      "index": 55,
+      "index": 56,
       "name": "RecordRuntimeDatasetMetadata",
       "title": "Record Runtime Dataset Metadata",
       "chapter": "DatasetGovernance",
@@ -27357,7 +28945,7 @@
     },
     {
       "id": "slice-c7f572a3",
-      "index": 56,
+      "index": 57,
       "name": "RecordRuntimeDatasetReprofiledMetadata",
       "title": "Record Runtime Dataset Reprofiled Metadata",
       "chapter": "DatasetGovernance",
@@ -28141,7 +29729,7 @@
     },
     {
       "id": "slice-1ed8c787",
-      "index": 57,
+      "index": 58,
       "name": "RuntimeDatasetMetadataCatalog",
       "title": "Runtime Dataset Metadata Catalog",
       "chapter": "DatasetGovernance",
@@ -28533,7 +30121,7 @@
     },
     {
       "id": "slice-7ccc677e",
-      "index": 58,
+      "index": 59,
       "name": "RegisterModelArtifact",
       "title": "Register Model Artifact",
       "chapter": "ModelRepository",
@@ -28999,7 +30587,7 @@
     },
     {
       "id": "slice-e846ef48",
-      "index": 59,
+      "index": 60,
       "name": "ModelArtifactCatalog",
       "title": "Model Artifact Catalog",
       "chapter": "ModelRepository",
@@ -29283,7 +30871,7 @@
     },
     {
       "id": "slice-d38fbaed",
-      "index": 60,
+      "index": 61,
       "name": "DownloadModelArtifact",
       "title": "Download Model Artifact",
       "chapter": "ModelRepository",
@@ -29652,7 +31240,7 @@
     },
     {
       "id": "slice-eef6ed6c",
-      "index": 61,
+      "index": 62,
       "name": "RegisterFederatedModelArtifact",
       "title": "Register Federated Model Artifact",
       "chapter": "ModelRepository",
@@ -30346,7 +31934,7 @@
     },
     {
       "id": "slice-83322758",
-      "index": 62,
+      "index": 63,
       "name": "DefineTrainingRunConfiguration",
       "title": "Define Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -31692,7 +33280,7 @@
     },
     {
       "id": "slice-017ad176",
-      "index": 63,
+      "index": 64,
       "name": "UpdateTrainingRunConfiguration",
       "title": "Update Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -33185,7 +34773,7 @@
     },
     {
       "id": "slice-e7dd4f24",
-      "index": 64,
+      "index": 65,
       "name": "LockTrainingRunConfiguration",
       "title": "Lock Training Run Configuration",
       "chapter": "TrainingOrchestration",
@@ -33358,7 +34946,7 @@
     },
     {
       "id": "slice-04d3f902",
-      "index": 65,
+      "index": 66,
       "name": "TrainingRunConfigurationCatalog",
       "title": "Training Run Configuration Catalog",
       "chapter": "TrainingOrchestration",
@@ -33888,7 +35476,7 @@
     },
     {
       "id": "slice-6537d1cd",
-      "index": 66,
+      "index": 67,
       "name": "CreateTrainingJob",
       "title": "Create Training Job",
       "chapter": "TrainingOrchestration",
@@ -34610,7 +36198,7 @@
     },
     {
       "id": "slice-201ffbf1",
-      "index": 67,
+      "index": 68,
       "name": "SubmitTrainingJob",
       "title": "Submit Training Job",
       "chapter": "TrainingOrchestration",
@@ -35154,7 +36742,7 @@
     },
     {
       "id": "slice-b90f5d7f",
-      "index": 68,
+      "index": 69,
       "name": "TrainingJobDashboard",
       "title": "Training Job Dashboard",
       "chapter": "TrainingOrchestration",
@@ -35684,7 +37272,7 @@
     },
     {
       "id": "slice-ba4b3f70",
-      "index": 69,
+      "index": 70,
       "name": "TrainingParticipantEligibility",
       "title": "Training Participant Eligibility",
       "chapter": "TrainingOrchestration",
@@ -36342,7 +37930,7 @@
     },
     {
       "id": "slice-dde5a363",
-      "index": 70,
+      "index": 71,
       "name": "PauseTrainingJob",
       "title": "Pause Training Job",
       "chapter": "TrainingOrchestration",
@@ -36509,7 +38097,7 @@
     },
     {
       "id": "slice-c1c60d34",
-      "index": 71,
+      "index": 72,
       "name": "ResumeTrainingJob",
       "title": "Resume Training Job",
       "chapter": "TrainingOrchestration",
@@ -36670,7 +38258,7 @@
     },
     {
       "id": "slice-3af09f8b",
-      "index": 72,
+      "index": 73,
       "name": "CancelTrainingJob",
       "title": "Cancel Training Job",
       "chapter": "TrainingOrchestration",
@@ -36831,7 +38419,7 @@
     },
     {
       "id": "slice-6ad9864e",
-      "index": 73,
+      "index": 74,
       "name": "ScheduleNextTrainingRound",
       "title": "Schedule Next Training Round",
       "chapter": "TrainingOrchestration",
@@ -36881,7 +38469,7 @@
     },
     {
       "id": "slice-44fd29f8",
-      "index": 74,
+      "index": 75,
       "name": "CompleteTrainingJob",
       "title": "Complete Training Job",
       "chapter": "TrainingOrchestration",
@@ -37150,7 +38738,7 @@
     },
     {
       "id": "slice-093e2668",
-      "index": 75,
+      "index": 76,
       "name": "SelectTrainingRoundParticipants",
       "title": "Select Training Round Participants",
       "chapter": "TrainingOrchestration",
@@ -38425,7 +40013,7 @@
     },
     {
       "id": "slice-3afb3435",
-      "index": 76,
+      "index": 77,
       "name": "RetryTrainingRoundParticipantSelection",
       "title": "Retry Training Round Participant Selection",
       "chapter": "TrainingOrchestration",
@@ -38701,7 +40289,7 @@
     },
     {
       "id": "slice-6a16fc72",
-      "index": 77,
+      "index": 78,
       "name": "StartTrainingRound",
       "title": "Start Training Round",
       "chapter": "TrainingOrchestration",
@@ -40560,7 +42148,7 @@
     },
     {
       "id": "slice-fabbea45",
-      "index": 78,
+      "index": 79,
       "name": "GenerateParticipantExecutionPlan",
       "title": "Generate Participant Execution Plan",
       "chapter": "TrainingOrchestration",
@@ -42044,7 +43632,7 @@
     },
     {
       "id": "slice-04a9daf0",
-      "index": 79,
+      "index": 80,
       "name": "DispatchParticipantExecutionPlan",
       "title": "Dispatch Participant Execution Plan",
       "chapter": "TrainingOrchestration",
@@ -42877,7 +44465,7 @@
     },
     {
       "id": "slice-ff26cad0",
-      "index": 80,
+      "index": 81,
       "name": "SubmitModelUpdateSubmission",
       "title": "Submit Model Update Submission",
       "chapter": "TrainingOrchestration",
@@ -43558,7 +45146,7 @@
     },
     {
       "id": "slice-fc1ff76d",
-      "index": 81,
+      "index": 82,
       "name": "EvaluateModelUpdateSubmission",
       "title": "Evaluate Model Update Submission",
       "chapter": "TrainingOrchestration",
@@ -45107,7 +46695,7 @@
     },
     {
       "id": "slice-1a9b72f8",
-      "index": 82,
+      "index": 83,
       "name": "AggregatePlainModelUpdates",
       "title": "Aggregate Plain Model Updates",
       "chapter": "TrainingOrchestration",
@@ -45915,7 +47503,7 @@
     },
     {
       "id": "slice-a46e905e",
-      "index": 83,
+      "index": 84,
       "name": "RequestSecureAggregation",
       "title": "Request Secure Aggregation",
       "chapter": "TrainingOrchestration",
@@ -46701,7 +48289,7 @@
     },
     {
       "id": "slice-4b6bcf1e",
-      "index": 84,
+      "index": 85,
       "name": "CompleteModelAggregation",
       "title": "Complete Model Aggregation",
       "chapter": "TrainingOrchestration",
@@ -47575,7 +49163,7 @@
     },
     {
       "id": "slice-129ead8e",
-      "index": 85,
+      "index": 86,
       "name": "SubmitGlobalModelEvaluation",
       "title": "Submit Global Model Evaluation",
       "chapter": "TrainingOrchestration",
@@ -48156,7 +49744,7 @@
     },
     {
       "id": "slice-4a16b8df",
-      "index": 86,
+      "index": 87,
       "name": "CompleteTrainingRound",
       "title": "Complete Training Round",
       "chapter": "TrainingOrchestration",
@@ -49090,7 +50678,7 @@
     },
     {
       "id": "slice-8107a71a",
-      "index": 87,
+      "index": 88,
       "name": "FailTrainingRound",
       "title": "Fail Training Round",
       "chapter": "TrainingOrchestration",
@@ -49579,7 +51167,7 @@
     },
     {
       "id": "slice-158bd8b1",
-      "index": 88,
+      "index": 89,
       "name": "TrainingRoundProgress",
       "title": "Training Round Progress",
       "chapter": "TrainingOrchestration",
@@ -50457,7 +52045,7 @@
     },
     {
       "id": "slice-7806d9ed",
-      "index": 89,
+      "index": 90,
       "name": "RegisterCandidateModel",
       "title": "Register Candidate Model",
       "chapter": "ModelLifecycle",
@@ -50810,7 +52398,7 @@
     },
     {
       "id": "slice-c947b39a",
-      "index": 90,
+      "index": 91,
       "name": "RecordModelEvaluationPackage",
       "title": "Record Model Evaluation Package",
       "chapter": "ModelLifecycle",
@@ -51311,7 +52899,7 @@
     },
     {
       "id": "slice-a4c2bdcc",
-      "index": 91,
+      "index": 92,
       "name": "ApproveModel",
       "title": "Approve Model",
       "chapter": "ModelLifecycle",
@@ -51625,7 +53213,7 @@
     },
     {
       "id": "slice-e0aca431",
-      "index": 92,
+      "index": 93,
       "name": "PromoteModelToProduction",
       "title": "Promote Model To Production",
       "chapter": "ModelLifecycle",
@@ -51976,7 +53564,7 @@
     },
     {
       "id": "slice-33930733",
-      "index": 93,
+      "index": 94,
       "name": "RollbackModel",
       "title": "Rollback Model",
       "chapter": "ModelLifecycle",
@@ -52165,7 +53753,7 @@
     },
     {
       "id": "slice-9e8c0ad2",
-      "index": 94,
+      "index": 95,
       "name": "RetireModel",
       "title": "Retire Model",
       "chapter": "ModelLifecycle",
@@ -52326,7 +53914,7 @@
     },
     {
       "id": "slice-daa3e2fe",
-      "index": 95,
+      "index": 96,
       "name": "ModelCatalog",
       "title": "Model Catalog",
       "chapter": "ModelLifecycle",
@@ -52782,7 +54370,7 @@
     },
     {
       "id": "slice-97531d57",
-      "index": 96,
+      "index": 97,
       "name": "RuntimeTelemetryLatest",
       "title": "Runtime Telemetry Latest",
       "chapter": "RuntimeMonitoring",
@@ -53059,7 +54647,7 @@
     },
     {
       "id": "slice-d498ecb8",
-      "index": 97,
+      "index": 98,
       "name": "DetectRuntimeAgentOffline",
       "title": "Detect Runtime Agent Offline",
       "chapter": "RuntimeMonitoring",
@@ -53441,7 +55029,7 @@
     },
     {
       "id": "slice-fd282504",
-      "index": 98,
+      "index": 99,
       "name": "MarkRuntimeAgentRecovered",
       "title": "Mark Runtime Agent Recovered",
       "chapter": "RuntimeMonitoring",
@@ -53822,7 +55410,7 @@
     },
     {
       "id": "slice-7aeba98f",
-      "index": 99,
+      "index": 100,
       "name": "DetectRuntimeNodeResourcePressure",
       "title": "Detect Runtime Node Resource Pressure",
       "chapter": "RuntimeMonitoring",
@@ -54242,7 +55830,7 @@
     },
     {
       "id": "slice-3f7c280e",
-      "index": 100,
+      "index": 101,
       "name": "RecordRuntimeNodeInventory",
       "title": "Record Runtime Node Inventory",
       "chapter": "RuntimeMonitoring",
@@ -54807,7 +56395,7 @@
     },
     {
       "id": "slice-79929d9e",
-      "index": 101,
+      "index": 102,
       "name": "RuntimeNodeInventoryView",
       "title": "Runtime Node Inventory View",
       "chapter": "RuntimeMonitoring",
@@ -55117,7 +56705,7 @@
     },
     {
       "id": "slice-c5ab698a",
-      "index": 102,
+      "index": 103,
       "name": "RuntimeNodeResourceLatest",
       "title": "Runtime Node Resource Latest",
       "chapter": "RuntimeMonitoring",
@@ -55424,7 +57012,7 @@
     },
     {
       "id": "slice-17654acc",
-      "index": 103,
+      "index": 104,
       "name": "DetectRuntimeNodeCapacityChange",
       "title": "Detect Runtime Node Capacity Change",
       "chapter": "RuntimeMonitoring",
@@ -55726,7 +57314,7 @@
     },
     {
       "id": "slice-dc4e224d",
-      "index": 104,
+      "index": 105,
       "name": "RuntimeHealthDashboard",
       "title": "Runtime Health Dashboard",
       "chapter": "RuntimeMonitoring",
@@ -56074,7 +57662,7 @@
     },
     {
       "id": "slice-f43e8d0f",
-      "index": 105,
+      "index": 106,
       "name": "RaiseTrainingAlert",
       "title": "Raise Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -56417,7 +58005,7 @@
     },
     {
       "id": "slice-102e6798",
-      "index": 106,
+      "index": 107,
       "name": "TrainingAlertCatalog",
       "title": "Training Alert Catalog",
       "chapter": "RuntimeMonitoring",
@@ -56663,7 +58251,7 @@
     },
     {
       "id": "slice-63ac1487",
-      "index": 107,
+      "index": 108,
       "name": "AcknowledgeTrainingAlert",
       "title": "Acknowledge Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -56830,7 +58418,7 @@
     },
     {
       "id": "slice-c3edeeef",
-      "index": 108,
+      "index": 109,
       "name": "ResolveTrainingAlert",
       "title": "Resolve Training Alert",
       "chapter": "RuntimeMonitoring",
@@ -56991,7 +58579,7 @@
     },
     {
       "id": "slice-bf4467da",
-      "index": 109,
+      "index": 110,
       "name": "AppendAuditTrail",
       "title": "Append Audit Trail",
       "chapter": "RuntimeMonitoring",
@@ -57542,7 +59130,7 @@
     },
     {
       "id": "slice-5556fb33",
-      "index": 110,
+      "index": 111,
       "name": "AuditRecordLog",
       "title": "Audit Record Log",
       "chapter": "RuntimeMonitoring",
@@ -57652,7 +59240,7 @@
     },
     {
       "id": "slice-6883883e",
-      "index": 111,
+      "index": 112,
       "name": "ActivateRuntimeIdentity",
       "title": "Activate Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -58044,7 +59632,7 @@
     },
     {
       "id": "slice-6949bdab",
-      "index": 112,
+      "index": 113,
       "name": "RevokeRuntimeIdentity",
       "title": "Revoke Runtime Identity",
       "chapter": "RuntimeGovernance",
@@ -58229,7 +59817,7 @@
     },
     {
       "id": "slice-267be0b4",
-      "index": 113,
+      "index": 114,
       "name": "DetectRuntimeCapabilities",
       "title": "Detect Runtime Capabilities",
       "chapter": "RuntimeGovernance",
@@ -58412,7 +60000,7 @@
     },
     {
       "id": "slice-53705008",
-      "index": 114,
+      "index": 115,
       "name": "RuntimeIdentityCatalog",
       "title": "Runtime Identity Catalog",
       "chapter": "RuntimeGovernance",
@@ -58590,7 +60178,7 @@
     },
     {
       "id": "slice-a09f6b28",
-      "index": 115,
+      "index": 116,
       "name": "RuntimeCapabilityCatalog",
       "title": "Runtime Capability Catalog",
       "chapter": "RuntimeGovernance",
@@ -58687,7 +60275,7 @@
     },
     {
       "id": "slice-0df6c6b1",
-      "index": 116,
+      "index": 117,
       "name": "CreateSecureAggregationSession",
       "title": "Create Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -59512,7 +61100,7 @@
     },
     {
       "id": "slice-af59eab5",
-      "index": 117,
+      "index": 118,
       "name": "SelectSecureAggregationParticipants",
       "title": "Select Secure Aggregation Participants",
       "chapter": "SecureAggregation",
@@ -60298,7 +61886,7 @@
     },
     {
       "id": "slice-a903d2aa",
-      "index": 118,
+      "index": 119,
       "name": "PrepareHomomorphicEncryptionContext",
       "title": "Prepare Homomorphic Encryption Context",
       "chapter": "SecureAggregation",
@@ -61146,7 +62734,7 @@
     },
     {
       "id": "slice-5d843deb",
-      "index": 119,
+      "index": 120,
       "name": "RecordEncryptedModelUpdate",
       "title": "Record Encrypted Model Update",
       "chapter": "SecureAggregation",
@@ -61889,7 +63477,7 @@
     },
     {
       "id": "slice-74fb7a88",
-      "index": 120,
+      "index": 121,
       "name": "CompleteHomomorphicAggregationSession",
       "title": "Complete Homomorphic Aggregation Session",
       "chapter": "SecureAggregation",
@@ -62496,7 +64084,7 @@
     },
     {
       "id": "slice-5c7bd7e5",
-      "index": 121,
+      "index": 122,
       "name": "FailSecureAggregationSession",
       "title": "Fail Secure Aggregation Session",
       "chapter": "SecureAggregation",
@@ -62633,7 +64221,7 @@
     },
     {
       "id": "slice-ae5b24d8",
-      "index": 122,
+      "index": 123,
       "name": "SecureAggregationSessionCatalog",
       "title": "Secure Aggregation Session Catalog",
       "chapter": "SecureAggregation",
@@ -63110,7 +64698,7 @@
     },
     {
       "id": "slice-725195cc",
-      "index": 123,
+      "index": 124,
       "name": "DeclareDataset",
       "title": "Declare Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -63698,7 +65286,7 @@
     },
     {
       "id": "slice-5a2194a7",
-      "index": 124,
+      "index": 125,
       "name": "ConfigureRuntimeDatasetBinding",
       "title": "Configure Runtime Dataset Binding",
       "chapter": "RuntimeAgentOperations",
@@ -64667,7 +66255,7 @@
     },
     {
       "id": "slice-358d4122",
-      "index": 125,
+      "index": 126,
       "name": "RuntimeDatasetBindingCatalog",
       "title": "Runtime Dataset Binding Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -65037,7 +66625,7 @@
     },
     {
       "id": "slice-c31ba9a1",
-      "index": 126,
+      "index": 127,
       "name": "ValidateAgentDatasetAccess",
       "title": "Validate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -66441,7 +68029,7 @@
     },
     {
       "id": "slice-aa47e014",
-      "index": 127,
+      "index": 128,
       "name": "RevalidateAgentDatasetAccess",
       "title": "Revalidate Agent Dataset Access",
       "chapter": "RuntimeAgentOperations",
@@ -67259,7 +68847,7 @@
     },
     {
       "id": "slice-ba3dc29b",
-      "index": 128,
+      "index": 129,
       "name": "AgentDatasetAccessValidationCatalog",
       "title": "Agent Dataset Access Validation Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -67561,7 +69149,7 @@
     },
     {
       "id": "slice-f44b66bc",
-      "index": 129,
+      "index": 130,
       "name": "ProfileAgentDataset",
       "title": "Profile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -68793,7 +70381,7 @@
     },
     {
       "id": "slice-d6f2a3cf",
-      "index": 130,
+      "index": 131,
       "name": "ReprofileAgentDataset",
       "title": "Reprofile Agent Dataset",
       "chapter": "RuntimeAgentOperations",
@@ -69821,7 +71409,7 @@
     },
     {
       "id": "slice-2529cf36",
-      "index": 131,
+      "index": 132,
       "name": "ValidateDatasetContract",
       "title": "Validate Dataset Contract",
       "chapter": "RuntimeAgentOperations",
@@ -70397,7 +71985,7 @@
     },
     {
       "id": "slice-2e18bcb1",
-      "index": 132,
+      "index": 133,
       "name": "RetryDatasetContractValidation",
       "title": "Retry Dataset Contract Validation",
       "chapter": "RuntimeAgentOperations",
@@ -71036,7 +72624,7 @@
     },
     {
       "id": "slice-d28aff88",
-      "index": 133,
+      "index": 134,
       "name": "RejectDatasetForTraining",
       "title": "Reject Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -71203,7 +72791,7 @@
     },
     {
       "id": "slice-284a72da",
-      "index": 134,
+      "index": 135,
       "name": "ApproveDatasetForTraining",
       "title": "Approve Dataset For Training",
       "chapter": "RuntimeAgentOperations",
@@ -71491,7 +73079,7 @@
     },
     {
       "id": "slice-847c2855",
-      "index": 135,
+      "index": 136,
       "name": "RevokeDatasetTrainingApproval",
       "title": "Revoke Dataset Training Approval",
       "chapter": "RuntimeAgentOperations",
@@ -71670,7 +73258,7 @@
     },
     {
       "id": "slice-30869f70",
-      "index": 136,
+      "index": 137,
       "name": "DatasetCapability",
       "title": "Dataset Capability",
       "chapter": "RuntimeAgentOperations",
@@ -72110,7 +73698,7 @@
     },
     {
       "id": "slice-ff9e2f26",
-      "index": 137,
+      "index": 138,
       "name": "DatasetReadiness",
       "title": "Dataset Readiness",
       "chapter": "RuntimeAgentOperations",
@@ -72788,7 +74376,7 @@
     },
     {
       "id": "slice-5bf739cd",
-      "index": 138,
+      "index": 139,
       "name": "ReceiveParticipantExecutionPlan",
       "title": "Receive Participant Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -73648,7 +75236,7 @@
     },
     {
       "id": "slice-64faaa9b",
-      "index": 139,
+      "index": 140,
       "name": "AcceptExecutionPlan",
       "title": "Accept Execution Plan",
       "chapter": "RuntimeAgentOperations",
@@ -75614,7 +77202,7 @@
     },
     {
       "id": "slice-4d4016d0",
-      "index": 140,
+      "index": 141,
       "name": "StartRoundExecution",
       "title": "Start Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -77420,7 +79008,7 @@
     },
     {
       "id": "slice-0cecfd3f",
-      "index": 141,
+      "index": 142,
       "name": "ObserveRuntimeEngineJob",
       "title": "Observe Runtime Engine Job",
       "chapter": "RuntimeAgentOperations",
@@ -78873,7 +80461,7 @@
     },
     {
       "id": "slice-b1a48287",
-      "index": 142,
+      "index": 143,
       "name": "CompleteRoundExecution",
       "title": "Complete Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -79774,7 +81362,7 @@
     },
     {
       "id": "slice-45c663e8",
-      "index": 143,
+      "index": 144,
       "name": "FailRoundExecution",
       "title": "Fail Round Execution",
       "chapter": "RuntimeAgentOperations",
@@ -80311,7 +81899,7 @@
     },
     {
       "id": "slice-ff352882",
-      "index": 144,
+      "index": 145,
       "name": "RetryRoundExecutionAfterStartFailure",
       "title": "Retry Round Execution After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -81080,7 +82668,7 @@
     },
     {
       "id": "slice-2cb34062",
-      "index": 145,
+      "index": 146,
       "name": "RetryRoundExecutionAfterRuntimeFailure",
       "title": "Retry Round Execution After Runtime Failure",
       "chapter": "RuntimeAgentOperations",
@@ -81877,7 +83465,7 @@
     },
     {
       "id": "slice-d54dcc12",
-      "index": 146,
+      "index": 147,
       "name": "SubmitAgentLocalModelUpdate",
       "title": "Submit Agent Local Model Update",
       "chapter": "RuntimeAgentOperations",
@@ -82659,7 +84247,7 @@
     },
     {
       "id": "slice-6485fdce",
-      "index": 147,
+      "index": 148,
       "name": "ReleaseRuntimeEngineJobAfterCompletion",
       "title": "Release Runtime Engine Job After Completion",
       "chapter": "RuntimeAgentOperations",
@@ -82833,7 +84421,7 @@
     },
     {
       "id": "slice-ef8420f2",
-      "index": 148,
+      "index": 149,
       "name": "ReleaseRuntimeEngineJobAfterFailure",
       "title": "Release Runtime Engine Job After Failure",
       "chapter": "RuntimeAgentOperations",
@@ -83021,7 +84609,7 @@
     },
     {
       "id": "slice-30156076",
-      "index": 149,
+      "index": 150,
       "name": "ReleaseRuntimeEngineJobAfterStartFailure",
       "title": "Release Runtime Engine Job After Start Failure",
       "chapter": "RuntimeAgentOperations",
@@ -83209,7 +84797,7 @@
     },
     {
       "id": "slice-5d7a0380",
-      "index": 150,
+      "index": 151,
       "name": "ReleaseRuntimeEngineJobAfterRetryFailure",
       "title": "Release Runtime Engine Job After Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -83397,7 +84985,7 @@
     },
     {
       "id": "slice-bc1eac14",
-      "index": 151,
+      "index": 152,
       "name": "ReleaseRuntimeEngineJobAfterRuntimeRetryFailure",
       "title": "Release Runtime Engine Job After Runtime Retry Failure",
       "chapter": "RuntimeAgentOperations",
@@ -83585,7 +85173,7 @@
     },
     {
       "id": "slice-eb00f5f7",
-      "index": 152,
+      "index": 153,
       "name": "RoundExecutionCatalog",
       "title": "Round Execution Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -84307,7 +85895,7 @@
     },
     {
       "id": "slice-d248addb",
-      "index": 153,
+      "index": 154,
       "name": "LoadRuntimeAgentBootstrapConfiguration",
       "title": "Load Runtime Agent Bootstrap Configuration",
       "chapter": "RuntimeAgentOperations",
@@ -84632,7 +86220,7 @@
     },
     {
       "id": "slice-c7d2df46",
-      "index": 154,
+      "index": 155,
       "name": "ReportRuntimeAgentStarted",
       "title": "Report Runtime Agent Started",
       "chapter": "RuntimeAgentOperations",
@@ -84850,7 +86438,7 @@
     },
     {
       "id": "slice-75635ed7",
-      "index": 155,
+      "index": 156,
       "name": "ReportRuntimeInstanceSelfCheckPassed",
       "title": "Report Runtime Instance Self Check Passed",
       "chapter": "RuntimeAgentOperations",
@@ -85265,7 +86853,7 @@
     },
     {
       "id": "slice-574f1d44",
-      "index": 156,
+      "index": 157,
       "name": "RuntimeAgentLifecycleCatalog",
       "title": "Runtime Agent Lifecycle Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -85561,7 +87149,7 @@
     },
     {
       "id": "slice-e5b0caa2",
-      "index": 157,
+      "index": 158,
       "name": "ReportRuntimeInstanceConnected",
       "title": "Report Runtime Instance Connected",
       "chapter": "RuntimeAgentOperations",
@@ -86377,7 +87965,7 @@
     },
     {
       "id": "slice-8d5d066d",
-      "index": 158,
+      "index": 159,
       "name": "AgentRuntimeInfrastructureConnectionCatalog",
       "title": "Agent Runtime Infrastructure Connection Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -86577,7 +88165,7 @@
     },
     {
       "id": "slice-ff0c55e7",
-      "index": 159,
+      "index": 160,
       "name": "AgentRuntimeTelemetryLatest",
       "title": "Agent Runtime Telemetry Latest",
       "chapter": "RuntimeAgentOperations",
@@ -86750,7 +88338,7 @@
     },
     {
       "id": "slice-d8eaacb9",
-      "index": 160,
+      "index": 161,
       "name": "ReportAgentRuntimeNodeInventory",
       "title": "Report Agent Runtime Node Inventory",
       "chapter": "RuntimeAgentOperations",
@@ -87274,7 +88862,7 @@
     },
     {
       "id": "slice-6a815e36",
-      "index": 161,
+      "index": 162,
       "name": "AgentRuntimeNodeInventoryCatalog",
       "title": "Agent Runtime Node Inventory Catalog",
       "chapter": "RuntimeAgentOperations",
@@ -87530,7 +89118,7 @@
     },
     {
       "id": "slice-a56419ba",
-      "index": 162,
+      "index": 163,
       "name": "AgentRuntimeNodeResourceLatest",
       "title": "Agent Runtime Node Resource Latest",
       "chapter": "RuntimeAgentOperations",
@@ -87815,7 +89403,7 @@
     },
     {
       "id": "slice-4fcce762",
-      "index": 163,
+      "index": 164,
       "name": "RegisterUserAccount",
       "title": "Register User Account",
       "chapter": "IdentityAccessManagement",
@@ -88110,7 +89698,7 @@
     },
     {
       "id": "slice-2f4abaeb",
-      "index": 164,
+      "index": 165,
       "name": "DeactivateUserAccount",
       "title": "Deactivate User Account",
       "chapter": "IdentityAccessManagement",
@@ -88241,7 +89829,7 @@
     },
     {
       "id": "slice-5da5f728",
-      "index": 165,
+      "index": 166,
       "name": "GenerateUserAccountLoginPassword",
       "title": "Generate User Account Login Password",
       "chapter": "IdentityAccessManagement",
@@ -88405,7 +89993,7 @@
     },
     {
       "id": "slice-7b54b84c",
-      "index": 166,
+      "index": 167,
       "name": "RegisterRole",
       "title": "Register Role",
       "chapter": "IdentityAccessManagement",
@@ -88570,7 +90158,7 @@
     },
     {
       "id": "slice-1bda8ebb",
-      "index": 167,
+      "index": 168,
       "name": "RegisterPermission",
       "title": "Register Permission",
       "chapter": "IdentityAccessManagement",
@@ -88763,7 +90351,7 @@
     },
     {
       "id": "slice-1d773a87",
-      "index": 168,
+      "index": 169,
       "name": "GrantPermissionToRole",
       "title": "Grant Permission To Role",
       "chapter": "IdentityAccessManagement",
@@ -88993,7 +90581,7 @@
     },
     {
       "id": "slice-0766b926",
-      "index": 169,
+      "index": 170,
       "name": "AssignRoleToUser",
       "title": "Assign Role To User",
       "chapter": "IdentityAccessManagement",
@@ -89175,7 +90763,7 @@
     },
     {
       "id": "slice-b263007b",
-      "index": 170,
+      "index": 171,
       "name": "IssueServiceAccountApiToken",
       "title": "Issue Service Account Api Token",
       "chapter": "IdentityAccessManagement",
@@ -89709,7 +91297,7 @@
     },
     {
       "id": "slice-425842d5",
-      "index": 171,
+      "index": 172,
       "name": "UserAccountCatalogs",
       "title": "User Account Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -89851,7 +91439,7 @@
     },
     {
       "id": "slice-10714181",
-      "index": 172,
+      "index": 173,
       "name": "RoleCatalogs",
       "title": "Role Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -89939,7 +91527,7 @@
     },
     {
       "id": "slice-9f1bec7a",
-      "index": 173,
+      "index": 174,
       "name": "PermissionCatalogs",
       "title": "Permission Catalogs",
       "chapter": "IdentityAccessManagement",
@@ -90041,7 +91629,7 @@
     },
     {
       "id": "slice-33855446",
-      "index": 174,
+      "index": 175,
       "name": "UserRoleAssignmentCatalog",
       "title": "User Role Assignment Catalog",
       "chapter": "IdentityAccessManagement",
@@ -90169,7 +91757,7 @@
     },
     {
       "id": "slice-4d6e3a7f",
-      "index": 175,
+      "index": 176,
       "name": "RolePermissionGrantCatalog",
       "title": "Role Permission Grant Catalog",
       "chapter": "IdentityAccessManagement",
@@ -90324,7 +91912,7 @@
     },
     {
       "id": "slice-6047e82e",
-      "index": 176,
+      "index": 177,
       "name": "ServiceAccountApiTokenCatalogs",
       "title": "Service Account Api Token Catalogs",
       "chapter": "IdentityAccessManagement",

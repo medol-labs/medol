@@ -1233,6 +1233,8 @@ context RuntimeProvisioning {
   }
 
   slice RuntimeInstallationPlanCatalog {
+    ui RuntimeInstallationPlanScreen
+
     readmodel RuntimeInstallationPlanCatalog[] {
       runtimeInstallationPlanId: UUID id
       organizationId: UUID
@@ -1268,6 +1270,8 @@ context RuntimeProvisioning {
       subscribe RuntimeInfrastructurePrepared
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
+      subscribe RuntimeInfrastructureVerificationRetrySucceeded
+      subscribe RuntimeInfrastructureVerificationRetryFailed
       subscribe RuntimeAgentInstallationSucceeded
       subscribe RuntimeAgentInstallationFailed
       subscribe RuntimeAgentDeploymentRetrySucceeded
@@ -1309,6 +1313,8 @@ context RuntimeProvisioning {
       subscribe RuntimeInfrastructurePrepared
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
+      subscribe RuntimeInfrastructureVerificationRetrySucceeded
+      subscribe RuntimeInfrastructureVerificationRetryFailed
     }
   }
 
@@ -1550,19 +1556,25 @@ context RuntimeProvisioning {
       emits DeployRuntimeAgent
     }
 
+    automation DeployRuntimeAgentWhenInfrastructureVerificationRetrySucceeded {
+      on RuntimeInfrastructureVerificationRetrySucceeded
+      condition agentInstallMode == "PLATFORM_MANAGED"
+      emits DeployRuntimeAgent
+    }
+
     command DeployRuntimeAgent {
-      runtimeAgentId: UUID technical from RuntimeInfrastructureVerified.runtimeAgentId
+      runtimeAgentId: UUID technical derived from RuntimeInfrastructureAccessView.runtimeAgentId by runtimeInfrastructureId
       runtimeInfrastructureId: UUID id technical
-      runtimeInstallationPlanId: UUID technical from RuntimeInfrastructureVerified.runtimeInstallationPlanId
-      organizationId: UUID from RuntimeInfrastructureVerified.organizationId
-      organizationName: String? from RuntimeInfrastructureVerified.organizationName
-      runtimeInfrastructurePackageId: UUID from RuntimeInfrastructureVerified.runtimeInfrastructurePackageId
-      runtimeInfrastructurePackageName: String? from RuntimeInfrastructureVerified.runtimeInfrastructurePackageName
-      runtimeInfrastructurePackageVersion: String? from RuntimeInfrastructureVerified.runtimeInfrastructurePackageVersion
-      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" from RuntimeInfrastructureVerified.runtimeEnvironmentType
-      runtimeName: String from RuntimeInfrastructureVerified.runtimeName
-      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" from RuntimeInfrastructureVerified.agentInstallMode
-      expectedNodeCount: Int from RuntimeInfrastructureVerified.expectedNodeCount
+      runtimeInstallationPlanId: UUID technical derived from RuntimeInfrastructureAccessView.runtimeInstallationPlanId by runtimeInfrastructureId
+      organizationId: UUID derived from RuntimeInfrastructureAccessView.organizationId by runtimeInfrastructureId
+      organizationName: String? derived from RuntimeInfrastructureAccessView.organizationName by runtimeInfrastructureId
+      runtimeInfrastructurePackageId: UUID derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageId by runtimeInfrastructureId
+      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageName by runtimeInfrastructureId
+      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageVersion by runtimeInfrastructureId
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructureAccessView.runtimeEnvironmentType by runtimeInfrastructureId
+      runtimeName: String derived from RuntimeInfrastructureAccessView.runtimeName by runtimeInfrastructureId
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInfrastructureAccessView.agentInstallMode by runtimeInfrastructureId
+      expectedNodeCount: Int derived from RuntimeInfrastructureAccessView.expectedNodeCount by runtimeInfrastructureId
     }
 
     event RuntimeAgentInstallationSucceeded {
@@ -1622,6 +1634,108 @@ context RuntimeProvisioning {
           runtimeInfrastructureId = "runtime-infra-2"
         }
         then RuntimeAgentInstallationFailed
+      }
+    }
+  }
+
+  slice RetryRuntimeInfrastructureVerification {
+    actor PlatformAdmin
+    ui RuntimeInstallationPlanScreen confirm
+    port
+
+    command RetryRuntimeInfrastructureVerification {
+      runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical derived from RuntimeInfrastructureAccessView.runtimeInstallationPlanId by runtimeInfrastructureId
+      organizationId: UUID derived from RuntimeInfrastructureAccessView.organizationId by runtimeInfrastructureId
+      organizationName: String? derived from RuntimeInfrastructureAccessView.organizationName by runtimeInfrastructureId
+      runtimeInfrastructurePackageId: UUID derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageId by runtimeInfrastructureId
+      runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageName by runtimeInfrastructureId
+      runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructureAccessView.runtimeInfrastructurePackageVersion by runtimeInfrastructureId
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructureAccessView.runtimeEnvironmentType by runtimeInfrastructureId
+      runtimeName: String derived from RuntimeInfrastructureAccessView.runtimeName by runtimeInfrastructureId
+      runtimeAgentId: UUID technical derived from RuntimeInfrastructureAccessView.runtimeAgentId by runtimeInfrastructureId
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInfrastructureAccessView.agentInstallMode by runtimeInfrastructureId
+      expectedNodeCount: Int derived from RuntimeInfrastructureAccessView.expectedNodeCount by runtimeInfrastructureId
+      currentRuntimeInfrastructureState: RuntimeInfrastructure.State derived from RuntimeInfrastructureAccessView.state by runtimeInfrastructureId
+      retryReason: String
+    }
+
+    event RuntimeInfrastructureVerificationRetrySucceeded {
+      runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      runtimeAgentId: UUID technical
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
+      observedNodeCount: Int portOutput
+      retryReason: String
+    }
+
+    event RuntimeInfrastructureVerificationRetryFailed {
+      runtimeInfrastructureId: UUID id technical
+      runtimeInstallationPlanId: UUID technical
+      organizationId: UUID
+      organizationName: String?
+      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageName: String?
+      runtimeInfrastructurePackageVersion: String?
+      runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE"
+      runtimeName: String
+      runtimeAgentId: UUID technical
+      agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE"
+      expectedNodeCount: Int
+      observedNodeCount: Int? portOutput
+      retryReason: String
+      failureReason: String portOutput
+    }
+
+    state Verified
+
+    specification "Runtime Infrastructure Verification Retry Outcome" {
+      rule """
+        A platform admin can retry runtime infrastructure verification after fixing external runtime preparation problems such as missing Kubernetes node labels, unavailable nodes, registry access, or scheduler RBAC. The retry is allowed only from the VerificationFailed state and records exactly one new outcome without rewriting the original failed verification event.
+      """
+
+      scenario "Runtime Infrastructure Verification Retry Succeeded" {
+        given RuntimeInfrastructureVerificationFailed {
+          runtimeInfrastructureId = "runtime-infra-2"
+        }
+        when RetryRuntimeInfrastructureVerification {
+          runtimeInfrastructureId = "runtime-infra-2"
+          currentRuntimeInfrastructureState = "VerificationFailed"
+          retryReason = "Retry after applying runtime scheduling labels and RBAC."
+        }
+        then RuntimeInfrastructureVerificationRetrySucceeded
+      }
+
+      scenario "Runtime Infrastructure Verification Retry Failed" {
+        given RuntimeInfrastructureVerificationFailed {
+          runtimeInfrastructureId = "runtime-infra-3"
+        }
+        when RetryRuntimeInfrastructureVerification {
+          runtimeInfrastructureId = "runtime-infra-3"
+          currentRuntimeInfrastructureState = "VerificationFailed"
+          retryReason = "Retry after adding the participant node."
+        }
+        then RuntimeInfrastructureVerificationRetryFailed
+      }
+
+      scenario "Reject Runtime Infrastructure Verification Retry While Verified" {
+        given RuntimeInfrastructureVerified {
+          runtimeInfrastructureId = "runtime-infra-4"
+        }
+        when RetryRuntimeInfrastructureVerification {
+          runtimeInfrastructureId = "runtime-infra-4"
+          currentRuntimeInfrastructureState = "Verified"
+          retryReason = "Retry already verified infrastructure."
+        }
+        then reject "Runtime Infrastructure Verification Retry Not Allowed"
       }
     }
   }
@@ -1817,6 +1931,8 @@ context RuntimeProvisioning {
       subscribe RuntimeInfrastructurePrepared
       subscribe RuntimeInfrastructureVerified
       subscribe RuntimeInfrastructureVerificationFailed
+      subscribe RuntimeInfrastructureVerificationRetrySucceeded
+      subscribe RuntimeInfrastructureVerificationRetryFailed
       subscribe RuntimeAgentInstallationSucceeded
       subscribe RuntimeAgentInstallationFailed
       subscribe RuntimeAgentDeploymentRetrySucceeded
@@ -1856,6 +1972,7 @@ context RuntimeProvisioning {
     slice ConfirmRuntimeInfrastructurePrepared
     slice VerifyRuntimeInfrastructure
     slice DeployRuntimeAgent
+    slice RetryRuntimeInfrastructureVerification
     slice RetryRuntimeAgentDeployment
     slice RecordRuntimeConnectionEstablished
     slice RuntimeAgentEndpointCatalog
