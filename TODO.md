@@ -131,6 +131,7 @@
 ##
 
 - [ ] FL
+  - [ ] Runtime Agent / 参与方 Console 隐私与数据面访问边界需要重新设计：参与方数据不能因为平台 IAM 管理员给用户分配了 organization 或 runtime agent 相关权限就被访问。平台权限只能控制平台侧对象与摘要视图；参与方 Console 应由参与方本地部署和本地身份/凭证控制，Runtime Agent 不应信任普通平台用户 JWT，也不应暴露通用数据查询能力给平台前端。平台到 Runtime Agent 的机器调用必须限定为协议内窄接口、窄 scope，例如心跳、状态上报、训练任务派发、受控结果回传，避免参与方数据泄漏。
   - [ ] 单轮训练失败重试策略完善，平台侧发起
   - [ ] Organization Directory 创建时间
   - [ ] Register Runtime Infrastructure Package 字段信息明确
