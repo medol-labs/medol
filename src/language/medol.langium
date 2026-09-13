@@ -2,7 +2,7 @@ grammar Medol
 
 entry Model:
     imports+=Import*
-    (domains+=Domain | contexts+=Context | deployments+=Deployment)*
+    (domains+=Domain | contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication)*
 ;
 
 Import:
@@ -15,8 +15,18 @@ ImportModuleName returns string:
 
 Domain:
     'domain' name=ID '{'
-        (contexts+=Context | deployments+=Deployment)*
+        (contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication)*
     '}'
+;
+
+FrontendApplication:
+    'frontend' name=ID '{'
+        includes+=FrontendInclude*
+    '}'
+;
+
+FrontendInclude:
+    'includes' context=ID ('.' slice=ID)? ('from' backend=ID)?
 ;
 
 Deployment:

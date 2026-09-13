@@ -36,13 +36,29 @@ export const resolveBuiltinMedolImport = (
   };
 };
 
+export const resolveBuiltinDeploymentOnlyImport = (
+  imported: MedolImportReference
+): MedolSource | undefined => {
+  const moduleName = imported.module ?? '';
+  const source = builtinMedolModels.get(moduleName);
+  if (!source) return undefined;
+  return {
+    sourceName: `<builtin:${moduleName}:deployment:${imported.deployment ?? extractBuiltinContextName(source)}>`,
+    text: builtinDeployment(source, imported.deployment)
+  };
+};
+
 export const supportedBuiltinMedolImports = (): string[] => [...builtinMedolModels.keys()];
 
 const appendBuiltinDeployment = (text: string, deployment?: string): string => {
-  const normalizedDeployment = deployment?.trim() || extractBuiltinContextName(text);
   return `${text}
 
-deployment ${normalizedDeployment} {
+${builtinDeployment(text, deployment)}`;
+};
+
+const builtinDeployment = (text: string, deployment?: string): string => {
+  const normalizedDeployment = deployment?.trim() || extractBuiltinContextName(text);
+  return `deployment ${normalizedDeployment} {
   includes ${extractBuiltinContextName(text)}
 }
 `;

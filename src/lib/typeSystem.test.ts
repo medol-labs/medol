@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { modelToCodegenModel } from './codegenModel';
 import { configToDsl } from './configToDsl';
-import { parseMedol } from './dslParser';
+import { parseMedol, parseMedolSources } from './dslParser';
 import { parseMedolFile, type MedolProjectFileSystem } from './medolProject';
+import { resolveBuiltinMedolImport } from './builtinMedolModels';
 
 test('parses enums and structured value objects', () => {
   const model = parseMedol(`
@@ -846,6 +847,159 @@ test('loads built-in identity access management imports into the selected deploy
   assert.deepEqual(
     codegen.deployments.find((deployment) => deployment.name === 'Support')?.contexts.map((context) => context.name),
     ['Support', 'IdentityAccessManagement']
+  );
+});
+
+test('loads one built-in identity access management context into multiple deployments', () => {
+  const model = parseMedolFile('/workspace/main.medol', {
+    readFile: () => `
+      import identity-access-management as PlatformIam deploy Support
+      import identity-access-management as ParticipantIam deploy RuntimeAgent
+
+      domain Demo {
+        context Support {
+          slice KeepAlive {
+            command KeepAlive {
+              keepAliveId: UUID id generated technical
+            }
+          }
+        }
+
+        context RuntimeAgent {
+          slice PingRuntime {
+            command PingRuntime {
+              pingRuntimeId: UUID id generated technical
+            }
+          }
+        }
+
+        deployment Support {
+          includes Support
+        }
+
+        deployment RuntimeAgent {
+          includes RuntimeAgent
+        }
+      }
+    `,
+    resolveImport: () => ''
+  });
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  assert.equal(
+    codegen.contexts.filter((context) => context.name === 'IdentityAccessManagement').length,
+    1
+  );
+  assert.deepEqual(
+    codegen.deployments.find((deployment) => deployment.name === 'Support')?.contexts.map((context) => context.name),
+    ['Support', 'IdentityAccessManagement']
+  );
+  assert.deepEqual(
+    codegen.deployments.find((deployment) => deployment.name === 'RuntimeAgent')?.contexts.map((context) => context.name),
+    ['RuntimeAgent', 'IdentityAccessManagement']
+  );
+});
+
+test('deduplicates repeated built-in identity access management sources in merged models', () => {
+  const supportIam = resolveBuiltinMedolImport({
+    module: 'identity-access-management',
+    alias: 'PlatformIam',
+    deployment: 'Support'
+  });
+  const runtimeIam = resolveBuiltinMedolImport({
+    module: 'identity-access-management',
+    alias: 'ParticipantIam',
+    deployment: 'RuntimeAgent'
+  });
+  assert(supportIam);
+  assert(runtimeIam);
+
+  const model = parseMedolSources([
+    supportIam,
+    runtimeIam,
+    {
+      sourceName: '/workspace/main.medol',
+      text: `
+        domain Demo {
+          deployment Support {
+            includes Support
+          }
+
+          deployment RuntimeAgent {
+            includes RuntimeAgent
+          }
+        }
+      `
+    }
+  ]);
+
+  assert.deepEqual(model.diagnostics, []);
+  const iam = model.contexts.find((context) => context.name === 'IdentityAccessManagement');
+  assert(iam);
+  assert.equal(iam.concepts.filter((concept) => concept.name === 'UserAccount').length, 1);
+  assert.equal(iam.slices.filter((slice) => slice.name === 'RegisterUserAccount').length, 1);
+  assert.deepEqual(
+    model.deployments.find((deployment) => deployment.name === 'Support')?.contexts,
+    ['Support', 'IdentityAccessManagement']
+  );
+  assert.deepEqual(
+    model.deployments.find((deployment) => deployment.name === 'RuntimeAgent')?.contexts,
+    ['RuntimeAgent', 'IdentityAccessManagement']
+  );
+});
+
+test('exports frontend applications independently from backend deployments', () => {
+  const model = parseMedol(`
+    domain Demo {
+      context Orders {
+        slice OrderCatalogs {
+          readmodel OrderCatalog[] {
+            orderId: UUID id
+          }
+        }
+      }
+
+      context RuntimeAgentOperations {
+        slice DatasetAccessCatalogs {
+          readmodel DatasetAccessCatalog[] {
+            datasetAccessId: UUID id
+          }
+        }
+      }
+
+      deployment BackOfficeBackend {
+        includes Orders
+        includes RuntimeAgentOperations
+      }
+
+      frontend ParticipantConsole {
+        includes RuntimeAgentOperations from BackOfficeBackend
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  assert.deepEqual(
+    codegen.frontendApplications?.map((application) => ({
+      name: application.name,
+      contexts: application.contexts.map((context) => ({
+        name: context.name,
+        backend: context.backend
+      }))
+    })),
+    [{
+      name: 'ParticipantConsole',
+      contexts: [{
+        name: 'RuntimeAgentOperations',
+        backend: 'BackOfficeBackend'
+      }]
+    }]
+  );
+  assert.deepEqual(
+    codegen.deployments?.find((deployment) => deployment.name === 'BackOfficeBackend')?.contexts.map((context) => context.name),
+    ['Orders', 'RuntimeAgentOperations']
   );
 });
 

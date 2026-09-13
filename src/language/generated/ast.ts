@@ -79,6 +79,7 @@ export type MedolKeywordNames =
     | "form"
     | "format"
     | "from"
+    | "frontend"
     | "generated"
     | "given"
     | "hotspot"
@@ -513,6 +514,7 @@ export interface Domain extends langium.AstNode {
     readonly $type: 'Domain';
     contexts: Array<Context>;
     deployments: Array<Deployment>;
+    frontendApplications: Array<FrontendApplication>;
     name: string;
 }
 
@@ -520,6 +522,7 @@ export const Domain = {
     $type: 'Domain',
     contexts: 'contexts',
     deployments: 'deployments',
+    frontendApplications: 'frontendApplications',
     name: 'name'
 } as const;
 
@@ -896,6 +899,42 @@ export function isFieldSourceMapping(item: unknown): item is FieldSourceMapping 
     return reflection.isInstance(item, FieldSourceMapping.$type);
 }
 
+export interface FrontendApplication extends langium.AstNode {
+    readonly $container: Domain | Model;
+    readonly $type: 'FrontendApplication';
+    includes: Array<FrontendInclude>;
+    name: string;
+}
+
+export const FrontendApplication = {
+    $type: 'FrontendApplication',
+    includes: 'includes',
+    name: 'name'
+} as const;
+
+export function isFrontendApplication(item: unknown): item is FrontendApplication {
+    return reflection.isInstance(item, FrontendApplication.$type);
+}
+
+export interface FrontendInclude extends langium.AstNode {
+    readonly $container: FrontendApplication;
+    readonly $type: 'FrontendInclude';
+    backend?: string;
+    context: string;
+    slice?: string;
+}
+
+export const FrontendInclude = {
+    $type: 'FrontendInclude',
+    backend: 'backend',
+    context: 'context',
+    slice: 'slice'
+} as const;
+
+export function isFrontendInclude(item: unknown): item is FrontendInclude {
+    return reflection.isInstance(item, FrontendInclude.$type);
+}
+
 export interface Given extends langium.AstNode {
     readonly $container: Scenario | Specification;
     readonly $type: 'Given';
@@ -1027,6 +1066,7 @@ export interface Model extends langium.AstNode {
     contexts: Array<Context>;
     deployments: Array<Deployment>;
     domains: Array<Domain>;
+    frontendApplications: Array<FrontendApplication>;
     imports: Array<Import>;
 }
 
@@ -1035,6 +1075,7 @@ export const Model = {
     contexts: 'contexts',
     deployments: 'deployments',
     domains: 'domains',
+    frontendApplications: 'frontendApplications',
     imports: 'imports'
 } as const;
 
@@ -1762,6 +1803,8 @@ export type MedolAstType = {
     FieldMapping: FieldMapping
     FieldSource: FieldSource
     FieldSourceMapping: FieldSourceMapping
+    FrontendApplication: FrontendApplication
+    FrontendInclude: FrontendInclude
     Given: Given
     Hotspot: Hotspot
     Import: Import
@@ -2077,6 +2120,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: Domain.deployments,
                     defaultValue: []
                 },
+                frontendApplications: {
+                    name: Domain.frontendApplications,
+                    defaultValue: []
+                },
                 name: {
                     name: Domain.name
                 }
@@ -2348,6 +2395,34 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [FieldMapping.$type]
         },
+        FrontendApplication: {
+            name: FrontendApplication.$type,
+            properties: {
+                includes: {
+                    name: FrontendApplication.includes,
+                    defaultValue: []
+                },
+                name: {
+                    name: FrontendApplication.name
+                }
+            },
+            superTypes: []
+        },
+        FrontendInclude: {
+            name: FrontendInclude.$type,
+            properties: {
+                backend: {
+                    name: FrontendInclude.backend
+                },
+                context: {
+                    name: FrontendInclude.context
+                },
+                slice: {
+                    name: FrontendInclude.slice
+                }
+            },
+            superTypes: []
+        },
         Given: {
             name: Given.$type,
             properties: {
@@ -2445,6 +2520,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 domains: {
                     name: Model.domains,
+                    defaultValue: []
+                },
+                frontendApplications: {
+                    name: Model.frontendApplications,
                     defaultValue: []
                 },
                 imports: {

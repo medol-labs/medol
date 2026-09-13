@@ -65,6 +65,7 @@ import type {
   ExternalToken as AstExternalToken,
   Field as AstField,
   FieldSource,
+  FrontendApplication as AstFrontendApplication,
   Integration as AstIntegration,
   LookupKey as AstLookupKey,
   Model as AstModel,
@@ -81,7 +82,7 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type MedolDiagnostic, type MedolSourceRange } from './model';
+import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 import { resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
@@ -231,29 +232,35 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
   const domainGroups = models.map((model) => [...(model.domains ?? [])]);
   const contextGroups = models.map((model) => [...(model.contexts ?? [])]);
   const deploymentGroups = models.map((model) => [...(model.deployments ?? [])]);
+  const frontendApplicationGroups = models.map((model) => [...(model.frontendApplications ?? [])]);
   merged.imports = models.flatMap((model) => model.imports ?? []);
   merged.domains = [];
   merged.contexts = [];
   merged.deployments = [];
+  merged.frontendApplications = [];
 
   const domains = new Map<string, AstDomain>();
   const looseContexts = new Map<string, AstContext>();
   const looseDeployments = new Map<string, AstDeployment>();
+  const looseFrontendApplications = new Map<string, AstFrontendApplication>();
   for (let index = models.length - 1; index >= 0; index -= 1) {
     for (const domain of domainGroups[index]) {
       const existing = domains.get(domain.name);
       if (!existing) {
         domain.contexts = [...(domain.contexts ?? [])];
         domain.deployments = [...(domain.deployments ?? [])];
+        domain.frontendApplications = [...(domain.frontendApplications ?? [])];
         domains.set(domain.name, domain);
         merged.domains.push(domain);
       } else {
         mergeContexts(existing.contexts, domain.contexts ?? []);
         mergeDeployments(existing.deployments, domain.deployments ?? []);
+        mergeFrontendApplications(existing.frontendApplications, domain.frontendApplications ?? []);
       }
     }
     mergeContexts(merged.contexts, contextGroups[index], looseContexts);
     mergeDeployments(merged.deployments, deploymentGroups[index], looseDeployments);
+    mergeFrontendApplications(merged.frontendApplications, frontendApplicationGroups[index], looseFrontendApplications);
   }
   return merged;
 };
@@ -266,12 +273,27 @@ const mergeContexts = (
   for (const context of additions) {
     const current = existing.get(context.name);
     if (current) {
-      current.elements.push(...(context.elements ?? []));
+      appendUniqueNamedAstNodes(current.elements, context.elements ?? []);
     } else {
       context.elements = [...(context.elements ?? [])];
       target.push(context);
       existing.set(context.name, context);
     }
+  }
+};
+
+const astNodeKey = (node: AstNode): string | undefined => {
+  const named = node as AstNode & { name?: string };
+  return named.name ? `${named.$type}:${named.name}` : undefined;
+};
+
+const appendUniqueNamedAstNodes = (target: AstNode[], additions: AstNode[]): void => {
+  const seen = new Set(target.map(astNodeKey).filter((key): key is string => Boolean(key)));
+  for (const addition of additions) {
+    const key = astNodeKey(addition);
+    if (key && seen.has(key)) continue;
+    target.push(addition);
+    if (key) seen.add(key);
   }
 };
 
@@ -283,7 +305,7 @@ const mergeDeployments = (
   for (const deployment of additions) {
     const current = existing.get(deployment.name);
     if (current) {
-      current.contexts.push(...(deployment.contexts ?? []));
+      appendUniqueDeploymentContexts(current.contexts, deployment.contexts ?? []);
     } else {
       deployment.contexts = [...(deployment.contexts ?? [])];
       target.push(deployment);
@@ -292,9 +314,53 @@ const mergeDeployments = (
   }
 };
 
+const appendUniqueDeploymentContexts = (target: string[], additions: string[]): void => {
+  const seen = new Set(target);
+  for (const addition of additions) {
+    if (seen.has(addition)) continue;
+    target.push(addition);
+    seen.add(addition);
+  }
+};
+
+const mergeFrontendApplications = (
+  target: AstFrontendApplication[],
+  additions: AstFrontendApplication[],
+  existing = new Map(target.map((application) => [application.name, application]))
+): void => {
+  for (const application of additions) {
+    const current = existing.get(application.name);
+    if (current) {
+      appendUniqueFrontendIncludes(current.includes, application.includes ?? []);
+    } else {
+      application.includes = [...(application.includes ?? [])];
+      target.push(application);
+      existing.set(application.name, application);
+    }
+  }
+};
+
+const frontendIncludeKey = (include: { context?: string; slice?: string }): string => {
+  return `${include.context ?? ''}.${include.slice ?? '*'}:${'backend' in include ? include.backend ?? '' : ''}`;
+};
+
+const appendUniqueFrontendIncludes = (
+  target: Array<{ context?: string; slice?: string }>,
+  additions: Array<{ context?: string; slice?: string }>
+): void => {
+  const seen = new Set(target.map(frontendIncludeKey));
+  for (const addition of additions) {
+    const key = frontendIncludeKey(addition);
+    if (seen.has(key)) continue;
+    target.push(addition);
+    seen.add(key);
+  }
+};
+
 export const astToEmModel = (ast: AstModel): EmModel => {
   const model = emptyModel();
   const deploymentsByName = new Map<string, EmDeployment>();
+  const frontendApplicationsByName = new Map<string, EmFrontendApplication>();
   const addDeployment = (deployment: EmDeployment): void => {
     const current = deploymentsByName.get(deployment.name);
     if (current) {
@@ -304,12 +370,29 @@ export const astToEmModel = (ast: AstModel): EmModel => {
     deploymentsByName.set(deployment.name, deployment);
     model.deployments.push(deployment);
   };
+  const addFrontendApplication = (application: EmFrontendApplication): void => {
+    const current = frontendApplicationsByName.get(application.name);
+    if (current) {
+      const existingKeys = new Set(current.includes.map((include) => `${include.context}.${include.slice ?? '*'}:${include.backend ?? ''}`));
+      for (const include of application.includes) {
+        const key = `${include.context}.${include.slice ?? '*'}:${include.backend ?? ''}`;
+        if (!existingKeys.has(key)) {
+          current.includes.push(include);
+          existingKeys.add(key);
+        }
+      }
+      return;
+    }
+    frontendApplicationsByName.set(application.name, application);
+    model.frontendApplications.push(application);
+  };
 
   for (const domainNode of ast.domains ?? []) {
     const domain = parseDomain(domainNode, model.edges);
     model.domains.push(domain);
     model.contexts.push(...domain.contexts);
     domain.deployments.forEach(addDeployment);
+    domain.frontendApplications.forEach(addFrontendApplication);
   }
 
   for (const contextNode of ast.contexts ?? []) {
@@ -318,6 +401,10 @@ export const astToEmModel = (ast: AstModel): EmModel => {
 
   for (const deploymentNode of ast.deployments ?? []) {
     addDeployment(parseDeployment(deploymentNode, undefined));
+  }
+
+  for (const frontendApplicationNode of ast.frontendApplications ?? []) {
+    addFrontendApplication(parseFrontendApplication(frontendApplicationNode, undefined));
   }
 
   return model;
@@ -329,7 +416,8 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
     name: safeName(node.name, 'UnnamedDomain'),
     ...withSourceRange(node),
     contexts: [],
-    deployments: []
+    deployments: [],
+    frontendApplications: []
   };
 
   for (const contextNode of node.contexts ?? []) {
@@ -337,6 +425,9 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
   }
   for (const deploymentNode of node.deployments ?? []) {
     domain.deployments.push(parseDeployment(deploymentNode, domain.name));
+  }
+  for (const frontendApplicationNode of node.frontendApplications ?? []) {
+    domain.frontendApplications.push(parseFrontendApplication(frontendApplicationNode, domain.name));
   }
 
   return domain;
@@ -348,6 +439,21 @@ const parseDeployment = (node: AstDeployment, domainName: string | undefined): E
   ...(domainName ? { domain: domainName } : {}),
   ...withSourceRange(node),
   contexts: (node.contexts ?? []).map((item) => safeName(item.context, 'UnnamedContext'))
+});
+
+const parseFrontendApplication = (
+  node: AstFrontendApplication,
+  domainName: string | undefined
+): EmFrontendApplication => ({
+  id: domainName ? scopedId('frontend', `${domainName}/${safeName(node.name, 'UnnamedFrontend')}`) : scopedId('frontend', safeName(node.name, 'UnnamedFrontend')),
+  name: safeName(node.name, 'UnnamedFrontend'),
+  ...(domainName ? { domain: domainName } : {}),
+  ...withSourceRange(node),
+  includes: (node.includes ?? []).map((item) => ({
+    context: safeName(item.context, 'UnnamedContext'),
+    ...(item.slice ? { slice: safeName(item.slice, 'UnnamedSlice') } : {}),
+    ...(item.backend ? { backend: safeName(item.backend, 'UnnamedBackend') } : {})
+  }))
 });
 
 const parseContext = (node: AstContext, domainId: string | undefined, edges: EmEdge[]): EmContext => {

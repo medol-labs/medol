@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, normalize, resolve } from 'node:path';
 import { parseMedolSources, readMedolImports, type MedolImportReference, type MedolSource } from './dslParser';
-import { resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
+import {
+  resolveBuiltinDeploymentOnlyImport,
+  resolveBuiltinMedolImport,
+  supportedBuiltinMedolImports
+} from './builtinMedolModels';
 import type { EmModel } from './model';
 
 export interface MedolProjectFileSystem {
@@ -73,8 +77,19 @@ const visitBuiltin = (
     return;
   }
 
-  const importKey = `${moduleName}:${imported.alias ?? ''}:${imported.deployment ?? ''}`;
-  if (state.builtinVisited.has(importKey)) return;
-  state.builtinVisited.add(importKey);
-  state.sources.push(source);
+  const sourceKey = moduleName;
+  const deploymentKey = `${sourceKey}:${imported.deployment ?? ''}`;
+  if (!state.builtinVisited.has(sourceKey)) {
+    state.builtinVisited.add(sourceKey);
+    state.builtinVisited.add(deploymentKey);
+    state.sources.push(source);
+    return;
+  }
+
+  if (state.builtinVisited.has(deploymentKey)) return;
+  state.builtinVisited.add(deploymentKey);
+  const deploymentSource = resolveBuiltinDeploymentOnlyImport(imported);
+  if (deploymentSource) {
+    state.sources.push(deploymentSource);
+  }
 };

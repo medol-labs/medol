@@ -8,6 +8,7 @@ export interface CodegenModel {
   domain?: string;
   domains?: Array<{ id: string; name: string; title: string; contexts: Array<{ id: string; name: string; title: string }> }>;
   deployments?: Array<{ id: string; name: string; title: string; domain?: string; contexts: Array<{ id: string; name: string; title: string }> }>;
+  frontendApplications?: CodegenFrontendApplication[];
   locales?: string[];
   defaultLocale?: string;
   translations?: Record<string, Record<string, string>>;
@@ -19,6 +20,22 @@ export interface CodegenModel {
   actors: CodegenActor[];
   slices: CodegenSlice[];
   externalSystems: CodegenExternalSystem[];
+}
+
+export interface CodegenFrontendApplication {
+  id: string;
+  name: string;
+  title: string;
+  domain?: string;
+  contexts: CodegenFrontendApplicationContext[];
+}
+
+export interface CodegenFrontendApplicationContext {
+  id: string;
+  name: string;
+  title: string;
+  backend?: string;
+  slices?: Array<{ id: string; name: string; title: string }>;
 }
 
 export interface CodegenContext {
@@ -392,6 +409,17 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           }))
         }
       : {}),
+    ...(model.frontendApplications.length
+      ? {
+          frontendApplications: model.frontendApplications.map((application) => ({
+            id: stableId('frontend', application.id),
+            name: application.name,
+            title: humanize(application.name),
+            ...(application.domain ? { domain: application.domain } : {}),
+            contexts: toFrontendApplicationContexts(application, contextByName)
+          }))
+        }
+      : {}),
     contexts: model.contexts.map((contextItem) => ({
       id: stableId('context', contextItem.id),
       name: contextItem.name,
@@ -466,6 +494,45 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
       }))
     })))
   };
+};
+
+const toFrontendApplicationContexts = (
+  application: EmModel['frontendApplications'][number],
+  contextByName: Map<string, EmModel['contexts'][number]>
+): CodegenFrontendApplicationContext[] => {
+  const contexts = new Map<string, CodegenFrontendApplicationContext>();
+
+  for (const include of application.includes) {
+    const contextItem = contextByName.get(include.context);
+    const contextKey = `${include.context}:${include.backend ?? ''}`;
+    const current = contexts.get(contextKey) ?? {
+      id: stableId('context', contextItem?.id ?? include.context),
+      name: include.context,
+      title: humanize(include.context),
+      ...(include.backend ? { backend: include.backend } : {})
+    };
+
+    if (include.slice) {
+      const slice = contextItem ? allContextSlices(contextItem).find((candidate) => candidate.name === include.slice) : undefined;
+      current.slices = [
+        ...(current.slices ?? []),
+        slice ? toCodegenSliceRef(slice) : {
+          id: stableId('slice', `${contextItem?.id ?? include.context}/slice/${include.slice}`),
+          name: include.slice,
+          title: humanize(include.slice)
+        }
+      ];
+    }
+
+    contexts.set(contextKey, current);
+  }
+
+  return [...contexts.values()].map((contextItem) => ({
+    ...contextItem,
+    ...(contextItem.slices
+      ? { slices: [...new Map(contextItem.slices.map((slice) => [slice.name, slice])).values()] }
+      : {})
+  }));
 };
 
 const buildTransitions = (model: EmModel): CodegenTransition[] => {

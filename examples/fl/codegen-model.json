@@ -179,6 +179,119 @@
           "id": "context-89cfb7d8",
           "name": "RuntimeAgentOperations",
           "title": "Runtime Agent Operations"
+        },
+        {
+          "id": "context-90939a75",
+          "name": "IdentityAccessManagement",
+          "title": "Identity Access Management"
+        }
+      ]
+    }
+  ],
+  "frontendApplications": [
+    {
+      "id": "frontend-87e55575",
+      "name": "FederationLearningConsole",
+      "title": "Federation Learning Console",
+      "domain": "FederationLearningPlatform",
+      "contexts": [
+        {
+          "id": "context-2ba11f6f",
+          "name": "OrganizationManagement",
+          "title": "Organization Management",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-2b629579",
+          "name": "FederationManagement",
+          "title": "Federation Management",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-9b431962",
+          "name": "DictionaryMaintenance",
+          "title": "Dictionary Maintenance",
+          "backend": "FederationLearningSupport"
+        },
+        {
+          "id": "context-99c60f04",
+          "name": "FileUpload",
+          "title": "File Upload",
+          "backend": "FederationLearningSupport"
+        },
+        {
+          "id": "context-dec3aef8",
+          "name": "RuntimeProvisioning",
+          "title": "Runtime Provisioning",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-31248395",
+          "name": "DatasetGovernance",
+          "title": "Dataset Governance",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-25138624",
+          "name": "ModelRepository",
+          "title": "Model Repository",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-43411002",
+          "name": "TrainingOrchestration",
+          "title": "Training Orchestration",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-2054f8dc",
+          "name": "ModelLifecycle",
+          "title": "Model Lifecycle",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-ce56a8f7",
+          "name": "RuntimeMonitoring",
+          "title": "Runtime Monitoring",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-a12abe49",
+          "name": "RuntimeGovernance",
+          "title": "Runtime Governance",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-2b443b10",
+          "name": "SecureAggregation",
+          "title": "Secure Aggregation",
+          "backend": "FederationLearningPlatform"
+        },
+        {
+          "id": "context-90939a75",
+          "name": "IdentityAccessManagement",
+          "title": "Identity Access Management",
+          "backend": "FederationLearningSupport"
+        }
+      ]
+    },
+    {
+      "id": "frontend-2248bc3e",
+      "name": "FederationLearningParticipantConsole",
+      "title": "Federation Learning Participant Console",
+      "domain": "FederationLearningPlatform",
+      "contexts": [
+        {
+          "id": "context-89cfb7d8",
+          "name": "RuntimeAgentOperations",
+          "title": "Runtime Agent Operations",
+          "backend": "FederationLearningRuntimeAgent"
+        },
+        {
+          "id": "context-90939a75",
+          "name": "IdentityAccessManagement",
+          "title": "Identity Access Management",
+          "backend": "FederationLearningRuntimeAgent"
         }
       ]
     }
