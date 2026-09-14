@@ -24111,33 +24111,6 @@
               }
             },
             {
-              "name": "currentRuntimeInfrastructureState",
-              "type": "RuntimeInfrastructure.State",
-              "cardinality": "Single",
-              "optional": false,
-              "idAttribute": false,
-              "generated": false,
-              "technicalAttribute": false,
-              "query": false,
-              "display": false,
-              "uploadFile": false,
-              "file": false,
-              "portOutput": false,
-              "source": {
-                "kind": "derived",
-                "from": [
-                  "RuntimeInfrastructureAccessView.state"
-                ],
-                "lookup": {
-                  "key": "runtimeInfrastructureId",
-                  "cacheProjection": "RuntimeInfrastructureAccessView",
-                  "sourceField": "state",
-                  "targetField": "currentRuntimeInfrastructureState",
-                  "missingValuePolicy": "keep"
-                }
-              }
-            },
-            {
               "name": "retryReason",
               "type": "String",
               "cardinality": "Single",
@@ -24735,10 +24708,6 @@
                   "name": "expectedNodeCount"
                 },
                 {
-                  "name": "currentRuntimeInfrastructureState",
-                  "example": "RuntimeAgentFailed"
-                },
-                {
                   "name": "retryReason",
                   "example": "Retry after fixing registry credentials."
                 }
@@ -24847,10 +24816,6 @@
                 },
                 {
                   "name": "expectedNodeCount"
-                },
-                {
-                  "name": "currentRuntimeInfrastructureState",
-                  "example": "Offline"
                 },
                 {
                   "name": "retryReason",
@@ -25011,10 +24976,6 @@
                   "name": "expectedNodeCount"
                 },
                 {
-                  "name": "currentRuntimeInfrastructureState",
-                  "example": "RuntimeAgentFailed"
-                },
-                {
                   "name": "retryReason",
                   "example": "Retry after transient failure."
                 }
@@ -25156,10 +25117,6 @@
                 },
                 {
                   "name": "expectedNodeCount"
-                },
-                {
-                  "name": "currentRuntimeInfrastructureState",
-                  "example": "Connected"
                 },
                 {
                   "name": "retryReason",
@@ -26395,9 +26352,9 @@
           ],
           "dependencies": [
             {
-              "id": "screen-46e578ff",
+              "id": "screen-ce46fb21",
               "direction": "INBOUND",
-              "title": "Feature Schema Editor",
+              "title": "Feature Schema Catalog Screen",
               "elementType": "SCREEN"
             },
             {
@@ -26593,9 +26550,9 @@
       "readmodels": [],
       "screens": [
         {
-          "id": "screen-46e578ff",
-          "name": "FeatureSchemaEditor",
-          "title": "Feature Schema Editor",
+          "id": "screen-ce46fb21",
+          "name": "FeatureSchemaCatalogScreen",
+          "title": "Feature Schema Catalog Screen",
           "type": "SCREEN",
           "modelContext": "DatasetGovernance",
           "slice": "Define Feature Schema",
@@ -26765,9 +26722,9 @@
               "elementType": "EVENT"
             },
             {
-              "id": "screen-1cb55e5d",
+              "id": "screen-bd13f907",
               "direction": "INBOUND",
-              "title": "Feature Schema Editor",
+              "title": "Feature Schema Catalog Screen",
               "elementType": "SCREEN"
             },
             {
@@ -26863,9 +26820,9 @@
       "readmodels": [],
       "screens": [
         {
-          "id": "screen-1cb55e5d",
-          "name": "FeatureSchemaEditor",
-          "title": "Feature Schema Editor",
+          "id": "screen-bd13f907",
+          "name": "FeatureSchemaCatalogScreen",
+          "title": "Feature Schema Catalog Screen",
           "type": "SCREEN",
           "modelContext": "DatasetGovernance",
           "slice": "Publish Feature Schema",
@@ -27030,9 +26987,9 @@
               "elementType": "EVENT"
             },
             {
-              "id": "screen-5f4201e5",
+              "id": "screen-a73d3faf",
               "direction": "INBOUND",
-              "title": "Feature Schema Editor",
+              "title": "Feature Schema Catalog Screen",
               "elementType": "SCREEN"
             },
             {
@@ -27110,9 +27067,9 @@
       "readmodels": [],
       "screens": [
         {
-          "id": "screen-5f4201e5",
-          "name": "FeatureSchemaEditor",
-          "title": "Feature Schema Editor",
+          "id": "screen-a73d3faf",
+          "name": "FeatureSchemaCatalogScreen",
+          "title": "Feature Schema Catalog Screen",
           "type": "SCREEN",
           "modelContext": "DatasetGovernance",
           "slice": "Deprecate Feature Schema",
@@ -27203,9 +27160,9 @@
               "elementType": "EVENT"
             },
             {
-              "id": "screen-47fa713b",
+              "id": "screen-dafa268d",
               "direction": "INBOUND",
-              "title": "Feature Schema Editor",
+              "title": "Feature Schema Catalog Screen",
               "elementType": "SCREEN"
             },
             {
@@ -27277,9 +27234,9 @@
       "readmodels": [],
       "screens": [
         {
-          "id": "screen-47fa713b",
-          "name": "FeatureSchemaEditor",
-          "title": "Feature Schema Editor",
+          "id": "screen-dafa268d",
+          "name": "FeatureSchemaCatalogScreen",
+          "title": "Feature Schema Catalog Screen",
           "type": "SCREEN",
           "modelContext": "DatasetGovernance",
           "slice": "Retire Feature Schema",
@@ -27384,9 +27341,9 @@
               "elementType": "EVENT"
             },
             {
-              "id": "screen-2b58058a",
+              "id": "screen-258a0356",
               "direction": "INBOUND",
-              "title": "Feature Schema Editor",
+              "title": "Feature Schema Catalog Screen",
               "elementType": "SCREEN"
             },
             {
@@ -27500,9 +27457,9 @@
       "readmodels": [],
       "screens": [
         {
-          "id": "screen-2b58058a",
-          "name": "FeatureSchemaEditor",
-          "title": "Feature Schema Editor",
+          "id": "screen-258a0356",
+          "name": "FeatureSchemaCatalogScreen",
+          "title": "Feature Schema Catalog Screen",
           "type": "SCREEN",
           "modelContext": "DatasetGovernance",
           "slice": "Supersede Feature Schema Version",
@@ -27709,9 +27666,9 @@
               "elementType": "EVENT"
             },
             {
-              "id": "screen-b6f2d7d7",
+              "id": "screen-572515b9",
               "direction": "INBOUND",
-              "title": "Feature Schema Editor",
+              "title": "Feature Schema Catalog Screen",
               "elementType": "SCREEN"
             },
             {
@@ -27831,9 +27788,9 @@
       "readmodels": [],
       "screens": [
         {
-          "id": "screen-b6f2d7d7",
-          "name": "FeatureSchemaEditor",
-          "title": "Feature Schema Editor",
+          "id": "screen-572515b9",
+          "name": "FeatureSchemaCatalogScreen",
+          "title": "Feature Schema Catalog Screen",
           "type": "SCREEN",
           "modelContext": "DatasetGovernance",
           "slice": "Mark Current Recommended Feature Schema Version",

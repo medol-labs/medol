@@ -1759,7 +1759,6 @@ context RuntimeProvisioning {
       runtimeName: String derived from RuntimeInfrastructureAccessView.runtimeName by runtimeInfrastructureId
       agentInstallMode: String dictionary "RUNTIME_AGENT_INSTALL_MODE" derived from RuntimeInfrastructureAccessView.agentInstallMode by runtimeInfrastructureId
       expectedNodeCount: Int derived from RuntimeInfrastructureAccessView.expectedNodeCount by runtimeInfrastructureId
-      currentRuntimeInfrastructureState: RuntimeInfrastructure.State derived from RuntimeInfrastructureAccessView.state by runtimeInfrastructureId
       retryReason: String
     }
 
@@ -1808,7 +1807,6 @@ context RuntimeProvisioning {
         }
         when RetryRuntimeAgentDeployment {
           runtimeInfrastructureId = "runtime-infra-2"
-          currentRuntimeInfrastructureState = "RuntimeAgentFailed"
           retryReason = "Retry after fixing registry credentials."
         }
         then RuntimeAgentDeploymentRetrySucceeded
@@ -1817,7 +1815,6 @@ context RuntimeProvisioning {
       scenario "Runtime Agent Deployment Retry Succeeded After Offline" {
         when RetryRuntimeAgentDeployment {
           runtimeInfrastructureId = "runtime-infra-3"
-          currentRuntimeInfrastructureState = "Offline"
           retryReason = "Reconnect runtime agent."
         }
         then RuntimeAgentDeploymentRetrySucceeded
@@ -1829,7 +1826,6 @@ context RuntimeProvisioning {
         }
         when RetryRuntimeAgentDeployment {
           runtimeInfrastructureId = "runtime-infra-4"
-          currentRuntimeInfrastructureState = "RuntimeAgentFailed"
           retryReason = "Retry after transient failure."
         }
         then RuntimeAgentDeploymentRetryFailed
@@ -1841,7 +1837,6 @@ context RuntimeProvisioning {
         }
         when RetryRuntimeAgentDeployment {
           runtimeInfrastructureId = "runtime-infra-5"
-          currentRuntimeInfrastructureState = "Connected"
           retryReason = "Force redeploy."
         }
         then reject "Runtime Agent Deployment Retry Not Allowed"
@@ -1998,7 +1993,7 @@ context DatasetGovernance {
     }
 
     actor DataSteward
-    ui FeatureSchemaEditor
+    ui FeatureSchemaCatalogScreen
   
     command DefineFeatureSchema {
       featureSchemaId: UUID id generated technical
@@ -2049,7 +2044,7 @@ context DatasetGovernance {
 
   slice PublishFeatureSchema {
     actor DataSteward
-    ui FeatureSchemaEditor confirm
+    ui FeatureSchemaCatalogScreen confirm
     reactsTo FeatureSchemaDefined
   
     command PublishFeatureSchema {
@@ -2083,7 +2078,7 @@ context DatasetGovernance {
   
   slice DeprecateFeatureSchema {
     actor DataSteward
-    ui FeatureSchemaEditor confirm
+    ui FeatureSchemaCatalogScreen confirm
     reactsTo FeatureSchemaPublished
   
     command DeprecateFeatureSchema {
@@ -2101,7 +2096,7 @@ context DatasetGovernance {
   
   slice RetireFeatureSchema {
     actor DataSteward
-    ui FeatureSchemaEditor confirm
+    ui FeatureSchemaCatalogScreen confirm
     reactsTo FeatureSchemaDeprecated
   
     command RetireFeatureSchema {
@@ -2120,7 +2115,7 @@ context DatasetGovernance {
   // 确认逻辑（升级版本？） TODO
   slice SupersedeFeatureSchemaVersion {
     actor DataSteward
-    ui FeatureSchemaEditor confirm
+    ui FeatureSchemaCatalogScreen confirm
     reactsTo FeatureSchemaPublished
   
     command SupersedeFeatureSchemaVersion {
@@ -2164,7 +2159,7 @@ context DatasetGovernance {
   
   slice MarkCurrentRecommendedFeatureSchemaVersion {
     actor DataSteward
-    ui FeatureSchemaEditor confirm
+    ui FeatureSchemaCatalogScreen confirm
     reactsTo FeatureSchemaPublished
   
     command MarkCurrentRecommendedFeatureSchemaVersion {
