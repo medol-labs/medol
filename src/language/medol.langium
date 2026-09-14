@@ -229,9 +229,13 @@ Event:
 ;
 
 ReadModel:
-    ('readmodel' | 'projection') todo?='todo'? name=ID listElement?='[]'? '{'
+    sync?='sync'? ('readmodel' | 'projection') todo?='todo'? name=ID listElement?='[]'? ('from' source=FieldSource)? ('where' syncFilters+=SyncFilter (',' syncFilters+=SyncFilter)*)? '{'
         elements+=ReadModelElement*
     '}'
+;
+
+SyncFilter:
+    target=FieldSource '=' source=FieldSource
 ;
 
 ReadModelElement:
@@ -388,6 +392,7 @@ FieldName returns string:
     | 'order'
     | 'port'
     | 'state'
+    | 'sync'
     | 'value'
 ;
 

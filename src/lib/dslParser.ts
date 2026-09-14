@@ -838,6 +838,14 @@ const parseElement = (
     ...withSourceRange(node),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     ...(isReadModel(node) && node.todo ? { todo: true } : {}),
+    ...(isReadModel(node) && node.sync ? { sync: true } : {}),
+    ...(isReadModel(node) && node.source ? { syncSource: formatFieldSource(node.source) } : {}),
+    ...(isReadModel(node) && node.syncFilters?.length ? {
+      syncFilters: node.syncFilters.map((filter) => ({
+        target: formatFieldSource(filter.target),
+        source: formatFieldSource(filter.source)
+      }))
+    } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),
     ...(isReadModel(node) ? parseReadModelDictionaryProvider(node) : {})

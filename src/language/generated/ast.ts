@@ -124,6 +124,7 @@ export type MedolKeywordNames =
     | "steps"
     | "strategy"
     | "subscribe"
+    | "sync"
     | "tags"
     | "target"
     | "technical"
@@ -138,6 +139,7 @@ export type MedolKeywordNames =
     | "value"
     | "view"
     | "when"
+    | "where"
     | "wizard"
     | "{"
     | "}";
@@ -863,14 +865,14 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export type FieldName = 'active' | 'code' | 'domain' | 'event' | 'label' | 'missing' | 'order' | 'port' | 'state' | 'value' | string;
+export type FieldName = 'active' | 'code' | 'domain' | 'event' | 'label' | 'missing' | 'order' | 'port' | 'state' | 'sync' | 'value' | string;
 
 export function isFieldName(item: unknown): item is FieldName {
-    return item === 'active' || item === 'code' || item === 'domain' || item === 'event' || item === 'label' || item === 'missing' || item === 'order' || item === 'port' || item === 'state' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'active' || item === 'code' || item === 'domain' || item === 'event' || item === 'label' || item === 'missing' || item === 'order' || item === 'port' || item === 'state' || item === 'sync' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | UniqueValidation;
+    readonly $container: AssertValidation | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | ReadModel | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1178,6 +1180,9 @@ export interface ReadModel extends langium.AstNode {
     elements: Array<ReadModelElement>;
     listElement: boolean;
     name: string;
+    source?: FieldSource;
+    sync: boolean;
+    syncFilters: Array<SyncFilter>;
     todo: boolean;
 }
 
@@ -1186,6 +1191,9 @@ export const ReadModel = {
     elements: 'elements',
     listElement: 'listElement',
     name: 'name',
+    source: 'source',
+    sync: 'sync',
+    syncFilters: 'syncFilters',
     todo: 'todo'
 } as const;
 
@@ -1459,6 +1467,23 @@ export const Subscription = {
 
 export function isSubscription(item: unknown): item is Subscription {
     return reflection.isInstance(item, Subscription.$type);
+}
+
+export interface SyncFilter extends langium.AstNode {
+    readonly $container: ReadModel;
+    readonly $type: 'SyncFilter';
+    source: FieldSource;
+    target: FieldSource;
+}
+
+export const SyncFilter = {
+    $type: 'SyncFilter',
+    source: 'source',
+    target: 'target'
+} as const;
+
+export function isSyncFilter(item: unknown): item is SyncFilter {
+    return reflection.isInstance(item, SyncFilter.$type);
 }
 
 export type TagExpression = TagFunctionCall | TagReference;
@@ -1838,6 +1863,7 @@ export type MedolAstType = {
     StringLiteral: StringLiteral
     StructuredValueType: StructuredValueType
     Subscription: Subscription
+    SyncFilter: SyncFilter
     TagExpression: TagExpression
     TagFunctionCall: TagFunctionCall
     TagReference: TagReference
@@ -2597,6 +2623,17 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 name: {
                     name: ReadModel.name
                 },
+                source: {
+                    name: ReadModel.source
+                },
+                sync: {
+                    name: ReadModel.sync,
+                    defaultValue: false
+                },
+                syncFilters: {
+                    name: ReadModel.syncFilters,
+                    defaultValue: []
+                },
                 todo: {
                     name: ReadModel.todo,
                     defaultValue: false
@@ -2800,6 +2837,18 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [ReadModelElement.$type]
+        },
+        SyncFilter: {
+            name: SyncFilter.$type,
+            properties: {
+                source: {
+                    name: SyncFilter.source
+                },
+                target: {
+                    name: SyncFilter.target
+                }
+            },
+            superTypes: []
         },
         TagExpression: {
             name: TagExpression.$type,

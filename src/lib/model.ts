@@ -47,12 +47,20 @@ export interface EmElement {
   resultFields?: EmField[];
   listElement?: boolean;
   todo?: boolean;
+  sync?: boolean;
+  syncSource?: string;
+  syncFilters?: EmSyncFilter[];
   sliceId?: string;
   aggregateId?: string;
   sourceRange?: MedolSourceRange;
   metadata?: Record<string, string>;
   ui?: EmUi;
   dictionaryProvider?: EmDictionaryProvider;
+}
+
+export interface EmSyncFilter {
+  target: string;
+  source: string;
 }
 
 export interface EmDictionaryProvider {

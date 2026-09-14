@@ -187,12 +187,20 @@ export interface CodegenElement {
   port?: boolean;
   listElement?: boolean;
   todo?: boolean;
+  sync?: boolean;
+  syncSource?: string;
+  syncFilters?: CodegenSyncFilter[];
   metadata?: Record<string, string>;
   ui?: CodegenUi;
   dictionaryProvider?: CodegenDictionaryProvider;
 }
 
 export type CodegenElementType = 'COMMAND' | 'EVENT' | 'SCREEN' | 'READMODEL' | 'PROCESSOR' | 'SPECIFICATION';
+
+export interface CodegenSyncFilter {
+  target: string;
+  source: string;
+}
 
 export interface CodegenField {
   name: string;
@@ -302,6 +310,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
   const elementsById = new Map<string, EmElement>();
   const domainByContextId = new Map<string, string>();
   const contextByName = new Map(model.contexts.map((contextItem) => [contextItem.name, contextItem]));
+  const readmodelsByReference = new Map<string, EmElement>();
 
   for (const domain of model.domains) {
     for (const contextItem of domain.contexts) {
@@ -325,6 +334,10 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
     for (const slice of allContextSlices(contextItem)) {
       for (const element of slice.elements) {
         elementsById.set(element.id, element);
+        if (element.kind === 'readmodel') {
+          readmodelsByReference.set(element.name, element);
+          readmodelsByReference.set(`${contextItem.name}.${element.name}`, element);
+        }
         if (element.kind === 'actor') {
           actorRecords.set(`${contextItem.id}:${element.name}`, {
             id: stableId('actor', `context/${contextItem.name}/actor/${element.name}`),
@@ -357,6 +370,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           slices.length,
           dependenciesByElementId,
           elementsByReference,
+          readmodelsByReference,
           contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name)
         ));
       }
@@ -369,6 +383,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         slices.length,
         dependenciesByElementId,
         elementsByReference,
+        readmodelsByReference,
         contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name)
       ));
     }
@@ -458,7 +473,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
       kind: valueType.kind,
       constraints: valueType.constraints,
       values: valueType.values,
-      fields: valueType.fields.map(toCodegenField)
+      fields: valueType.fields.map((field) => toCodegenField(field))
     }))),
     aggregates: [...aggregateRecords.values()],
     concepts: model.contexts.flatMap((contextItem) => contextItem.concepts.map((concept) => ({
@@ -732,6 +747,7 @@ const toCodegenSlice = (
   index: number,
   dependenciesByElementId: Map<string, CodegenDependency[]>,
   elementsByReference: Map<string, EmElement>,
+  readmodelsByReference: Map<string, EmElement>,
   concepts: string[] = []
 ): CodegenSlice => {
   const commands = slice.elements.filter((element) => element.kind === 'command');
@@ -773,7 +789,9 @@ const toCodegenSlice = (
       )
     ),
     events: events.map((element) => toCodegenElement(element, 'EVENT', aggregate, context, slice.name, dependenciesByElementId)),
-    readmodels: readmodels.map((element) => toCodegenElement(element, 'READMODEL', aggregate, context, slice.name, dependenciesByElementId)),
+    readmodels: readmodels.map((element) =>
+      toCodegenElement(element, 'READMODEL', aggregate, context, slice.name, dependenciesByElementId, false, undefined, false, readmodelsByReference)
+    ),
     screens: screens.map((element) => toCodegenElement(element, 'SCREEN', aggregate, context, slice.name, dependenciesByElementId)),
     processors: processors.map((element) => toCodegenElement(element, 'PROCESSOR', aggregate, context, slice.name, dependenciesByElementId)),
     specifications: specifications.map((element) => toCodegenSpecification(element, context, slice.name, elementsByReference)),
@@ -792,7 +810,8 @@ const toCodegenElement = (
   dependenciesByElementId: Map<string, CodegenDependency[]>,
   startsLifecycle = false,
   ui?: CodegenUi,
-  port = false
+  port = false,
+  readmodelsByReference: Map<string, EmElement> = new Map()
 ): CodegenElement => ({
   id: stableId(element.kind, element.id),
   name: element.name,
@@ -801,15 +820,18 @@ const toCodegenElement = (
   modelContext: context,
   slice: humanize(sliceName),
   ...(aggregate ? { aggregate } : {}),
-  fields: element.fields.map(toCodegenField),
+  fields: element.fields.map((field) => toCodegenField(field, syncFieldSourceFor(element, field, readmodelsByReference))),
   ...(type === 'COMMAND' && element.resultFields && element.resultFields.length > 0
-    ? { resultFields: element.resultFields.map(toCodegenField) }
+    ? { resultFields: element.resultFields.map((field) => toCodegenField(field)) }
     : {}),
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   ...(startsLifecycle ? { startsLifecycle } : {}),
   ...(type === 'COMMAND' && port ? { port: true } : {}),
   ...(type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(type === 'READMODEL' && element.todo ? { todo: true } : {}),
+  ...(type === 'READMODEL' && element.sync ? { sync: true } : {}),
+  ...(type === 'READMODEL' && element.syncSource ? { syncSource: element.syncSource } : {}),
+  ...(type === 'READMODEL' && element.syncFilters?.length ? { syncFilters: element.syncFilters } : {}),
   ...(element.metadata && Object.keys(element.metadata).length > 0 ? { metadata: element.metadata } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {}),
   ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {})
@@ -923,7 +945,7 @@ const givenSpecExamples = (
   );
 };
 
-const toCodegenField = (field: EmField): CodegenField => ({
+const toCodegenField = (field: EmField, implicitSource?: CodegenFieldSource): CodegenField => ({
   name: field.name,
   type: field.type,
   ...(field.example ? { example: field.example } : {}),
@@ -938,8 +960,25 @@ const toCodegenField = (field: EmField): CodegenField => ({
   uploadFile: field.attributes.includes('uploadFile'),
   file: field.attributes.includes('file'),
   portOutput: field.attributes.includes('portOutput'),
-  ...(field.mapping ? { source: toCodegenFieldSource(field.mapping) } : {})
+  ...(field.mapping ? { source: toCodegenFieldSource(field.mapping) } : implicitSource ? { source: implicitSource } : {})
 });
+
+const syncFieldSourceFor = (
+  element: EmElement,
+  field: EmField,
+  readmodelsByReference: Map<string, EmElement>
+): CodegenFieldSource | undefined => {
+  if (!element.syncSource || field.mapping) return undefined;
+
+  const sourceReadmodel = readmodelsByReference.get(element.syncSource);
+  const sourceField = sourceReadmodel?.fields.find((candidate) => candidate.name === field.name);
+  if (!sourceField) return undefined;
+
+  return {
+    kind: 'direct',
+    from: [field.name]
+  };
+};
 
 const toCodegenFieldSource = (mapping: NonNullable<EmField['mapping']>): CodegenFieldSource => ({
   kind: mapping.kind === 'derived' ? 'derived' : 'direct',

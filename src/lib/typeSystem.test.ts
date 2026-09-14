@@ -121,6 +121,83 @@ test('parses display field attribute and preserves it for code generation', () =
   assert.match(roundTripDsl, /datasetName: String display/);
 });
 
+test('parses sync read models with source aliases and preserves them for code generation', () => {
+  const model = parseMedol(`
+    context DatasetGovernance {
+      slice FeatureSchemaCatalog {
+        readmodel FeatureSchemaCatalog[] {
+          featureSchemaId: UUID id
+          featureDomain: String display
+          version: String
+          schemaStatus: String
+        }
+      }
+    }
+
+    context RuntimeAgentOperations {
+      slice AgentFeatureSchemaCatalog {
+        sync readmodel AgentFeatureSchemaCatalog[] from DatasetGovernance.FeatureSchemaCatalog where organizationId = sync.organizationId {
+          featureSchemaId: UUID id
+          featureDomain: String display
+          featureSchemaVersion: String from version
+          schemaStatus: String
+          syncedAt: DateTime
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const runtimeContext = model.contexts.find((context) => context.name === 'RuntimeAgentOperations');
+  const readmodel = runtimeContext?.slices[0].elements[0];
+  assert(readmodel);
+  assert.equal(readmodel.sync, true);
+  assert.equal(readmodel.syncSource, 'DatasetGovernance.FeatureSchemaCatalog');
+  assert.deepEqual(readmodel.syncFilters, [{ target: 'organizationId', source: 'sync.organizationId' }]);
+  assert.equal(readmodel.fields.find((field) => field.name === 'featureSchemaVersion')?.mapping?.sources[0], 'version');
+  assert.equal(readmodel.fields.find((field) => field.name === 'syncedAt')?.mapping, undefined);
+
+  const codegen = modelToCodegenModel(model);
+  const codegenReadmodel = codegen.slices
+    .find((slice) => slice.context === 'RuntimeAgentOperations')
+    ?.readmodels[0];
+  assert(codegenReadmodel);
+  assert.equal(codegenReadmodel.sync, true);
+  assert.equal(codegenReadmodel.syncSource, 'DatasetGovernance.FeatureSchemaCatalog');
+  assert.deepEqual(codegenReadmodel.syncFilters, [{ target: 'organizationId', source: 'sync.organizationId' }]);
+  assert.equal(
+    codegenReadmodel.fields.find((field) => field.name === 'featureSchemaVersion')?.source?.from[0],
+    'version'
+  );
+  assert.deepEqual(codegenReadmodel.fields.find((field) => field.name === 'featureDomain')?.source, {
+    kind: 'direct',
+    from: ['featureDomain']
+  });
+  assert.equal(codegenReadmodel.fields.find((field) => field.name === 'syncedAt')?.source, undefined);
+
+  const roundTripDsl = configToDsl({
+    context: 'RuntimeAgentOperations',
+    slices: [{
+      title: 'AgentFeatureSchemaCatalog',
+      readmodels: [{
+        title: 'AgentFeatureSchemaCatalog',
+        listElement: true,
+        sync: true,
+        syncSource: 'DatasetGovernance.FeatureSchemaCatalog',
+        syncFilters: [{ target: 'organizationId', source: 'sync.organizationId' }],
+        fields: [{
+          name: 'featureSchemaId',
+          type: 'UUID',
+          cardinality: 'Single',
+          optional: false,
+          idAttribute: true
+        }]
+      }]
+    }]
+  });
+  assert.match(roundTripDsl, /sync readmodel AgentFeatureSchemaCatalog\[\] from DatasetGovernance\.FeatureSchemaCatalog where organizationId = sync\.organizationId/);
+});
+
 test('parses file field attribute and preserves it for code generation', () => {
   const model = parseMedol(`
     context ModelRepository {

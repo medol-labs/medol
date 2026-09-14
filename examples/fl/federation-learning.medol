@@ -6055,6 +6055,41 @@ context RuntimeAgentOperations {
     emits RecordRuntimeNodeInventory
   }
 
+  slice AgentOrganizationDirectory {
+    sync readmodel AgentOrganizationDirectory[] from OrganizationManagement.OrganizationDirectory where organizationId = sync.organizationId {
+      organizationId: UUID id
+      organizationName: String display
+      organizationType: String
+      state: String
+      syncedAt: DateTime
+    }
+  }
+
+  slice AgentFeatureSchemaCatalog {
+    sync readmodel AgentFeatureSchemaCatalog[] from DatasetGovernance.FeatureSchemaCatalog {
+      featureSchemaId: UUID id
+      featureDomain: String display
+      featureSchemaVersion: String from version
+      schemaStatus: String
+      syncedAt: DateTime
+    }
+  }
+
+  slice AgentRuntimeIdentityCatalog {
+    sync readmodel AgentRuntimeIdentityCatalog[] from RuntimeProvisioning.RuntimeIdentityCatalog where runtimeAgentId = sync.runtimeAgentId {
+      runtimeId: UUID id
+      runtimeInfrastructureId: UUID
+      runtimeAgentId: UUID
+      organizationId: UUID
+      organizationName: String?
+      runtimeName: String display
+      identityStatus: String
+      activatedAt: DateTime?
+      revokedAt: DateTime?
+      syncedAt: DateTime
+    }
+  }
+
   slice DeclareDataset {
     startsLifecycle
 
@@ -6071,11 +6106,11 @@ context RuntimeAgentOperations {
 
     command DeclareDataset {
       datasetId: UUID id generated technical
-      organizationId: UUID
-      organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
-      featureSchemaId: UUID
-      featureDomain: String? derived from FeatureSchemaCatalog.featureDomain by featureSchemaId
-      featureSchemaVersion: String? derived from FeatureSchemaCatalog.version by featureSchemaId
+      organizationId: UUID from AgentOrganizationDirectory.organizationId
+      organizationName: String? derived from AgentOrganizationDirectory.organizationName by organizationId
+      featureSchemaId: UUID from AgentFeatureSchemaCatalog.featureSchemaId
+      featureDomain: String? derived from AgentFeatureSchemaCatalog.featureDomain by featureSchemaId
+      featureSchemaVersion: String? derived from AgentFeatureSchemaCatalog.featureSchemaVersion by featureSchemaId
       datasetName: String
       datasetUsage: String
     }
@@ -6137,15 +6172,15 @@ context RuntimeAgentOperations {
 
     command ConfigureRuntimeDatasetBinding {
       runtimeDatasetBindingId: UUID id generated technical
-      datasetId: UUID from DatasetDeclared.datasetId
-      organizationId: UUID from DatasetDeclared.organizationId
-      featureSchemaId: UUID from DatasetDeclared.featureSchemaId
-      organizationName: String? from DatasetDeclared.organizationName
-      featureDomain: String? from DatasetDeclared.featureDomain
-      featureSchemaVersion: String? from DatasetDeclared.featureSchemaVersion
-      datasetName: String from DatasetDeclared.datasetName
-      runtimeId: UUID
-      runtimeName: String? derived from RuntimeIdentityCatalog.runtimeName by runtimeId
+      datasetId: UUID from DatasetCapability.datasetId
+      organizationId: UUID derived from DatasetCapability.organizationId by datasetId
+      featureSchemaId: UUID derived from DatasetCapability.featureSchemaId by datasetId
+      organizationName: String? derived from DatasetCapability.organizationName by datasetId
+      featureDomain: String? derived from DatasetCapability.featureDomain by datasetId
+      featureSchemaVersion: String? derived from DatasetCapability.featureSchemaVersion by datasetId
+      datasetName: String derived from DatasetCapability.datasetName by datasetId
+      runtimeId: UUID from AgentRuntimeIdentityCatalog.runtimeId
+      runtimeName: String? derived from AgentRuntimeIdentityCatalog.runtimeName by runtimeId
       dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
       host: String?
       port: Int?

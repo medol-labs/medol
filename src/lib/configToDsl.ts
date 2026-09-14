@@ -46,12 +46,20 @@ interface ConfigElement {
   port?: boolean;
   listElement?: boolean;
   todo?: boolean;
+  sync?: boolean;
+  syncSource?: string;
+  syncFilters?: ConfigSyncFilter[];
   metadata?: Record<string, string>;
   fields?: ConfigField[];
   resultFields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
   ui?: ConfigUi;
   dictionaryProvider?: ConfigDictionaryProvider;
+}
+
+interface ConfigSyncFilter {
+  target: string;
+  source: string;
 }
 
 interface ConfigDictionaryProvider {
@@ -488,7 +496,12 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   const pad = ' '.repeat(indent);
   const listMarker = kind === 'readmodel' && element.listElement ? '[]' : '';
   const todoMarker = kind === 'readmodel' && element.todo ? ' todo' : '';
-  lines.push(`${pad}${kind}${todoMarker} ${toDslId(element.title, kind)}${listMarker} {`);
+  const syncMarker = kind === 'readmodel' && element.sync ? 'sync ' : '';
+  const syncSourceMarker = kind === 'readmodel' && element.syncSource ? ` from ${element.syncSource}` : '';
+  const syncFilterMarker = kind === 'readmodel' && element.syncFilters?.length
+    ? ` where ${element.syncFilters.map((filter) => `${filter.target} = ${filter.source}`).join(', ')}`
+    : '';
+  lines.push(`${pad}${syncMarker}${kind}${todoMarker} ${toDslId(element.title, kind)}${listMarker}${syncSourceMarker}${syncFilterMarker} {`);
   if (kind === 'readmodel' && element.dictionaryProvider) {
     appendDictionaryProvider(lines, element.dictionaryProvider, indent + 2);
   }
