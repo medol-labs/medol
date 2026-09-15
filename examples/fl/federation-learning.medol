@@ -1998,7 +1998,7 @@ context DatasetGovernance {
     command DefineFeatureSchema {
       featureSchemaId: UUID id generated technical
       featureDomain: String
-      version: String generated technical
+      version: String
       dataModality: String dictionary "FEATURE_SCHEMA_DATA_MODALITY"
       features: FeatureDefinition[]
       labels: LabelDefinition[]?
