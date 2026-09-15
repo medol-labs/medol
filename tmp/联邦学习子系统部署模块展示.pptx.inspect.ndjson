@@ -1,0 +1,35 @@
+{"kind":"deck","id":"pr/fu4y00","name":"Deck"}
+{"kind":"layout","layoutId":"0aa7573e-6713-4280-a411-cda9e20133d1","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"37377ffc-f7ed-4b72-bb54-b152c6a17032","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/59lr2d","slide":1,"title":"联邦学习子系统 | 部署模块能力总览","textShapes":24}
+{"kind":"textbox","id":"sh/kbqxony9","slide":1,"name":"eyebrow","text":"联邦学习子系统 | 部署模块能力总览","textPreview":"联邦学习子系统 | 部署模块能力总览","textChars":18,"textLines":1,"bbox":[72,48,520,28]}
+{"kind":"textbox","id":"sh/jahwv2ho","slide":1,"name":"title","text":"三个部署模块承接平台管理、业务编排与运行侧执行","textPreview":"三个部署模块承接平台管理、业务编排与运行侧执行","textChars":23,"textLines":1,"bbox":[72,82,980,52]}
+{"kind":"textbox","id":"sh/i98fmxg3","slide":1,"name":"subtitle","text":"基于 federation learning 建模与安装部署文档梳理；下方保留截图位置，便于后续替换为真实系统界面。","textPreview":"基于 federation learning 建模与安装部署文档梳理；下方保留截图位置，便于后续替换为真实系统界面。","textChars":58,"textLines":1,"bbox":[72,132,940,28]}
+{"kind":"shape","id":"sh/t0jy1czq","slide":1,"name":"web-summary-panel","bbox":[72,160,346,286]}
+{"kind":"textbox","id":"sh/sfqxs7yl","slide":1,"name":"web-title","text":"Web 管理端","textPreview":"Web 管理端","textChars":7,"textLines":1,"bbox":[94,182,302,34]}
+{"kind":"textbox","id":"sh/7ehgz2h0","slide":1,"name":"web-subtitle","text":"统一业务入口与可视化操作台","textPreview":"统一业务入口与可视化操作台","textChars":13,"textLines":1,"bbox":[94,220,302,34]}
+{"kind":"textbox","id":"sh/6d8fqxgf","slide":1,"name":"web-point-1","text":"组织、联邦、数据集、模型与训练任务管理","textPreview":"组织、联邦、数据集、模型与训练任务管理","textChars":19,"textLines":1,"bbox":[100,268,288,44]}
+{"kind":"textbox","id":"sh/94fep8zm","slide":1,"name":"web-point-2","text":"运行时状态、审批结果与业务视图展示","textPreview":"运行时状态、审批结果与业务视图展示","textChars":17,"textLines":1,"bbox":[100,318,288,44]}
+{"kind":"textbox","id":"sh/8j6xw3y1","slide":1,"name":"web-point-3","text":"支持平台管理员、组织管理员和业务用户操作","textPreview":"支持平台管理员、组织管理员和业务用户操作","textChars":20,"textLines":1,"bbox":[100,368,288,44]}
+{"kind":"shape","id":"sh/adwza5s3","slide":1,"name":"web-screenshot-frame","bbox":[72,476,346,158]}
+{"kind":"textbox","id":"sh/ve503q9o","slide":1,"name":"web-screenshot-label","text":"系统截图空间","textPreview":"系统截图空间","textChars":6,"textLines":1,"bbox":[106,526,278,34]}
+{"kind":"textbox","id":"sh/wfehcva9","slide":1,"name":"web-screenshot-hint","text":"建议放置首页、训练编排或运行时监控截图","textPreview":"建议放置首页、训练编排或运行时监控截图","textChars":19,"textLines":1,"bbox":[106,564,278,42]}
+{"kind":"shape","id":"sh/xgni50ru","slide":1,"name":"backend-summary-panel","bbox":[467,160,346,286]}
+{"kind":"textbox","id":"sh/ihwze5sf","slide":1,"name":"backend-title","text":"平台后端服务","textPreview":"平台后端服务","textChars":6,"textLines":1,"bbox":[489,182,302,34]}
+{"kind":"textbox","id":"sh/ji507a90","slide":1,"name":"backend-subtitle","text":"领域规则、事件状态与集成编排中心","textPreview":"领域规则、事件状态与集成编排中心","textChars":16,"textLines":1,"bbox":[489,220,302,34]}
+{"kind":"textbox","id":"sh/kjyhgfa5","slide":1,"name":"backend-point-1","text":"命令校验、业务规则、事件记录和状态流转","textPreview":"命令校验、业务规则、事件记录和状态流转","textChars":19,"textLines":1,"bbox":[495,268,288,44]}
+{"kind":"textbox","id":"sh/5k7i9krq","slide":1,"name":"backend-point-2","text":"模型仓库、训练编排、安全聚合与运行时治理","textPreview":"模型仓库、训练编排、安全聚合与运行时治理","textChars":20,"textLines":1,"bbox":[495,318,288,44]}
+{"kind":"textbox","id":"sh/6lgzipsb","slide":1,"name":"backend-point-3","text":"对接数据库、对象存储、消息调度和外部服务","textPreview":"对接数据库、对象存储、消息调度和外部服务","textChars":20,"textLines":1,"bbox":[495,368,288,44]}
+{"kind":"shape","id":"sh/7mp0bu9w","slide":1,"name":"backend-screenshot-frame","bbox":[467,476,346,158]}
+{"kind":"textbox","id":"sh/3a9gzup4","slide":1,"name":"backend-screenshot-label","text":"系统截图空间","textPreview":"系统截图空间","textChars":6,"textLines":1,"bbox":[501,526,278,34]}
+{"kind":"textbox","id":"sh/2pgzqpoj","slide":1,"name":"backend-screenshot-hint","text":"建议放置接口、任务流或运维监控截图","textPreview":"建议放置接口、任务流或运维监控截图","textChars":17,"textLines":1,"bbox":[501,564,278,42]}
+{"kind":"shape","id":"sh/pcry1k7a","slide":1,"name":"agent-summary-panel","bbox":[862,160,346,286]}
+{"kind":"textbox","id":"sh/4bihsz6p","slide":1,"name":"agent-title","text":"运行时代理","textPreview":"运行时代理","textChars":5,"textLines":1,"bbox":[884,182,302,34]}
+{"kind":"textbox","id":"sh/fmpgvaps","slide":1,"name":"agent-subtitle","text":"连接组织侧算力与平台控制面","textPreview":"连接组织侧算力与平台控制面","textChars":13,"textLines":1,"bbox":[884,220,302,34]}
+{"kind":"textbox","id":"sh/ulgzm587","slide":1,"name":"agent-point-1","text":"代理启动、自检、认证连接和健康上报","textPreview":"代理启动、自检、认证连接和健康上报","textChars":17,"textLines":1,"bbox":[890,268,288,44]}
+{"kind":"textbox","id":"sh/ho7yxk7y","slide":1,"name":"agent-point-2","text":"数据集画像、契约校验、训练轮次执行","textPreview":"数据集画像、契约校验、训练轮次执行","textChars":17,"textLines":1,"bbox":[890,318,288,44]}
+{"kind":"textbox","id":"sh/gnyhof6d","slide":1,"name":"agent-point-3","text":"隔离本地数据访问，回传训练结果和资源状态","textPreview":"隔离本地数据访问，回传训练结果和资源状态","textChars":20,"textLines":1,"bbox":[890,368,288,44]}
+{"kind":"shape","id":"sh/7i5grapw","slide":1,"name":"agent-screenshot-frame","bbox":[862,476,346,158]}
+{"kind":"textbox","id":"sh/6hwfi58b","slide":1,"name":"agent-screenshot-label","text":"系统截图空间","textPreview":"系统截图空间","textChars":6,"textLines":1,"bbox":[896,526,278,34]}
+{"kind":"textbox","id":"sh/wnudsb69","slide":1,"name":"agent-screenshot-hint","text":"建议放置代理状态、任务执行或节点资源截图","textPreview":"建议放置代理状态、任务执行或节点资源截图","textChars":20,"textLines":1,"bbox":[896,564,278,42]}
+{"kind":"notes","id":"nt/59lr2d","slide":1,"text":""}

@@ -1,0 +1,21 @@
+{
+  "outputSlides": [
+    {
+      "outputSlide": 1,
+      "sourceSlide": 1,
+      "narrativeRole": "business capability architecture overview",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        {
+          "shapeId": "sh/432dwn6l",
+          "action": "rewrite"
+        },
+        {
+          "shapeId": "sh/7qp4be9c",
+          "action": "rewrite"
+        }
+      ]
+    }
+  ],
+  "omittedSourceSlides": []
+}

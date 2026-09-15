@@ -1,0 +1,72 @@
+{"kind":"slide","id":"sl/y90nupkv","slide":1,"title":"07","textShapes":49}
+{"kind":"shape","id":"sh/547294r6","slide":1,"name":"title-7","bbox":[53.99,77.18,919.86,53.99]}
+{"kind":"textbox","id":"sh/k3yl0zql","slide":1,"name":"page-7","text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[1179.82,44.12,51.99,28]}
+{"kind":"textbox","id":"sh/7qp4be9c","slide":1,"name":"exec-summary","text":"12 个上下文 / 3 个部署 / 148 个业务切片 / 110 条命令 / 126 个事件 / 37 个读模型","textPreview":"12 个上下文 / 3 个部署 / 148 个业务切片 / 110 条命令 / 126 个事件 / 37 个读模型","textChars":57,"textLines":1,"bbox":[53.99,123.64,1039.84,24]}
+{"kind":"shape","id":"sh/65g3298r","slide":1,"name":"exec-top-band","bbox":[57.99,154.1,1163.82,111.98]}
+{"kind":"shape","id":"sh/ts7md4r2","slide":1,"name":"rule","bbox":[57.99,154.1,1163.82,7]}
+{"kind":"textbox","id":"sh/sryl4zqx","slide":1,"name":"exec-top-title","text":"系统入口","textPreview":"系统入口","textChars":4,"textLines":1,"bbox":[83.99,184.09,179.97,28]}
+{"kind":"textbox","id":"sh/fu94fe98","slide":1,"name":"exec-top-sub","text":"统一入口、运营控制、开放集成、治理看板","textPreview":"统一入口、运营控制、开放集成、治理看板","textChars":19,"textLines":1,"bbox":[83.99,214.09,209.97,24]}
+{"kind":"textbox","id":"sh/wn6dc7eh","slide":1,"name":"exec-external-1","text":"开放 API","textPreview":"开放 API","textChars":6,"textLines":1,"bbox":[375.33,188.09,121.98,43.99]}
+{"kind":"textbox","id":"sh/hofulsf2","slide":1,"name":"exec-external-2","text":"训练运营平台","textPreview":"训练运营平台","textChars":6,"textLines":1,"bbox":[556.77,188.09,121.98,43.99]}
+{"kind":"textbox","id":"sh/ul4vaxgb","slide":1,"name":"exec-external-3","text":"联邦协作门户","textPreview":"联邦协作门户","textChars":6,"textLines":1,"bbox":[745.88,188.09,121.98,43.99]}
+{"kind":"textbox","id":"sh/vmdcj2xw","slide":1,"name":"exec-external-4","text":"监控治理中心","textPreview":"监控治理中心","textChars":6,"textLines":1,"bbox":[885.86,188.09,121.98,43.99]}
+{"kind":"textbox","id":"sh/4r6dg7et","slide":1,"name":"exec-external-5","text":"报表 / 审计","textPreview":"报表 / 审计","textChars":7,"textLines":1,"bbox":[1025.84,188.09,121.98,43.99]}
+{"kind":"shape","id":"sh/5sfepcfe","slide":1,"name":"exec-middle-band","bbox":[57.99,298.08,1163.82,249.96]}
+{"kind":"textbox","id":"sh/ipovexwn","slide":1,"name":"exec-middle-title","text":"核心业务层","textPreview":"核心业务层","textChars":5,"textLines":1,"bbox":[83.99,320.07,149.98,33.99]}
+{"kind":"shape","id":"sh/3qxwn2x8","slide":1,"name":"exec-middle-sub","bbox":[83.99,356.07,209.97,39.99]}
+{"kind":"shape","id":"sh/sfqdkrep","slide":1,"name":"exec-actor-frame","bbox":[83.99,364,219.97,162.04]}
+{"kind":"textbox","id":"sh/dgzetcfa","slide":1,"name":"exec-actor-title","text":"入口与业务","textPreview":"入口与业务","textChars":5,"textLines":1,"bbox":[103.98,375.13,119.98,22]}
+{"kind":"textbox","id":"sh/1cvuxc7e","slide":1,"name":"exec-actor-admin","text":"管理平台","textPreview":"管理平台","textChars":4,"textLines":1,"bbox":[103.18,414.06,81.99,26]}
+{"kind":"textbox","id":"sh/0bmd476t","slide":1,"name":"exec-actor-participant","text":"参与方节点","textPreview":"参与方节点","textChars":5,"textLines":1,"bbox":[201.5,414.06,81.99,26]}
+{"kind":"textbox","id":"sh/zadcv2p8","slide":1,"name":"exec-actor-biz-0","text":"组织/联盟","textPreview":"组织/联盟","textChars":5,"textLines":1,"bbox":[98.72,452.05,93.99,26]}
+{"kind":"textbox","id":"sh/e94v2hon","slide":1,"name":"exec-actor-biz-1","text":"数据/安全","textPreview":"数据/安全","textChars":5,"textLines":1,"bbox":[201.97,452.05,92.05,27]}
+{"kind":"textbox","id":"sh/90ve1w7q","slide":1,"name":"exec-actor-biz-2","text":"训练/模型","textPreview":"训练/模型","textChars":5,"textLines":1,"bbox":[95.65,488.51,93.92,28]}
+{"kind":"textbox","id":"sh/ozmd8r65","slide":1,"name":"exec-actor-biz-3","text":"运行/监控","textPreview":"运行/监控","textChars":5,"textLines":1,"bbox":[201.97,488.51,87.92,28]}
+{"kind":"shape","id":"sh/nydczmpk","slide":1,"name":"exec-platform-frame","bbox":[325.95,320.07,555.91,205.97]}
+{"kind":"shape","id":"sh/mx4v6hoz","slide":1,"name":"rule","bbox":[325.95,320.07,555.91,6]}
+{"kind":"textbox","id":"sh/p4bu5s76","slide":1,"name":"exec-platform-title","text":"联邦学习平台","textPreview":"联邦学习平台","textChars":6,"textLines":1,"bbox":[347.95,338.07,309.95,24]}
+{"kind":"textbox","id":"sh/uxgjq907","slide":1,"name":"exec-platform-api","text":"API / 应用服务层：接收命令、校验输入、编排用例","textPreview":"API / 应用服务层：接收命令、校验输入、编排用例","textChars":26,"textLines":1,"bbox":[347.95,382.53,505.92,28]}
+{"kind":"textbox","id":"sh/vyp0je1s","slide":1,"name":"exec-platform-command","text":"命令与领域模型\n12 个上下文承载规则","textPreview":"命令与领域模型 | 12 个上下文承载规则","textChars":19,"textLines":2,"bbox":[347.95,432.06,155.98,41.99]}
+{"kind":"textbox","id":"sh/wzy1szid","slide":1,"name":"exec-platform-event","text":"事件流 \n触发投影与后续命令","textPreview":"事件流  | 触发投影与后续命令","textChars":14,"textLines":2,"bbox":[525.92,432.06,155.98,41.99]}
+{"kind":"textbox","id":"sh/h072l4jy","slide":1,"name":"exec-platform-automation","text":"自动化处理器\n跨上下文异步反馈","textPreview":"自动化处理器 | 跨上下文异步反馈","textChars":15,"textLines":2,"bbox":[703.89,432.06,149.98,41.99]}
+{"kind":"textbox","id":"sh/i1gje90j","slide":1,"name":"exec-platform-readmodel","text":"读模型 / 查询视图：看板、监控、治理查询","textPreview":"读模型 / 查询视图：看板、监控、治理查询","textChars":21,"textLines":1,"bbox":[347.95,486.05,247.96,26]}
+{"kind":"textbox","id":"sh/j2pkne14","slide":1,"name":"exec-platform-cqrs","text":"CQRS 读侧：Dev/Test Axon5 | Prod Supabase","textPreview":"CQRS 读侧：Dev/Test Axon5 | Prod Supabase","textChars":38,"textLines":1,"bbox":[605.91,486.05,247.96,26]}
+{"kind":"shape","id":"sh/43y1gji9","slide":1,"name":"exec-agent-frame","bbox":[903.86,320.07,171.97,205.97]}
+{"kind":"shape","id":"sh/54r2poju","slide":1,"name":"rule","bbox":[903.86,320.07,171.97,6]}
+{"kind":"textbox","id":"sh/y5wjip0z","slide":1,"name":"exec-agent-title","text":"Runtime Agent","textPreview":"Runtime Agent","textChars":13,"textLines":1,"bbox":[921.86,338.07,135.98,24]}
+{"kind":"textbox","id":"sh/z650ba1k","slide":1,"name":"exec-agent-0","text":"Agent API","textPreview":"Agent API","textChars":9,"textLines":1,"bbox":[923.86,382.06,131.98,24]}
+{"kind":"textbox","id":"sh/z2xgf6to","slide":1,"name":"exec-agent-1","text":"Task Executor","textPreview":"Task Executor","textChars":13,"textLines":1,"bbox":[923.86,413.06,131.98,24]}
+{"kind":"textbox","id":"sh/e1oz61c3","slide":1,"name":"exec-agent-2","text":"Dataset Profiler","textPreview":"Dataset Profiler","textChars":16,"textLines":1,"bbox":[923.86,444.05,131.98,24]}
+{"kind":"textbox","id":"sh/14fyhgbe","slide":1,"name":"exec-agent-3","text":"Telemetry Client","textPreview":"Telemetry Client","textChars":16,"textLines":1,"bbox":[923.86,475.05,131.98,24]}
+{"kind":"textbox","id":"sh/036h8but","slide":1,"name":"exec-agent-loop","text":"任务策略 → 本地执行\n遥测结果 → 平台闭环","textPreview":"任务策略 → 本地执行 | 遥测结果 → 平台闭环","textChars":23,"textLines":2,"bbox":[921.86,504.04,135.98,18]}
+{"kind":"shape","id":"sh/nqxgjqtk","slide":1,"name":"exec-dependency-frame","bbox":[1095.83,320.07,93.99,205.97]}
+{"kind":"textbox","id":"sh/mpozalcz","slide":1,"name":"exec-dep-title","text":"三方依赖","textPreview":"三方依赖","textChars":4,"textLines":1,"bbox":[1107.83,338.07,69.99,22]}
+{"kind":"textbox","id":"sh/9sfylgbq","slide":1,"name":"exec-dep-0","text":"Auth","textPreview":"Auth","textChars":4,"textLines":1,"bbox":[1109.83,378.06,65.99,22]}
+{"kind":"textbox","id":"sh/or6hcvu5","slide":1,"name":"exec-dep-1","text":"外部系统","textPreview":"外部系统","textChars":4,"textLines":1,"bbox":[1109.83,406.06,65.99,22]}
+{"kind":"textbox","id":"sh/buh0nqtg","slide":1,"name":"exec-dep-2","text":"模型仓库","textPreview":"模型仓库","textChars":4,"textLines":1,"bbox":[1109.83,434.06,65.99,22]}
+{"kind":"textbox","id":"sh/at8zelcb","slide":1,"name":"exec-dep-3","text":"通知告警","textPreview":"通知告警","textChars":4,"textLines":1,"bbox":[1109.83,462.05,65.99,22]}
+{"kind":"textbox","id":"sh/8zqx4vq9","slide":1,"name":"exec-dep-4","text":"审计治理","textPreview":"审计治理","textChars":4,"textLines":1,"bbox":[1109.83,490.05,65.99,22]}
+{"kind":"shape","id":"sh/t0jyd0ru","slide":1,"name":"exec-arrow-actor-platform","bbox":[303.95,455.05,22,18]}
+{"kind":"shape","id":"sh/6x8f2583","slide":1,"name":"exec-arrow-platform-agent","bbox":[881.86,414.06,24,18]}
+{"kind":"shape","id":"sh/7yhgbq9o","slide":1,"name":"exec-arrow-agent-platform","bbox":[881.86,480.05,24,18]}
+{"kind":"textbox","id":"sh/kvqx0vqd","slide":1,"name":"exec-task-label","text":"任务\n策略","textPreview":"任务 | 策略","textChars":5,"textLines":2,"bbox":[877.86,390.06,30,28]}
+{"kind":"textbox","id":"sh/lwzy90ry","slide":1,"name":"exec-feedback-label","text":"遥测\n结果","textPreview":"遥测 | 结果","textChars":5,"textLines":2,"bbox":[877.86,498.05,30,28]}
+{"kind":"shape","id":"sh/yt8fyl87","slide":1,"name":"exec-arrow-platform-up","bbox":[597.91,266.08,33.99,33.99]}
+{"kind":"shape","id":"sh/juhg7q9s","slide":1,"name":"exec-arrow-agent-up","bbox":[971.85,266.08,33.99,33.99]}
+{"kind":"shape","id":"sh/wr6xwbq1","slide":1,"name":"exec-arrow-dep-up","bbox":[1125.82,266.08,33.99,33.99]}
+{"kind":"textbox","id":"sh/xsfy5grm","slide":1,"name":"exec-output-label","text":"能力统一输出","textPreview":"能力统一输出","textChars":6,"textLines":1,"bbox":[739.88,244.08,159.98,22]}
+{"kind":"shape","id":"sh/dc7md8fe","slide":1,"name":"exec-infra-band","bbox":[57.99,574.03,1163.82,81.99]}
+{"kind":"textbox","id":"sh/cby5k3yt","slide":1,"name":"exec-infra-title","text":"基础设施与部署","textPreview":"基础设施与部署","textChars":7,"textLines":1,"bbox":[83.99,602.03,175.97,28]}
+{"kind":"textbox","id":"sh/ra54bix8","slide":1,"name":"exec-infra-0","text":"Docker Compose","textPreview":"Docker Compose","textChars":14,"textLines":1,"bbox":[275.96,598.03,87.99,33.99]}
+{"kind":"textbox","id":"sh/q9wnidgn","slide":1,"name":"exec-infra-1","text":"K3s / K8s","textPreview":"K3s / K8s","textChars":9,"textLines":1,"bbox":[375.94,598.03,87.99,33.99]}
+{"kind":"textbox","id":"sh/5onm98f2","slide":1,"name":"exec-infra-2","text":"PostgreSQL","textPreview":"PostgreSQL","textChars":10,"textLines":1,"bbox":[475.93,598.03,87.99,33.99]}
+{"kind":"textbox","id":"sh/4ne5g3yh","slide":1,"name":"exec-infra-3","text":"UmaDB Event Store","textPreview":"UmaDB Event Store","textChars":17,"textLines":1,"bbox":[575.91,598.03,87.99,33.99]}
+{"kind":"textbox","id":"sh/3m547yxw","slide":1,"name":"exec-infra-4","text":"Supabase","textPreview":"Supabase","textChars":8,"textLines":1,"bbox":[681.89,598.03,87.99,33.99]}
+{"kind":"textbox","id":"sh/9kr6lsfm","slide":1,"name":"exec-infra-6","text":"对象存储","textPreview":"对象存储","textChars":4,"textLines":1,"bbox":[793.88,598.03,87.99,33.99]}
+{"kind":"textbox","id":"sh/oji5sne1","slide":1,"name":"exec-infra-7","text":"CI/CD","textPreview":"CI/CD","textChars":5,"textLines":1,"bbox":[907.86,598.03,87.99,33.99]}
+{"kind":"textbox","id":"sh/6psjmpwj","slide":1,"name":"exec-infra-8","text":"审计 / 遥测","textPreview":"审计 / 遥测","textChars":7,"textLines":1,"bbox":[1021.84,598.03,87.99,33.99]}
+{"kind":"shape","id":"sh/7q1kfudo","slide":1,"name":"exec-arrow-infra-platform","bbox":[581.91,548.04,33.99,26]}
+{"kind":"shape","id":"sh/8ra1oze9","slide":1,"name":"exec-arrow-infra-agent","bbox":[973.85,548.04,33.99,26]}
+{"kind":"shape","id":"sh/ts32h4vu","slide":1,"name":"exec-arrow-infra-dep","bbox":[1125.82,548.04,33.99,26]}
+{"kind":"shape","id":"sh/ylsjipw7","slide":1,"name":"rule","bbox":[53.99,660.02,1171.82,1]}
+{"kind":"textbox","id":"sh/432dwn6l","slide":1,"name":"TextBox 6","text":"1.2.3 事件驱动的联邦学习平台全景架构","textPreview":"1.2.3 事件驱动的联邦学习平台全景架构","textChars":21,"textLines":1,"bbox":[42.67,12.33,1189.13,53.8]}

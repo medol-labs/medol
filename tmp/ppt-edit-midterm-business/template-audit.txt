@@ -1,0 +1,4 @@
+Source deck: one-slide architecture overview.
+Reuse contract: keep the original slide, shapes, colors, arrows, and hierarchy.
+Edit scope: replace text with updated Federation Learning business capabilities and lightly tighten labels.
+No external assets or external claims were introduced.

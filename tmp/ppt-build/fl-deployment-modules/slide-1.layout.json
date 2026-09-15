@@ -1,0 +1,1678 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/59lr2d",
+    "id": "59lr2d",
+    "slide": 1,
+    "layoutId": "37377ffc-f7ed-4b72-bb54-b152c6a17032",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "0aa7573e-6713-4280-a411-cda9e20133d1",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "37377ffc-f7ed-4b72-bb54-b152c6a17032",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "0aa7573e-6713-4280-a411-cda9e20133d1",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "0aa7573e-6713-4280-a411-cda9e20133d1",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kbqxony9",
+      "id": "1",
+      "name": "eyebrow",
+      "bbox": [
+        72,
+        48,
+        520,
+        28
+      ],
+      "geometry": "rect",
+      "text": "联邦学习子系统 | 部署模块能力总览",
+      "textPreview": "联邦学习子系统 | 部署模块能力总览",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#3D8DFF",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "联邦学习子系统 | 部署模块能力总览"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "联邦学习子系统 | 部署模块能力总览",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#3D8DFF",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "联邦学习子系统 | 部署模块能力总览",
+              "fontSize": 16,
+              "color": "#3D8DFF",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/jahwv2ho",
+      "id": "2",
+      "name": "title",
+      "bbox": [
+        72,
+        82,
+        980,
+        52
+      ],
+      "geometry": "rect",
+      "text": "三个部署模块承接平台管理、业务编排与运行侧执行",
+      "textPreview": "三个部署模块承接平台管理、业务编排与运行侧执行",
+      "resolvedFontSize": 38,
+      "resolvedTextStyle": {
+        "fontSize": 38,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "三个部署模块承接平台管理、业务编排与运行侧执行"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "三个部署模块承接平台管理、业务编排与运行侧执行",
+          "resolvedTextStyle": {
+            "fontSize": 38,
+            "color": "#0F172A",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "三个部署模块承接平台管理、业务编排与运行侧执行",
+              "fontSize": 38,
+              "color": "#0F172A",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/i98fmxg3",
+      "id": "3",
+      "name": "subtitle",
+      "bbox": [
+        72,
+        132,
+        940,
+        28
+      ],
+      "geometry": "rect",
+      "text": "基于 federation learning 建模与安装部署文档梳理；下方保留截图位置，便于后续替换为真实系统界面。",
+      "textPreview": "基于 federation learning 建模与安装部署文档梳理；下方保留截图位置，便于后续替换为真实系统界面。",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "+mn-lt",
+        "color": "#475569",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "基于 federation learning 建模与安装部署文档梳理；下方保留截图位置，便于后续替换为真实系统界面。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "基于 federation learning 建模与安装部署文档梳理；下方保留截图位置，便于后续替换为真实系统界面。",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "color": "#475569"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "基于 federation learning 建模与安装部署文档梳理；下方保留截图位置，便于后续替换为真实系统界面。",
+              "fontSize": 18,
+              "color": "#475569"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/t0jy1czq",
+      "id": "4",
+      "name": "web-summary-panel",
+      "bbox": [
+        72,
+        160,
+        346,
+        286
+      ],
+      "geometry": "rect",
+      "fillColor": "#F7F9FC",
+      "lineColor": "#CBD5E1",
+      "lineWidth": 1
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/sfqxs7yl",
+      "id": "5",
+      "name": "web-title",
+      "bbox": [
+        94,
+        182,
+        302,
+        34
+      ],
+      "geometry": "rect",
+      "text": "Web 管理端",
+      "textPreview": "Web 管理端",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "+mn-lt",
+        "color": "#2563EB",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Web 管理端"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Web 管理端",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "color": "#2563EB",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Web 管理端",
+              "fontSize": 24,
+              "color": "#2563EB",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7ehgz2h0",
+      "id": "6",
+      "name": "web-subtitle",
+      "bbox": [
+        94,
+        220,
+        302,
+        34
+      ],
+      "geometry": "rect",
+      "text": "统一业务入口与可视化操作台",
+      "textPreview": "统一业务入口与可视化操作台",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "统一业务入口与可视化操作台"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "统一业务入口与可视化操作台",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#64748B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "统一业务入口与可视化操作台",
+              "fontSize": 16,
+              "color": "#64748B"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/6d8fqxgf",
+      "id": "7",
+      "name": "web-point-1",
+      "bbox": [
+        100,
+        268,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "组织、联邦、数据集、模型与训练任务管理",
+      "textPreview": "组织、联邦、数据集、模型与训练任务管理",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "组织、联邦、数据集、模型与训练任"
+          },
+          {
+            "index": 2,
+            "text": "务管理"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "组织、联邦、数据集、模型与训练任务管理",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "组织、联邦、数据集、模型与训练任务管理",
+              "fontSize": 16,
+              "color": "#111827",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/94fep8zm",
+      "id": "8",
+      "name": "web-point-2",
+      "bbox": [
+        100,
+        318,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "运行时状态、审批结果与业务视图展示",
+      "textPreview": "运行时状态、审批结果与业务视图展示",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "运行时状态、审批结果与业务视图展"
+          },
+          {
+            "index": 2,
+            "text": "示"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "运行时状态、审批结果与业务视图展示",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "运行时状态、审批结果与业务视图展示",
+              "fontSize": 16,
+              "color": "#111827"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8j6xw3y1",
+      "id": "9",
+      "name": "web-point-3",
+      "bbox": [
+        100,
+        368,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "支持平台管理员、组织管理员和业务用户操作",
+      "textPreview": "支持平台管理员、组织管理员和业务用户操作",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "支持平台管理员、组织管理员和业务"
+          },
+          {
+            "index": 2,
+            "text": "用户操作"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "支持平台管理员、组织管理员和业务用户操作",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "支持平台管理员、组织管理员和业务用户操作",
+              "fontSize": 16,
+              "color": "#111827"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/adwza5s3",
+      "id": "10",
+      "name": "web-screenshot-frame",
+      "bbox": [
+        72,
+        476,
+        346,
+        158
+      ],
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#94A3B8",
+      "lineWidth": 1
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ve503q9o",
+      "id": "11",
+      "name": "web-screenshot-label",
+      "bbox": [
+        106,
+        526,
+        278,
+        34
+      ],
+      "geometry": "rect",
+      "text": "系统截图空间",
+      "textPreview": "系统截图空间",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "系统截图空间"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "系统截图空间",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "color": "#64748B",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "系统截图空间",
+              "fontSize": 24,
+              "color": "#64748B",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/wfehcva9",
+      "id": "12",
+      "name": "web-screenshot-hint",
+      "bbox": [
+        106,
+        564,
+        278,
+        42
+      ],
+      "geometry": "rect",
+      "text": "建议放置首页、训练编排或运行时监控截图",
+      "textPreview": "建议放置首页、训练编排或运行时监控截图",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "+mn-lt",
+        "color": "#94A3B8",
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "建议放置首页、训练编排或运行时监控截"
+          },
+          {
+            "index": 2,
+            "text": "图"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "建议放置首页、训练编排或运行时监控截图",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "color": "#94A3B8",
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "建议放置首页、训练编排或运行时监控截图",
+              "fontSize": 14,
+              "color": "#94A3B8",
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xgni50ru",
+      "id": "13",
+      "name": "backend-summary-panel",
+      "bbox": [
+        467,
+        160,
+        346,
+        286
+      ],
+      "geometry": "rect",
+      "fillColor": "#F7F9FC",
+      "lineColor": "#CBD5E1",
+      "lineWidth": 1
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ihwze5sf",
+      "id": "14",
+      "name": "backend-title",
+      "bbox": [
+        489,
+        182,
+        302,
+        34
+      ],
+      "geometry": "rect",
+      "text": "平台后端服务",
+      "textPreview": "平台后端服务",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "+mn-lt",
+        "color": "#0F766E",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "平台后端服务"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "平台后端服务",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "color": "#0F766E",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "平台后端服务",
+              "fontSize": 24,
+              "color": "#0F766E",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ji507a90",
+      "id": "15",
+      "name": "backend-subtitle",
+      "bbox": [
+        489,
+        220,
+        302,
+        34
+      ],
+      "geometry": "rect",
+      "text": "领域规则、事件状态与集成编排中心",
+      "textPreview": "领域规则、事件状态与集成编排中心",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "领域规则、事件状态与集成编排中心"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "领域规则、事件状态与集成编排中心",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#64748B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "领域规则、事件状态与集成编排中心",
+              "fontSize": 16,
+              "color": "#64748B"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kjyhgfa5",
+      "id": "16",
+      "name": "backend-point-1",
+      "bbox": [
+        495,
+        268,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "命令校验、业务规则、事件记录和状态流转",
+      "textPreview": "命令校验、业务规则、事件记录和状态流转",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "命令校验、业务规则、事件记录和状"
+          },
+          {
+            "index": 2,
+            "text": "态流转"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "命令校验、业务规则、事件记录和状态流转",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "命令校验、业务规则、事件记录和状态流转",
+              "fontSize": 16,
+              "color": "#111827",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 17,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5k7i9krq",
+      "id": "17",
+      "name": "backend-point-2",
+      "bbox": [
+        495,
+        318,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "模型仓库、训练编排、安全聚合与运行时治理",
+      "textPreview": "模型仓库、训练编排、安全聚合与运行时治理",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "模型仓库、训练编排、安全聚合与运"
+          },
+          {
+            "index": 2,
+            "text": "行时治理"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "模型仓库、训练编排、安全聚合与运行时治理",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "模型仓库、训练编排、安全聚合与运行时治理",
+              "fontSize": 16,
+              "color": "#111827"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 18,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/6lgzipsb",
+      "id": "18",
+      "name": "backend-point-3",
+      "bbox": [
+        495,
+        368,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "对接数据库、对象存储、消息调度和外部服务",
+      "textPreview": "对接数据库、对象存储、消息调度和外部服务",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "对接数据库、对象存储、消息调度和"
+          },
+          {
+            "index": 2,
+            "text": "外部服务"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "对接数据库、对象存储、消息调度和外部服务",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "对接数据库、对象存储、消息调度和外部服务",
+              "fontSize": 16,
+              "color": "#111827"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 19,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7mp0bu9w",
+      "id": "19",
+      "name": "backend-screenshot-frame",
+      "bbox": [
+        467,
+        476,
+        346,
+        158
+      ],
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#94A3B8",
+      "lineWidth": 1
+    },
+    {
+      "order": 20,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3a9gzup4",
+      "id": "20",
+      "name": "backend-screenshot-label",
+      "bbox": [
+        501,
+        526,
+        278,
+        34
+      ],
+      "geometry": "rect",
+      "text": "系统截图空间",
+      "textPreview": "系统截图空间",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "系统截图空间"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "系统截图空间",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "color": "#64748B",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "系统截图空间",
+              "fontSize": 24,
+              "color": "#64748B",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 21,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/2pgzqpoj",
+      "id": "21",
+      "name": "backend-screenshot-hint",
+      "bbox": [
+        501,
+        564,
+        278,
+        42
+      ],
+      "geometry": "rect",
+      "text": "建议放置接口、任务流或运维监控截图",
+      "textPreview": "建议放置接口、任务流或运维监控截图",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "+mn-lt",
+        "color": "#94A3B8",
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "建议放置接口、任务流或运维监控截图"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "建议放置接口、任务流或运维监控截图",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "color": "#94A3B8",
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "建议放置接口、任务流或运维监控截图",
+              "fontSize": 14,
+              "color": "#94A3B8",
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 22,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/pcry1k7a",
+      "id": "22",
+      "name": "agent-summary-panel",
+      "bbox": [
+        862,
+        160,
+        346,
+        286
+      ],
+      "geometry": "rect",
+      "fillColor": "#F7F9FC",
+      "lineColor": "#CBD5E1",
+      "lineWidth": 1
+    },
+    {
+      "order": 23,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4bihsz6p",
+      "id": "23",
+      "name": "agent-title",
+      "bbox": [
+        884,
+        182,
+        302,
+        34
+      ],
+      "geometry": "rect",
+      "text": "运行时代理",
+      "textPreview": "运行时代理",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "+mn-lt",
+        "color": "#7C3AED",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "运行时代理"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "运行时代理",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "color": "#7C3AED",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "运行时代理",
+              "fontSize": 24,
+              "color": "#7C3AED",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 24,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fmpgvaps",
+      "id": "24",
+      "name": "agent-subtitle",
+      "bbox": [
+        884,
+        220,
+        302,
+        34
+      ],
+      "geometry": "rect",
+      "text": "连接组织侧算力与平台控制面",
+      "textPreview": "连接组织侧算力与平台控制面",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "连接组织侧算力与平台控制面"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "连接组织侧算力与平台控制面",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#64748B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "连接组织侧算力与平台控制面",
+              "fontSize": 16,
+              "color": "#64748B"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 25,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ulgzm587",
+      "id": "25",
+      "name": "agent-point-1",
+      "bbox": [
+        890,
+        268,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "代理启动、自检、认证连接和健康上报",
+      "textPreview": "代理启动、自检、认证连接和健康上报",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "代理启动、自检、认证连接和健康上"
+          },
+          {
+            "index": 2,
+            "text": "报"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "代理启动、自检、认证连接和健康上报",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "代理启动、自检、认证连接和健康上报",
+              "fontSize": 16,
+              "color": "#111827",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 26,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ho7yxk7y",
+      "id": "26",
+      "name": "agent-point-2",
+      "bbox": [
+        890,
+        318,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "数据集画像、契约校验、训练轮次执行",
+      "textPreview": "数据集画像、契约校验、训练轮次执行",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "数据集画像、契约校验、训练轮次执"
+          },
+          {
+            "index": 2,
+            "text": "行"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "数据集画像、契约校验、训练轮次执行",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "数据集画像、契约校验、训练轮次执行",
+              "fontSize": 16,
+              "color": "#111827"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 27,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/gnyhof6d",
+      "id": "27",
+      "name": "agent-point-3",
+      "bbox": [
+        890,
+        368,
+        288,
+        44
+      ],
+      "geometry": "rect",
+      "text": "隔离本地数据访问，回传训练结果和资源状态",
+      "textPreview": "隔离本地数据访问，回传训练结果和资源状态",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#111827",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "隔离本地数据访问，回传训练结果和"
+          },
+          {
+            "index": 2,
+            "text": "资源状态"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "隔离本地数据访问，回传训练结果和资源状态",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#111827"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "隔离本地数据访问，回传训练结果和资源状态",
+              "fontSize": 16,
+              "color": "#111827"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 28,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7i5grapw",
+      "id": "28",
+      "name": "agent-screenshot-frame",
+      "bbox": [
+        862,
+        476,
+        346,
+        158
+      ],
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#94A3B8",
+      "lineWidth": 1
+    },
+    {
+      "order": 29,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/6hwfi58b",
+      "id": "29",
+      "name": "agent-screenshot-label",
+      "bbox": [
+        896,
+        526,
+        278,
+        34
+      ],
+      "geometry": "rect",
+      "text": "系统截图空间",
+      "textPreview": "系统截图空间",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "系统截图空间"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "系统截图空间",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "color": "#64748B",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "系统截图空间",
+              "fontSize": 24,
+              "color": "#64748B",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 30,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/wnudsb69",
+      "id": "30",
+      "name": "agent-screenshot-hint",
+      "bbox": [
+        896,
+        564,
+        278,
+        42
+      ],
+      "geometry": "rect",
+      "text": "建议放置代理状态、任务执行或节点资源截图",
+      "textPreview": "建议放置代理状态、任务执行或节点资源截图",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "+mn-lt",
+        "color": "#94A3B8",
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "建议放置代理状态、任务执行或节点资源"
+          },
+          {
+            "index": 2,
+            "text": "截图"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "建议放置代理状态、任务执行或节点资源截图",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "color": "#94A3B8",
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "建议放置代理状态、任务执行或节点资源截图",
+              "fontSize": 14,
+              "color": "#94A3B8",
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

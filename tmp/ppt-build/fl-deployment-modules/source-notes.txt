@@ -1,0 +1,7 @@
+Sources:
+- examples/fl/federation-learning.medol: canonical Federation Learning model.
+- tmp/联邦学习子系统文档/3.5-“感-通-算”一体化的跨域健康管理联邦孪生平台-安装部署手册-联邦学习子系统.md: deployment architecture and components.
+- tmp/联邦学习子系统文档/3.2-“感-通-算”一体化的跨域健康管理联邦孪生平台-软件设计说明-联邦学习子系统.md: capability grouping and runtime responsibilities.
+
+Slide intent:
+Show the three deployable modules of the Federation Learning subsystem and reserve image areas for later system screenshots.
