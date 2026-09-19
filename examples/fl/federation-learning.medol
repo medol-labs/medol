@@ -2777,6 +2777,9 @@ context TrainingOrchestration {
       initialModelVersion: String? derived from ModelArtifactCatalog.modelVersion by initialModelId
       runtimeEngineProfileId: UUID from RuntimeEngineProfileCatalog.runtimeEngineProfileId
       runtimeEngineProfileName: String? derived from RuntimeEngineProfileCatalog.profileName by runtimeEngineProfileId
+      runtimeEnginePluginProfile: String derived from RuntimeEngineProfileCatalog.pluginProfile by runtimeEngineProfileId
+      runtimeEngineImage: String derived from RuntimeEngineProfileCatalog.runtimeEngineImage by runtimeEngineProfileId
+      runtimeEngineImageDigest: String? derived from RuntimeEngineProfileCatalog.imageDigest by runtimeEngineProfileId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -2831,19 +2834,19 @@ context TrainingOrchestration {
       }
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String? derived {
-        from RuntimeEngineProfile.profileName
+        from DefineTrainingRunConfiguration.runtimeEngineProfileName
         rule "Snapshot the selected runtime engine profile display name for audit and execution planning."
       }
       runtimeEnginePluginProfile: String derived {
-        from RuntimeEngineProfile.pluginProfile
+        from DefineTrainingRunConfiguration.runtimeEnginePluginProfile
         rule "Snapshot the runtime-engine plugin profile that must support the selected model and aggregation plugins."
       }
       runtimeEngineImage: String derived {
-        from RuntimeEngineProfile.runtimeEngineImage
+        from DefineTrainingRunConfiguration.runtimeEngineImage
         rule "Snapshot the exact container image runtime agents must pull when starting per-round runtime-engine workloads."
       }
       runtimeEngineImageDigest: String? derived {
-        from RuntimeEngineProfile.imageDigest
+        from DefineTrainingRunConfiguration.runtimeEngineImageDigest
         rule "Snapshot the optional immutable image digest used for provenance and deployment verification."
       }
       strategyName: String dictionary "TRAINING_STRATEGY"
@@ -2941,6 +2944,9 @@ context TrainingOrchestration {
       initialModelVersion: String? derived from ModelArtifactCatalog.modelVersion by initialModelId
       runtimeEngineProfileId: UUID from RuntimeEngineProfileCatalog.runtimeEngineProfileId
       runtimeEngineProfileName: String? derived from RuntimeEngineProfileCatalog.profileName by runtimeEngineProfileId
+      runtimeEnginePluginProfile: String derived from RuntimeEngineProfileCatalog.pluginProfile by runtimeEngineProfileId
+      runtimeEngineImage: String derived from RuntimeEngineProfileCatalog.runtimeEngineImage by runtimeEngineProfileId
+      runtimeEngineImageDigest: String? derived from RuntimeEngineProfileCatalog.imageDigest by runtimeEngineProfileId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -2996,19 +3002,19 @@ context TrainingOrchestration {
       }
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String? derived {
-        from RuntimeEngineProfile.profileName
+        from UpdateTrainingRunConfiguration.runtimeEngineProfileName
         rule "Snapshot the updated runtime engine profile display name."
       }
       runtimeEnginePluginProfile: String derived {
-        from RuntimeEngineProfile.pluginProfile
+        from UpdateTrainingRunConfiguration.runtimeEnginePluginProfile
         rule "Snapshot the updated runtime-engine plugin profile."
       }
       runtimeEngineImage: String derived {
-        from RuntimeEngineProfile.runtimeEngineImage
+        from UpdateTrainingRunConfiguration.runtimeEngineImage
         rule "Snapshot the updated container image runtime agents must pull."
       }
       runtimeEngineImageDigest: String? derived {
-        from RuntimeEngineProfile.imageDigest
+        from UpdateTrainingRunConfiguration.runtimeEngineImageDigest
         rule "Snapshot the updated optional immutable image digest."
       }
       strategyName: String dictionary "TRAINING_STRATEGY"
