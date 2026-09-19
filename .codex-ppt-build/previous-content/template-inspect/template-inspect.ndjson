@@ -1,0 +1,45 @@
+{"kind":"slide","id":"sl/y90nupkv","slide":1,"title":"FEDERATION LEARNING PLATFORM","textShapes":22}
+{"kind":"textbox","id":"sh/mpozalcz","slide":1,"name":"eyebrow","text":"FEDERATION LEARNING PLATFORM","textPreview":"FEDERATION LEARNING PLATFORM","textChars":28,"textLines":1,"bbox":[58,42,380,28]}
+{"kind":"textbox","id":"sh/547294r6","slide":1,"name":"title","text":"联邦学习平台业务能力概述","textPreview":"联邦学习平台业务能力概述","textChars":12,"textLines":1,"bbox":[58,80,760,58]}
+{"kind":"textbox","id":"sh/k3yl0zql","slide":1,"name":"subtitle","text":"围绕多机构协作训练，将成员治理、数据准入、运行时接入、训练编排、安全聚合、模型发布和审计运维串成可追踪闭环。","textPreview":"围绕多机构协作训练，将成员治理、数据准入、运行时接入、训练编排、安全聚合、模型发布和审计运维串成可追踪闭环。","textChars":54,"textLines":1,"bbox":[58,144,970,52]}
+{"kind":"shape","id":"sh/7qp4be9c","slide":1,"name":"top-rule","bbox":[58,190,1164,2]}
+{"kind":"shape","id":"sh/65g3298r","slide":1,"name":"cap-accent-1","bbox":[58,214,44,5]}
+{"kind":"textbox","id":"sh/ts7md4r2","slide":1,"name":"cap-title-1","text":"协作治理","textPreview":"协作治理","textChars":4,"textLines":1,"bbox":[58,230,270,34]}
+{"kind":"shape","id":"sh/sryl4zqx","slide":1,"name":"cap-dot-1-1","bbox":[58,285,8,8]}
+{"kind":"textbox","id":"sh/fu94fe98","slide":1,"name":"cap-item-1-1","text":"组织注册与启停","textPreview":"组织注册与启停","textChars":7,"textLines":1,"bbox":[76,276,252,30]}
+{"kind":"shape","id":"sh/utg3698n","slide":1,"name":"cap-dot-1-2","bbox":[58,324,8,8]}
+{"kind":"textbox","id":"sh/wn6dc7eh","slide":1,"name":"cap-item-1-2","text":"联邦创建、邀请与成员状态","textPreview":"联邦创建、邀请与成员状态","textChars":12,"textLines":1,"bbox":[76,315,252,30]}
+{"kind":"shape","id":"sh/hofulsf2","slide":1,"name":"cap-dot-1-3","bbox":[58,363,8,8]}
+{"kind":"textbox","id":"sh/ul4vaxgb","slide":1,"name":"cap-item-1-3","text":"用户与机构绑定","textPreview":"用户与机构绑定","textChars":7,"textLines":1,"bbox":[76,354,252,30]}
+{"kind":"shape","id":"sh/vmdcj2xw","slide":1,"name":"separator-1","bbox":[342,218,1.2,180]}
+{"kind":"shape","id":"sh/4r6dg7et","slide":1,"name":"cap-accent-2","bbox":[356,214,44,5]}
+{"kind":"textbox","id":"sh/5sfepcfe","slide":1,"name":"cap-title-2","text":"数据与运行时","textPreview":"数据与运行时","textChars":6,"textLines":1,"bbox":[356,230,270,34]}
+{"kind":"shape","id":"sh/ipovexwn","slide":1,"name":"cap-dot-2-1","bbox":[356,285,8,8]}
+{"kind":"textbox","id":"sh/3qxwn2x8","slide":1,"name":"cap-item-2-1","text":"特征 Schema 版本治理","textPreview":"特征 Schema 版本治理","textChars":14,"textLines":1,"bbox":[374,276,252,30]}
+{"kind":"shape","id":"sh/sfqdkrep","slide":1,"name":"cap-dot-2-2","bbox":[356,324,8,8]}
+{"kind":"textbox","id":"sh/dgzetcfa","slide":1,"name":"cap-item-2-2","text":"Runtime 安装、验证与连接","textPreview":"Runtime 安装、验证与连接","textChars":16,"textLines":1,"bbox":[374,315,252,30]}
+{"kind":"shape","id":"sh/1cvuxc7e","slide":1,"name":"cap-dot-2-3","bbox":[356,363,8,8]}
+{"kind":"textbox","id":"sh/0bmd476t","slide":1,"name":"cap-item-2-3","text":"数据集声明、画像与准入","textPreview":"数据集声明、画像与准入","textChars":11,"textLines":1,"bbox":[374,354,252,30]}
+{"kind":"shape","id":"sh/zadcv2p8","slide":1,"name":"separator-2","bbox":[640,218,1.2,180]}
+{"kind":"shape","id":"sh/e94v2hon","slide":1,"name":"cap-accent-3","bbox":[654,214,44,5]}
+{"kind":"textbox","id":"sh/90ve1w7q","slide":1,"name":"cap-title-3","text":"训练与聚合","textPreview":"训练与聚合","textChars":5,"textLines":1,"bbox":[654,230,270,34]}
+{"kind":"shape","id":"sh/ozmd8r65","slide":1,"name":"cap-dot-3-1","bbox":[654,285,8,8]}
+{"kind":"textbox","id":"sh/nydczmpk","slide":1,"name":"cap-item-3-1","text":"训练配置、任务提交与轮次调度","textPreview":"训练配置、任务提交与轮次调度","textChars":14,"textLines":1,"bbox":[672,276,252,30]}
+{"kind":"shape","id":"sh/mx4v6hoz","slide":1,"name":"cap-dot-3-2","bbox":[654,324,8,8]}
+{"kind":"textbox","id":"sh/p4bu5s76","slide":1,"name":"cap-item-3-2","text":"参与方选择与本地执行计划","textPreview":"参与方选择与本地执行计划","textChars":12,"textLines":1,"bbox":[672,315,252,30]}
+{"kind":"shape","id":"sh/432dwn6l","slide":1,"name":"cap-dot-3-3","bbox":[654,363,8,8]}
+{"kind":"textbox","id":"sh/uxgjq907","slide":1,"name":"cap-item-3-3","text":"安全聚合、更新评估与全局模型","textPreview":"安全聚合、更新评估与全局模型","textChars":14,"textLines":1,"bbox":[672,354,252,30]}
+{"kind":"shape","id":"sh/vyp0je1s","slide":1,"name":"separator-3","bbox":[938,218,1.2,180]}
+{"kind":"shape","id":"sh/wzy1szid","slide":1,"name":"cap-accent-4","bbox":[952,214,44,5]}
+{"kind":"textbox","id":"sh/h072l4jy","slide":1,"name":"cap-title-4","text":"模型与运维","textPreview":"模型与运维","textChars":5,"textLines":1,"bbox":[952,230,270,34]}
+{"kind":"shape","id":"sh/i1gje90j","slide":1,"name":"cap-dot-4-1","bbox":[952,285,8,8]}
+{"kind":"textbox","id":"sh/j2pkne14","slide":1,"name":"cap-item-4-1","text":"模型仓库与候选模型登记","textPreview":"模型仓库与候选模型登记","textChars":11,"textLines":1,"bbox":[970,276,252,30]}
+{"kind":"shape","id":"sh/43y1gji9","slide":1,"name":"cap-dot-4-2","bbox":[952,324,8,8]}
+{"kind":"textbox","id":"sh/54r2poju","slide":1,"name":"cap-item-4-2","text":"评估包、审批、发布与回滚","textPreview":"评估包、审批、发布与回滚","textChars":12,"textLines":1,"bbox":[970,315,252,30]}
+{"kind":"shape","id":"sh/y5wjip0z","slide":1,"name":"cap-dot-4-3","bbox":[952,363,8,8]}
+{"kind":"textbox","id":"sh/z650ba1k","slide":1,"name":"cap-item-4-3","text":"监控告警、审计追踪与文档导出","textPreview":"监控告警、审计追踪与文档导出","textChars":14,"textLines":1,"bbox":[970,354,252,30]}
+{"kind":"shape","id":"sh/z2xgf6to","slide":1,"name":"screenshot-frame","bbox":[58,438,1164,224]}
+{"kind":"shape","id":"sh/e1oz61c3","slide":1,"name":"screenshot-inner","bbox":[76,456,1128,188]}
+{"kind":"textbox","id":"sh/14fyhgbe","slide":1,"name":"screenshot-placeholder","text":"系统截图占位区","textPreview":"系统截图占位区","textChars":7,"textLines":1,"bbox":[86,526,1108,34]}
+{"kind":"textbox","id":"sh/036h8but","slide":1,"name":"screenshot-hint","text":"建议粘贴：训练任务看板 / 训练轮次进度 / Runtime 节点状态 / 文档导出页面","textPreview":"建议粘贴：训练任务看板 / 训练轮次进度 / Runtime 节点状态 / 文档导出页面","textChars":44,"textLines":1,"bbox":[86,564,1108,30]}
+{"kind":"textbox","id":"sh/nqxgjqtk","slide":1,"name":"footer","text":"基于 federation-learning.medol 领域模型整理","textPreview":"基于 federation-learning.medol 领域模型整理","textChars":35,"textLines":1,"bbox":[58,682,1164,22]}

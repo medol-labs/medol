@@ -1,0 +1,14 @@
+Template source:
+tmp/课题4中期汇报修改20260831-业务能力版.pptx
+
+Output:
+One-slide Federation Learning business capability overview.
+
+Template-following decision:
+The output reuses source slide 1 as the only slide. The original title, executive summary,
+business entry band, capability architecture blocks, runtime/service blocks, and footer band
+are preserved as structural anchors and rewritten for the requested Federation Learning summary.
+
+Reserved user-edit area:
+The lower area is converted into a screenshot placeholder so the user can paste real system
+screenshots or Federation Learning system diagrams after export.

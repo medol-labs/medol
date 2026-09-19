@@ -21,6 +21,7 @@ export interface DocumentationBundle {
   readmodels: DocumentationReadModel[];
   integrations: DocumentationIntegration[];
   deployments: DocumentationDeployment[];
+  frontendApplications: DocumentationFrontendApplication[];
   diagnostics: string[];
 }
 
@@ -124,6 +125,17 @@ export interface DocumentationDeployment {
   name: string;
   domain?: string;
   contexts: string[];
+}
+
+export interface DocumentationFrontendApplication {
+  id: string;
+  name: string;
+  domain?: string;
+  includes: Array<{
+    context: string;
+    slice?: string;
+    backend?: string;
+  }>;
 }
 
 export interface DocumentationValueType {

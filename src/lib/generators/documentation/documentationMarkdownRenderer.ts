@@ -1345,7 +1345,7 @@ export const renderInstallationManualMarkdown = (
   section(lines, guide.troubleshooting);
   lines.push(`### ${guide.logLocations}`);
   lines.push('');
-  appendTable(lines, [guide.component, guide.logLocation, guide.checkCommand], buildLogLocationRows(language));
+  appendTable(lines, [guide.component, guide.logLocation, guide.checkCommand], buildLogLocationRows(bundle, language));
   lines.push('');
   lines.push(`### ${guide.commonIssues}`);
   lines.push('');
@@ -1385,6 +1385,20 @@ export const renderUserManualMarkdown = (
   appendList(lines, text.quickStartChecklist(bundle));
   lines.push('');
 
+  if (bundle.frontendApplications.length || bundle.deployments.length > 1) {
+    section(lines, text.consoleAndBoundaries);
+    lines.push(text.consoleAndBoundariesIntro);
+    lines.push('');
+    appendTable(
+      lines,
+      [text.console, text.userScope, text.backendScope, text.operationBoundary],
+      buildConsoleBoundaryRows(bundle, language)
+    );
+    lines.push('');
+    appendList(lines, text.boundaryNotes(bundle));
+    lines.push('');
+  }
+
   section(lines, text.featureGuide);
   for (const context of bundle.contexts) {
     lines.push(`<!-- em:section id="user-manual.context.${context.name}" source="${context.id}" -->`);
@@ -1423,6 +1437,32 @@ export const renderUserManualMarkdown = (
   lines.push('');
 
   return lines.join('\n');
+};
+
+const buildConsoleBoundaryRows = (
+  bundle: DocumentationBundle,
+  language: DocumentationLanguage
+): string[][] => {
+  const text = userManualText[language];
+  if (!bundle.frontendApplications.length) {
+    return bundle.deployments.map((deployment) => [
+      humanize(deployment.name),
+      text.systemOperatorScope,
+      deployment.contexts.map(humanize).join(', ') || text.notModeled,
+      text.backendOnlyBoundary
+    ]);
+  }
+  return bundle.frontendApplications.map((application) => {
+    const includedContexts = [...new Set(application.includes.map((include) => include.context))];
+    const backends = [...new Set(application.includes.map((include) => include.backend).filter((backend): backend is string => Boolean(backend)))];
+    const participant = /participant/i.test(application.name);
+    return [
+      humanize(application.name),
+      participant ? text.participantConsoleScope : text.platformConsoleScope,
+      backends.map(humanize).join(', ') || includedContexts.map(humanize).join(', ') || text.notModeled,
+      participant ? text.participantConsoleBoundary : text.platformConsoleBoundary
+    ];
+  });
 };
 
 const appendUserWorkflow = (
@@ -1508,6 +1548,7 @@ const hasAsyncFlow = (bundle: DocumentationBundle): boolean =>
 const hasRuntimeAgent = (bundle: DocumentationBundle): boolean =>
   [
     ...bundle.deployments.map((deployment) => deployment.name),
+    ...bundle.frontendApplications.map((application) => application.name),
     ...bundle.contexts.map((context) => context.name),
     ...bundle.workflows.flatMap((workflow) => [
       workflow.slice,
@@ -1516,6 +1557,103 @@ const hasRuntimeAgent = (bundle: DocumentationBundle): boolean =>
       ...workflow.processors
     ])
   ].some((value) => /runtime|agent|node/i.test(value));
+
+const hasMultiDeployableTopology = (bundle: DocumentationBundle): boolean =>
+  bundle.deployments.length > 1 || bundle.frontendApplications.length > 1;
+
+const hasRuntimeEngine = (bundle: DocumentationBundle): boolean =>
+  [
+    bundle.title,
+    ...bundle.contexts.map((context) => context.name),
+    ...bundle.workflows.flatMap((workflow) => [
+      workflow.slice,
+      workflow.aggregate,
+      ...workflow.commands.map((command) => command.name),
+      ...workflow.events.map((event) => event.name)
+    ])
+  ].some((value) => /runtime\s*engine|training|round\s*execution|model\s*update/i.test(value));
+
+const hasDictionaryBootstrap = (bundle: DocumentationBundle): boolean =>
+  bundle.contexts.some((context) => /dictionary/i.test(context.name))
+  || bundle.workflows.some((workflow) => /dictionary/i.test(workflow.slice));
+
+const hasPortalSso = (bundle: DocumentationBundle): boolean =>
+  [
+    bundle.title,
+    ...bundle.contexts.flatMap((context) => [
+      context.name,
+      ...context.notes,
+      ...context.decisions,
+      ...context.risks
+    ]),
+    ...bundle.workflows.flatMap((workflow) => [workflow.slice, workflow.aggregate])
+  ].some((value) => /portal|sso|identityaccessmanagement|identity access/i.test(value));
+
+const deploymentComponentName = (name: string, language: DocumentationLanguage): string => {
+  const display = humanize(name);
+  if (/support/i.test(name)) return language === 'zh-CN' ? `${display} 后端（支撑服务）` : `${display} backend (support service)`;
+  if (/runtime.*agent|agent/i.test(name)) return language === 'zh-CN' ? `${display} 后端（参与方 Runtime Agent）` : `${display} backend (participant runtime agent)`;
+  return language === 'zh-CN' ? `${display} 后端（平台控制面）` : `${display} backend (platform control plane)`;
+};
+
+const frontendComponentName = (name: string, language: DocumentationLanguage): string => {
+  const display = humanize(name);
+  if (/participant/i.test(name)) return language === 'zh-CN' ? `${display} 前端（参与方控制台）` : `${display} frontend (participant console)`;
+  return language === 'zh-CN' ? `${display} 前端（平台控制台）` : `${display} frontend (platform console)`;
+};
+
+const deploymentDescription = (contexts: string[], language: DocumentationLanguage): string => {
+  const included = contexts.map(humanize).join(', ') || (language === 'zh-CN' ? '未明确上下文' : 'no explicit contexts');
+  return language === 'zh-CN'
+    ? `承载 ${included} 上下文的 API、命令处理、读模型和自动化流程。`
+    : `Hosts APIs, command handling, read models, and automations for ${included}.`;
+};
+
+const frontendDescription = (
+  application: DocumentationBundle['frontendApplications'][number],
+  language: DocumentationLanguage
+): string => {
+  const contexts = [...new Set(application.includes.map((include) => include.context))]
+    .map(humanize)
+    .join(', ') || (language === 'zh-CN' ? '未明确上下文' : 'no explicit contexts');
+  return language === 'zh-CN'
+    ? `提供 ${contexts} 的浏览器操作入口，通过运行时配置访问对应后端 API。`
+    : `Provides browser entry points for ${contexts} and calls backend APIs through runtime configuration.`;
+};
+
+const serviceNames = (names: string[], fallback: string): string =>
+  names.map(serviceSlug).filter(Boolean).join(' ') || fallback;
+
+const deploymentServiceNames = (bundle: DocumentationBundle): string =>
+  serviceNames(bundle.deployments.map((deployment) => deployment.name), '<backend-service>');
+
+const frontendServiceNames = (bundle: DocumentationBundle): string =>
+  serviceNames(bundle.frontendApplications.map((application) => application.name), '<frontend-service>');
+
+const runtimeAgentServiceName = (bundle: DocumentationBundle): string =>
+  serviceSlug(bundle.deployments.find((deployment) => /runtime.*agent|agent/i.test(deployment.name))?.name ?? 'runtime-agent');
+
+const runtimeEngineServiceName = (bundle: DocumentationBundle): string =>
+  `${productSlug(bundle.title)}-runtime-engine`;
+
+const runtimeEngineImageName = (bundle: DocumentationBundle): string =>
+  `medol/${runtimeEngineServiceName(bundle)}:<profile>`;
+
+const apiBaseExample = (deploymentName: string): string =>
+  `https://example.com/api/${serviceSlug(deploymentName) || '<api-service>'}`;
+
+const envKey = (name: string): string =>
+  (serviceSlug(name).replace(/-/g, '_').toUpperCase() || 'SERVICE');
+
+const serviceSlug = (name: string): string =>
+  name
+    .replace(/([a-z])([A-Z])/g, '$1-$2')
+    .replace(/[^\w-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+
+const mermaidId = (prefix: string, name: string): string =>
+  `${prefix}${name.replace(/[^A-Za-z0-9]/g, '') || 'Node'}`;
 
 const productSlug = (value: string): string =>
   value
@@ -1531,6 +1669,27 @@ const buildInstallationComponentRows = (
   language: DocumentationLanguage
 ): string[][] => {
   const text = installationGuideText[language];
+  if (hasMultiDeployableTopology(bundle)) {
+    return [
+      ...bundle.frontendApplications.map((application) => [
+        frontendComponentName(application.name, language),
+        text.edgeOrWebNode,
+        frontendDescription(application, language)
+      ]),
+      ...bundle.deployments.map((deployment) => [
+        deploymentComponentName(deployment.name, language),
+        text.applicationNode,
+        deploymentDescription(deployment.contexts, language)
+      ]),
+      [text.databaseComponent, text.databaseNode, text.databaseComponentDescription],
+      ...(hasFileFlow(bundle) ? [[text.storageComponent, text.storageNode, text.storageComponentDescription]] : []),
+      ...(hasRuntimeEngine(bundle) ? [[text.runtimeEngineComponent, text.runtimeEngineNode, text.runtimeEngineComponentDescription]] : []),
+      [text.gatewayComponent, text.edgeOrWebNode, text.gatewayComponentDescription],
+      ...(collectManualDependencyRows(bundle, language).length
+        ? [[text.externalComponent, text.externalNetwork, text.externalComponentDescription]]
+        : [])
+    ];
+  }
   return [
     ...(hasUiWorkflows(bundle) ? [[text.webComponent, text.edgeOrWebNode, text.webComponentDescription]] : []),
     [text.backendComponent, text.applicationNode, text.backendComponentDescription],
@@ -1549,6 +1708,35 @@ const buildInstallationDependencyRows = (
   language: DocumentationLanguage
 ): string[][] => {
   const text = installationGuideText[language];
+  if (hasMultiDeployableTopology(bundle)) {
+    const support = bundle.deployments.find((deployment) => /support/i.test(deployment.name));
+    const platform = bundle.deployments.find((deployment) => /platform/i.test(deployment.name));
+    const runtimeAgent = bundle.deployments.find((deployment) => /runtime.*agent|agent/i.test(deployment.name));
+    return [
+      ...bundle.frontendApplications.map((application) => [
+        frontendComponentName(application.name, language),
+        text.gatewayComponent,
+        text.frontendToGateway
+      ]),
+      ...bundle.deployments.map((deployment) => [
+        text.gatewayComponent,
+        deploymentComponentName(deployment.name, language),
+        text.gatewayToBackend
+      ]),
+      ...(platform && support ? [[deploymentComponentName(platform.name, language), deploymentComponentName(support.name, language), text.platformToSupport]] : []),
+      ...(runtimeAgent && platform ? [[deploymentComponentName(runtimeAgent.name, language), deploymentComponentName(platform.name, language), text.agentToPlatform]] : []),
+      ...(hasRuntimeEngine(bundle) && runtimeAgent ? [[deploymentComponentName(runtimeAgent.name, language), text.runtimeEngineComponent, text.agentToRuntimeEngine]] : []),
+      ...bundle.deployments.map((deployment) => [
+        deploymentComponentName(deployment.name, language),
+        text.databaseComponent,
+        text.backendToDatabase
+      ]),
+      ...(hasFileFlow(bundle) && support ? [[deploymentComponentName(support.name, language), text.storageComponent, text.backendToStorage]] : []),
+      ...collectManualDependencyRows(bundle, language)
+        .slice(0, 8)
+        .map((dependency) => [text.backendComponent, dependency.name, dependency.configuration])
+    ];
+  }
   return [
     ...(hasUiWorkflows(bundle) ? [[text.webComponent, text.backendComponent, text.webToBackend]] : []),
     [text.backendComponent, text.databaseComponent, text.backendToDatabase],
@@ -1567,6 +1755,42 @@ const appendInstallationTopology = (
   language: DocumentationLanguage
 ): void => {
   const text = installationGuideText[language];
+  if (hasMultiDeployableTopology(bundle)) {
+    const support = bundle.deployments.find((deployment) => /support/i.test(deployment.name));
+    const platform = bundle.deployments.find((deployment) => /platform/i.test(deployment.name));
+    const runtimeAgent = bundle.deployments.find((deployment) => /runtime.*agent|agent/i.test(deployment.name));
+    lines.push('```mermaid');
+    lines.push('flowchart TB');
+    lines.push(`  User["${mermaidLabel(text.userBrowser)}"]`);
+    lines.push(`  Gateway["${mermaidLabel(text.gatewayComponent)}"]`);
+    for (const application of bundle.frontendApplications) {
+      lines.push(`  ${mermaidId('Web', application.name)}["${mermaidLabel(frontendComponentName(application.name, language))}"]`);
+    }
+    for (const deployment of bundle.deployments) {
+      lines.push(`  ${mermaidId('Api', deployment.name)}["${mermaidLabel(deploymentComponentName(deployment.name, language))}"]`);
+    }
+    lines.push(`  Db["${mermaidLabel(text.databaseComponent)}"]`);
+    if (hasFileFlow(bundle)) lines.push(`  Storage["${mermaidLabel(text.storageComponent)}"]`);
+    if (hasRuntimeEngine(bundle)) lines.push(`  RuntimeEngine["${mermaidLabel(text.runtimeEngineComponent)}"]`);
+    if (collectManualDependencyRows(bundle, language).length) lines.push(`  External["${mermaidLabel(text.externalComponent)}"]`);
+    lines.push('  User --> Gateway');
+    for (const application of bundle.frontendApplications) {
+      lines.push(`  Gateway --> ${mermaidId('Web', application.name)}`);
+    }
+    for (const deployment of bundle.deployments) {
+      lines.push(`  Gateway --> ${mermaidId('Api', deployment.name)}`);
+      lines.push(`  ${mermaidId('Api', deployment.name)} --> Db`);
+    }
+    if (platform && support) lines.push(`  ${mermaidId('Api', platform.name)} --> ${mermaidId('Api', support.name)}`);
+    if (runtimeAgent && platform) lines.push(`  ${mermaidId('Api', runtimeAgent.name)} --> ${mermaidId('Api', platform.name)}`);
+    if (hasRuntimeEngine(bundle) && runtimeAgent) lines.push(`  ${mermaidId('Api', runtimeAgent.name)} --> RuntimeEngine`);
+    if (hasFileFlow(bundle) && support) lines.push(`  ${mermaidId('Api', support.name)} --> Storage`);
+    if (collectManualDependencyRows(bundle, language).length) {
+      for (const deployment of bundle.deployments) lines.push(`  ${mermaidId('Api', deployment.name)} --> External`);
+    }
+    lines.push('```');
+    return;
+  }
   const nodes = [
     ['User', text.userBrowser],
     ['Web', hasUiWorkflows(bundle) ? text.webComponent : text.reverseProxyPlaceholder],
@@ -1606,8 +1830,11 @@ const buildSoftwareRequirementRows = (language: DocumentationLanguage): string[]
   return [
     ['Container Runtime', 'Docker 27+ / Podman', text.confirmDeliveryMode],
     ['Database', `PostgreSQL 16 or compatible managed database (${defaultInstallationDatabaseName})`, text.externalOrBundledDatabase],
+    ['UmaDB', '0.7.8+', text.requiredForDcbEventStore],
+    ['Gateway / Reverse Proxy', text.gatewayRuntimeRequirement, text.requiredForGateway],
     ['JDK', '21', text.requiredWhenJvmBackend],
     ['Node.js', '22+', text.requiredWhenNodeTools],
+    ['Python', '3.11+', text.requiredForRuntimeEngine],
     ['Browser', 'Latest Chrome / Edge / Firefox', text.webConsoleAccess],
     ['NTP', text.enabled, text.requiredForDistributedDeployment]
   ];
@@ -1618,6 +1845,38 @@ const buildPortRequirementRows = (
   language: DocumentationLanguage
 ): string[][] => {
   const text = installationGuideText[language];
+  if (hasMultiDeployableTopology(bundle)) {
+    const deploymentPorts = bundle.deployments.map((deployment, index) => [
+      text.gatewayComponent,
+      deploymentComponentName(deployment.name, language),
+      String(8080 + index),
+      'HTTP/HTTPS',
+      language === 'zh-CN'
+        ? `转发 ${humanize(deployment.name)} API 路由。`
+        : `Forwards ${humanize(deployment.name)} API routes.`
+    ]);
+    return [
+      [text.userOrAdmin, text.gatewayComponent, '80 / 443', 'HTTP/HTTPS', text.webAccessPurpose],
+      [text.adminHost, text.serverHost, '22', 'SSH', text.opsPurpose],
+      ...bundle.frontendApplications.map((application) => [
+        text.gatewayComponent,
+        frontendComponentName(application.name, language),
+        '80',
+        'HTTP',
+        language === 'zh-CN'
+          ? `访问 ${humanize(application.name)} 静态控制台。`
+          : `Serves ${humanize(application.name)} static console.`
+      ]),
+      ...deploymentPorts,
+      [text.backendComponent, text.databaseComponent, '5432', 'TCP', text.databasePurpose],
+      [text.backendComponent, 'UmaDB', '50051', 'gRPC', text.umadbPurpose],
+      ...(hasRuntimeEngine(bundle) ? [[deploymentComponentName(bundle.deployments.find((deployment) => /runtime.*agent|agent/i.test(deployment.name))?.name ?? 'RuntimeAgent', language), text.runtimeEngineComponent, '8080', 'HTTP', text.runtimeEnginePurpose]] : []),
+      ...(hasFileFlow(bundle) ? [[text.backendComponent, text.storageComponent, '9000 / 443', 'S3/HTTPS', text.storagePurpose]] : []),
+      ...collectManualDependencyRows(bundle, language)
+        .slice(0, 6)
+        .map((dependency) => [text.backendComponent, dependency.name, text.toBeFilled, 'HTTPS/TCP', dependency.verification])
+    ];
+  }
   return [
     [text.userOrAdmin, text.webComponent, '443', 'HTTPS', text.webAccessPurpose],
     [text.adminHost, text.serverHost, '22', 'SSH', text.opsPurpose],
@@ -1637,6 +1896,28 @@ const buildInstallationMediaRows = (
   language: DocumentationLanguage
 ): string[][] => {
   const text = installationGuideText[language];
+  if (hasMultiDeployableTopology(bundle)) {
+    return [
+      ['operations/<env>/', medolSoftwareVersion, 'SHA256:<...>', text.operationsPackageDescription],
+      ...bundle.frontendApplications.map((application) => [
+        `medol/${serviceSlug(application.name)}`,
+        medolSoftwareVersion,
+        'SHA256:<...>',
+        frontendDescription(application, language)
+      ]),
+      ...bundle.deployments.map((deployment) => [
+        `medol/${serviceSlug(deployment.name)}`,
+        medolSoftwareVersion,
+        'SHA256:<...>',
+        deploymentDescription(deployment.contexts, language)
+      ]),
+      ...(hasRuntimeEngine(bundle) ? [[runtimeEngineImageName(bundle), medolSoftwareVersion, 'SHA256:<...>', text.runtimeEnginePackageDescription]] : []),
+      ['docker-compose.yml / k8s / k3s / gateway manifests', medolSoftwareVersion, 'SHA256:<...>', text.deploymentManifestDescription],
+      ['.env-example / secrets.example.yaml', medolSoftwareVersion, 'SHA256:<...>', text.configTemplateDescription],
+      ['dictionary-init/', medolSoftwareVersion, 'SHA256:<...>', text.dictionaryPackageDescription],
+      ['images.mjs / package-offline-deployment.mjs', medolSoftwareVersion, 'SHA256:<...>', text.scriptDescription]
+    ];
+  }
   return [
     [`${productSlug(bundle.title)}-backend`, medolSoftwareVersion, 'SHA256:<...>', text.backendPackageDescription],
     ...(hasUiWorkflows(bundle) ? [[`${productSlug(bundle.title)}-web`, medolSoftwareVersion, 'SHA256:<...>', text.webPackageDescription]] : []),
@@ -1660,6 +1941,7 @@ const buildPreInstallationRows = (
     [text.directoryReady, '`mkdir -p /opt/<product> /var/log/<product>`', text.directoryReadyExpected],
     [text.userReady, '`id <install_user>`', text.userReadyExpected],
     [text.databaseReady, `\`psql -h <db_host> -U <user> -d ${defaultInstallationDatabaseName}\``, text.databaseReadyExpected],
+    ...(hasMultiDeployableTopology(bundle) ? [[text.gatewayReady, '`curl -fsS <gateway_url>/`', text.gatewayReadyExpected]] : []),
     [text.networkReady, '`nc -vz <host> <port>`', text.networkReadyExpected],
     ...(hasFileFlow(bundle) ? [[text.storageReady, '`aws s3 ls s3://<bucket>`', text.storageReadyExpected]] : []),
     [text.certificateReady, '`openssl x509 -in <cert.pem> -noout -dates`', text.certificateReadyExpected]
@@ -1671,6 +1953,21 @@ const buildSystemInstallationRows = (
   language: DocumentationLanguage
 ): string[][] => {
   const text = installationGuideText[language];
+  if (hasMultiDeployableTopology(bundle)) {
+    const backendServices = deploymentServiceNames(bundle);
+    const frontendAndGatewayServices = serviceNames(
+      [...bundle.frontendApplications.map((application) => application.name), 'gateway'],
+      '<frontend-service> <gateway-service>'
+    );
+    return [
+      [text.installStepBase, text.installStepBasePurpose, '`node operations/<environment>/images.mjs list`', text.installStepBaseExpected, text.installStepBaseException],
+      [text.installStepDatabase, text.installStepDatabasePurpose, '`docker compose --env-file .env up -d postgres umadb`', text.installStepDatabaseExpected, text.installStepDatabaseException],
+      [text.installStepBackend, text.installStepBackendPurpose, `\`docker compose --env-file .env up -d ${backendServices}\``, text.installStepBackendExpected, text.installStepBackendException],
+      [text.installStepFrontend, text.installStepFrontendPurpose, `\`docker compose --env-file .env up -d ${frontendAndGatewayServices}\``, text.installStepFrontendExpected, text.installStepFrontendException],
+      ...(hasRuntimeEngine(bundle) ? [[text.installStepRuntimeEngine, text.installStepRuntimeEnginePurpose, `\`docker compose --env-file .env up -d ${runtimeEngineServiceName(bundle)}\``, text.installStepRuntimeEngineExpected, text.installStepRuntimeEngineException]] : []),
+      [text.installStepStartAll, text.installStepStartAllPurpose, '`docker compose --env-file .env up -d` / `kubectl apply -k operations/<environment>/k3s/environments/<environment>`', text.installStepStartAllExpected, text.installStepStartAllException]
+    ];
+  }
   return [
     [text.installStepBase, text.installStepBasePurpose, '`./scripts/check-env.sh`', text.installStepBaseExpected, text.installStepBaseException],
     [text.installStepDatabase, text.installStepDatabasePurpose, '`./scripts/migrate.sh`', text.installStepDatabaseExpected, text.installStepDatabaseException],
@@ -1687,7 +1984,9 @@ const buildInstallationConfigRows = (
   language: DocumentationLanguage
 ): string[][] => {
   const text = installationGuideText[language];
-  return [
+  const authDeployment = bundle.deployments.find((deployment) => /support|iam|identity|auth/i.test(deployment.name))
+    ?? bundle.deployments[0];
+  const rows = [
     ['DB_HOST', text.yes, '-', '10.0.0.20', text.dbHostDescription],
     ['DB_PORT', text.no, '5432', '5432', text.dbPortDescription],
     ['DB_NAME', text.yes, defaultInstallationDatabaseName, defaultInstallationDatabaseName, text.dbNameDescription],
@@ -1697,6 +1996,24 @@ const buildInstallationConfigRows = (
     ['PUBLIC_BASE_URL', text.yes, '-', 'https://example.com', text.publicBaseUrlDescription],
     ['JWT_SECRET', text.yes, '-', '<random_secret>', text.secretValueDescription],
     ['LOG_LEVEL', text.no, 'INFO', 'INFO', text.logLevelDescription],
+    ['MEDOL_SECURITY_PROVIDER', text.no, 'local', 'local / supabase', text.securityProviderDescription],
+    ['MEDOL_SECURITY_ADMIN_BOOTSTRAP_SETUP_TOKEN', text.yes, '-', '<setup_token>', text.adminSetupTokenDescription],
+    ['MEDOL_SECURITY_INTERNAL_TOKEN', text.yes, '-', '<internal_token>', text.internalTokenDescription],
+    ...(hasPortalSso(bundle) ? [
+      ['MEDOL_SECURITY_PORTAL_SSO_ENABLED', text.no, 'false', 'true', text.portalSsoEnabledDescription],
+      ['MEDOL_SECURITY_PORTAL_SSO_JWT_SECRET', text.no, '-', '<portal_hs256_secret>', text.portalSsoSecretDescription],
+      ['MEDOL_SECURITY_PORTAL_SSO_USER_SOURCE', text.no, 'PORTAL_SSO', 'PORTAL_SSO', text.portalSsoUserSourceDescription]
+    ] : []),
+    ...(hasMultiDeployableTopology(bundle) ? [
+      ['VITE_AUTH_API_URL', text.yes, '-', authDeployment ? apiBaseExample(authDeployment.name) : 'https://example.com/api/<auth-service>', text.frontendAuthApiUrlDescription],
+      ...bundle.deployments.map((deployment) => [
+        `VITE_${envKey(deployment.name)}_API_URL`,
+        text.yes,
+        '-',
+        apiBaseExample(deployment.name),
+        text.frontendModuleApiUrlDescription(humanize(deployment.name))
+      ])
+    ] : []),
     ...(hasFileFlow(bundle) ? [
       ['STORAGE_ENDPOINT', text.yes, '-', 'https://s3.example.com', text.storageEndpointDescription],
       ['STORAGE_BUCKET', text.yes, '-', `${productSlug(bundle.title)}-files`, text.storageBucketDescription]
@@ -1704,8 +2021,14 @@ const buildInstallationConfigRows = (
     ...(hasRuntimeAgent(bundle) ? [
       ['PLATFORM_API_URL', text.yes, '-', 'https://platform.example.com', text.platformApiUrlDescription],
       ['RUNTIME_AGENT_TOKEN', text.yes, '-', '<agent_token>', text.secretValueDescription]
+    ] : []),
+    ...(hasRuntimeEngine(bundle) ? [
+      ['RUNTIME_ENGINE_IMAGE', text.no, runtimeEngineImageName(bundle).replace('<profile>', 'sklearn'), runtimeEngineImageName(bundle).replace('<profile>', 'pytorch-vision'), text.runtimeEngineImageDescription],
+      ['RUNTIME_ENGINE_PLUGIN_PROFILE', text.no, 'sklearn', 'core / sklearn / pytorch-vision / full', text.runtimeEngineProfileDescription],
+      ['RUNTIME_ENGINE_FILE_ACCESS_BASE_URL', text.no, '-', 'http://host.docker.internal:8080', text.runtimeEngineFileAccessDescription]
     ] : [])
   ];
+  return rows;
 };
 
 const buildSystemInitializationRows = (
@@ -1719,8 +2042,9 @@ const buildSystemInitializationRows = (
     .join(', ') || text.baseReferenceData;
   return [
     [text.initDatabase, '`./scripts/init-db.sh`', text.initDatabaseExpected],
-    [text.initAdmin, '`./scripts/create-admin.sh --user <admin>`', text.initAdminExpected],
+    [text.initAdmin, language === 'zh-CN' ? '`POST /api/auth/setup-admin` 或 `./scripts/create-admin.sh --user <admin>`' : '`POST /api/auth/setup-admin` or `./scripts/create-admin.sh --user <admin>`', text.initAdminExpected],
     [text.initSystemParams, '`./scripts/init-config.sh`', text.initSystemParamsExpected],
+    ...(hasDictionaryBootstrap(bundle) ? [[text.initDictionary, '`cd dictionary-init && node init-dictionaries.mjs --base-url <support_api_url>`', text.initDictionaryExpected]] : []),
     [text.initBaseData, `Import ${referenceData}`, text.initBaseDataExpected],
     [text.initLicense, 'Copy license file or configure license key', text.initLicenseExpected]
   ];
@@ -1729,10 +2053,10 @@ const buildSystemInitializationRows = (
 const buildServiceLifecycleRows = (language: DocumentationLanguage): string[][] => {
   const text = installationGuideText[language];
   return [
-    [text.start, '`docker compose up -d` / `systemctl start <service>`', text.startDescription],
-    [text.stop, '`docker compose down` / `systemctl stop <service>`', text.stopDescription],
-    [text.restart, '`docker compose restart` / `systemctl restart <service>`', text.restartDescription],
-    [text.status, '`docker compose ps` / `systemctl status <service>`', text.statusDescription]
+    [text.start, '`docker compose --env-file .env up -d` / `kubectl apply -k <overlay>`', text.startDescription],
+    [text.stop, '`docker compose down` / `kubectl scale deployment --replicas=0 <service>`', text.stopDescription],
+    [text.restart, '`docker compose restart <service>` / `kubectl rollout restart deployment/<service>`', text.restartDescription],
+    [text.status, '`docker compose ps` / `kubectl get pods,svc` / `systemctl status <service>`', text.statusDescription]
   ];
 };
 
@@ -1745,23 +2069,32 @@ const buildInstallationAcceptanceRows = (
     .slice(0, 3)
     .map((workflow) => humanize(workflow.slice))
     .join(', ') || text.toBeFilled;
+  const healthCheckTarget = bundle.deployments[0]?.name;
+  const frontendPath = bundle.frontendApplications[0]?.name;
   return [
     [text.infrastructureVerification, '`docker compose ps` / service status', text.infrastructureVerificationExpected],
-    [text.healthVerification, '`curl -fsS <base_url>/health`', text.healthVerificationExpected],
+    [text.healthVerification, hasMultiDeployableTopology(bundle) ? `\`curl -fsS <gateway>/api/${serviceSlug(healthCheckTarget ?? '<api-service>')}/actuator/health\` / each modeled deployment health` : '`curl -fsS <base_url>/health`', text.healthVerificationExpected],
     [text.eventStoreVerification, `\`psql -h <db_host> -U <user> -d ${defaultInstallationDatabaseName} -c "select 1"\``, text.eventStoreVerificationExpected],
-    [text.pageVerification, 'Open `<PUBLIC_BASE_URL>` in browser', text.pageVerificationExpected],
+    [text.pageVerification, hasMultiDeployableTopology(bundle) ? `Open \`<PUBLIC_BASE_URL>\`${frontendPath ? ` and \`/${serviceSlug(frontendPath)}/\`` : ''} in browser` : 'Open `<PUBLIC_BASE_URL>` in browser', text.pageVerificationExpected],
     [text.loginVerification, text.loginVerificationMethod, text.loginVerificationExpected],
+    ...(hasDictionaryBootstrap(bundle) ? [[text.dictionaryVerification, '`node dictionary-init/init-dictionaries.mjs --base-url <support_api_url> --dry-run`', text.dictionaryVerificationExpected]] : []),
+    ...(hasRuntimeEngine(bundle) ? [[text.runtimeEngineVerification, '`curl -fsS <runtime_engine_url>/healthz` 或执行 Runtime Agent 训练任务冒烟', text.runtimeEngineVerificationExpected]] : []),
     [text.businessSmokeVerification, `${text.businessSmokeVerificationPrefix}: ${smokeCapabilities}`, text.businessSmokeVerificationExpected]
   ];
 };
 
-const buildLogLocationRows = (language: DocumentationLanguage): string[][] => {
+const buildLogLocationRows = (
+  bundle: DocumentationBundle,
+  language: DocumentationLanguage
+): string[][] => {
   const text = installationGuideText[language];
   return [
-    [text.webComponent, '/var/log/nginx/ or container logs', '`docker compose logs -f web`'],
-    [text.backendComponent, '/opt/<product>/logs/application.log', '`docker compose logs -f backend`'],
+    [text.webComponent, '/var/log/nginx/ or container logs', `\`docker compose logs -f ${frontendServiceNames(bundle)}\``],
+    [text.gatewayComponent, '/var/log/<gateway>/ or container logs', '`docker compose logs -f gateway`'],
+    [text.backendComponent, '/opt/<product>/logs/application.log', `\`docker compose logs -f ${deploymentServiceNames(bundle)}\``],
     [text.databaseComponent, text.databaseLogLocation, '`docker compose logs -f db`'],
-    [text.agentComponent, '/opt/<product-agent>/logs/', '`docker compose logs -f runtime-agent`']
+    [text.agentComponent, '/opt/<product-agent>/logs/', `\`docker compose logs -f ${runtimeAgentServiceName(bundle)}\``],
+    [text.runtimeEngineComponent, '/opt/runtime-engine/logs/ or container logs', `\`docker compose logs -f ${runtimeEngineServiceName(bundle)}\``]
   ];
 };
 
@@ -1772,7 +2105,9 @@ const buildTroubleshootingRows = (language: DocumentationLanguage): string[][] =
     [text.problemBackendFailed, text.causeDbConnection, text.checkDatabaseConfig],
     [text.problemLoginFailed, text.causeInitializationMissing, 'Check administrator initialization and authentication config'],
     [text.problemDependencyUnavailable, text.causeNetworkOrCredential, '`nc -vz <host> <port>` and dependency logs'],
-    [text.problemFileUploadFailed, text.causeStorageConfig, 'Check storage endpoint, bucket, credential, and size limit']
+    [text.problemFileUploadFailed, text.causeStorageConfig, 'Check storage endpoint, bucket, credential, and size limit'],
+    [text.problemDictionaryOptionsMissing, text.causeDictionaryNotInitialized, '`node dictionary-init/init-dictionaries.mjs --base-url <support_api_url> --dry-run`'],
+    [text.problemRuntimeJobFailed, text.causeRuntimeEngineConfig, text.checkRuntimeEngineConfig]
   ];
 };
 
@@ -2136,6 +2471,11 @@ const installationGuideText = {
     agentComponent: 'Runtime Agent',
     runtimeNode: 'Runtime node',
     agentComponentDescription: 'Connects runtime nodes to the platform and reports runtime status or execution results.',
+    runtimeEngineComponent: 'Runtime Engine',
+    runtimeEngineNode: 'Participant runtime container or node',
+    runtimeEngineComponentDescription: 'Executes platform-dispatched local training and aggregation jobs inside the participant runtime boundary.',
+    gatewayComponent: 'Gateway / API Entry',
+    gatewayComponentDescription: 'Provides public routing for modeled consoles and backend module APIs.',
     externalComponent: 'External Systems',
     externalNetwork: 'External network or managed service',
     externalComponentDescription: 'External dependencies that must be reachable before installation verification.',
@@ -2144,6 +2484,10 @@ const installationGuideText = {
     backendToStorage: 'Reads and writes uploaded files or generated artifacts.',
     backendToMiddleware: 'Publishes jobs, consumes messages, and executes scheduled work.',
     agentToPlatform: 'Runtime agent initiates control-plane or status-reporting communication.',
+    frontendToGateway: 'Loads static console assets and sends API calls through the gateway.',
+    gatewayToBackend: 'Routes module-scoped API paths to the matching backend deployment.',
+    platformToSupport: 'Reads support APIs such as file upload, dictionary values, IAM, and shared services.',
+    agentToRuntimeEngine: 'Starts and observes local runtime-engine jobs for training and aggregation.',
     userBrowser: 'User Browser',
     reverseProxyPlaceholder: 'Web Entry / Reverse Proxy',
     environmentRequirements: 'Environment Requirements',
@@ -2162,8 +2506,12 @@ const installationGuideText = {
     linuxRequirement: 'Linux, distribution/version to be confirmed by delivery package',
     confirmDeliveryMode: 'Use the runtime required by the delivered installation package.',
     externalOrBundledDatabase: 'Confirm whether the database is bundled or externally managed.',
+    requiredForDcbEventStore: 'Required when Axon events are stored through the UmaDB DCB event store.',
+    requiredForGateway: 'Required for generated operations gateway routes.',
+    gatewayRuntimeRequirement: 'Configured gateway, reverse proxy, or ingress controller',
     requiredWhenJvmBackend: 'Required when the backend package is JVM-based.',
     requiredWhenNodeTools: 'Required for Node-based install tools or frontend build-time tasks.',
+    requiredForRuntimeEngine: 'Required when running the Python runtime engine outside a prebuilt container image.',
     webConsoleAccess: 'Required for administrator and user console access.',
     enabled: 'Enabled',
     requiredForDistributedDeployment: 'Required for distributed deployments, audit, and token validation.',
@@ -2180,9 +2528,11 @@ const installationGuideText = {
     opsPurpose: 'Operations and installation',
     apiPurpose: 'API forwarding',
     databasePurpose: `${defaultInstallationDatabaseName} database and event-store access`,
+    umadbPurpose: 'DCB event-store gRPC access',
     storagePurpose: 'File/object storage access',
     middlewarePurpose: 'Jobs, messages, scheduling, and retries',
     agentPurpose: 'Runtime control and status reporting',
+    runtimeEnginePurpose: 'Runtime job submission, observation, and artifact download',
     networkChecklist: () => [
       'Confirm DNS names and certificates before exposing the web entry.',
       'Confirm whether outbound internet access, HTTP proxy, or private registry access is required.',
@@ -2212,6 +2562,9 @@ const installationGuideText = {
     backendPackageDescription: 'Backend service package or container image.',
     webPackageDescription: 'Web frontend package or container image.',
     agentPackageDescription: 'Runtime agent package or container image.',
+    operationsPackageDescription: 'Generated operations topology, gateway routes, Compose/Kubernetes/K3s manifests, and image orchestration scripts.',
+    runtimeEnginePackageDescription: 'Profile-specific Python runtime-engine image used for local training and aggregation.',
+    dictionaryPackageDescription: 'Dictionary bootstrap scripts and default dictionary values.',
     deploymentManifestDescription: 'Deployment descriptors for Docker Compose or Kubernetes.',
     configTemplateDescription: 'Configuration templates that must be copied and filled before startup.',
     scriptDescription: 'Installation, startup, backup, migration, and diagnostic scripts.',
@@ -2233,6 +2586,8 @@ const installationGuideText = {
     userReadyExpected: 'The installation user exists and has required sudo or service permissions.',
     databaseReady: 'Database ready',
     databaseReadyExpected: `${defaultInstallationDatabaseName} connection succeeds with the migration or application account.`,
+    gatewayReady: 'Gateway route ready',
+    gatewayReadyExpected: 'Gateway root route and module API routes respond from the target network.',
     networkReady: 'Network ready',
     networkReadyExpected: 'Required ports can be reached from the correct source nodes.',
     storageReady: 'Storage ready',
@@ -2269,6 +2624,10 @@ const installationGuideText = {
     installStepAgentPurpose: 'Start the runtime-side agent and connect it to the platform.',
     installStepAgentExpected: 'Agent reports started or connected status.',
     installStepAgentException: 'Check agent token, platform URL, DNS, firewall, and runtime logs.',
+    installStepRuntimeEngine: 'Deploy runtime engine',
+    installStepRuntimeEnginePurpose: 'Prepare the runtime-engine image/profile used by Runtime Agent when starting local jobs.',
+    installStepRuntimeEngineExpected: 'Runtime Engine health endpoint is reachable, or the image can be started on demand by Runtime Agent.',
+    installStepRuntimeEngineException: 'Check image tag, plugin profile, Python dependencies, local mounts, and file-access base URL.',
     installStepStartAll: 'Start all services',
     installStepStartAllPurpose: 'Start the complete system in dependency order.',
     installStepStartAllExpected: 'All required containers or services are running.',
@@ -2288,9 +2647,23 @@ const installationGuideText = {
     serverPortDescription: 'Backend API listening port.',
     publicBaseUrlDescription: 'Public web entry URL.',
     logLevelDescription: 'Application log level.',
+    securityProviderDescription: 'Authentication provider for generated services.',
+    adminSetupTokenDescription: 'One-time token used to initialize the first administrator.',
+    internalTokenDescription: 'Internal service token for trusted platform-to-agent/support calls.',
+    portalSsoEnabledDescription: 'Enables Portal SSO exchange endpoint when a portal login handoff is required.',
+    portalSsoSecretDescription: 'HS256 secret used to validate portal-issued JWTs.',
+    portalSsoUserSourceDescription: 'User source recorded for accounts auto-registered through Portal SSO.',
+    frontendAuthApiUrlDescription: 'Frontend login and current-user API base URL.',
+    frontendSupportApiUrlDescription: 'Support module API base URL for shared services.',
+    frontendPlatformApiUrlDescription: 'Platform module API base URL for modeled platform operations.',
+    frontendRuntimeAgentApiUrlDescription: 'Runtime Agent API base URL used by runtime-side console pages.',
+    frontendModuleApiUrlDescription: (moduleName: string) => `${moduleName} API base URL exposed through the gateway.`,
     storageEndpointDescription: 'Object/file storage endpoint.',
     storageBucketDescription: 'Object/file storage bucket or namespace.',
     platformApiUrlDescription: 'Platform API URL used by runtime agent.',
+    runtimeEngineImageDescription: 'Runtime-engine image selected for participant-local job execution.',
+    runtimeEngineProfileDescription: 'Runtime-engine plugin profile that controls available model and aggregation plugins.',
+    runtimeEngineFileAccessDescription: 'Optional URL rewrite base for runtime-engine downloads of support-file artifacts.',
     systemInitialization: 'Initialization',
     initializationItem: 'Initialization Item',
     action: 'Action',
@@ -2301,6 +2674,8 @@ const installationGuideText = {
     initSystemParams: 'Base parameter initialization',
     initSystemParamsExpected: 'Default system parameters are written and can be queried.',
     initBaseData: 'Base/reference data initialization',
+    initDictionary: 'Dictionary initialization',
+    initDictionaryExpected: 'Runtime, model, training, file, and option dictionaries are registered and active.',
     baseReferenceData: 'base reference data',
     initBaseDataExpected: 'Required dictionaries, reference data, or tenant bootstrap values are imported.',
     initLicense: 'License initialization',
@@ -2316,8 +2691,8 @@ const installationGuideText = {
     status: 'Status',
     statusDescription: 'Check process/container state and health.',
     lifecycleOrder: [
-      `Recommended startup order: ${defaultInstallationDatabaseName} database / event store -> Middleware -> Backend API -> Web Frontend -> Runtime Agent.`,
-      `Recommended shutdown order: Runtime Agent -> Web Frontend -> Backend API -> Middleware -> ${defaultInstallationDatabaseName} database / event store.`
+      `Recommended startup order: ${defaultInstallationDatabaseName} database / UmaDB event store -> backend deployments -> web frontends -> gateway -> Runtime Engine on demand.`,
+      `Recommended shutdown order: Runtime Engine jobs -> gateway -> web frontends -> backend deployments -> ${defaultInstallationDatabaseName} database / UmaDB event store.`
     ],
     installationVerification: 'Installation Verification',
     verificationLevel: 'Verification Level',
@@ -2337,6 +2712,10 @@ const installationGuideText = {
     businessSmokeVerification: 'Business smoke verification',
     businessSmokeVerificationPrefix: 'Execute representative smoke capabilities',
     businessSmokeVerificationExpected: 'Selected operation succeeds and related query/status view can be checked.',
+    dictionaryVerification: 'Dictionary verification',
+    dictionaryVerificationExpected: 'Required dictionary values exist and can be selected by generated forms.',
+    runtimeEngineVerification: 'Runtime-engine verification',
+    runtimeEngineVerificationExpected: 'Runtime Engine is healthy or Runtime Agent can create, observe, and release one runtime job.',
     troubleshooting: 'Troubleshooting',
     logLocations: 'Log Locations',
     logLocation: 'Log Location',
@@ -2357,6 +2736,11 @@ const installationGuideText = {
     causeNetworkOrCredential: 'Network, DNS, credential, or allow-list issue',
     problemFileUploadFailed: 'File upload fails',
     causeStorageConfig: 'Storage endpoint, bucket, credential, size limit, or cleanup policy issue',
+    problemDictionaryOptionsMissing: 'Dropdown options or dictionary labels are missing',
+    causeDictionaryNotInitialized: 'Dictionary bootstrap has not run or values are disabled',
+    problemRuntimeJobFailed: 'Runtime training job fails to start or report status',
+    causeRuntimeEngineConfig: 'Runtime-engine image/profile, dataset binding, file access, internal token, or resource configuration issue',
+    checkRuntimeEngineConfig: 'Check Runtime Agent logs, runtime-engine profile/image, dataset binding, file-access base URL, and internal token',
     upgradeRollback: 'Upgrade And Rollback',
     phase: 'Phase',
     phaseBackup: 'Backup',
@@ -2452,6 +2836,11 @@ const installationGuideText = {
     agentComponent: 'Runtime Agent',
     runtimeNode: '运行时节点',
     agentComponentDescription: '连接运行节点与平台，报告运行状态或执行结果。',
+    runtimeEngineComponent: 'Runtime Engine',
+    runtimeEngineNode: '参与方运行容器或节点',
+    runtimeEngineComponentDescription: '在参与方运行边界内执行平台派发的本地训练和聚合任务。',
+    gatewayComponent: '网关 / API 入口',
+    gatewayComponentDescription: '为已建模控制台和后端模块 API 提供统一外部路由。',
     externalComponent: '外部系统',
     externalNetwork: '外部网络或托管服务',
     externalComponentDescription: '安装验证前必须确认可访问的外部依赖。',
@@ -2460,6 +2849,10 @@ const installationGuideText = {
     backendToStorage: '读写上传文件或生成制品。',
     backendToMiddleware: '发布任务、消费消息并执行定时工作。',
     agentToPlatform: 'Runtime Agent 主动发起控制面或状态上报通信。',
+    frontendToGateway: '加载静态控制台资源，并通过网关发送 API 调用。',
+    gatewayToBackend: '将按模块划分的 API 路径路由到对应后端部署单元。',
+    platformToSupport: '读取文件上传、字典值、IAM 和共享支撑服务等 Support API。',
+    agentToRuntimeEngine: '启动并观察本地 Runtime Engine 训练或聚合任务。',
     userBrowser: '用户浏览器',
     reverseProxyPlaceholder: 'Web 入口 / 反向代理',
     environmentRequirements: '环境要求',
@@ -2478,8 +2871,12 @@ const installationGuideText = {
     linuxRequirement: 'Linux，发行版和版本以交付包要求为准',
     confirmDeliveryMode: '使用交付安装包要求的容器运行时。',
     externalOrBundledDatabase: '确认数据库是随包部署还是外置托管。',
+    requiredForDcbEventStore: '通过 UmaDB DCB 事件存储保存 Axon 事件时需要。',
+    requiredForGateway: '生成的运维网关路由需要。',
+    gatewayRuntimeRequirement: '已配置的网关、反向代理或 Ingress 控制器',
     requiredWhenJvmBackend: '后端为 JVM 包时需要。',
     requiredWhenNodeTools: 'Node 安装工具或前端构建任务需要。',
+    requiredForRuntimeEngine: '未使用预构建 Runtime Engine 镜像、直接运行 Python 运行时时需要。',
     webConsoleAccess: '管理员和用户访问控制台需要。',
     enabled: '已启用',
     requiredForDistributedDeployment: '分布式部署、审计和令牌校验需要。',
@@ -2496,9 +2893,11 @@ const installationGuideText = {
     opsPurpose: '运维和安装',
     apiPurpose: 'API 转发',
     databasePurpose: `${defaultInstallationDatabaseName} 数据库与事件存储访问`,
+    umadbPurpose: 'DCB 事件存储 gRPC 访问',
     storagePurpose: '文件/对象存储访问',
     middlewarePurpose: '任务、消息、调度和重试',
     agentPurpose: '运行时控制与状态上报',
+    runtimeEnginePurpose: '运行时任务提交、观察和制品下载',
     networkChecklist: () => [
       '对外开放 Web 入口前，确认 DNS 名称和 TLS 证书。',
       '确认是否需要公网出站、HTTP 代理或私有镜像仓库访问。',
@@ -2528,6 +2927,9 @@ const installationGuideText = {
     backendPackageDescription: '后端服务安装包或容器镜像。',
     webPackageDescription: 'Web 前端安装包或容器镜像。',
     agentPackageDescription: 'Runtime Agent 安装包或容器镜像。',
+    operationsPackageDescription: '生成的运维拓扑、网关路由、Compose/Kubernetes/K3s 描述文件和镜像编排脚本。',
+    runtimeEnginePackageDescription: '按 profile 构建的 Python Runtime Engine 镜像，用于本地训练和聚合。',
+    dictionaryPackageDescription: '字典初始化脚本和默认字典值。',
     deploymentManifestDescription: 'Docker Compose 或 Kubernetes 部署描述文件。',
     configTemplateDescription: '启动前需要复制并填写的配置模板。',
     scriptDescription: '安装、启停、备份、迁移和诊断脚本。',
@@ -2549,6 +2951,8 @@ const installationGuideText = {
     userReadyExpected: '安装用户存在，并具备必要 sudo 或服务操作权限。',
     databaseReady: '数据库就绪',
     databaseReadyExpected: `迁移账号或应用账号可成功连接 ${defaultInstallationDatabaseName}。`,
+    gatewayReady: '网关路由就绪',
+    gatewayReadyExpected: '可从目标网络访问网关根路由和各模块 API 路由。',
     networkReady: '网络就绪',
     networkReadyExpected: '可从正确来源节点访问必要端口。',
     storageReady: '存储就绪',
@@ -2585,6 +2989,10 @@ const installationGuideText = {
     installStepAgentPurpose: '启动运行侧 Agent 并连接平台。',
     installStepAgentExpected: 'Agent 上报已启动或已连接状态。',
     installStepAgentException: '检查 Agent Token、平台地址、DNS、防火墙和运行日志。',
+    installStepRuntimeEngine: '部署 Runtime Engine',
+    installStepRuntimeEnginePurpose: '准备 Runtime Agent 启动本地任务时使用的 Runtime Engine 镜像/profile。',
+    installStepRuntimeEngineExpected: 'Runtime Engine 健康检查可访问，或镜像可由 Runtime Agent 按需启动。',
+    installStepRuntimeEngineException: '检查镜像标签、插件 profile、Python 依赖、本地挂载和文件访问基础地址。',
     installStepStartAll: '启动全部服务',
     installStepStartAllPurpose: '按依赖顺序启动完整系统。',
     installStepStartAllExpected: '所有必要容器或服务处于运行状态。',
@@ -2604,9 +3012,23 @@ const installationGuideText = {
     serverPortDescription: '后端 API 监听端口。',
     publicBaseUrlDescription: '对外 Web 入口 URL。',
     logLevelDescription: '应用日志级别。',
+    securityProviderDescription: '生成服务使用的认证提供方。',
+    adminSetupTokenDescription: '初始化首个管理员时使用的一次性 setup token。',
+    internalTokenDescription: '平台到 Runtime Agent/Support 等内部可信调用使用的服务 token。',
+    portalSsoEnabledDescription: '需要门户登录交接时启用 Portal SSO exchange 接口。',
+    portalSsoSecretDescription: '校验门户签发 JWT 的 HS256 密钥。',
+    portalSsoUserSourceDescription: '通过 Portal SSO 自动注册账号时记录的用户来源。',
+    frontendAuthApiUrlDescription: '前端登录和当前用户接口基础地址。',
+    frontendSupportApiUrlDescription: 'Support 模块 API 基础地址，用于共享支撑服务。',
+    frontendPlatformApiUrlDescription: 'Platform 模块 API 基础地址，用于已建模平台操作。',
+    frontendRuntimeAgentApiUrlDescription: '运行侧控制台访问 Runtime Agent API 的基础地址。',
+    frontendModuleApiUrlDescription: (moduleName: string) => `${moduleName} API 经网关暴露的基础地址。`,
     storageEndpointDescription: '对象/文件存储端点。',
     storageBucketDescription: '对象/文件存储桶或命名空间。',
     platformApiUrlDescription: 'Runtime Agent 使用的平台 API 地址。',
+    runtimeEngineImageDescription: '参与方本地任务执行时选择的 Runtime Engine 镜像。',
+    runtimeEngineProfileDescription: '控制可用模型插件和聚合插件的 Runtime Engine 插件 profile。',
+    runtimeEngineFileAccessDescription: 'Runtime Engine 下载 Support 文件制品时可选的 URL 基础地址替换。',
     systemInitialization: '初始化',
     initializationItem: '初始化项',
     action: '操作',
@@ -2617,6 +3039,8 @@ const installationGuideText = {
     initSystemParams: '基础参数初始化',
     initSystemParamsExpected: '默认系统参数已写入并可查询。',
     initBaseData: '基础/参考数据初始化',
+    initDictionary: '字典初始化',
+    initDictionaryExpected: '运行时、模型、训练、文件和选项类字典已注册并启用。',
     baseReferenceData: '基础参考数据',
     initBaseDataExpected: '必要字典、参考数据或租户初始化值已导入。',
     initLicense: '许可证初始化',
@@ -2632,8 +3056,8 @@ const installationGuideText = {
     status: '状态检查',
     statusDescription: '检查进程/容器状态和健康状态。',
     lifecycleOrder: [
-      `推荐启动顺序：${defaultInstallationDatabaseName} 数据库 / 事件存储 -> 中间件 -> 后端 API -> Web 前端 -> Runtime Agent。`,
-      `推荐停止顺序：Runtime Agent -> Web 前端 -> 后端 API -> 中间件 -> ${defaultInstallationDatabaseName} 数据库 / 事件存储。`
+      `推荐启动顺序：${defaultInstallationDatabaseName} 数据库 / UmaDB 事件存储 -> 后端部署单元 -> Web 前端 -> 网关 -> Runtime Engine 按需启动。`,
+      `推荐停止顺序：Runtime Engine 任务 -> 网关 -> Web 前端 -> 后端部署单元 -> ${defaultInstallationDatabaseName} 数据库 / UmaDB 事件存储。`
     ],
     installationVerification: '安装验证',
     verificationLevel: '验证层级',
@@ -2653,6 +3077,10 @@ const installationGuideText = {
     businessSmokeVerification: '业务冒烟验证',
     businessSmokeVerificationPrefix: '执行代表性冒烟能力',
     businessSmokeVerificationExpected: '选定操作成功，且可检查相关查询或状态视图。',
+    dictionaryVerification: '字典验证',
+    dictionaryVerificationExpected: '必要字典值存在，并可被生成表单选择。',
+    runtimeEngineVerification: 'Runtime Engine 验证',
+    runtimeEngineVerificationExpected: 'Runtime Engine 健康，或 Runtime Agent 可创建、观察并释放一个运行时任务。',
     troubleshooting: '故障排查',
     logLocations: '日志位置',
     logLocation: '日志位置',
@@ -2673,6 +3101,11 @@ const installationGuideText = {
     causeNetworkOrCredential: '网络、DNS、凭据或白名单问题',
     problemFileUploadFailed: '文件上传失败',
     causeStorageConfig: '存储端点、桶、凭据、大小限制或清理策略问题',
+    problemDictionaryOptionsMissing: '下拉选项或字典标签缺失',
+    causeDictionaryNotInitialized: '字典初始化未执行或字典值处于禁用状态',
+    problemRuntimeJobFailed: '运行时训练任务无法启动或无法上报状态',
+    causeRuntimeEngineConfig: 'Runtime Engine 镜像/profile、数据集绑定、文件访问、内部 token 或资源配置问题',
+    checkRuntimeEngineConfig: '检查 Runtime Agent 日志、Runtime Engine profile/镜像、数据集绑定、文件访问基础地址和内部 token',
     upgradeRollback: '升级与回滚',
     phase: '阶段',
     phaseBackup: '备份',
@@ -3063,9 +3496,32 @@ const userManualText = {
     quickStartChecklist: (bundle: DocumentationBundle) => [
       `Sign in with a role authorized for the target business context.`,
       `Open the relevant feature entry from one of ${bundle.workflows.filter((workflow) => workflow.ui).length} modeled UI entry points, or follow the system-operation procedure for background workflows.`,
+      bundle.frontendApplications.some((application) => /participant/i.test(application.name))
+        ? 'Use the platform console for federation, model, training, governance, and support operations; use the participant console only for participant-local runtime and dataset operations.'
+        : 'Use the configured console entry and confirm that API base URLs point to the intended environment.',
       'Prepare required identifiers and input data before submitting an operation.',
       'After submission, confirm the business result and check the related read model or status view.',
       'If validation fails, correct the input according to the rule or exception message and retry when appropriate.'
+    ],
+    consoleAndBoundaries: 'Consoles And Operation Boundaries',
+    consoleAndBoundariesIntro: 'The current system separates browser entry points and backend deployments. Choose the console according to the operation boundary before starting a workflow.',
+    console: 'Console / Entry',
+    userScope: 'User Scope',
+    backendScope: 'Backend / API Scope',
+    operationBoundary: 'Operation Boundary',
+    systemOperatorScope: 'System operator',
+    backendOnlyBoundary: 'Backend service boundary; expose through API gateway or operational procedure.',
+    platformConsoleScope: 'Platform administrator, federation operator, model operator, auditor',
+    participantConsoleScope: 'Participant-side operator and runtime maintainer',
+    platformConsoleBoundary: 'Controls platform objects, IAM, dictionaries, files, federation lifecycle, dataset governance summaries, model/training orchestration, runtime governance, and secure aggregation.',
+    participantConsoleBoundary: 'Controls participant-local Runtime Agent operations, dataset binding/profile validation, runtime execution acceptance, and job observation. It must not expose participant private data to ordinary platform users.',
+    boundaryNotes: (bundle: DocumentationBundle) => [
+      bundle.frontendApplications.length
+        ? `Available consoles: ${bundle.frontendApplications.map((application) => humanize(application.name)).join(', ')}.`
+        : 'No separate frontend applications are modeled; confirm the deployed entry point before release.',
+      'A platform role grants access to platform-side objects and summaries; participant data-plane access remains controlled by the participant runtime boundary.',
+      'Portal SSO users may sign in before permissions are assigned, but protected menus and commands require explicit role assignments.',
+      'Runtime Engine work is started through Runtime Agent operations; users should inspect job status and artifacts through modeled read models instead of calling local training processes directly.'
     ],
     featureGuide: 'Feature Guide',
     contextSummary: 'Context summary',
@@ -3109,6 +3565,9 @@ const userManualText = {
     troubleshooting: 'Troubleshooting',
     troubleshootingChecklist: (bundle: DocumentationBundle) => [
       'If an operation cannot be submitted, check required fields, identifiers, and permission scope.',
+      bundle.frontendApplications.length > 1
+        ? 'If a menu or API is unavailable, confirm that the user is in the correct console and that runtime-config API URLs point to the correct backend module.'
+        : 'If a menu or API is unavailable, confirm runtime configuration and permission assignment.',
       'If data is missing from a list or detail view, confirm the source event was produced and the read model has refreshed.',
       'If a business rule rejects the operation, use the rule description and acceptance scenario to correct the input.',
       bundle.integrations.length || bundle.contexts.some((context) => context.externalSystems.length)
@@ -3132,9 +3591,32 @@ const userManualText = {
     quickStartChecklist: (bundle: DocumentationBundle) => [
       '使用具备目标业务上下文权限的账号登录系统。',
       `从 ${bundle.workflows.filter((workflow) => workflow.ui).length} 个已建模页面入口中打开目标功能；如为后台流程，则按系统操作规程触发。`,
+      bundle.frontendApplications.some((application) => /participant/i.test(application.name))
+        ? '平台控制台用于联邦、模型、训练、治理和支撑服务操作；参与方控制台仅用于参与方本地运行时和数据集相关操作。'
+        : '使用已配置的控制台入口，并确认 API 基础地址指向目标环境。',
       '提交操作前准备必填标识和业务输入数据。',
       '提交后确认业务结果，并查看相关 Read Model 或状态视图。',
       '如校验失败，根据规则或异常提示修正输入，必要时重新提交。'
+    ],
+    consoleAndBoundaries: '控制台与操作边界',
+    consoleAndBoundariesIntro: '当前系统将浏览器入口和后端部署单元分开管理。开始操作前，应按业务边界选择正确控制台。',
+    console: '控制台 / 入口',
+    userScope: '用户范围',
+    backendScope: '后端 / API 范围',
+    operationBoundary: '操作边界',
+    systemOperatorScope: '系统运维人员',
+    backendOnlyBoundary: '后端服务边界；通过 API 网关或运维流程暴露。',
+    platformConsoleScope: '平台管理员、联邦运营人员、模型运营人员、审计人员',
+    participantConsoleScope: '参与方侧操作员和运行时维护人员',
+    platformConsoleBoundary: '管理平台侧对象、IAM、字典、文件、联邦生命周期、数据集治理摘要、模型/训练编排、运行时治理和安全聚合。',
+    participantConsoleBoundary: '管理参与方本地 Runtime Agent 操作、数据集绑定/画像校验、运行时执行确认和任务观察；不得向普通平台用户暴露参与方私有数据。',
+    boundaryNotes: (bundle: DocumentationBundle) => [
+      bundle.frontendApplications.length
+        ? `当前控制台：${bundle.frontendApplications.map((application) => humanize(application.name)).join('、')}。`
+        : '当前未建模独立前端应用，发布前需确认部署入口。',
+      '平台角色只授权平台侧对象和摘要视图；参与方数据面访问仍由参与方运行边界控制。',
+      'Portal SSO 用户可先完成登录交接，但受保护菜单和命令必须在分配角色后才能访问。',
+      'Runtime Engine 工作通过 Runtime Agent 操作启动；用户应通过已建模 Read Model 查看任务状态和制品，不直接调用本地训练进程。'
     ],
     featureGuide: '功能操作指南',
     contextSummary: '上下文说明',
@@ -3178,6 +3660,9 @@ const userManualText = {
     troubleshooting: '常见问题处理',
     troubleshootingChecklist: (bundle: DocumentationBundle) => [
       '如操作无法提交，先检查必填字段、业务标识和权限范围。',
+      bundle.frontendApplications.length > 1
+        ? '如菜单或 API 不可用，确认用户进入了正确控制台，并检查 runtime-config 中的 API 地址是否指向对应后端模块。'
+        : '如菜单或 API 不可用，确认运行时配置和权限分配。',
       '如列表或详情缺少数据，确认来源事件已产生且 Read Model 已刷新。',
       '如业务规则拒绝操作，根据规则说明和验收场景修正输入。',
       bundle.integrations.length || bundle.contexts.some((context) => context.externalSystems.length)

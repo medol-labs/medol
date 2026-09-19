@@ -1,0 +1,23 @@
+{
+  "sourcePptx": "/Users/bryce/codes/medo/event-modeling/medol/tmp/课题4中期汇报修改20260831-业务能力版.pptx",
+  "mapPath": "/Users/bryce/codes/medo/event-modeling/medol/.codex-ppt-build/template-following/template-frame-map.json",
+  "output": "/Users/bryce/codes/medo/event-modeling/medol/.codex-ppt-build/template-following/starter-federation-business-capabilities.pptx",
+  "outputBytes": 228501,
+  "sourceSlideCount": 1,
+  "slideCount": 1,
+  "previewDir": "/Users/bryce/codes/medo/event-modeling/medol/.codex-ppt-build/template-following/template-starter-preview",
+  "layoutDir": "/Users/bryce/codes/medo/event-modeling/medol/.codex-ppt-build/template-following/template-starter-layout",
+  "slides": [
+    {
+      "outputSlide": 1,
+      "sourceSlide": 1,
+      "narrativeRole": "summary",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 47,
+      "previewPath": "/Users/bryce/codes/medo/event-modeling/medol/.codex-ppt-build/template-following/template-starter-preview/starter-slide-01.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-01.png",
+      "layoutPath": "/Users/bryce/codes/medo/event-modeling/medol/.codex-ppt-build/template-following/template-starter-layout/starter-slide-01.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-01.layout.json"
+    }
+  ]
+}

@@ -622,14 +622,14 @@ context DictionaryMaintenance {
       dictionaryId: UUID id generated technical
       dictionaryCode: DictionaryCode
       dictionaryName: String
-      description: String?
+      description: Text?
     }
 
     event DictionaryRegistered {
       dictionaryId: UUID id technical
       dictionaryCode: DictionaryCode
       dictionaryName: String
-      description: String?
+      description: Text?
     }
 
     state Registered
@@ -663,13 +663,13 @@ context DictionaryMaintenance {
     command UpdateDictionary {
       dictionaryId: UUID id technical
       dictionaryName: String
-      description: String?
+      description: Text?
     }
 
     event DictionaryUpdated {
       dictionaryId: UUID id technical
       dictionaryName: String
-      description: String?
+      description: Text?
     }
   }
 
@@ -696,7 +696,7 @@ context DictionaryMaintenance {
       dictionaryId: UUID id
       dictionaryCode: DictionaryCode query
       dictionaryName: String
-      description: String?
+      description: Text?
       state: Dictionary.State
       registeredAt: DateTime
       updatedAt: DateTime?
@@ -727,7 +727,7 @@ context DictionaryMaintenance {
       valueCode: DictionaryValueCode
       displayName: String
       displayOrder: DisplayOrder?
-      description: String?
+      description: Text?
       active: Boolean
     }
 
@@ -738,7 +738,7 @@ context DictionaryMaintenance {
       valueCode: DictionaryValueCode
       displayName: String
       displayOrder: DisplayOrder?
-      description: String?
+      description: Text?
       active: Boolean
     }
 
@@ -797,7 +797,7 @@ context DictionaryMaintenance {
       valueCode: DictionaryValueCode
       displayName: String display
       displayOrder: DisplayOrder?
-      description: String?
+      description: Text?
       active: Boolean query
       state: DictionaryValue.State
       addedAt: DateTime
@@ -1256,12 +1256,12 @@ context RuntimeProvisioning {
       plannedAt: DateTime
       verifiedAt: DateTime?
       verificationFailedAt: DateTime?
-      verificationFailureReason: String?
+      verificationFailureReason: Text?
       agentReadyAt: DateTime?
       agentDeploymentFailedAt: DateTime?
-      agentDeploymentFailureReason: String?
+      agentDeploymentFailureReason: Text?
       agentDeploymentRetryFailedAt: DateTime?
-      agentDeploymentRetryFailureReason: String?
+      agentDeploymentRetryFailureReason: Text?
       lastConnectedAt: DateTime?
       subscribe OrganizationRegistered
       subscribe RuntimeInfrastructurePackageRegistered
@@ -1911,12 +1911,12 @@ context RuntimeProvisioning {
       preparedNodeCount: Int?
       infrastructureVerifiedAt: DateTime?
       infrastructureVerificationFailedAt: DateTime?
-      infrastructureVerificationFailureReason: String?
+      infrastructureVerificationFailureReason: Text?
       agentReadyAt: DateTime?
       agentDeploymentFailedAt: DateTime?
-      agentDeploymentFailureReason: String?
+      agentDeploymentFailureReason: Text?
       agentDeploymentRetryFailedAt: DateTime?
-      agentDeploymentRetryFailureReason: String?
+      agentDeploymentRetryFailureReason: Text?
       connectedAt: DateTime?
       state: RuntimeInfrastructure.State
       subscribe OrganizationRegistered
@@ -2452,6 +2452,7 @@ context ModelRepository {
     command RegisterModelArtifact {
       modelId: UUID id generated technical
       modelName: String display
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       modelVersion: String
       modelDescription: String?
       sourceType: String dictionary "MODEL_ARTIFACT_SOURCE_TYPE"
@@ -2462,6 +2463,7 @@ context ModelRepository {
     event ModelArtifactRegistered {
       modelId: UUID id technical
       modelName: String display
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       modelVersion: String
       modelDescription: String?
       sourceType: String dictionary "MODEL_ARTIFACT_SOURCE_TYPE"
@@ -2477,7 +2479,7 @@ context ModelRepository {
 
     specification "Model Artifact Must Be Pullable And Verifiable" {
       rule """
-        Registering a model artifact is a port-backed operation over a file already persisted by FileUpload. modelName identifies the logical model, modelVersion identifies the business version under that model, and modelDescription captures the business purpose, training background, applicable scenarios, or limitations that operators need when selecting the model. The pair must be unique. modelId remains the system identity for one imported or trained artifact version. sourceType distinguishes externally uploaded artifacts from artifacts produced by federated training. fileId identifies the shared FileUpload record; ModelRepository does not create a second physical copy or a second storage subsystem. The adapter resolves FileUpload metadata and content URI, validates the model format, records digest and size, and marks the file reference after registration. modelArtifactUri remains the authenticated FileUpload content URI.
+        Registering a model artifact is a port-backed operation over a file already persisted by FileUpload. modelName is the human-readable artifact name shown to operators. modelPlugin is the strict runtime-engine model plugin code used to select DenseNet, ResNet, UNet, or other execution implementations. modelVersion identifies the business version under that display name, and modelDescription captures the business purpose, training background, applicable scenarios, or limitations that operators need when selecting the model. The pair must be unique. modelId remains the system identity for one imported or trained artifact version. sourceType distinguishes externally uploaded artifacts from artifacts produced by federated training. fileId identifies the shared FileUpload record; ModelRepository does not create a second physical copy or a second storage subsystem. The adapter resolves FileUpload metadata and content URI, validates the model format, records digest and size, and marks the file reference after registration. modelArtifactUri remains the authenticated FileUpload content URI.
 
         unique (ModelArtifact.modelName, ModelArtifact.modelVersion)
       """
@@ -2486,6 +2488,7 @@ context ModelRepository {
         when RegisterModelArtifact {
           modelId = "model-1"
           modelName = "credit-risk"
+          modelPlugin = "SKLEARN_LOGISTIC_REGRESSION"
           modelVersion = "v1"
           modelDescription = "Baseline credit risk classifier for federated training"
           sourceType = "EXTERNAL"
@@ -2501,6 +2504,7 @@ context ModelRepository {
     readmodel ModelArtifactCatalog[] {
       modelId: UUID id
       modelName: String display
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       modelVersion: String
       modelDescription: String?
       sourceType: String? dictionary "MODEL_ARTIFACT_SOURCE_TYPE"
@@ -2588,6 +2592,7 @@ context ModelRepository {
     command RegisterFederatedModelArtifact {
       modelId: UUID id technical from GlobalModelUpdated.aggregatedModelId
       modelName: String from GlobalModelUpdated.aggregatedModelName
+      modelPlugin: String from GlobalModelUpdated.modelPlugin
       modelVersion: String from GlobalModelUpdated.aggregatedModelVersion
       modelDescription: String? from GlobalModelUpdated.aggregatedModelDescription
       sourceType: String from GlobalModelUpdated.modelSourceType
@@ -2605,6 +2610,7 @@ context ModelRepository {
     event FederatedModelArtifactRegistered {
       modelId: UUID id technical
       modelName: String
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       modelVersion: String
       modelDescription: String?
       sourceType: String
@@ -2674,6 +2680,83 @@ context TrainingOrchestration {
     emits SubmitGlobalModelEvaluation
   }
 
+  slice RegisterRuntimeEngineProfile {
+    startsLifecycle
+
+    actor PlatformAdmin
+    ui RuntimeEngineProfileScreen
+
+    tags {
+      profileName
+    }
+
+    command RegisterRuntimeEngineProfile {
+      runtimeEngineProfileId: UUID id generated technical
+      profileName: String display
+      pluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      imageDigest: String?
+      supportedModelPluginsDescription: Text?
+      supportedAggregationAlgorithmsDescription: Text?
+      active: Boolean
+    }
+
+    event RuntimeEngineProfileRegistered {
+      runtimeEngineProfileId: UUID id technical
+      profileName: String display
+      pluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      imageDigest: String?
+      supportedModelPluginsDescription: Text?
+      supportedAggregationAlgorithmsDescription: Text?
+      active: Boolean
+    }
+
+    state Registered
+
+    specification "Runtime Engine Profile Selects Pullable Engine Image" {
+      rule """
+        RuntimeEngineProfile is the business selectable runtime engine package used by training configurations. It hides raw image selection behind an operator-managed profile name while snapshotting the exact image, plugin profile, and optional digest that runtime agents must use when starting per-round runtime-engine workloads. Training runs must not depend on runtime-agent local environment defaults when a profile is selected.
+
+        unique RuntimeEngineProfile.profileName
+      """
+
+      scenario "Register PyTorch Vision Runtime Engine Profile" {
+        when RegisterRuntimeEngineProfile {
+          runtimeEngineProfileId = "engine-profile-1"
+          profileName = "PyTorch Vision Runtime Engine"
+          pluginProfile = "pytorch-vision"
+          runtimeEngineImage = "registry.example.com/fl/federation-learning-runtime-engine:pytorch-vision"
+          active = true
+        }
+        then RuntimeEngineProfileRegistered
+      }
+    }
+  }
+
+  slice RuntimeEngineProfileCatalog {
+    readmodel RuntimeEngineProfileCatalog[] {
+      runtimeEngineProfileId: UUID id
+      profileName: String display
+      pluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      imageDigest: String?
+      supportedModelPluginsDescription: Text?
+      supportedAggregationAlgorithmsDescription: Text?
+      active: Boolean
+      state: RuntimeEngineProfile.State
+      registeredAt: DateTime?
+      subscribe RuntimeEngineProfileRegistered
+    }
+  }
+
+  concept RuntimeEngineProfile {
+    state Registered
+
+    slice RegisterRuntimeEngineProfile
+    slice RuntimeEngineProfileCatalog
+  }
+
   slice DefineTrainingRunConfiguration {
     startsLifecycle
 
@@ -2690,7 +2773,10 @@ context TrainingOrchestration {
       featureSchemaVersion: String? derived from FeatureSchemaCatalog.version by featureSchemaId
       initialModelId: UUID from ModelArtifactCatalog.modelId
       initialModelName: String? derived from ModelArtifactCatalog.modelName by initialModelId
+      initialModelPlugin: String? derived from ModelArtifactCatalog.modelPlugin by initialModelId
       initialModelVersion: String? derived from ModelArtifactCatalog.modelVersion by initialModelId
+      runtimeEngineProfileId: UUID from RuntimeEngineProfileCatalog.runtimeEngineProfileId
+      runtimeEngineProfileName: String? derived from RuntimeEngineProfileCatalog.profileName by runtimeEngineProfileId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -2718,6 +2804,10 @@ context TrainingOrchestration {
       featureSchemaVersion: String?
       initialModelId: UUID
       initialModelName: String?
+      initialModelPlugin: String? derived {
+        from ModelArtifact.modelPlugin
+        rule "Snapshot the strict runtime-engine model plugin code selected with the initial model artifact."
+      }
       initialModelVersion: String?
       initialModelArtifactUri: String derived {
         from ModelArtifact.modelArtifactUri
@@ -2725,7 +2815,7 @@ context TrainingOrchestration {
       }
       initialModelRegistryRef: String derived {
         from ModelArtifact.modelRegistryRef
-        rule "Snapshot the model registry reference so runtime agents can identify where the initial global model is managed. For built-in runtime-engine models this value is the runtime engine model plugin code, copied from the selected ModelArtifact rather than read from runtime-agent environment variables."
+        rule "Snapshot the model registry reference so runtime agents can identify where the initial global model artifact is managed. Runtime-engine plugin selection is carried separately by initialModelPlugin."
       }
       initialModelFormat: String derived {
         from ModelArtifact.modelFormat
@@ -2738,6 +2828,23 @@ context TrainingOrchestration {
       initialModelSignatureUri: String? derived {
         from ModelArtifact.modelSignatureUri
         rule "Snapshot the optional signature URI used to verify model provenance."
+      }
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String? derived {
+        from RuntimeEngineProfile.profileName
+        rule "Snapshot the selected runtime engine profile display name for audit and execution planning."
+      }
+      runtimeEnginePluginProfile: String derived {
+        from RuntimeEngineProfile.pluginProfile
+        rule "Snapshot the runtime-engine plugin profile that must support the selected model and aggregation plugins."
+      }
+      runtimeEngineImage: String derived {
+        from RuntimeEngineProfile.runtimeEngineImage
+        rule "Snapshot the exact container image runtime agents must pull when starting per-round runtime-engine workloads."
+      }
+      runtimeEngineImageDigest: String? derived {
+        from RuntimeEngineProfile.imageDigest
+        rule "Snapshot the optional immutable image digest used for provenance and deployment verification."
       }
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
@@ -2770,6 +2877,7 @@ context TrainingOrchestration {
           federationId = "fed-1"
           featureSchemaId = "schema-1"
           initialModelId = "model-1"
+          runtimeEngineProfileId = "engine-profile-1"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 10
@@ -2794,6 +2902,7 @@ context TrainingOrchestration {
           federationId = "fed-1"
           featureSchemaId = "schema-1"
           initialModelId = "model-1"
+          runtimeEngineProfileId = "engine-profile-1"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
           maxRounds = 0
@@ -2828,7 +2937,10 @@ context TrainingOrchestration {
       featureSchemaVersion: String? derived from FeatureSchemaCatalog.version by featureSchemaId
       initialModelId: UUID from ModelArtifactCatalog.modelId
       initialModelName: String? derived from ModelArtifactCatalog.modelName by initialModelId
+      initialModelPlugin: String? derived from ModelArtifactCatalog.modelPlugin by initialModelId
       initialModelVersion: String? derived from ModelArtifactCatalog.modelVersion by initialModelId
+      runtimeEngineProfileId: UUID from RuntimeEngineProfileCatalog.runtimeEngineProfileId
+      runtimeEngineProfileName: String? derived from RuntimeEngineProfileCatalog.profileName by runtimeEngineProfileId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -2857,6 +2969,10 @@ context TrainingOrchestration {
       featureSchemaVersion: String?
       initialModelId: UUID
       initialModelName: String?
+      initialModelPlugin: String? derived {
+        from ModelArtifact.modelPlugin
+        rule "Snapshot the updated strict runtime-engine model plugin code selected with the initial model artifact."
+      }
       initialModelVersion: String?
       initialModelArtifactUri: String derived {
         from ModelArtifact.modelArtifactUri
@@ -2877,6 +2993,23 @@ context TrainingOrchestration {
       initialModelSignatureUri: String? derived {
         from ModelArtifact.modelSignatureUri
         rule "Snapshot the updated optional signature URI used to verify model provenance."
+      }
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String? derived {
+        from RuntimeEngineProfile.profileName
+        rule "Snapshot the updated runtime engine profile display name."
+      }
+      runtimeEnginePluginProfile: String derived {
+        from RuntimeEngineProfile.pluginProfile
+        rule "Snapshot the updated runtime-engine plugin profile."
+      }
+      runtimeEngineImage: String derived {
+        from RuntimeEngineProfile.runtimeEngineImage
+        rule "Snapshot the updated container image runtime agents must pull."
+      }
+      runtimeEngineImageDigest: String? derived {
+        from RuntimeEngineProfile.imageDigest
+        rule "Snapshot the updated optional immutable image digest."
       }
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
@@ -2993,6 +3126,7 @@ context TrainingOrchestration {
       featureSchemaId: UUID
       initialModelId: UUID
       initialModelName: String
+      initialModelPlugin: String dictionary "MODEL_PLUGIN"
       initialModelVersion: String
       federationName: String?
       featureDomain: String?
@@ -3002,6 +3136,11 @@ context TrainingOrchestration {
       initialModelFormat: String
       initialModelArtifactDigest: String
       initialModelSignatureUri: String?
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      runtimeEngineImageDigest: String?
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
       maxRounds: Int
@@ -3731,6 +3870,10 @@ context TrainingOrchestration {
         from TrainingRunConfiguration.initialModelRegistryRef, TrainingRoundCompleted.aggregatedModelRegistryRef
         rule "Snapshot the model registry reference that owns the base model artifact."
       }
+      baseModelPlugin: String derived {
+        from TrainingRunConfiguration.initialModelPlugin, TrainingRoundCompleted.modelPlugin
+        rule "Snapshot the strict runtime-engine model plugin used to execute the selected base model."
+      }
       baseModelFormat: String derived {
         from TrainingRunConfiguration.initialModelFormat, TrainingRoundCompleted.modelFormat
         rule "Snapshot the model format required by the runtime engine."
@@ -3743,6 +3886,11 @@ context TrainingOrchestration {
         from TrainingRunConfiguration.initialModelSignatureUri, TrainingRoundCompleted.aggregatedModelSignatureUri
         rule "Snapshot the optional signature URI for the base model used by this participant execution plan."
       }
+      runtimeEngineProfileId: UUID from TrainingRunConfiguration.runtimeEngineProfileId
+      runtimeEngineProfileName: String? from TrainingRunConfiguration.runtimeEngineProfileName
+      runtimeEnginePluginProfile: String from TrainingRunConfiguration.runtimeEnginePluginProfile
+      runtimeEngineImage: String from TrainingRunConfiguration.runtimeEngineImage
+      runtimeEngineImageDigest: String? from TrainingRunConfiguration.runtimeEngineImageDigest
       secureAggregationRequired: Boolean from TrainingRoundStarted.secureAggregationRequired
       secureAggregationSessionId: UUID? from TrainingRoundStarted.secureAggregationSessionId
       encryptionScheme: String? from TrainingRoundStarted.encryptionScheme
@@ -3768,9 +3916,15 @@ context TrainingOrchestration {
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
+      baseModelPlugin: String dictionary "MODEL_PLUGIN"
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      runtimeEngineImageDigest: String?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -3783,7 +3937,7 @@ context TrainingOrchestration {
 
     specification "Participant Execution Plan Carries Base Model Artifact Snapshot" {
       rule """
-        A participant execution plan must carry the immutable base model artifact snapshot needed by the runtime agent: model identity, pullable artifact URI, registry reference, model format, artifact digest, and optional signature URI. Runtime agents must not infer or query these values later from a mutable model repository view. Round one uses the initial model snapshot from the training run configuration; later rounds use the aggregated model snapshot recorded when the previous training round completed.
+        A participant execution plan must carry the immutable base model artifact snapshot needed by the runtime agent: model identity, pullable artifact URI, registry reference, strict model plugin, model format, artifact digest, and optional signature URI. It must also carry the selected RuntimeEngineProfile snapshot: plugin profile, pullable runtime-engine image, and optional image digest. Runtime agents must not infer or query these values later from mutable repository views, display names, registry references, or local environment variables. Round one uses the initial model snapshot from the training run configuration; later rounds use the aggregated model snapshot recorded when the previous training round completed.
       """
 
       scenario "Generate Initial Round Plan With Initial Model Snapshot" {
@@ -3841,9 +3995,15 @@ context TrainingOrchestration {
       baseModelId: UUID from ParticipantExecutionPlanGenerated.baseModelId
       baseModelArtifactUri: String from ParticipantExecutionPlanGenerated.baseModelArtifactUri
       baseModelRegistryRef: String from ParticipantExecutionPlanGenerated.baseModelRegistryRef
+      baseModelPlugin: String from ParticipantExecutionPlanGenerated.baseModelPlugin
       baseModelFormat: String from ParticipantExecutionPlanGenerated.baseModelFormat
       baseModelArtifactDigest: String from ParticipantExecutionPlanGenerated.baseModelArtifactDigest
       baseModelSignatureUri: String? from ParticipantExecutionPlanGenerated.baseModelSignatureUri
+      runtimeEngineProfileId: UUID from ParticipantExecutionPlanGenerated.runtimeEngineProfileId
+      runtimeEngineProfileName: String? from ParticipantExecutionPlanGenerated.runtimeEngineProfileName
+      runtimeEnginePluginProfile: String from ParticipantExecutionPlanGenerated.runtimeEnginePluginProfile
+      runtimeEngineImage: String from ParticipantExecutionPlanGenerated.runtimeEngineImage
+      runtimeEngineImageDigest: String? from ParticipantExecutionPlanGenerated.runtimeEngineImageDigest
       secureAggregationRequired: Boolean from ParticipantExecutionPlanGenerated.secureAggregationRequired
       secureAggregationSessionId: UUID? from ParticipantExecutionPlanGenerated.secureAggregationSessionId
       encryptionScheme: String? from ParticipantExecutionPlanGenerated.encryptionScheme
@@ -3865,9 +4025,15 @@ context TrainingOrchestration {
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
+      baseModelPlugin: String dictionary "MODEL_PLUGIN"
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      runtimeEngineImageDigest: String?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -4079,6 +4245,10 @@ context TrainingOrchestration {
       roundNumber: Int from ModelUpdateSubmissionAccepted.roundNumber
       maxRounds: Int from ModelUpdateSubmissionAccepted.maxRounds
       minimumAccuracy: Decimal from ModelUpdateSubmissionAccepted.minimumAccuracy
+      modelPlugin: String derived {
+        from TrainingRunConfiguration.initialModelPlugin
+        rule "Aggregation preserves the runtime-engine model plugin selected by the training configuration."
+      }
       aggregationAlgorithm: String from ModelUpdateSubmissionAccepted.aggregationAlgorithm
       aggregatedModelId: UUID generated technical
       modelUpdateArtifactRefs: String[] from ModelUpdateSubmissionAccepted.acceptedModelUpdateArtifactRefs
@@ -4093,6 +4263,7 @@ context TrainingOrchestration {
       roundNumber: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       aggregatedModelId: UUID
       aggregatedModelName: String portOutput
       aggregatedModelVersion: String portOutput
@@ -4235,6 +4406,10 @@ context TrainingOrchestration {
         rule "Use the completed secure or plaintext aggregation result."
       }
       secureAggregationSessionId: UUID? from SecureAggregationCompleted.secureAggregationSessionId
+      modelPlugin: String derived {
+        from SecureAggregationCompleted.modelPlugin, PlainModelAggregationCompleted.modelPlugin
+        rule "Carry the runtime-engine model plugin for the aggregated global model."
+      }
       aggregatedModelId: UUID derived {
         from SecureAggregationCompleted.aggregatedModelId, PlainModelAggregationCompleted.aggregatedModelId
         rule "Use the completed secure or plaintext aggregation result."
@@ -4291,6 +4466,7 @@ context TrainingOrchestration {
       maxRounds: Int
       minimumAccuracy: Decimal
       secureAggregationSessionId: UUID?
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       aggregatedModelId: UUID
       aggregatedModelName: String
       aggregatedModelVersion: String
@@ -4326,6 +4502,7 @@ context TrainingOrchestration {
       maxRounds: Int from GlobalModelUpdated.maxRounds
       minimumAccuracy: Decimal from GlobalModelUpdated.minimumAccuracy
       aggregatedModelId: UUID
+      modelPlugin: String from GlobalModelUpdated.modelPlugin
       aggregatedModelArtifactUri: String from GlobalModelUpdated.aggregatedModelArtifactUri
       aggregatedModelRegistryRef: String from GlobalModelUpdated.aggregatedModelRegistryRef
       modelFormat: String from GlobalModelUpdated.modelFormat
@@ -4343,6 +4520,7 @@ context TrainingOrchestration {
       maxRounds: Int
       minimumAccuracy: Decimal
       aggregatedModelId: UUID
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
       modelFormat: String
@@ -4371,6 +4549,7 @@ context TrainingOrchestration {
       maxRounds: Int from GlobalModelEvaluationSubmitted.maxRounds
       minimumAccuracy: Decimal from GlobalModelEvaluationSubmitted.minimumAccuracy
       aggregatedModelId: UUID
+      modelPlugin: String from GlobalModelEvaluationSubmitted.modelPlugin
       aggregatedModelArtifactUri: String from GlobalModelEvaluationSubmitted.aggregatedModelArtifactUri
       aggregatedModelRegistryRef: String from GlobalModelEvaluationSubmitted.aggregatedModelRegistryRef
       modelFormat: String from GlobalModelEvaluationSubmitted.modelFormat
@@ -4389,6 +4568,7 @@ context TrainingOrchestration {
       maxRounds: Int
       minimumAccuracy: Decimal
       aggregatedModelId: UUID
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       aggregatedModelArtifactUri: String
       aggregatedModelRegistryRef: String
       modelFormat: String
@@ -5838,6 +6018,10 @@ context SecureAggregation {
       roundNumber: Int from EncryptedModelUpdateReceived.roundNumber
       maxRounds: Int from EncryptedModelUpdateReceived.maxRounds
       minimumAccuracy: Decimal from EncryptedModelUpdateReceived.minimumAccuracy
+      modelPlugin: String derived {
+        from TrainingRunConfiguration.initialModelPlugin
+        rule "Aggregation preserves the runtime-engine model plugin selected by the training configuration."
+      }
       aggregatedModelId: UUID generated technical
       encryptedUpdateArtifactRefs: String[] from EncryptedModelUpdateReceived.receivedEncryptedUpdateArtifactRefs
     }
@@ -5852,6 +6036,7 @@ context SecureAggregation {
       roundNumber: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      modelPlugin: String dictionary "MODEL_PLUGIN"
       aggregatedModelId: UUID
       aggregatedModelName: String portOutput
       aggregatedModelVersion: String portOutput
@@ -6075,6 +6260,28 @@ context RuntimeAgentOperations {
     }
   }
 
+  slice AgentDictionaryValueCatalog {
+    sync readmodel AgentDictionaryValueCatalog[] from DictionaryMaintenance.DictionaryValueCatalog {
+      dictionaryProvider AgentDictionaryValueCatalog {
+        code dictionaryCode
+        value valueCode
+        label displayName
+        active active
+        state state
+        order displayOrder
+      }
+      dictionaryValueId: UUID id
+      dictionaryId: UUID
+      dictionaryCode: String query
+      valueCode: String
+      displayName: String display
+      displayOrder: Int?
+      active: Boolean query
+      state: String
+      syncedAt: DateTime
+    }
+  }
+
   slice AgentRuntimeIdentityCatalog {
     sync readmodel AgentRuntimeIdentityCatalog[] from RuntimeProvisioning.RuntimeIdentityCatalog where runtimeAgentId = sync.runtimeAgentId {
       runtimeId: UUID id
@@ -6130,7 +6337,7 @@ context RuntimeAgentOperations {
 
     specification "Feature Schema Snapshot Required For Dataset Declaration" {
       rule """
-        Declaring a dataset synchronously loads the referenced feature schema through the DeclareDataset port adapter before the decision emits DatasetDeclared. The adapter must enrich the declaration result with the feature and label snapshot so the runtime agent can validate and profile local data without querying the platform later. Dataset usage describes the governance purpose of the dataset, such as training, validation, evaluation, or testing, and is stored as a maintained dictionary value. If the feature schema cannot be loaded, the adapter throws an exception and the declaration does not emit DatasetDeclared.
+        Declaring a dataset synchronously loads the referenced feature schema through the DeclareDataset port adapter before the decision emits DatasetDeclared. The adapter must enrich the declaration result with the feature and label snapshot so the runtime agent can validate and profile local data without querying the platform later. Dataset usage describes the governance purpose of the dataset, such as training, validation, evaluation, or testing. If the feature schema cannot be loaded, the adapter throws an exception and the declaration does not emit DatasetDeclared.
       """
 
       scenario "Declare Dataset With Feature Schema Snapshot" {
@@ -6181,19 +6388,8 @@ context RuntimeAgentOperations {
       datasetName: String derived from DatasetCapability.datasetName by datasetId
       runtimeId: UUID from AgentRuntimeIdentityCatalog.runtimeId
       runtimeName: String? derived from AgentRuntimeIdentityCatalog.runtimeName by runtimeId
-      dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
-      host: String?
-      port: Int?
-      url: String?
-      databaseName: String?
-      schemaName: String?
-      tableName: String?
-      filePath: String?
-      objectBucket: String?
-      objectPrefix: String?
+      filePath: String
       dataFormat: String dictionary "DATA_FORMAT"
-      // 访问密码/密钥 名
-      credentialSecretName: String?
     }
 
     event RuntimeDatasetBindingConfigured {
@@ -6207,25 +6403,15 @@ context RuntimeAgentOperations {
       datasetName: String
       runtimeId: UUID
       runtimeName: String?
-      dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
-      host: String?
-      port: Int?
-      url: String?
-      databaseName: String?
-      schemaName: String?
-      tableName: String?
-      filePath: String?
-      objectBucket: String?
-      objectPrefix: String?
+      filePath: String
       dataFormat: String dictionary "DATA_FORMAT"
-      credentialSecretName: String?
     }
 
     state Configured
 
     specification "Runtime Dataset Binding Unique Per Runtime Dataset" {
       rule """
-        A runtime dataset binding represents the current local data source configuration for one dataset on one runtime. The same dataset may be bound on different runtimes, and the same runtime may bind different datasets, but one runtime cannot configure multiple current bindings for the same dataset. Reconfiguration should use an explicit reconfigure/update flow instead of creating another binding for the same runtimeId and datasetId.
+        A runtime dataset binding represents the current local disk path for one dataset on one runtime. The runtime agent reads the dataset from filePath using dataFormat; database, URL, object storage, and credential-backed sources are not modeled for this binding flow. The same dataset may be bound on different runtimes, and the same runtime may bind different datasets, but one runtime cannot configure multiple current bindings for the same dataset. Reconfiguration should use an explicit reconfigure/update flow instead of creating another binding for the same runtimeId and datasetId.
       """
 
       expression {
@@ -6258,18 +6444,8 @@ context RuntimeAgentOperations {
       featureSchemaVersion: String?
       datasetName: String? display
       runtimeName: String?
-      dataSourceType: String dictionary "RUNTIME_DATA_SOURCE_TYPE"
-      host: String?
-      port: Int?
-      url: String?
-      databaseName: String?
-      schemaName: String?
-      tableName: String?
-      filePath: String?
-      objectBucket: String?
-      objectPrefix: String?
+      filePath: String
       dataFormat: String dictionary "DATA_FORMAT"
-      credentialSecretName: String?
       configuredAt: DateTime
       subscribe DatasetDeclared
       subscribe RuntimeDatasetBindingConfigured
@@ -6323,18 +6499,8 @@ context RuntimeAgentOperations {
       datasetName: String from RuntimeDatasetBindingConfigured.datasetName
       runtimeId: UUID from RuntimeDatasetBindingConfigured.runtimeId
       runtimeName: String? from RuntimeDatasetBindingConfigured.runtimeName
-      dataSourceType: String from RuntimeDatasetBindingConfigured.dataSourceType
-      host: String? from RuntimeDatasetBindingConfigured.host
-      port: Int? from RuntimeDatasetBindingConfigured.port
-      url: String? from RuntimeDatasetBindingConfigured.url
-      databaseName: String? from RuntimeDatasetBindingConfigured.databaseName
-      schemaName: String? from RuntimeDatasetBindingConfigured.schemaName
-      tableName: String? from RuntimeDatasetBindingConfigured.tableName
-      filePath: String? from RuntimeDatasetBindingConfigured.filePath
-      objectBucket: String? from RuntimeDatasetBindingConfigured.objectBucket
-      objectPrefix: String? from RuntimeDatasetBindingConfigured.objectPrefix
+      filePath: String from RuntimeDatasetBindingConfigured.filePath
       dataFormat: String from RuntimeDatasetBindingConfigured.dataFormat
-      credentialSecretName: String? from RuntimeDatasetBindingConfigured.credentialSecretName
     }
 
     event AgentDatasetAccessValidated {
@@ -6371,7 +6537,7 @@ context RuntimeAgentOperations {
 
     specification "Agent Dataset Access Validation Outcome" {
       rule """
-        The runtime agent validates that the configured local dataset binding is readable and can expose schema and sample batches before profiling starts.
+        The runtime agent validates that the configured local disk file path is readable and can expose schema and sample batches before profiling starts.
       """
 
       scenario "Agent Dataset Access Validated" {
@@ -6382,7 +6548,6 @@ context RuntimeAgentOperations {
           organizationId = "77777777-7777-4777-8777-777777777777"
           featureSchemaId = "88888888-8888-4888-8888-888888888888"
           runtimeId = "44444444-4444-4444-8444-444444444444"
-          dataSourceType = "FILE"
           filePath = "/data/credit-risk.csv"
           dataFormat = "CSV"
         }
@@ -6397,7 +6562,6 @@ context RuntimeAgentOperations {
           organizationId = "77777777-7777-4777-8777-777777777777"
           featureSchemaId = "88888888-8888-4888-8888-888888888888"
           runtimeId = "66666666-6666-4666-8666-666666666666"
-          dataSourceType = "FILE"
           filePath = "/data/missing.csv"
           dataFormat = "CSV"
         }
@@ -7063,9 +7227,15 @@ context RuntimeAgentOperations {
       baseModelId: UUID from ParticipantExecutionPlanDispatched.baseModelId
       baseModelArtifactUri: String from ParticipantExecutionPlanDispatched.baseModelArtifactUri
       baseModelRegistryRef: String from ParticipantExecutionPlanDispatched.baseModelRegistryRef
+      baseModelPlugin: String from ParticipantExecutionPlanDispatched.baseModelPlugin
       baseModelFormat: String from ParticipantExecutionPlanDispatched.baseModelFormat
       baseModelArtifactDigest: String from ParticipantExecutionPlanDispatched.baseModelArtifactDigest
       baseModelSignatureUri: String? from ParticipantExecutionPlanDispatched.baseModelSignatureUri
+      runtimeEngineProfileId: UUID from ParticipantExecutionPlanDispatched.runtimeEngineProfileId
+      runtimeEngineProfileName: String? from ParticipantExecutionPlanDispatched.runtimeEngineProfileName
+      runtimeEnginePluginProfile: String from ParticipantExecutionPlanDispatched.runtimeEnginePluginProfile
+      runtimeEngineImage: String from ParticipantExecutionPlanDispatched.runtimeEngineImage
+      runtimeEngineImageDigest: String? from ParticipantExecutionPlanDispatched.runtimeEngineImageDigest
       secureAggregationRequired: Boolean from ParticipantExecutionPlanDispatched.secureAggregationRequired
       secureAggregationSessionId: UUID? from ParticipantExecutionPlanDispatched.secureAggregationSessionId
       encryptionScheme: String? from ParticipantExecutionPlanDispatched.encryptionScheme
@@ -7088,9 +7258,15 @@ context RuntimeAgentOperations {
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
+      baseModelPlugin: String dictionary "MODEL_PLUGIN"
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      runtimeEngineImageDigest: String?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -7125,9 +7301,15 @@ context RuntimeAgentOperations {
       baseModelId: UUID from ExecutionPlanReceived.baseModelId
       baseModelArtifactUri: String from ExecutionPlanReceived.baseModelArtifactUri
       baseModelRegistryRef: String from ExecutionPlanReceived.baseModelRegistryRef
+      baseModelPlugin: String from ExecutionPlanReceived.baseModelPlugin
       baseModelFormat: String from ExecutionPlanReceived.baseModelFormat
       baseModelArtifactDigest: String from ExecutionPlanReceived.baseModelArtifactDigest
       baseModelSignatureUri: String? from ExecutionPlanReceived.baseModelSignatureUri
+      runtimeEngineProfileId: UUID from ExecutionPlanReceived.runtimeEngineProfileId
+      runtimeEngineProfileName: String? from ExecutionPlanReceived.runtimeEngineProfileName
+      runtimeEnginePluginProfile: String from ExecutionPlanReceived.runtimeEnginePluginProfile
+      runtimeEngineImage: String from ExecutionPlanReceived.runtimeEngineImage
+      runtimeEngineImageDigest: String? from ExecutionPlanReceived.runtimeEngineImageDigest
       secureAggregationRequired: Boolean from ExecutionPlanReceived.secureAggregationRequired
       secureAggregationSessionId: UUID? from ExecutionPlanReceived.secureAggregationSessionId
       encryptionScheme: String? from ExecutionPlanReceived.encryptionScheme
@@ -7150,9 +7332,15 @@ context RuntimeAgentOperations {
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
+      baseModelPlugin: String dictionary "MODEL_PLUGIN"
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      runtimeEngineImageDigest: String?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -7183,9 +7371,15 @@ context RuntimeAgentOperations {
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
+      baseModelPlugin: String dictionary "MODEL_PLUGIN"
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      runtimeEngineImageDigest: String?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -7255,9 +7449,15 @@ context RuntimeAgentOperations {
       baseModelId: UUID from ExecutionPlanAccepted.baseModelId
       baseModelArtifactUri: String from ExecutionPlanAccepted.baseModelArtifactUri
       baseModelRegistryRef: String from ExecutionPlanAccepted.baseModelRegistryRef
+      baseModelPlugin: String from ExecutionPlanAccepted.baseModelPlugin
       baseModelFormat: String from ExecutionPlanAccepted.baseModelFormat
       baseModelArtifactDigest: String from ExecutionPlanAccepted.baseModelArtifactDigest
       baseModelSignatureUri: String? from ExecutionPlanAccepted.baseModelSignatureUri
+      runtimeEngineProfileId: UUID from ExecutionPlanAccepted.runtimeEngineProfileId
+      runtimeEngineProfileName: String? from ExecutionPlanAccepted.runtimeEngineProfileName
+      runtimeEnginePluginProfile: String from ExecutionPlanAccepted.runtimeEnginePluginProfile
+      runtimeEngineImage: String from ExecutionPlanAccepted.runtimeEngineImage
+      runtimeEngineImageDigest: String? from ExecutionPlanAccepted.runtimeEngineImageDigest
       secureAggregationRequired: Boolean from ExecutionPlanAccepted.secureAggregationRequired
       secureAggregationSessionId: UUID? from ExecutionPlanAccepted.secureAggregationSessionId
       encryptionScheme: String? from ExecutionPlanAccepted.encryptionScheme
@@ -7280,9 +7480,15 @@ context RuntimeAgentOperations {
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
+      baseModelPlugin: String dictionary "MODEL_PLUGIN"
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      runtimeEngineImageDigest: String?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -7306,9 +7512,15 @@ context RuntimeAgentOperations {
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
+      baseModelPlugin: String dictionary "MODEL_PLUGIN"
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      runtimeEngineProfileId: UUID
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String
+      runtimeEngineImageDigest: String?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -7324,7 +7536,8 @@ context RuntimeAgentOperations {
     specification "Round Execution Runtime Engine Start Outcome" {
       rule """
         Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.
-        Runtime engine model selection must come from the participant execution plan base model snapshot. Runtime agents must not decide the model plugin from local environment variables because the selected model is platform training configuration data.
+        Runtime engine model selection must come from the participant execution plan baseModelPlugin snapshot. Runtime agents must not decide the model plugin from model display names, registry references, or local environment variables because the selected model is platform training configuration data.
+        Runtime engine image selection must come from the participant execution plan RuntimeEngineProfile snapshot. Runtime-agent local configuration is only a fallback for legacy plans that do not carry a runtimeEngineImage.
         When secureAggregationRequired is true, StartRoundExecution must pass encryptionScheme, publicKeyVersion, publicKeyRef, and encryptedParameterScale to the runtime engine so the local model update is encrypted inside the participant runtime boundary before any update artifact is reported to the platform.
       """
 
@@ -7850,6 +8063,11 @@ context RuntimeAgentOperations {
       state: RoundExecution.State
       featureSchemaId: UUID?
       baseModelId: UUID?
+      runtimeEngineProfileId: UUID?
+      runtimeEngineProfileName: String?
+      runtimeEnginePluginProfile: String? dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
+      runtimeEngineImage: String?
+      runtimeEngineImageDigest: String?
       runtimeEngineJobId: String?
       runtimeEngineObservedStatus: String?
       runtimeEngineObservationAt: DateTime?

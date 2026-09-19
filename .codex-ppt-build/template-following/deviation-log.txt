@@ -1,0 +1,6 @@
+No additional slides were introduced.
+
+The source slide already contained a business capability architecture layout. The main deviation
+is semantic: labels are rewritten from detailed architecture wording to a one-page business
+capability overview. The lower deployment band is repurposed as a screenshot placeholder to
+match the requested presentation use case.

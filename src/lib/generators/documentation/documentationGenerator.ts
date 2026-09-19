@@ -239,6 +239,15 @@ export const buildDocumentationBundle = (
       ? 'Event Modeling Workspace'
       : model.contexts[0]?.name ?? 'Event Modeling Workspace';
 
+  const deployments = uniqueById([
+    ...(model.deployments ?? []),
+    ...model.domains.flatMap((domain) => domain.deployments ?? [])
+  ]);
+  const frontendApplications = uniqueById([
+    ...(model.frontendApplications ?? []),
+    ...model.domains.flatMap((domain) => domain.frontendApplications ?? [])
+  ]);
+
   return {
     title: humanize(titleSource),
     generatedAt,
@@ -247,17 +256,29 @@ export const buildDocumentationBundle = (
     workflows,
     readmodels,
     integrations,
-    deployments: [
-      ...(model.deployments ?? []),
-      ...model.domains.flatMap((domain) => domain.deployments ?? [])
-    ].map((deployment) => ({
+    deployments: deployments.map((deployment) => ({
       id: deployment.id,
       name: deployment.name,
       ...(deployment.domain ? { domain: deployment.domain } : {}),
       contexts: deployment.contexts
     })),
+    frontendApplications: frontendApplications.map((application) => ({
+      id: application.id,
+      name: application.name,
+      ...(application.domain ? { domain: application.domain } : {}),
+      includes: application.includes
+    })),
     diagnostics: model.diagnostics
   };
+};
+
+const uniqueById = <TItem extends { id: string }>(items: TItem[]): TItem[] => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 };
 
 const toDocumentationElement = (element: EmElement) => ({
