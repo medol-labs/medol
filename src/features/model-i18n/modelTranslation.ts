@@ -339,7 +339,7 @@ export const toCodegenTranslations = (
   locales: [locale],
   defaultLocale: locale,
   translations: {
-    [locale]: translations
+    [locale]: normalizeModelTranslations(locale, translations)
   }
 });
 
@@ -377,6 +377,52 @@ const titleCase = (value: string): string =>
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+
+const normalizeModelTranslations = (
+  locale: string,
+  translations: ModelTranslations
+): ModelTranslations => {
+  if (locale !== 'zh-CN') return translations;
+  return Object.fromEntries(
+    Object.entries(translations).map(([source, translation]) => [
+      source,
+      normalizeZhCnModelTranslation(source, translation)
+    ])
+  );
+};
+
+const normalizeZhCnModelTranslation = (
+  source: string,
+  translation: string
+): string => {
+  const trimmed = translation.trim();
+  const exact = exactZhCnContextualTranslation(source);
+  if (exact) return exact;
+  if (!/feature schema/i.test(source)) return trimmed;
+
+  let normalized = trimmed
+    .replace(/特征模式/g, '特征架构')
+    .replace(/功能架构/g, '特征架构');
+
+  if (/^agent feature schema catalog(s)?$/i.test(source)) {
+    normalized = normalized.replace(/^(?:代理)?特征架构目录/u, '运行时代理特征架构目录');
+  }
+
+  return normalized;
+};
+
+const exactZhCnContextualTranslation = (source: string): string | undefined => {
+  const normalized = source.trim().toLowerCase();
+  const exactTranslations: Record<string, string> = {
+    'feature schema': '特征架构',
+    'feature schemas': '特征架构',
+    'feature schema catalog': '特征架构目录',
+    'feature schema catalogs': '特征架构目录',
+    'agent feature schema catalog': '运行时代理特征架构目录',
+    'agent feature schema catalogs': '运行时代理特征架构目录'
+  };
+  return exactTranslations[normalized];
+};
 
 const addIdentifier = (
   value: string | undefined,

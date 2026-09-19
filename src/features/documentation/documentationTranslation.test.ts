@@ -14,7 +14,8 @@ import {
 import {
   buildModelTranslationUnits,
   parseModelTranslationMarkdown,
-  renderModelTranslationMarkdown
+  renderModelTranslationMarkdown,
+  toCodegenTranslations
 } from '../model-i18n/modelTranslation';
 import { normalizeModelTranslationResponse } from '../model-i18n/modelTranslationProvider';
 import { toRenderableDocumentMarkdown } from './documentMarkdownPresentation';
@@ -237,6 +238,24 @@ test('parses edited model translation markdown back into source translations', (
     'Rule with | separator': '包含|分隔符的规则',
     'Windows Path': 'C:\\Temp\\Demo'
   });
+});
+
+test('normalizes Chinese model translations with feature schema context', () => {
+  const codegenTranslations = toCodegenTranslations('zh-CN', {
+    'Feature Schema': '特征模式',
+    'Feature Schema Catalog': '特征模式目录',
+    'Feature Schema Id': '特征模式 ID',
+    'Agent Feature Schema Catalog': '代理功能架构目录',
+    'Agent Feature Schema Catalogs': '代理功能架构目录',
+    'Agent Dictionary Value Catalog': '代理字典值目录'
+  }).translations['zh-CN'];
+
+  assert.equal(codegenTranslations['Feature Schema'], '特征架构');
+  assert.equal(codegenTranslations['Feature Schema Catalog'], '特征架构目录');
+  assert.equal(codegenTranslations['Feature Schema Id'], '特征架构 ID');
+  assert.equal(codegenTranslations['Agent Feature Schema Catalog'], '运行时代理特征架构目录');
+  assert.equal(codegenTranslations['Agent Feature Schema Catalogs'], '运行时代理特征架构目录');
+  assert.equal(codegenTranslations['Agent Dictionary Value Catalog'], '代理字典值目录');
 });
 
 test('hides internal document comments from rendered markdown', () => {
