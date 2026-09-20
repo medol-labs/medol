@@ -95,6 +95,10 @@
 - [ ] 跨部署单元的事件依赖
   - [ ] 事件发起方监听调用监听方自定义事件接口
 - [ ] readmodel 更新时机，现在是有事件就会落库，是否需要控制主要事件更新才落库。如： RuntimeDatasetBindingCatalog， RuntimeDatasetBindingConfigured 后才是有用信息，现在声明 dataset 后就有数据
+- [ ] Sync outbox / readmodel delta 数据清理策略
+  - [ ] 当前 outbox 表已有队列式 `purgeProcessedBefore`，但 readmodel delta 同步按 sequence/checkpoint 消费，不会天然把每条记录标记为 PROCESSED，长期运行会持续增长。
+  - [ ] 需要设计通用清理语义：短期支持按 TTL 清理过期 delta；长期支持按 channel/consumer checkpoint 水位判断，只有所有消费者都推进后才清理对应 readmodel delta。
+  - [ ] 清理任务应作为生成的通用 infrastructure 能力配置化开启，不能写入具体业务系统规则。
 - [ ] Read model 字段长度根据名字推断为 text，添加 text 类型或者指定长度
 - [ ] Read model projector 里根据字段名推断失败状态和失败原因
   - 保留“直接同名字段赋值”和“stateChange 明确状态赋值”，去掉 failureReason / FailedAt / failed state 的名字猜测。以后如果需要自动生成，应在建模里显式表达事件到 read model 字段的映射或 projection rule。
