@@ -3608,7 +3608,7 @@ context TrainingOrchestration {
 
     specification "Training Round Participants Are Snapshotted Per Round" {
       rule """
-        Each training round starts from a runtime snapshot selected by domain policy. The policy evaluates submitted job, locked training configuration, active federation membership, active runtime identity, detected runtime capabilities, connected runtime status, and approved dataset evidence matching the feature schema. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots. If the selected runtime count is below quorum, the system records a failed participant selection event so the operator can fix runtime or dataset readiness and retry selection.
+        Each training round starts from a runtime snapshot selected by domain policy. Selection first verifies that the federation has joined organizations and that those organizations have dataset metadata for the training configuration's exact feature schema with both schema and label compatibility confirmed. Only then can an active runtime identity with the same organization and runtime identity be paired with that dataset. One deterministic dataset is selected per runtime for a round snapshot. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots. If federation membership, compatible dataset evidence, runtime identity matching, or quorum validation fails, the system records a failed participant selection event with a stage-specific reason so the operator can fix readiness and retry selection.
       """
 
       scenario "Select Participants When Runtime Pool Reaches Quorum" {
@@ -3622,6 +3622,26 @@ context TrainingOrchestration {
       }
 
       scenario "Reject Participant Snapshot Below Quorum" {
+        given TrainingJobSubmitted {
+          trainingJobId = "job-1"
+        }
+        when SelectTrainingRoundParticipants {
+          trainingJobId = "job-1"
+        }
+        then TrainingRoundParticipantSelectionFailed
+      }
+
+      scenario "Reject Selection Without Joined Federation Members" {
+        given TrainingJobSubmitted {
+          trainingJobId = "job-1"
+        }
+        when SelectTrainingRoundParticipants {
+          trainingJobId = "job-1"
+        }
+        then TrainingRoundParticipantSelectionFailed
+      }
+
+      scenario "Reject Selection Without Compatible Dataset Evidence" {
         given TrainingJobSubmitted {
           trainingJobId = "job-1"
         }
