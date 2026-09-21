@@ -40,18 +40,19 @@ export const renderSimpleMermaidSvg = (source: string): string | undefined => {
   const nodeHeight = 64;
   const gap = 56;
   const margin = 28;
-  const width = horizontal
-    ? margin * 2 + nodeIds.length * nodeWidth + Math.max(0, nodeIds.length - 1) * gap
-    : margin * 2 + nodeWidth;
-  const height = horizontal
-    ? margin * 2 + nodeHeight
-    : margin * 2 + nodeIds.length * nodeHeight + Math.max(0, nodeIds.length - 1) * gap;
+  const columns = horizontal
+    ? Math.min(nodeIds.length, nodeIds.length > 12 ? 5 : nodeIds.length)
+    : 1;
+  const rows = Math.ceil(nodeIds.length / Math.max(1, columns));
+  const width = margin * 2 + columns * nodeWidth + Math.max(0, columns - 1) * gap;
+  const height = margin * 2 + rows * nodeHeight + Math.max(0, rows - 1) * gap;
   const positions = new Map(
     nodeIds.map((id, index) => [
       id,
-      horizontal
-        ? { x: margin + index * (nodeWidth + gap), y: margin }
-        : { x: margin, y: margin + index * (nodeHeight + gap) }
+      {
+        x: margin + (index % columns) * (nodeWidth + gap),
+        y: margin + Math.floor(index / columns) * (nodeHeight + gap)
+      }
     ] as const)
   );
   const edgeXml = edges.flatMap(([sourceId, targetId]) => {
@@ -137,4 +138,3 @@ const escapeXml = (value: string): string =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
-

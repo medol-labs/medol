@@ -89,6 +89,42 @@ test('builds a translation catalog from display vocabulary and narratives', () =
   assert(catalog.narratives.includes('Accounts are managed centrally.'));
 });
 
+test('uses the modeled domain name as the generated document title source', () => {
+  const multiDomainModel: EmModel = {
+    ...model,
+    domains: [
+      model.domains[0],
+      {
+        id: 'domain/audit',
+        name: 'AuditPlatform',
+        contexts: []
+      }
+    ]
+  };
+
+  const document = generateDocumentation(multiDomainModel, 'software-design');
+  const prd = generateDocumentation(multiDomainModel, 'prd');
+
+  assert.equal(document.title, 'Account Platform Software Design');
+  assert.match(document.markdown, /^# Account Platform Software Design/m);
+  assert.equal(prd.title, 'Account Platform Product Requirements and Acceptance');
+  assert.match(prd.markdown, /^# Account Platform Product Requirements Document/m);
+  assert.doesNotMatch(document.title, /Event Modeling Workspace/);
+  assert.doesNotMatch(prd.markdown, /Event Modeling Workspace/);
+});
+
+test('uses translated domain display text in generated Chinese document titles', () => {
+  const translated = translateDocumentationModelWithModelTranslations(model, {
+    'Account Platform': '账户平台'
+  });
+
+  const document = generateDocumentation(translated, 'prd', { language: 'zh-CN' });
+
+  assert.equal(document.title, '账户平台（Account Platform） 产品需求文档');
+  assert.match(document.markdown, /^# 账户平台（Account Platform） 产品需求文档/m);
+  assert.match(document.markdown, /## 一、产品背景与目标\/AP-PRD-BAG/);
+});
+
 test('generates Chinese database design without English template prose', () => {
   const readModelModel: EmModel = {
     domains: [{

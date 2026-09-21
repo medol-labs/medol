@@ -14,6 +14,7 @@ import {
 import { parseMedol } from '../../../lib/dslParser';
 import type { EmModel } from '../../../lib/model';
 import { readResolvedModelTranslations } from '../../../server/modelTranslationResolver';
+import { translateDocumentationModelWithModelTranslations } from '../../../features/documentation/documentationTranslation';
 
 const documentKinds = new Set<DocumentationKind>([
   'prd',
@@ -58,7 +59,18 @@ export const Route = createFileRoute('/api/modeling/documents')({
         const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : undefined;
         const model = parseMedol(medol);
         const sourceHash = hashMedolSource(medol);
-        const document = generateDocumentation(model, body.kind, {
+        const modelTranslations = language === 'zh-CN'
+          ? readCurrentModelTranslations({
+              model,
+              workspaceId,
+              sourceHash,
+              locale: language
+            })
+          : {};
+        const documentationModel = Object.keys(modelTranslations).length > 0
+          ? translateDocumentationModelWithModelTranslations(model, modelTranslations)
+          : model;
+        const document = generateDocumentation(documentationModel, body.kind, {
           sourceText: medol,
           language
         });
@@ -73,14 +85,7 @@ export const Route = createFileRoute('/api/modeling/documents')({
           dsl: medol,
           model,
           document,
-          modelTranslations: language === 'zh-CN'
-            ? readCurrentModelTranslations({
-                model,
-                workspaceId,
-                sourceHash,
-                locale: language
-              })
-            : undefined
+          modelTranslations
         });
         return Response.json({
           ...document,

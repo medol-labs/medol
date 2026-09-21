@@ -52,6 +52,7 @@ export function DocumentWorkspace({
 }: DocumentWorkspaceProps) {
   const [title, setTitle] = useState('');
   const [markdown, setMarkdown] = useState('');
+  const [previewMarkdown, setPreviewMarkdown] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMode, setMobileMode] = useState<'edit' | 'preview'>('edit');
   const [wordExportStatus, setWordExportStatus] = useState<'idle' | 'exporting' | 'error'>('idle');
@@ -61,15 +62,32 @@ export function DocumentWorkspace({
   const editorScrollSubscription = useRef<{ dispose: () => void } | undefined>(undefined);
   const editorInteractionCleanup = useRef<(() => void) | undefined>(undefined);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
+  const previewAnchorsRef = useRef<PreviewAnchor[]>([]);
+  const previewScrollFrame = useRef<number | undefined>(undefined);
+  const editorScrollFrame = useRef<number | undefined>(undefined);
   const scrollDriver = useRef<'editor' | 'preview' | undefined>(undefined);
   const scrollDriverTimer = useRef<number | undefined>(undefined);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
+  const activeDocumentIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
+    const documentChanged = activeDocumentIdRef.current !== activeDocument?.id;
+    activeDocumentIdRef.current = activeDocument?.id;
     setTitle(activeDocument?.title ?? '');
     setMarkdown(activeDocument?.markdown ?? '');
+    if (documentChanged) {
+      setPreviewMarkdown('');
+      previewAnchorsRef.current = [];
+    }
     setWordExportProfile(activeDocument?.language === 'zh-CN' ? 'zh-formal' : 'default');
   }, [activeDocument]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setPreviewMarkdown(markdown);
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [markdown]);
 
   const dirty = Boolean(activeDocument)
     && (title !== activeDocument?.title || markdown !== activeDocument?.markdown);
@@ -96,8 +114,8 @@ export function DocumentWorkspace({
     return `${base || 'document'}.md`;
   }, [activeDocument?.title, title]);
   const markdownSections = useMemo(
-    () => parseDocumentMarkdownSections(markdown),
-    [markdown]
+    () => parseDocumentMarkdownSections(previewMarkdown),
+    [previewMarkdown]
   );
   const renderableMarkdownSections = useMemo(
     () => markdownSections.map((section) => ({
@@ -126,7 +144,21 @@ export function DocumentWorkspace({
     editorScrollSubscription.current?.dispose();
     editorInteractionCleanup.current?.();
     if (scrollDriverTimer.current !== undefined) window.clearTimeout(scrollDriverTimer.current);
+    if (previewScrollFrame.current !== undefined) window.cancelAnimationFrame(previewScrollFrame.current);
+    if (editorScrollFrame.current !== undefined) window.cancelAnimationFrame(editorScrollFrame.current);
   }, []);
+
+  useEffect(() => {
+    const preview = previewScrollRef.current;
+    if (!preview) {
+      previewAnchorsRef.current = [];
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      previewAnchorsRef.current = collectPreviewAnchors(preview);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [renderableMarkdownSections]);
 
   const markScrollDriver = (source: 'editor' | 'preview') => {
     scrollDriver.current = source;
@@ -143,7 +175,7 @@ export function DocumentWorkspace({
     const editor = editorRef.current;
     const preview = previewScrollRef.current;
     if (!editor || !preview) return;
-    const anchors = collectPreviewAnchors(preview);
+    const anchors = previewAnchorsRef.current;
     if (anchors.length === 0) return;
     const visibleLine = editor.getVisibleRanges()[0]?.startLineNumber ?? 1;
     const [anchor, nextAnchor] = findLineAnchors(anchors, visibleLine);
@@ -161,7 +193,7 @@ export function DocumentWorkspace({
     const editor = editorRef.current;
     const preview = previewScrollRef.current;
     if (!editor || !preview) return;
-    const anchors = collectPreviewAnchors(preview);
+    const anchors = previewAnchorsRef.current;
     if (anchors.length === 0) return;
     const [anchor, nextAnchor] = findPreviewAnchors(anchors, preview.scrollTop);
     const previewEnd = nextAnchor?.top ?? anchor.top + anchor.height;
@@ -171,6 +203,22 @@ export function DocumentWorkspace({
     const sourceEnd = nextAnchor?.line ?? anchor.endLine;
     const sourceLine = anchor.line + progress * Math.max(0, sourceEnd - anchor.line);
     editor.setScrollTop(editor.getTopForLineNumber(Math.max(1, Math.round(sourceLine))));
+  };
+
+  const schedulePreviewScrollSync = () => {
+    if (previewScrollFrame.current !== undefined) return;
+    previewScrollFrame.current = window.requestAnimationFrame(() => {
+      previewScrollFrame.current = undefined;
+      syncEditorFromPreview();
+    });
+  };
+
+  const scheduleEditorScrollSync = (scrollTop: number) => {
+    if (editorScrollFrame.current !== undefined) return;
+    editorScrollFrame.current = window.requestAnimationFrame(() => {
+      editorScrollFrame.current = undefined;
+      syncPreviewFromEditor(scrollTop);
+    });
   };
 
   const handlePreviewClick = (event: MouseEvent<HTMLDivElement>) => {
@@ -396,7 +444,7 @@ export function DocumentWorkspace({
                   editorElement?.removeEventListener('keydown', takeEditorControl);
                 };
                 editorScrollSubscription.current = editor.onDidScrollChange((event) => {
-                  if (event.scrollTopChanged) syncPreviewFromEditor(event.scrollTop);
+                  if (event.scrollTopChanged) scheduleEditorScrollSync(event.scrollTop);
                 });
               }}
               options={{
@@ -414,13 +462,14 @@ export function DocumentWorkspace({
             ref={previewScrollRef}
             data-document-preview
             className={`min-h-0 overflow-y-auto bg-white ${mobileMode === 'edit' ? 'hidden lg:block' : 'block'}`}
-            onScroll={syncEditorFromPreview}
+            onScroll={schedulePreviewScrollSync}
             onWheel={() => markScrollDriver('preview')}
             onPointerDown={() => markScrollDriver('preview')}
             onClick={handlePreviewClick}
           >
             <article className="document-markdown mx-auto max-w-4xl px-8 py-7">
-              {renderableMarkdownSections.map((section) => (
+              {previewMarkdown
+                ? renderableMarkdownSections.map((section) => (
                 <section
                   key={section.id}
                   className={focusSourceId && section.sourceRefs.includes(focusSourceId)
@@ -456,7 +505,12 @@ export function DocumentWorkspace({
                     {section.markdown}
                   </ReactMarkdown>
                 </section>
-              ))}
+                ))
+                : (
+                  <div className="py-12 text-center text-sm text-slate-500">
+                    Preparing preview...
+                  </div>
+                )}
             </article>
           </div>
         </div>
@@ -498,9 +552,12 @@ const labelKind = (kind: ModelingDocumentSummary['kind']): string => ({
 
 const markdownComponents: Components = {
   pre({ children, node: _node, ...props }) {
-    if (containsMermaidCode(children)) {
-      return <div className="document-mermaid-source" {...props}>{children}</div>;
+    const mermaidSource = mermaidCodeSource(children);
+    if (mermaidSource !== undefined) {
+      return <MermaidDiagram source={mermaidSource} />;
     }
+    const mermaidDiagram = mermaidDiagramElement(children);
+    if (mermaidDiagram) return mermaidDiagram;
     return <pre {...props}>{children}</pre>;
   },
   code({ className, children, node: _node, ...props }) {
@@ -529,12 +586,25 @@ function MermaidDiagram({ source }: { source: string }) {
   );
 }
 
-const containsMermaidCode = (children: ReactNode): boolean => {
+const mermaidCodeSource = (children: ReactNode): string | undefined => {
+  const items = Children.toArray(children);
+  if (items.length !== 1 || !isValidElement<{ className?: string; children?: ReactNode }>(items[0])) {
+    return undefined;
+  }
+  const className = items[0].props.className;
+  if (typeof className !== 'string' || !className.split(/\s+/).includes('language-mermaid')) {
+    return undefined;
+  }
+  return String(items[0].props.children ?? '').replace(/\n$/, '');
+};
+
+const mermaidDiagramElement = (children: ReactNode): ReactNode | undefined => {
   const items = Children.toArray(children);
   return items.length === 1
-    && isValidElement<{ className?: string }>(items[0])
-    && typeof items[0].props.className === 'string'
-    && items[0].props.className.split(/\s+/).includes('language-mermaid');
+    && isValidElement<{ source: string }>(items[0])
+    && items[0].type === MermaidDiagram
+    ? items[0]
+    : undefined;
 };
 
 const clamp = (value: number): number => Math.min(1, Math.max(0, value));

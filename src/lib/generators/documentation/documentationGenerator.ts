@@ -233,11 +233,9 @@ export const buildDocumentationBundle = (
       }))
   );
 
-  const titleSource = model.domains.length === 1
-    ? model.domains[0].name
-    : model.domains.length > 1
-      ? 'Event Modeling Workspace'
-      : model.contexts[0]?.name ?? 'Event Modeling Workspace';
+  const titleSource = model.domains[0]?.name
+    ?? model.contexts[0]?.name
+    ?? 'Event Modeling Workspace';
 
   const deployments = uniqueById([
     ...(model.deployments ?? []),
@@ -249,7 +247,7 @@ export const buildDocumentationBundle = (
   ]);
 
   return {
-    title: humanize(titleSource),
+    title: displayTitle(titleSource),
     generatedAt,
     domains: model.domains.map((domain) => domain.name),
     contexts,
@@ -279,6 +277,16 @@ const uniqueById = <TItem extends { id: string }>(items: TItem[]): TItem[] => {
     seen.add(item.id);
     return true;
   });
+};
+
+const displayTitle = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Event Modeling Workspace';
+  const translatedIdentifier = trimmed.match(/^(.+?)（([A-Za-z][A-Za-z0-9_]*)）$/u);
+  if (translatedIdentifier) {
+    return `${translatedIdentifier[1]}（${humanize(translatedIdentifier[2])}）`;
+  }
+  return /^[A-Za-z0-9_]+$/.test(trimmed) ? humanize(trimmed) : trimmed;
 };
 
 const toDocumentationElement = (element: EmElement) => ({

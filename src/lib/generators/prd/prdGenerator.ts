@@ -29,17 +29,25 @@ export interface PrdGenerateOptions {
 export const generatePrd = (model: EmModel, options: PrdGenerateOptions = {}): PrdGenerationResult => {
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   const context = model.contexts[0];
-  const titleSource = model.domains.length === 1
-    ? model.domains[0].name
-    : model.domains.length > 1
-      ? 'Event Modeling Workspace'
-      : context?.name ?? 'Product Requirements';
-  const title = humanize(titleSource);
+  const titleSource = model.domains[0]?.name
+    ?? context?.name
+    ?? 'Product Requirements';
+  const title = displayTitle(titleSource);
   const documentId = `prd:${toDslId(titleSource)}`;
   const document = buildPrdDocument(model, documentId, title, generatedAt);
   const trace = buildTrace(model, document, { ...options, generatedAt });
 
   return { document, trace };
+};
+
+const displayTitle = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Product Requirements';
+  const translatedIdentifier = trimmed.match(/^(.+?)（([A-Za-z][A-Za-z0-9_]*)）$/u);
+  if (translatedIdentifier) {
+    return `${translatedIdentifier[1]}（${humanize(translatedIdentifier[2])}）`;
+  }
+  return /^[A-Za-z0-9_]+$/.test(trimmed) ? humanize(trimmed) : trimmed;
 };
 
 const buildPrdDocument = (
