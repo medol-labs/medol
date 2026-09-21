@@ -60,6 +60,12 @@
   - projector 中主动查询相关 readmodel
 - [ ] UI 端生成对接设计工具 Figma/v0 等
   - [ ] 交由 Code Agent 基于 medol 建模做设计，综合考虑整体系统
+- [ ] 前端 Blueprint / Extension / Override 建模支持
+  - [x] code generator 已先输出 `EXTENSIONS.md` 与 typed composition 骨架，区分 generated input、developer-owned custom composition/overrides/extensions，以及 runtime 消费的 resolved composition。
+  - [ ] MEDOL/codegen model 输出 frontend application、resource、command、field 对应的扩展点元数据
+  - [x] code generator 已为 resource page、toolbar、row action、field renderer、menu icon、header action、form behavior 定义并接入 typed extension point
+  - [ ] 支持生成 override manifest / docs，说明默认 fallback、override key、类型签名、稳定手写路径
+  - [ ] 后续支持 blueprint 自定义：业务可替换局部页面组合能力，而不是只能整页 override
 - [ ] ai 生成用户旅程，再结合文生视频工具，生成系统使用引导视频
 - [x] 建模中的 Ref 到底填什么，用户怎么能知道怎么填
 - [x] 代码生成时，对 automation 前端不需要生成命令入口
