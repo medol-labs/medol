@@ -8189,6 +8189,8 @@ context RuntimeAgentOperations {
       runtimeAgentId: UUID id technical
       runtimeInfrastructureId: UUID
       agentVersion: String
+      runtimeAgentEndpoint: String
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
       bootstrapConfigurationLoaded: Boolean
     }
 
@@ -8201,7 +8203,7 @@ context RuntimeAgentOperations {
 
     specification "Runtime Agent Startup Bootstrap Configuration" {
       rule """
-        Runtime agent startup begins by loading bootstrap configuration from environment variables, mounted files, or platform-issued startup material. The configuration must provide the stable runtimeAgentId generated when RuntimeInfrastructure was registered, the matching runtimeInfrastructureId, and the agent version. A successful load starts the runtime-agent lifecycle; a missing or invalid configuration records a bootstrap failure and must not create a new random runtimeAgentId.
+        Runtime agent startup begins by loading bootstrap configuration from environment variables, mounted files, or platform-issued startup material. The configuration must provide the stable runtimeAgentId generated when RuntimeInfrastructure was registered, the matching runtimeInfrastructureId, the agent version, and the endpoint the platform can use to call this runtime agent. A successful load starts the runtime-agent lifecycle; a missing or invalid configuration records a bootstrap failure and must not create a new random runtimeAgentId.
       """
 
       scenario "Load Runtime Agent Bootstrap Configuration" {
@@ -8232,12 +8234,16 @@ context RuntimeAgentOperations {
       runtimeAgentId: UUID id technical from RuntimeAgentBootstrapConfigurationLoaded.runtimeAgentId
       runtimeInfrastructureId: UUID from RuntimeAgentBootstrapConfigurationLoaded.runtimeInfrastructureId
       agentVersion: String from RuntimeAgentBootstrapConfigurationLoaded.agentVersion
+      runtimeAgentEndpoint: String from RuntimeAgentBootstrapConfigurationLoaded.runtimeAgentEndpoint
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE" from RuntimeAgentBootstrapConfigurationLoaded.endpointScope
     }
 
     event RuntimeAgentStarted {
       runtimeAgentId: UUID id technical
       runtimeInfrastructureId: UUID
       agentVersion: String
+      runtimeAgentEndpoint: String
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
     }
 
     state Started
@@ -8247,10 +8253,11 @@ context RuntimeAgentOperations {
   slice ReportRuntimeInstanceSelfCheckPassed {
     actor RuntimeAgent
     reactsTo RuntimeAgentStarted
+    // Runs local runtime-agent readiness checks and snapshots the configured endpoint for platform callbacks.
+    port
 
     automation ReportReadyAfterConfigurationFetchAndSelfCheck {
       on RuntimeAgentStarted
-      condition runtimeAgentSelfCheckPassed == true
       emits ReportRuntimeInstanceSelfCheckPassed
     }
 
@@ -8258,19 +8265,16 @@ context RuntimeAgentOperations {
       runtimeAgentId: UUID id technical from RuntimeAgentStarted.runtimeAgentId
       runtimeInfrastructureId: UUID from RuntimeAgentStarted.runtimeInfrastructureId
       agentVersion: String from RuntimeAgentStarted.agentVersion
-      runtimeAgentSelfCheckPassed: Boolean
-      configurationLoaded: Boolean
-      secretStoreAccessible: Boolean
-      runtimeEngineAdapterReady: Boolean
-      modelRepositoryClientReady: Boolean
-      localDatasetBindingStoreReady: Boolean
-      workingDirectoryWritable: Boolean
+      runtimeAgentEndpoint: String from RuntimeAgentStarted.runtimeAgentEndpoint
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE" from RuntimeAgentStarted.endpointScope
     }
 
     event RuntimeInstanceSelfCheckPassed {
       runtimeAgentId: UUID id technical
       runtimeInfrastructureId: UUID
       agentVersion: String
+      runtimeAgentEndpoint: String
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
       runtimeAgentSelfCheckPassed: Boolean
       configurationLoaded: Boolean
       secretStoreAccessible: Boolean
@@ -8281,6 +8285,30 @@ context RuntimeAgentOperations {
     }
 
     state Ready
+
+    specification "Runtime Agent Instance Self Check" {
+      rule """
+        After the runtime agent reports it has started, it performs a local self-check through an adapter. The adapter verifies that bootstrap configuration was loaded, required local stores and working directories are accessible, the runtime-engine adapter can be initialized, and platform/support clients are configured. The RuntimeInstanceSelfCheckPassed event must carry the runtime-agent endpoint from startup configuration so the platform can dispatch future execution plans to this agent.
+      """
+
+      scenario "Report Runtime Instance Self Check Passed" {
+        given RuntimeAgentStarted {
+          runtimeAgentId = "runtime-agent-1"
+          runtimeInfrastructureId = "runtime-infra-1"
+          agentVersion = "local-dev"
+          runtimeAgentEndpoint = "http://runtime-agent:8082"
+          endpointScope = "CLUSTER"
+        }
+        when ReportRuntimeInstanceSelfCheckPassed {
+          runtimeAgentId = "runtime-agent-1"
+          runtimeInfrastructureId = "runtime-infra-1"
+          agentVersion = "local-dev"
+          runtimeAgentEndpoint = "http://runtime-agent:8082"
+          endpointScope = "CLUSTER"
+        }
+        then RuntimeInstanceSelfCheckPassed
+      }
+    }
   }
 
   slice RuntimeAgentLifecycleCatalog {
@@ -8288,6 +8316,8 @@ context RuntimeAgentOperations {
       runtimeAgentId: UUID id
       runtimeInfrastructureId: UUID
       agentVersion: String
+      runtimeAgentEndpoint: String?
+      endpointScope: String? dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
       lifecycleStatus: String
       bootstrapConfigurationLoaded: Boolean?
       bootstrapFailureReason: String?
@@ -8334,8 +8364,8 @@ context RuntimeAgentOperations {
     command ReportRuntimeInstanceConnected {
       runtimeInfrastructureId: UUID id technical from RuntimeInstanceSelfCheckPassed.runtimeInfrastructureId
       runtimeAgentId: UUID from RuntimeInstanceSelfCheckPassed.runtimeAgentId
-      runtimeAgentEndpoint: String
-      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE"
+      runtimeAgentEndpoint: String from RuntimeInstanceSelfCheckPassed.runtimeAgentEndpoint
+      endpointScope: String dictionary "RUNTIME_AGENT_ENDPOINT_SCOPE" from RuntimeInstanceSelfCheckPassed.endpointScope
       runtimePlatformConnectionReady: Boolean
       platformApiReachable: Boolean
       agentAuthenticationSucceeded: Boolean
