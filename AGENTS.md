@@ -33,7 +33,7 @@ There is no aggregate `npm test` — pick the suite that covers the changed area
 
 - `npm run medol:to-config -- examples/<file>.medol` — emit `config.json` (legacy Martin format).
 - `npm run medol:to-model -- examples/<file>.medol` — emit `em-model.json` (semantic model for renderer/generators).
-- `npm run medol:to-codegen-model -- examples/<file>.medol` — emit the **CodegenModel** that `es-code-generator` consumes. This is the canonical input for the generation pipeline.
+- `npm run medol:to-codegen-model -- examples/<file>.medol` — emit the **CodegenModel** that `medol-codegen` consumes. This is the canonical input for the generation pipeline.
 - `npm run prd:generate -- examples/<file>.medol [--trace]` — emit PRD Markdown + optional source-map trace.
 - `npm run docs:generate -- examples/<file>.medol --kind=<prd|software-design|database-design|process|all> [--language=zh-CN] [--json]` — design docs.
 - `npm run config:to-medol -- <config.json>` — reverse direction (legacy import).
@@ -57,7 +57,7 @@ There is no aggregate `npm test` — pick the suite that covers the changed area
 ## REST endpoints (TanStack Start)
 
 - `GET /api/modeling/workspaces`, `POST /api/modeling/workspaces`, `GET/PUT/DELETE /api/modeling/workspaces/:id`
-- `GET /api/modeling/codegen-model?workspaceId=<id>&locale=<locale>` — the JSON that drives `es-code-generator`. Omit `workspaceId` to export the most recently updated workspace.
+- `GET /api/modeling/codegen-model?workspaceId=<id>&locale=<locale>` — the JSON that drives `medol-codegen`. Omit `workspaceId` to export the most recently updated workspace.
 - `POST /api/modeling/documents` — body `{ medol, kind, language?, enhanceWithAi? }`. Kinds: `prd`, `software-design`, `database-design`, `process`.
 - `GET /api/agent/history` — agent chat history mirror.
 
