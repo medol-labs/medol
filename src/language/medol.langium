@@ -213,6 +213,7 @@ Command:
 CommandElement:
       Field
     | CommandResult
+    | ClientEffect
     | Example
 ;
 
@@ -220,6 +221,31 @@ CommandResult:
     'result' name=ID? '{'
         fields+=Field*
     '}'
+;
+
+ClientEffect:
+    'clientEffect' type=ClientEffectType ('{'
+        options+=ClientEffectOption*
+    '}')?
+;
+
+ClientEffectType returns string:
+      'download'
+    | 'export'
+    | 'import'
+    | 'navigate'
+    | 'openExternal'
+    | 'copy'
+    | 'revealSecret'
+    | 'asyncJob'
+    | 'stream'
+    | 'preview'
+    | 'print'
+    | 'share'
+;
+
+ClientEffectOption:
+    name=ID value=(ID | STRING)
 ;
 
 Event:

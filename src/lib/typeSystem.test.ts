@@ -80,6 +80,75 @@ test('parses optional list fields and preserves codegen cardinality', () => {
   assert.match(roundTripDsl, /shape: Int\[\]\?/);
 });
 
+test('parses command client effects and preserves codegen client effect metadata', () => {
+  const model = parseMedol(`
+    context ModelRepository {
+      slice DownloadModelArtifact {
+        ui ModelRepositoryScreen confirm
+        command DownloadModelArtifact {
+          clientEffect download {
+            uriField downloadUri
+            filenameField modelName
+            extensionFrom modelFormat
+          }
+          modelId: UUID
+          result {
+            downloadUri: String
+          }
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const command = model.contexts[0].slices[0].elements.find((element) => element.kind === 'command' && element.name === 'DownloadModelArtifact');
+  assert.deepEqual(command?.clientEffect, {
+    type: 'download',
+    options: {
+      uriField: 'downloadUri',
+      filenameField: 'modelName',
+      extensionFrom: 'modelFormat'
+    }
+  });
+
+  const codegen = modelToCodegenModel(model);
+  assert.deepEqual(codegen.slices[0].commands[0].clientEffect, {
+    type: 'download',
+    options: {
+      uriField: 'downloadUri',
+      filenameField: 'modelName',
+      extensionFrom: 'modelFormat'
+    }
+  });
+  assert.equal(codegen.slices[0].commands[0].ui?.type, 'confirm');
+});
+
+test('parses command client effects without metadata block', () => {
+  const model = parseMedol(`
+    context FileUpload {
+      slice DownloadFile {
+        ui UploadedFileCatalogScreen confirm
+        command DownloadFile {
+          clientEffect download
+          fileId: UUID id technical
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const command = model.contexts[0].slices[0].elements.find((element) => element.kind === 'command' && element.name === 'DownloadFile');
+  assert.deepEqual(command?.clientEffect, {
+    type: 'download',
+    options: {}
+  });
+
+  const codegen = modelToCodegenModel(model);
+  assert.deepEqual(codegen.slices[0].commands[0].clientEffect, {
+    type: 'download'
+  });
+});
+
 test('parses display field attribute and preserves it for code generation', () => {
   const model = parseMedol(`
     context Catalogs {

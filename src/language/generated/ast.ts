@@ -40,11 +40,13 @@ export type MedolKeywordNames =
     | "actor"
     | "as"
     | "assert"
+    | "asyncJob"
     | "automation"
     | "background"
     | "by"
     | "cache"
     | "capabilities"
+    | "clientEffect"
     | "code"
     | "command"
     | "concept"
@@ -52,6 +54,7 @@ export type MedolKeywordNames =
     | "config"
     | "confirm"
     | "context"
+    | "copy"
     | "decision"
     | "deploy"
     | "deployment"
@@ -62,6 +65,7 @@ export type MedolKeywordNames =
     | "dictionaryProvider"
     | "display"
     | "domain"
+    | "download"
     | "drawer"
     | "each"
     | "emits"
@@ -70,6 +74,7 @@ export type MedolKeywordNames =
     | "error"
     | "event"
     | "example"
+    | "export"
     | "expression"
     | "external"
     | "false"
@@ -97,14 +102,18 @@ export type MedolKeywordNames =
     | "matches"
     | "metric"
     | "missing"
+    | "navigate"
     | "note"
     | "null"
     | "on"
     | "oneOf"
+    | "openExternal"
     | "order"
     | "policy"
     | "port"
     | "portOutput"
+    | "preview"
+    | "print"
     | "projection"
     | "protocol"
     | "query"
@@ -113,9 +122,11 @@ export type MedolKeywordNames =
     | "readmodel"
     | "reject"
     | "result"
+    | "revealSecret"
     | "risk"
     | "rule"
     | "scenario"
+    | "share"
     | "slice"
     | "source"
     | "specification"
@@ -123,6 +134,7 @@ export type MedolKeywordNames =
     | "state"
     | "steps"
     | "strategy"
+    | "stream"
     | "subscribe"
     | "sync"
     | "tags"
@@ -281,6 +293,46 @@ export function isCardinality(item: unknown): item is Cardinality {
     return item === '[]?' || item === '[]' || item === '?';
 }
 
+export interface ClientEffect extends langium.AstNode {
+    readonly $container: Command;
+    readonly $type: 'ClientEffect';
+    options: Array<ClientEffectOption>;
+    type: ClientEffectType;
+}
+
+export const ClientEffect = {
+    $type: 'ClientEffect',
+    options: 'options',
+    type: 'type'
+} as const;
+
+export function isClientEffect(item: unknown): item is ClientEffect {
+    return reflection.isInstance(item, ClientEffect.$type);
+}
+
+export interface ClientEffectOption extends langium.AstNode {
+    readonly $container: ClientEffect;
+    readonly $type: 'ClientEffectOption';
+    name: string;
+    value: string;
+}
+
+export const ClientEffectOption = {
+    $type: 'ClientEffectOption',
+    name: 'name',
+    value: 'value'
+} as const;
+
+export function isClientEffectOption(item: unknown): item is ClientEffectOption {
+    return reflection.isInstance(item, ClientEffectOption.$type);
+}
+
+export type ClientEffectType = 'asyncJob' | 'copy' | 'download' | 'export' | 'import' | 'navigate' | 'openExternal' | 'preview' | 'print' | 'revealSecret' | 'share' | 'stream';
+
+export function isClientEffectType(item: unknown): item is ClientEffectType {
+    return item === 'download' || item === 'export' || item === 'import' || item === 'navigate' || item === 'openExternal' || item === 'copy' || item === 'revealSecret' || item === 'asyncJob' || item === 'stream' || item === 'preview' || item === 'print' || item === 'share';
+}
+
 export interface Command extends langium.AstNode {
     readonly $container: Integration | Slice;
     readonly $type: 'Command';
@@ -298,7 +350,7 @@ export function isCommand(item: unknown): item is Command {
     return reflection.isInstance(item, Command.$type);
 }
 
-export type CommandElement = CommandResult | Example | Field;
+export type CommandElement = ClientEffect | CommandResult | Example | Field;
 
 export const CommandElement = {
     $type: 'CommandElement'
@@ -1790,6 +1842,8 @@ export type MedolAstType = {
     AutomationTrigger: AutomationTrigger
     BinaryExpr: BinaryExpr
     BooleanLiteral: BooleanLiteral
+    ClientEffect: ClientEffect
+    ClientEffectOption: ClientEffectOption
     Command: Command
     CommandElement: CommandElement
     CommandResult: CommandResult
@@ -1979,6 +2033,31 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [Literal.$type]
+        },
+        ClientEffect: {
+            name: ClientEffect.$type,
+            properties: {
+                options: {
+                    name: ClientEffect.options,
+                    defaultValue: []
+                },
+                type: {
+                    name: ClientEffect.type
+                }
+            },
+            superTypes: [CommandElement.$type]
+        },
+        ClientEffectOption: {
+            name: ClientEffectOption.$type,
+            properties: {
+                name: {
+                    name: ClientEffectOption.name
+                },
+                value: {
+                    name: ClientEffectOption.value
+                }
+            },
+            superTypes: []
         },
         Command: {
             name: Command.$type,

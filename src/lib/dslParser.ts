@@ -7,6 +7,7 @@ import {
   isBinaryExpr,
   isBooleanLiteral,
   isCommand,
+  isClientEffect,
   isCondition,
   isCommandResult,
   isDictionaryProvider,
@@ -787,6 +788,13 @@ const normalizeMultilineString = (value: string): string => {
   return lines.map((line) => line.slice(indentation)).join('\n').trim();
 };
 
+const stripQuotes = (value: string): string => {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1);
+  }
+  return value;
+};
+
 const formatValidationExpression = (expression: ValidationExpression): string => {
   switch (expression.$type) {
     case 'UniqueValidation':
@@ -835,6 +843,7 @@ const parseElement = (
     name: safeName(node.name, 'UnnamedElement'),
     fields: parseElementFields(node),
     ...(isCommand(node) ? { resultFields: parseCommandResultFields(node) } : {}),
+    ...(isCommand(node) ? parseClientEffect(node) : {}),
     ...withSourceRange(node),
     ...(isReadModel(node) && node.listElement ? { listElement: true } : {}),
     ...(isReadModel(node) && node.todo ? { todo: true } : {}),
@@ -873,6 +882,18 @@ const parseCommandResultFields = (node: AstCommand): EmField[] => (
     .filter(isCommandResult)
     .flatMap((result) => (result.fields ?? []).map(parseField))
 );
+
+const parseClientEffect = (node: AstCommand): Pick<EmElement, 'clientEffect'> => {
+  const clientEffect = (node.elements ?? []).find(isClientEffect);
+  if (!clientEffect) return {};
+
+  return {
+    clientEffect: {
+      type: clientEffect.type as NonNullable<EmElement['clientEffect']>['type'],
+      options: Object.fromEntries((clientEffect.options ?? []).map((option) => [option.name, stripQuotes(String(option.value))]))
+    }
+  };
+};
 
 const parseIntegrationFields = (node: AstIntegration): EmField[] => {
   const fields: EmField[] = [];

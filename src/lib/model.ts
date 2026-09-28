@@ -45,6 +45,7 @@ export interface EmElement {
   name: string;
   fields: EmField[];
   resultFields?: EmField[];
+  clientEffect?: EmClientEffect;
   listElement?: boolean;
   todo?: boolean;
   sync?: boolean;
@@ -72,6 +73,25 @@ export interface EmDictionaryProvider {
   state?: string;
   order?: string;
 }
+
+export interface EmClientEffect {
+  type: EmClientEffectType;
+  options: Record<string, string>;
+}
+
+export type EmClientEffectType =
+  | 'download'
+  | 'export'
+  | 'import'
+  | 'navigate'
+  | 'openExternal'
+  | 'copy'
+  | 'revealSecret'
+  | 'asyncJob'
+  | 'stream'
+  | 'preview'
+  | 'print'
+  | 'share';
 
 export type EmUiType =
   | 'list'

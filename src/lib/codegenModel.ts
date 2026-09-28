@@ -182,6 +182,7 @@ export interface CodegenElement {
   aggregate?: CodegenAggregateRef;
   fields: CodegenField[];
   resultFields?: CodegenField[];
+  clientEffect?: CodegenClientEffect;
   dependencies: CodegenDependency[];
   startsLifecycle?: boolean;
   port?: boolean;
@@ -247,6 +248,25 @@ export interface CodegenDictionaryProvider {
   state?: string;
   order?: string;
 }
+
+export interface CodegenClientEffect {
+  type: CodegenClientEffectType;
+  options?: Record<string, string>;
+}
+
+export type CodegenClientEffectType =
+  | 'download'
+  | 'export'
+  | 'import'
+  | 'navigate'
+  | 'openExternal'
+  | 'copy'
+  | 'revealSecret'
+  | 'asyncJob'
+  | 'stream'
+  | 'preview'
+  | 'print'
+  | 'share';
 
 export interface CodegenUi {
   type?: CodegenUiType;
@@ -824,6 +844,7 @@ const toCodegenElement = (
   ...(type === 'COMMAND' && element.resultFields && element.resultFields.length > 0
     ? { resultFields: element.resultFields.map((field) => toCodegenField(field)) }
     : {}),
+  ...(type === 'COMMAND' && element.clientEffect ? { clientEffect: toCodegenClientEffect(element.clientEffect) } : {}),
   dependencies: dependenciesByElementId.get(element.id) ?? [],
   ...(startsLifecycle ? { startsLifecycle } : {}),
   ...(type === 'COMMAND' && port ? { port: true } : {}),
@@ -841,6 +862,11 @@ const toCodegenSliceRef = (slice: EmSlice): { id: string; name: string; title: s
   id: stableId('slice', slice.id),
   name: slice.name,
   title: humanize(slice.name)
+});
+
+const toCodegenClientEffect = (clientEffect: NonNullable<EmElement['clientEffect']>): CodegenClientEffect => ({
+  type: clientEffect.type,
+  ...(Object.keys(clientEffect.options).length > 0 ? { options: clientEffect.options } : {})
 });
 
 const toCodegenStateChange = (slice: EmSlice, events: EmElement[]): CodegenStateChange => {

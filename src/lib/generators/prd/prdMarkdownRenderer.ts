@@ -744,6 +744,7 @@ const uiTypeLabel = (type: string, language: DocumentationLanguage): string => {
     dialog: '弹窗',
     drawer: '抽屉',
     confirm: '确认操作',
+    download: '下载',
     wizard: '分步向导',
     inline: '行内编辑',
     background: '后台执行'

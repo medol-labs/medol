@@ -934,11 +934,16 @@ context FileUpload {
 
   slice DownloadFile {
     actor PlatformUser
-    ui UploadedFileCatalogScreen
+    ui UploadedFileCatalogScreen confirm
     reactsTo FileUploaded
     port
 
     command DownloadFile {
+      clientEffect download {
+        uriField downloadUri
+        filenameField originalFileName
+        extensionFrom contentType
+      }
       fileId: UUID id technical
     }
 
@@ -2528,12 +2533,17 @@ context ModelRepository {
 
   slice DownloadModelArtifact {
     actor MLOpsEngineer
-    ui ModelRepositoryScreen
+    ui ModelRepositoryScreen confirm
     reactsTo ModelArtifactRegistered
     reactsTo FederatedModelArtifactRegistered
     port
 
     command DownloadModelArtifact {
+      clientEffect download {
+        uriField downloadUri
+        filenameField modelName
+        extensionFrom modelFormat
+      }
       modelId: UUID id technical
     }
 
