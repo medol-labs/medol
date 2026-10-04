@@ -51,6 +51,7 @@ export interface EmElement {
   sync?: boolean;
   syncSource?: string;
   syncFilters?: EmSyncFilter[];
+  eligibility?: EmEligibility[];
   sliceId?: string;
   aggregateId?: string;
   sourceRange?: MedolSourceRange;
@@ -62,6 +63,18 @@ export interface EmElement {
 export interface EmSyncFilter {
   target: string;
   source: string;
+}
+
+export interface EmEligibility {
+  profile?: string;
+  operator: 'AND';
+  conditions: EmEligibilityCondition[];
+}
+
+export interface EmEligibilityCondition {
+  left: string;
+  operator: '>' | '<' | '>=' | '<=' | '==' | '!=';
+  right: string | number | boolean | null;
 }
 
 export interface EmDictionaryProvider {

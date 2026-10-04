@@ -257,6 +257,7 @@ Event:
 ReadModel:
     sync?='sync'? ('readmodel' | 'projection') todo?='todo'? name=ID listElement?='[]'? ('from' source=FieldSource)? ('where' syncFilters+=SyncFilter (',' syncFilters+=SyncFilter)*)? '{'
         elements+=ReadModelElement*
+        eligibility+=Eligibility*
     '}'
 ;
 
@@ -268,6 +269,12 @@ ReadModelElement:
       Field
     | Subscription
     | DictionaryProvider
+;
+
+Eligibility:
+    'eligible' ('for' profile=ID)? 'when' '{'
+        conditions+=Expr*
+    '}'
 ;
 
 Subscription:
@@ -412,6 +419,7 @@ FieldName returns string:
     | 'active'
     | 'code'
     | 'domain'
+    | 'eligible'
     | 'event'
     | 'label'
     | 'missing'
@@ -605,7 +613,7 @@ PrimaryExpr:
 ;
 
 RefExpr:
-    ref=[Field:ID]
+    ref=FieldSource
 ;
 
 Literal:

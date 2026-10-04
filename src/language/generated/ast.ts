@@ -68,6 +68,7 @@ export type MedolKeywordNames =
     | "download"
     | "drawer"
     | "each"
+    | "eligible"
     | "emits"
     | "endpoint"
     | "enum"
@@ -254,7 +255,7 @@ export function isAutomationTrigger(item: unknown): item is AutomationTrigger {
 }
 
 export interface BinaryExpr extends langium.AstNode {
-    readonly $container: Condition;
+    readonly $container: Condition | Eligibility;
     readonly $type: 'BinaryExpr';
     left: PrimaryExpr;
     operator: '!=' | '<' | '<=' | '==' | '>' | '>=';
@@ -273,7 +274,7 @@ export function isBinaryExpr(item: unknown): item is BinaryExpr {
 }
 
 export interface BooleanLiteral extends langium.AstNode {
-    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | TypeOneOfConstraint;
+    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | Eligibility | TypeOneOfConstraint;
     readonly $type: 'BooleanLiteral';
     value: 'false' | 'true';
 }
@@ -582,6 +583,23 @@ export const Domain = {
 
 export function isDomain(item: unknown): item is Domain {
     return reflection.isInstance(item, Domain.$type);
+}
+
+export interface Eligibility extends langium.AstNode {
+    readonly $container: ReadModel;
+    readonly $type: 'Eligibility';
+    conditions: Array<Expression>;
+    profile?: string;
+}
+
+export const Eligibility = {
+    $type: 'Eligibility',
+    conditions: 'conditions',
+    profile: 'profile'
+} as const;
+
+export function isEligibility(item: unknown): item is Eligibility {
+    return reflection.isInstance(item, Eligibility.$type);
 }
 
 export interface Emits extends langium.AstNode {
@@ -917,14 +935,14 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export type FieldName = 'active' | 'code' | 'domain' | 'event' | 'label' | 'missing' | 'order' | 'port' | 'state' | 'sync' | 'value' | string;
+export type FieldName = 'active' | 'code' | 'domain' | 'eligible' | 'event' | 'label' | 'missing' | 'order' | 'port' | 'state' | 'sync' | 'value' | string;
 
 export function isFieldName(item: unknown): item is FieldName {
-    return item === 'active' || item === 'code' || item === 'domain' || item === 'event' || item === 'label' || item === 'missing' || item === 'order' || item === 'port' || item === 'state' || item === 'sync' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'active' || item === 'code' || item === 'domain' || item === 'eligible' || item === 'event' || item === 'label' || item === 'missing' || item === 'order' || item === 'port' || item === 'state' || item === 'sync' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | ReadModel | SyncFilter | UniqueValidation;
+    readonly $container: AssertValidation | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | ReadModel | RefExpr | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1153,7 +1171,7 @@ export function isNote(item: unknown): item is Note {
 }
 
 export interface NullLiteral extends langium.AstNode {
-    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | TypeOneOfConstraint;
+    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | Eligibility | TypeOneOfConstraint;
     readonly $type: 'NullLiteral';
 }
 
@@ -1166,7 +1184,7 @@ export function isNullLiteral(item: unknown): item is NullLiteral {
 }
 
 export interface NumberLiteral extends langium.AstNode {
-    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | TypeOneOfConstraint;
+    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | Eligibility | TypeOneOfConstraint;
     readonly $type: 'NumberLiteral';
     value: number;
 }
@@ -1230,6 +1248,7 @@ export interface ReadModel extends langium.AstNode {
     readonly $container: Context | Slice;
     readonly $type: 'ReadModel';
     elements: Array<ReadModelElement>;
+    eligibility: Array<Eligibility>;
     listElement: boolean;
     name: string;
     source?: FieldSource;
@@ -1241,6 +1260,7 @@ export interface ReadModel extends langium.AstNode {
 export const ReadModel = {
     $type: 'ReadModel',
     elements: 'elements',
+    eligibility: 'eligibility',
     listElement: 'listElement',
     name: 'name',
     source: 'source',
@@ -1264,9 +1284,9 @@ export function isReadModelElement(item: unknown): item is ReadModelElement {
 }
 
 export interface RefExpr extends langium.AstNode {
-    readonly $container: BinaryExpr | Condition;
+    readonly $container: BinaryExpr | Condition | Eligibility;
     readonly $type: 'RefExpr';
-    ref: langium.Reference<Field>;
+    ref: FieldSource;
 }
 
 export const RefExpr = {
@@ -1475,7 +1495,7 @@ export function isStepValue(item: unknown): item is StepValue {
 }
 
 export interface StringLiteral extends langium.AstNode {
-    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | TypeOneOfConstraint;
+    readonly $container: AssertValidation | Assignment | BinaryExpr | Condition | Eligibility | TypeOneOfConstraint;
     readonly $type: 'StringLiteral';
     value: string;
 }
@@ -1860,6 +1880,7 @@ export type MedolAstType = {
     DictionaryProvider: DictionaryProvider
     DictionaryProviderMapping: DictionaryProviderMapping
     Domain: Domain
+    Eligibility: Eligibility
     Emits: Emits
     EnumType: EnumType
     Event: Event
@@ -2231,6 +2252,19 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 name: {
                     name: Domain.name
+                }
+            },
+            superTypes: []
+        },
+        Eligibility: {
+            name: Eligibility.$type,
+            properties: {
+                conditions: {
+                    name: Eligibility.conditions,
+                    defaultValue: []
+                },
+                profile: {
+                    name: Eligibility.profile
                 }
             },
             superTypes: []
@@ -2695,6 +2729,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: ReadModel.elements,
                     defaultValue: []
                 },
+                eligibility: {
+                    name: ReadModel.eligibility,
+                    defaultValue: []
+                },
                 listElement: {
                     name: ReadModel.listElement,
                     defaultValue: false
@@ -2730,8 +2768,7 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             name: RefExpr.$type,
             properties: {
                 ref: {
-                    name: RefExpr.ref,
-                    referenceType: Field.$type
+                    name: RefExpr.ref
                 }
             },
             superTypes: [PrimaryExpr.$type]

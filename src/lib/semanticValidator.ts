@@ -1,6 +1,7 @@
 import {
   isAssertValidation,
   isAutomation,
+  isBinaryExpr,
   isBooleanLiteral,
   isCommand,
   isEnumType,
@@ -8,6 +9,8 @@ import {
   isNumberLiteral,
   isNullLiteral,
   isPortMarker,
+  isReadModel,
+  isRefExpr,
   isSlice,
   isSliceTags,
   isStartsLifecycleMarker,
@@ -25,6 +28,7 @@ import type {
   Expression,
   FieldSource,
   Model as AstModel,
+  ReadModel as AstReadModel,
   Scenario,
   Slice as AstSlice,
   Specification,
@@ -103,6 +107,7 @@ interface ResolvedOperand {
   type: string;
   cardinality: EmField['cardinality'];
   label: string;
+  symbolicLiteral?: string;
 }
 
 export const validateSemanticModel = (ast: AstModel, model: EmModel): string[] => {
@@ -154,6 +159,8 @@ const validateContext = (
   for (const element of definitions) {
     if (isSlice(element)) {
       validateAstSlice(element, symbols, diagnostics);
+    } else if (isReadModel(element)) {
+      validateEligibility(element, symbols, diagnostics);
     }
   }
 };
@@ -486,6 +493,10 @@ const validateAstSlice = (
     validateSpecification(specification, symbols, diagnostics);
   }
 
+  for (const readmodel of (astSlice.elements ?? []).filter(isReadModel)) {
+    validateEligibility(readmodel, symbols, diagnostics);
+  }
+
   for (const automation of (astSlice.elements ?? []).filter(isAutomation)) {
     for (const fanOut of (automation.elements ?? []).filter(isFanOut)) {
       const resolved = resolveFieldSource(fanOut.source, symbols);
@@ -496,6 +507,97 @@ const validateAstSlice = (
         diagnostics.push(`Automation ${automation.name}: for each source ${sourceText} must be a list field.`);
       }
     }
+  }
+};
+
+const validateEligibility = (
+  readmodel: AstReadModel,
+  symbols: ContextSymbols,
+  diagnostics: string[]
+): void => {
+  if (readmodel.eligibility.length === 0) return;
+  const seenProfiles = new Set<string>();
+
+  for (const eligibility of readmodel.eligibility) {
+    const profileKey = eligibility.profile ?? '<default>';
+    if (seenProfiles.has(profileKey)) {
+      diagnostics.push(
+        eligibility.profile
+          ? `Projection ${readmodel.name}: duplicate eligibility profile ${eligibility.profile}.`
+          : `Projection ${readmodel.name}: declares default eligible when more than once.`
+      );
+      continue;
+    }
+    seenProfiles.add(profileKey);
+
+    const scope = eligibility.profile
+      ? `Projection ${readmodel.name} eligibility profile ${eligibility.profile}`
+      : `Projection ${readmodel.name} eligibility`;
+    if (eligibility.conditions.length === 0) {
+      diagnostics.push(`${scope}: eligible when must declare at least one condition.`);
+      continue;
+    }
+
+    for (const condition of eligibility.conditions) {
+      if (!isBinaryExpr(condition)) {
+        diagnostics.push(`${scope}: condition ${expressionOperandText(condition)} must be a comparison.`);
+        continue;
+      }
+      const left = resolveExpressionOperand(condition.left, symbols);
+      const right = resolveExpressionOperand(condition.right, symbols);
+      if (!left) diagnostics.push(`Unknown field '${expressionOperandText(condition.left)}' in eligibility condition for projection ${readmodel.name}.`);
+      if (!right) diagnostics.push(`Unknown field '${expressionOperandText(condition.right)}' in eligibility condition for projection ${readmodel.name}.`);
+      if (left && right && !comparisonIsValid(left, right, condition.operator, symbols)) {
+        diagnostics.push(`${scope}: cannot compare ${left.label} (${left.type}) ${condition.operator} ${right.label} (${right.type}).`);
+        continue;
+      }
+      validateSymbolicEnumLiteral(scope, left, right, symbols, diagnostics);
+      validateSymbolicEnumLiteral(scope, right, left, symbols, diagnostics);
+    }
+  }
+};
+
+const resolveExpressionOperand = (
+  expression: Expression,
+  symbols: ContextSymbols
+): ResolvedOperand | undefined => {
+  if (isRefExpr(expression)) {
+    const resolved = resolveFieldSource(expression.ref, symbols);
+    if (resolved) return resolved;
+    if (expression.ref.parts.length === 1) {
+      const literal = expression.ref.parts[0];
+      return {
+        type: 'String',
+        cardinality: 'Single',
+        label: literal,
+        symbolicLiteral: literal
+      };
+    }
+    return undefined;
+  }
+  if (isBinaryExpr(expression)) return undefined;
+  return {
+    type: typeOfLiteral(expression),
+    cardinality: 'Single',
+    label: isNullLiteral(expression)
+      ? 'null'
+      : isStringLiteral(expression)
+        ? JSON.stringify(expression.value)
+        : String(expression.value)
+  };
+};
+
+const validateSymbolicEnumLiteral = (
+  scope: string,
+  field: ResolvedOperand | undefined,
+  literal: ResolvedOperand | undefined,
+  symbols: ContextSymbols,
+  diagnostics: string[]
+): void => {
+  if (!field || !literal?.symbolicLiteral) return;
+  const valueType = symbols.valueTypes.get(field.type);
+  if (valueType?.kind === 'enum' && !valueType.values.includes(literal.symbolicLiteral)) {
+    diagnostics.push(`${scope}: value ${literal.symbolicLiteral} is not a member of enum ${valueType.name}.`);
   }
 };
 
@@ -863,6 +965,16 @@ const addMulti = <T>(target: Map<string, T[]>, key: string, value: T): void => {
 };
 
 const fieldSourceText = (source: FieldSource): string => source.parts.join('.');
+const expressionOperandText = (expression: Expression): string =>
+  isRefExpr(expression)
+    ? fieldSourceText(expression.ref)
+    : isBinaryExpr(expression)
+      ? `${expressionOperandText(expression.left)} ${expression.operator} ${expressionOperandText(expression.right)}`
+      : isNullLiteral(expression)
+        ? 'null'
+        : isStringLiteral(expression)
+          ? JSON.stringify(expression.value)
+          : String(expression.value);
 const operandText = (operand: ValidationOperand): string =>
   operand.$type === 'FieldSource'
     ? fieldSourceText(operand)

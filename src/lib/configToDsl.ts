@@ -49,12 +49,25 @@ interface ConfigElement {
   sync?: boolean;
   syncSource?: string;
   syncFilters?: ConfigSyncFilter[];
+  eligibility?: ConfigEligibility[];
   metadata?: Record<string, string>;
   fields?: ConfigField[];
   resultFields?: ConfigField[];
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
   ui?: ConfigUi;
   dictionaryProvider?: ConfigDictionaryProvider;
+}
+
+interface ConfigEligibility {
+  profile?: string;
+  operator?: 'AND';
+  conditions?: ConfigEligibilityCondition[];
+}
+
+interface ConfigEligibilityCondition {
+  left?: string;
+  operator?: '>' | '<' | '>=' | '<=' | '==' | '!=';
+  right?: string | number | boolean | null;
 }
 
 interface ConfigSyncFilter {
@@ -508,6 +521,9 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   for (const field of element.fields ?? []) {
     lines.push(`${pad}  ${formatField(field)}`);
   }
+  if (kind === 'readmodel' && element.eligibility?.length) {
+    appendEligibility(lines, element.eligibility, indent + 2);
+  }
   if (kind === 'command' && element.resultFields && element.resultFields.length > 0) {
     lines.push(`${pad}  result {`);
     for (const field of element.resultFields) {
@@ -519,6 +535,26 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
     lines.push(`${pad}  ${extraLine}`);
   }
   lines.push(`${pad}}`);
+};
+
+const appendEligibility = (lines: string[], eligibility: ConfigEligibility[], indent: number): void => {
+  const pad = ' '.repeat(indent);
+  for (const item of eligibility) {
+    const profile = item.profile ? ` for ${toDslId(item.profile, 'EligibilityProfile')}` : '';
+    lines.push(`${pad}eligible${profile} when {`);
+    for (const condition of item.conditions ?? []) {
+      if (!condition.left || !condition.operator) continue;
+      lines.push(`${pad}  ${condition.left} ${condition.operator} ${formatEligibilityValue(condition.right)}`);
+    }
+    lines.push(`${pad}}`);
+  }
+};
+
+const formatEligibilityValue = (value: string | number | boolean | null | undefined): string => {
+  if (value === null) return 'null';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (!value) return 'null';
+  return /^[A-Za-z_][\w_]*(\.[A-Za-z_][\w_]*)*$/.test(value) ? value : JSON.stringify(value);
 };
 
 const appendDictionaryProvider = (lines: string[], provider: ConfigDictionaryProvider, indent: number): void => {

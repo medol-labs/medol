@@ -52,6 +52,7 @@ interface ConfigElement {
   aggregate?: string;
   listElement?: boolean;
   todo?: boolean;
+  eligibility?: CodegenElement['eligibility'];
   metadata?: Record<string, string>;
   aggregateDependencies?: string[];
   resultFields?: ConfigField[];
@@ -240,6 +241,7 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   aggregate: element.aggregate?.name,
   ...(element.type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(element.type === 'READMODEL' && element.todo ? { todo: true } : {}),
+  ...(element.type === 'READMODEL' && element.eligibility?.length ? { eligibility: element.eligibility } : {}),
   ...(element.metadata ? { metadata: element.metadata } : {}),
   ...(element.aggregate ? { aggregateDependencies: [element.aggregate.title] } : {}),
   dependencies: element.dependencies.map(toConfigDependency),

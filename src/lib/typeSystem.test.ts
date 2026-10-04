@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { modelToCodegenModel } from './codegenModel';
+import { codegenModelToConfig } from './codegenToConfig';
 import { configToDsl } from './configToDsl';
 import { parseMedol, parseMedolSources } from './dslParser';
 import { parseMedolFile, type MedolProjectFileSystem } from './medolProject';
@@ -265,6 +266,231 @@ test('parses sync read models with source aliases and preserves them for code ge
     }]
   });
   assert.match(roundTripDsl, /sync readmodel AgentFeatureSchemaCatalog\[\] from DatasetGovernance\.FeatureSchemaCatalog where organizationId = sync\.organizationId/);
+});
+
+test('parses projection eligibility conditions and preserves them for code generation', () => {
+  const model = parseMedol(`
+    context TrainingSelection {
+      enum DatasetStatus {
+        Draft
+        Approved
+      }
+      enum RuntimeStatus {
+        Offline
+        Online
+      }
+      slice SelectTrainingDataset {
+        projection Dataset {
+          datasetId: UUID id
+          status: DatasetStatus
+        }
+        projection Runtime {
+          runtimeId: UUID id
+          status: RuntimeStatus
+        }
+        projection SelectableDataset[] {
+          datasetId: UUID id
+          runtimeId: UUID
+          qualificationLevel: Int
+          eligible when {
+            Dataset.status == Approved
+            Runtime.status == Online
+            SelectableDataset.qualificationLevel >= 3
+          }
+          eligible for EvaluationSelection when {
+            Dataset.status == Approved
+            SelectableDataset.qualificationLevel >= 5
+          }
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const readmodel = model.contexts[0].slices[0].elements.find((element) => element.name === 'SelectableDataset');
+  assert.deepEqual(readmodel?.eligibility, [
+    {
+      operator: 'AND',
+      conditions: [
+        { left: 'Dataset.status', operator: '==', right: 'Approved' },
+        { left: 'Runtime.status', operator: '==', right: 'Online' },
+        { left: 'SelectableDataset.qualificationLevel', operator: '>=', right: 3 }
+      ]
+    },
+    {
+      profile: 'EvaluationSelection',
+      operator: 'AND',
+      conditions: [
+        { left: 'Dataset.status', operator: '==', right: 'Approved' },
+        { left: 'SelectableDataset.qualificationLevel', operator: '>=', right: 5 }
+      ]
+    }
+  ]);
+  assert.equal(readmodel?.metadata?.eligibleWhen, 'Dataset.status == Approved');
+  assert.equal(readmodel?.metadata?.eligibleWhen2, 'Runtime.status == Online');
+  assert.equal(readmodel?.metadata?.['eligibleFor:EvaluationSelection'], 'Dataset.status == Approved');
+  assert.equal(readmodel?.metadata?.['eligibleFor:EvaluationSelection2'], 'SelectableDataset.qualificationLevel >= 5');
+
+  const codegen = modelToCodegenModel(model);
+  const codegenReadmodel = codegen.slices[0].readmodels.find((element) => element.name === 'SelectableDataset');
+  assert.deepEqual(codegenReadmodel?.eligibility, readmodel?.eligibility);
+
+  const roundTripDsl = configToDsl(codegenModelToConfig(codegen));
+  assert.match(roundTripDsl, /eligible when \{\s+Dataset\.status == Approved/s);
+  assert.match(roundTripDsl, /eligible for EvaluationSelection when \{\s+Dataset\.status == Approved/s);
+  assert.match(roundTripDsl, /SelectableDataset\.qualificationLevel >= 5/);
+});
+
+test('allows eligible as a read model field name', () => {
+  const model = parseMedol(`
+    context TrainingSelection {
+      slice TrainingParticipantEligibility {
+        projection TrainingParticipantEligibility {
+          participantId: UUID id
+          eligible: Boolean
+          ineligibleReasons: String[]
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const readmodel = model.contexts[0].slices[0].elements[0];
+  assert.equal(readmodel.fields.find((field) => field.name === 'eligible')?.type, 'Boolean');
+  assert.equal(readmodel.eligibility, undefined);
+});
+
+test('reports duplicate projection eligibility profiles', () => {
+  const model = parseMedol(`
+    context TrainingSelection {
+      slice SelectTrainingDataset {
+        projection Dataset {
+          status: String
+        }
+        projection SelectableDataset {
+          eligible for TrainingSelection when {
+            Dataset.status == "Approved"
+          }
+          eligible for TrainingSelection when {
+            Dataset.status == "Ready"
+          }
+        }
+      }
+    }
+  `);
+
+  assert.match(
+    model.diagnostics.join('\n'),
+    /Projection SelectableDataset: duplicate eligibility profile TrainingSelection\./
+  );
+});
+
+test('reports invalid projection eligibility declarations', () => {
+  const emptyBlock = parseMedol(`
+    context TrainingSelection {
+      slice SelectTrainingDataset {
+        projection SelectableDataset {
+          eligible when {
+          }
+        }
+      }
+    }
+  `);
+  assert.match(
+    emptyBlock.diagnostics.join('\n'),
+    /Projection SelectableDataset eligibility: eligible when must declare at least one condition\./
+  );
+
+  const duplicateDefault = parseMedol(`
+    context TrainingSelection {
+      slice SelectTrainingDataset {
+        projection Dataset {
+          status: String
+        }
+        projection SelectableDataset {
+          eligible when {
+            Dataset.status == "Approved"
+          }
+          eligible when {
+            Dataset.status == "Ready"
+          }
+        }
+      }
+    }
+  `);
+  assert.match(
+    duplicateDefault.diagnostics.join('\n'),
+    /Projection SelectableDataset: declares default eligible when more than once\./
+  );
+
+  const invalidEnum = parseMedol(`
+    context TrainingSelection {
+      enum DatasetStatus {
+        Approved
+      }
+      slice SelectTrainingDataset {
+        projection Dataset {
+          status: DatasetStatus
+        }
+        projection SelectableDataset {
+          eligible when {
+            Dataset.status == Rejected
+          }
+        }
+      }
+    }
+  `);
+  assert.match(
+    invalidEnum.diagnostics.join('\n'),
+    /Projection SelectableDataset eligibility: value Rejected is not a member of enum DatasetStatus\./
+  );
+
+  const typeMismatch = parseMedol(`
+    context TrainingSelection {
+      slice SelectTrainingDataset {
+        projection Dataset {
+          status: String
+        }
+        projection SelectableDataset {
+          eligible when {
+            Dataset.status > 3
+          }
+        }
+      }
+    }
+  `);
+  assert.match(
+    typeMismatch.diagnostics.join('\n'),
+    /Projection SelectableDataset eligibility: cannot compare Dataset\.status \(String\) > 3 \(Decimal\)\./
+  );
+});
+
+test('reports unknown fields in projection eligibility conditions', () => {
+  const model = parseMedol(`
+    context TrainingSelection {
+      enum DatasetStatus {
+        Draft
+        Approved
+      }
+      slice SelectTrainingDataset {
+        projection Dataset {
+          datasetId: UUID id
+          status: DatasetStatus
+        }
+        projection SelectableDataset[] {
+          datasetId: UUID id
+          eligible when {
+            Dataset.unknownField == Approved
+          }
+        }
+      }
+    }
+  `);
+
+  assert.match(
+    model.diagnostics.join('\n'),
+    /Unknown field 'Dataset\.unknownField' in eligibility condition for projection SelectableDataset\./
+  );
 });
 
 test('parses file field attribute and preserves it for code generation', () => {

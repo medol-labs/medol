@@ -191,6 +191,7 @@ export interface CodegenElement {
   sync?: boolean;
   syncSource?: string;
   syncFilters?: CodegenSyncFilter[];
+  eligibility?: CodegenEligibility[];
   metadata?: Record<string, string>;
   ui?: CodegenUi;
   dictionaryProvider?: CodegenDictionaryProvider;
@@ -201,6 +202,18 @@ export type CodegenElementType = 'COMMAND' | 'EVENT' | 'SCREEN' | 'READMODEL' | 
 export interface CodegenSyncFilter {
   target: string;
   source: string;
+}
+
+export interface CodegenEligibility {
+  profile?: string;
+  operator: 'AND';
+  conditions: CodegenEligibilityCondition[];
+}
+
+export interface CodegenEligibilityCondition {
+  left: string;
+  operator: '>' | '<' | '>=' | '<=' | '==' | '!=';
+  right: string | number | boolean | null;
 }
 
 export interface CodegenField {
@@ -853,6 +866,7 @@ const toCodegenElement = (
   ...(type === 'READMODEL' && element.sync ? { sync: true } : {}),
   ...(type === 'READMODEL' && element.syncSource ? { syncSource: element.syncSource } : {}),
   ...(type === 'READMODEL' && element.syncFilters?.length ? { syncFilters: element.syncFilters } : {}),
+  ...(type === 'READMODEL' && element.eligibility?.length ? { eligibility: element.eligibility } : {}),
   ...(element.metadata && Object.keys(element.metadata).length > 0 ? { metadata: element.metadata } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {}),
   ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {})

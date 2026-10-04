@@ -855,6 +855,7 @@ const parseElement = (
         source: formatFieldSource(filter.source)
       }))
     } : {}),
+    ...(isReadModel(node) && node.eligibility.length ? { eligibility: node.eligibility.map(parseEligibility) } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),
     ...(isReadModel(node) ? parseReadModelDictionaryProvider(node) : {})
@@ -985,6 +986,25 @@ const parseReadModelDictionaryProvider = (node: AstReadModel): { dictionaryProvi
   };
 };
 
+const parseEligibility = (eligibility: AstReadModel['eligibility'][number]): NonNullable<EmElement['eligibility']>[number] => ({
+  ...(eligibility.profile ? { profile: eligibility.profile } : {}),
+  operator: 'AND',
+  conditions: eligibility.conditions
+    .map(parseEligibilityCondition)
+    .filter((condition): condition is NonNullable<EmElement['eligibility']>[number]['conditions'][number] => Boolean(condition))
+});
+
+const parseEligibilityCondition = (
+  expression: Expression
+): NonNullable<EmElement['eligibility']>[number]['conditions'][number] | undefined => {
+  if (!isBinaryExpr(expression)) return undefined;
+  return {
+    left: formatLiteral(expression.left),
+    operator: expression.operator as NonNullable<EmElement['eligibility']>[number]['conditions'][number]['operator'],
+    right: literalValue(expression.right)
+  };
+};
+
 const parseDerivedLookup = (field: AstField): EmDerivedLookup | undefined => {
   const inlineLookupKey = field.mapping && isFieldDerivation(field.mapping) ? field.mapping.lookupKey : undefined;
   if (inlineLookupKey) {
@@ -1072,6 +1092,17 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAu
     }
   }
 
+  if (isReadModel(node) && node.eligibility.length) {
+    node.eligibility.forEach((eligibility, eligibilityIndex) => {
+      const keyPrefix = eligibility.profile ? `eligibleFor:${eligibility.profile}` : 'eligibleWhen';
+      eligibility.conditions.forEach((condition, conditionIndex) => {
+        const suffix = conditionIndex === 0 ? '' : `${conditionIndex + 1}`;
+        const fallbackPrefix = eligibilityIndex === 0 ? 'eligibleWhen' : `eligibleWhen${eligibilityIndex + 1}`;
+        metadata[eligibility.profile ? `${keyPrefix}${suffix}` : `${fallbackPrefix}${suffix}`] = formatLiteral(condition);
+      });
+    });
+  }
+
   return metadata;
 };
 
@@ -1124,14 +1155,15 @@ const formatLiteral = (value: Expression): string => {
   if (isNumberLiteral(value)) return String(value.value);
   if (isBooleanLiteral(value)) return value.value;
   if (isNullLiteral(value)) return 'null';
-  if (isRefExpr(value)) return value.ref.$refText;
+  if (isRefExpr(value)) return formatFieldSource(value.ref);
   if (isBinaryExpr(value)) return `${formatLiteral(value.left)} ${value.operator} ${formatLiteral(value.right)}`;
   return '';
 };
 
 const literalValue = (value: Expression): string | number | boolean | null => {
   if (isStringLiteral(value) || isNumberLiteral(value)) return value.value;
-  if (isBooleanLiteral(value)) return value.value === 'true';
+  if (isBooleanLiteral(value)) return value.value === true || value.value === 'true';
+  if (isRefExpr(value)) return formatFieldSource(value.ref);
   return null;
 };
 
