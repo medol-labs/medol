@@ -73,11 +73,13 @@ context OrganizationManagement {
 
     command ActivateOrganization {
       organizationId: UUID id technical
+      organizationName: String derived from OrganizationDirectory.organizationName by organizationId
       activationNote: String?
     }
 
     event OrganizationActivated {
       organizationId: UUID id technical
+      organizationName: String
       activationNote: String?
     }
 
@@ -91,11 +93,13 @@ context OrganizationManagement {
 
     command DeactivateOrganization {
       organizationId: UUID id technical
+      organizationName: String derived from OrganizationDirectory.organizationName by organizationId
       deactivationReason: String
     }
 
     event OrganizationDeactivated {
       organizationId: UUID id technical
+      organizationName: String
       deactivationReason: String
     }
 
@@ -109,11 +113,13 @@ context OrganizationManagement {
 
     command ReactivateOrganization {
       organizationId: UUID id technical
+      organizationName: String derived from OrganizationDirectory.organizationName by organizationId
       reactivationReason: String
     }
 
     event OrganizationReactivated {
       organizationId: UUID id technical
+      organizationName: String
       reactivationReason: String
     }
 
@@ -134,6 +140,15 @@ context OrganizationManagement {
       subscribe OrganizationDeactivated
       subscribe OrganizationReactivated
       subscribe DatasetApprovedForTraining
+      eligible for InviteParticipant when {
+        Organization.state == Active
+      }
+      eligible for BindUserAccountToOrganization when {
+        Organization.state == Active
+      }
+      eligible for CreateRuntimeInstallationPlan when {
+        Organization.state == Active
+      }
     }
   }
 
@@ -357,6 +372,9 @@ context FederationManagement {
       subscribe RuntimeIdentityActivated
       subscribe RuntimeIdentityRevoked
       subscribe TrainingJobSubmitted
+      eligible when {
+        Federation.state == Active
+      }
     }
   }
 
@@ -373,9 +391,9 @@ context FederationManagement {
     reactsTo FederationCreated
 
     command InviteParticipant {
-      federationId: UUID id technical
+      federationId: UUID id technical from FederationOverview.federationId
       federationName: String? derived from FederationOverview.federationName by federationId
-      organizationId: UUID
+      organizationId: UUID from OrganizationDirectory.organizationId
       organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
       invitationNote: String
     }
@@ -1181,6 +1199,9 @@ context RuntimeProvisioning {
       runtimeEnvironmentType: String dictionary "RUNTIME_ENVIRONMENT_TYPE"
       state: RuntimeInfrastructurePackage.State
       subscribe RuntimeInfrastructurePackageRegistered
+      eligible for CreateRuntimeInstallationPlan when {
+        RuntimeInfrastructurePackage.state == Registered
+      }
     }
   }
 
@@ -1202,9 +1223,9 @@ context RuntimeProvisioning {
     command CreateRuntimeInstallationPlan {
       runtimeInstallationPlanId: UUID id generated technical
       runtimeInfrastructureId: UUID generated technical
-      organizationId: UUID
+      organizationId: UUID from OrganizationDirectory.organizationId
       organizationName: String? derived from OrganizationDirectory.organizationName by organizationId
-      runtimeInfrastructurePackageId: UUID
+      runtimeInfrastructurePackageId: UUID from RuntimeInfrastructurePackageCatalog.runtimeInfrastructurePackageId
       runtimeInfrastructurePackageName: String? derived from RuntimeInfrastructurePackageCatalog.packageName by runtimeInfrastructurePackageId
       runtimeInfrastructurePackageVersion: String? derived from RuntimeInfrastructurePackageCatalog.packageVersion by runtimeInfrastructurePackageId
       runtimeEnvironmentType: String? dictionary "RUNTIME_ENVIRONMENT_TYPE" derived from RuntimeInfrastructurePackageCatalog.runtimeEnvironmentType by runtimeInfrastructurePackageId
@@ -2233,6 +2254,12 @@ context DatasetGovernance {
       subscribe FeatureSchemaRetired
       subscribe FeatureSchemaVersionSuperseded
       subscribe CurrentRecommendedFeatureSchemaVersionMarked
+      eligible for DefineTrainingRunConfiguration when {
+        FeatureSchemaCatalog.schemaStatus == "Published"
+      }
+      eligible for UpdateTrainingRunConfiguration when {
+        FeatureSchemaCatalog.schemaStatus == "Published"
+      }
     }
   }
 
@@ -2528,6 +2555,12 @@ context ModelRepository {
       subscribe ModelArtifactRegistered
       subscribe FederatedModelArtifactRegistered
       subscribe GlobalModelUpdated
+      eligible for DefineTrainingRunConfiguration when {
+        ModelArtifact.state == Registered
+      }
+      eligible for UpdateTrainingRunConfiguration when {
+        ModelArtifact.state == Registered
+      }
     }
   }
 
@@ -2757,6 +2790,14 @@ context TrainingOrchestration {
       state: RuntimeEngineProfile.State
       registeredAt: DateTime?
       subscribe RuntimeEngineProfileRegistered
+      eligible for DefineTrainingRunConfiguration when {
+        RuntimeEngineProfile.state == Registered
+        RuntimeEngineProfileCatalog.active == true
+      }
+      eligible for UpdateTrainingRunConfiguration when {
+        RuntimeEngineProfile.state == Registered
+        RuntimeEngineProfileCatalog.active == true
+      }
     }
   }
 
@@ -2776,9 +2817,9 @@ context TrainingOrchestration {
     command DefineTrainingRunConfiguration {
       trainingRunConfigurationId: UUID id generated technical
       configurationName: String display
-      federationId: UUID
+      federationId: UUID from FederationOverview.federationId
       federationName: String? derived from FederationOverview.federationName by federationId
-      featureSchemaId: UUID
+      featureSchemaId: UUID from FeatureSchemaCatalog.featureSchemaId
       featureDomain: String? derived from FeatureSchemaCatalog.featureDomain by featureSchemaId
       featureSchemaVersion: String? derived from FeatureSchemaCatalog.version by featureSchemaId
       initialModelId: UUID from ModelArtifactCatalog.modelId
@@ -2812,7 +2853,7 @@ context TrainingOrchestration {
       configurationName: String display
       federationId: UUID
       federationName: String?
-      featureSchemaId: UUID
+      featureSchemaId: UUID from FeatureSchemaCatalog.featureSchemaId
       featureDomain: String?
       featureSchemaVersion: String?
       initialModelId: UUID
@@ -2943,7 +2984,7 @@ context TrainingOrchestration {
     command UpdateTrainingRunConfiguration {
       trainingRunConfigurationId: UUID id technical
       configurationName: String display
-      federationId: UUID
+      federationId: UUID from FederationOverview.federationId
       federationName: String? derived from FederationOverview.federationName by federationId
       featureSchemaId: UUID
       featureDomain: String? derived from FeatureSchemaCatalog.featureDomain by featureSchemaId
@@ -3121,7 +3162,7 @@ context TrainingOrchestration {
     command LockTrainingRunConfiguration {
       trainingRunConfigurationId: UUID id technical derived {
         from TrainingJobSubmitted.trainingRunConfigurationId
-        rule "Lock the configuration carried by the submitted training job event."
+        rule "Lock the configuration carried by the submitted training job event so it cannot be edited after the job is submitted."
       }
       trainingJobId: UUID from TrainingJobSubmitted.trainingJobId
     }
@@ -3180,6 +3221,9 @@ context TrainingOrchestration {
       subscribe TrainingRunConfigurationDefined
       subscribe TrainingRunConfigurationUpdated
       subscribe TrainingRunConfigurationLocked
+      eligible for CreateTrainingJob when {
+        TrainingRunConfiguration.state == Draft
+      }
     }
   }
 
@@ -3203,9 +3247,9 @@ context TrainingOrchestration {
     // Participating organizations are resolved from federation membership and runtime readiness.
     command CreateTrainingJob {
       trainingJobId: UUID id generated technical
-      federationId: UUID
+      federationId: UUID from FederationOverview.federationId
       federationName: String? derived from FederationOverview.federationName by federationId
-      trainingRunConfigurationId: UUID
+      trainingRunConfigurationId: UUID from TrainingRunConfigurationCatalog.trainingRunConfigurationId
       configurationName: String? derived from TrainingRunConfigurationCatalog.configurationName by trainingRunConfigurationId
       featureDomain: String? derived from TrainingRunConfigurationCatalog.featureDomain by trainingRunConfigurationId
       featureSchemaVersion: String? derived from TrainingRunConfigurationCatalog.featureSchemaVersion by trainingRunConfigurationId
