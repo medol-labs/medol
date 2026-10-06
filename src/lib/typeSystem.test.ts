@@ -1473,6 +1473,29 @@ test('loads built-in dictionary maintenance import and provider metadata', () =>
   assert.equal(dictionaryValueCatalog?.capabilityProviders?.[0]?.kind, 'dictionaryValues');
 });
 
+test('loads built-in file upload import into support deployment', () => {
+  const model = parseMedol(`
+    import file-upload as PlatformFileUpload deploy Support
+
+    context Catalogs {
+      note "Application catalog context"
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  assert(model.contexts.some((context) => context.name === 'FileUpload'));
+  assert.deepEqual(
+    model.deployments.find((deployment) => deployment.name === 'Support')?.contexts,
+    ['FileUpload']
+  );
+
+  const codegen = modelToCodegenModel(model);
+  const uploadCommand = codegen.slices
+    .flatMap((slice) => slice.commands)
+    .find((command) => command.name === 'UploadFile');
+  assert.equal(uploadCommand?.fields.find((field) => field.name === 'uploadedFile')?.uploadFile, true);
+});
+
 test('keeps scoped capability providers off read models with the same name in other contexts', () => {
   const model = parseMedol(`
     context PlatformCatalogs {

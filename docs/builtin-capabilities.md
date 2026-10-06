@@ -22,13 +22,15 @@
 import identity-access-management as PlatformIam deploy FederationLearningSupport
 import identity-access-management as ParticipantIam deploy FederationLearningRuntimeAgent
 import dictionary-maintenance as PlatformDictionary deploy FederationLearningSupport
+import file-upload as PlatformFileUpload deploy FederationLearningSupport
 ```
 
 含义：
 
 - `identity-access-management` 引入内置 IAM 能力。
 - `dictionary-maintenance` 引入内置字典维护能力。
-- `as PlatformIam` / `as ParticipantIam` / `as PlatformDictionary` 是业务模型中的引用别名。
+- `file-upload` 引入内置文件上传能力。
+- `as PlatformIam` / `as ParticipantIam` / `as PlatformDictionary` / `as PlatformFileUpload` 是业务模型中的引用别名。
 - `deploy FederationLearningSupport` 表示该内置能力部署到 `FederationLearningSupport`。
 - `deploy FederationLearningRuntimeAgent` 表示该内置能力部署到 `FederationLearningRuntimeAgent`。
 
@@ -239,6 +241,45 @@ context RuntimeAgentOperations {
 ```
 
 这里的 `extend` 表示 runtime agent 侧使用自己的同步 readmodel 作为字典能力的数据来源。
+
+## FileUpload 建模
+
+默认使用内置文件上传能力时，只需要 import：
+
+```medol
+import file-upload as PlatformFileUpload deploy FederationLearningSupport
+```
+
+内置 `FileUpload` 自身已经包含：
+
+- `UploadFile`：上传文件并记录文件元数据。
+- `DownloadFile`：按 `fileId` 授权下载。
+- `MarkFileReferenced`：业务记录接收文件引用后标记引用关系。
+- `DiscardFile`：丢弃未被业务引用的文件。
+- `ExpireFile`：按保留策略过期文件。
+- `UploadedFileCatalog`：文件上传记录目录。
+
+业务模型不需要再内联 `context FileUpload`。业务命令中需要上传文件时，使用字段属性 `uploadFile` 标记浏览器文件字段：
+
+```medol
+command RegisterModelArtifact {
+  modelArtifactId: UUID id generated technical
+  uploadedFile: String uploadFile
+  fileId: UUID?
+}
+```
+
+生成的前端会先把 `uploadFile` 字段提交到内置 FileUpload 部署，再把返回的文件引用交给业务命令。业务上下文仍然只负责自己的业务语义，例如模型制品、数据集附件或证明材料；物理存储、下载授权、保留期和文件目录由内置 `FileUpload` 负责。
+
+如果业务前端需要展示上传文件管理页，可以在 frontend 中引用内置上传目录：
+
+```medol
+frontend FederationLearningConsole {
+  includes FileUpload from FederationLearningSupport
+}
+```
+
+`FileUpload` 适合做通用内置能力，因为它和 IAM、Dictionary 一样属于平台级支撑能力。业务模型可以直接引用；只有后续需要接入自定义存储目录、外部对象存储元数据或跨部署同步投影时，才需要再通过 `extend` 增加明确扩展点。
 
 ## 不适合的写法
 

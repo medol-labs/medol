@@ -16,6 +16,7 @@ ImportModuleName returns string:
 ImportModuleNamePart returns string:
       ID
     | 'dictionary'
+    | 'file'
     | 'identity'
     | 'access'
     | 'management'

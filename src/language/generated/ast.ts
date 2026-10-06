@@ -1161,10 +1161,10 @@ export function isImportModuleName(item: unknown): item is ImportModuleName {
     return typeof item === 'string';
 }
 
-export type ImportModuleNamePart = 'access' | 'dictionary' | 'identity' | 'maintenance' | 'management' | string;
+export type ImportModuleNamePart = 'access' | 'dictionary' | 'file' | 'identity' | 'maintenance' | 'management' | string;
 
 export function isImportModuleNamePart(item: unknown): item is ImportModuleNamePart {
-    return item === 'dictionary' || item === 'identity' || item === 'access' || item === 'management' || item === 'maintenance' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'dictionary' || item === 'file' || item === 'identity' || item === 'access' || item === 'management' || item === 'maintenance' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface Integration extends langium.AstNode {

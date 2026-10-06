@@ -576,10 +576,12 @@ A concept that declares lifecycle states also exposes a generated enum type name
 
 Imports are resolved relative to the importing file by the MEDOL CLI. Files may contribute fragments to the same domain and context; the compiler merges them before semantic validation. Generated IDs use fully qualified semantic paths, so moving a declaration between imported files or changing file order does not change its ID.
 
-MEDOL also supports built-in model imports. Initially the supported built-in is `identity-access-management`, with aliases `identityAccessManagement` and `iam`. Use `deploy` to place the imported context into a deployment module:
+MEDOL also supports built-in model imports. The built-ins currently include `identity-access-management`, `dictionary-maintenance`, and `file-upload`. Use `deploy` to place the imported context into a deployment module:
 
 ```text
 import identity-access-management as Iam deploy FederationLearningSupport
+import dictionary-maintenance as PlatformDictionary deploy FederationLearningSupport
+import file-upload as PlatformFileUpload deploy FederationLearningSupport
 ```
 
 If `deploy` is omitted, the imported built-in is generated as its own deployment using its canonical context name. The `as` alias is parsed for model readability and future qualified references; the built-in context keeps its canonical name so generated packages remain stable.
