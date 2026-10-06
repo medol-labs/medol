@@ -1,4 +1,4 @@
-import type { EmDictionaryProvider, EmElement, EmField, EmModel, EmSlice } from './model';
+import type { EmCapabilityProvider, EmDictionaryProvider, EmElement, EmField, EmModel, EmSlice } from './model';
 import { allContextSlices } from './dslParser';
 import { humanize } from './name';
 import { coveredSpecificationExpressions } from './specificationCoverage';
@@ -20,6 +20,22 @@ export interface CodegenModel {
   actors: CodegenActor[];
   slices: CodegenSlice[];
   externalSystems: CodegenExternalSystem[];
+  capabilityExtensions?: CodegenCapabilityExtension[];
+}
+
+export interface CodegenCapabilityExtension {
+  target: string;
+  domain?: string;
+  context?: string;
+  providers: CodegenCapabilityProvider[];
+  actors: string[];
+}
+
+export interface CodegenCapabilityProvider {
+  capability: string;
+  kind: string;
+  source?: string;
+  mappings: Record<string, string>;
 }
 
 export interface CodegenFrontendApplication {
@@ -195,6 +211,7 @@ export interface CodegenElement {
   metadata?: Record<string, string>;
   ui?: CodegenUi;
   dictionaryProvider?: CodegenDictionaryProvider;
+  capabilityProviders?: CodegenCapabilityProvider[];
 }
 
 export type CodegenElementType = 'COMMAND' | 'EVENT' | 'SCREEN' | 'READMODEL' | 'PROCESSOR' | 'SPECIFICATION';
@@ -390,6 +407,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
   }
 
   const dependenciesByElementId = buildDependencies(model, elementsById);
+  const capabilityProvidersByReadModel = capabilityProvidersByReadModelReference(model);
   const slices: CodegenSlice[] = [];
 
   for (const contextItem of model.contexts) {
@@ -404,6 +422,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           dependenciesByElementId,
           elementsByReference,
           readmodelsByReference,
+          capabilityProvidersByReadModel,
           contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name)
         ));
       }
@@ -417,6 +436,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         dependenciesByElementId,
         elementsByReference,
         readmodelsByReference,
+        capabilityProvidersByReadModel,
         contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name)
       ));
     }
@@ -540,9 +560,97 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         name: capability.name,
         title: humanize(capability.name)
       }))
-    })))
+    }))),
+    ...(model.capabilityExtensions.length
+      ? {
+          capabilityExtensions: model.capabilityExtensions.map((extension) => ({
+            target: extension.target,
+            ...(extension.domain ? { domain: extension.domain } : {}),
+            ...(extension.context ? { context: extension.context } : {}),
+            providers: extension.providers.map(toCodegenCapabilityProvider),
+            actors: extension.actors
+          }))
+        }
+      : {})
   };
 };
+
+const capabilityProvidersByReadModelReference = (model: EmModel): Map<string, CodegenCapabilityProvider[]> => {
+  const providers = new Map<string, CodegenCapabilityProvider[]>();
+  const readModelContexts = new Map<string, Set<string>>();
+
+  for (const contextItem of model.contexts) {
+    for (const slice of allContextSlices(contextItem)) {
+      for (const element of slice.elements) {
+        if (element.kind !== 'readmodel') continue;
+        appendReadModelContext(readModelContexts, element.name, contextItem.name);
+      }
+    }
+    for (const element of contextItem.looseElements) {
+      if (element.kind !== 'readmodel') continue;
+      appendReadModelContext(readModelContexts, element.name, contextItem.name);
+    }
+  }
+
+  for (const extension of model.capabilityExtensions) {
+    for (const provider of extension.providers) {
+      if (!provider.source) continue;
+      const source = provider.source;
+      const providerModel = toCodegenCapabilityProvider(provider);
+      const parts = source.split('.');
+      const readModelName = parts[parts.length - 1];
+      if (!readModelName) continue;
+
+      if (parts.length > 1) {
+        appendProvider(providers, source, providerModel);
+        continue;
+      }
+
+      const scopedContext = extension.context;
+      if (scopedContext) {
+        appendProvider(providers, `${scopedContext}.${readModelName}`, providerModel);
+        continue;
+      }
+
+      const contextNames = readModelContexts.get(readModelName) ?? new Set<string>();
+      if (contextNames.size === 1) {
+        appendProvider(providers, `${[...contextNames][0]}.${readModelName}`, providerModel);
+        continue;
+      }
+
+      appendProvider(providers, readModelName, providerModel);
+    }
+  }
+
+  return providers;
+};
+
+const appendReadModelContext = (
+  readModelContexts: Map<string, Set<string>>,
+  readModelName: string,
+  contextName: string
+): void => {
+  const contexts = readModelContexts.get(readModelName) ?? new Set<string>();
+  contexts.add(contextName);
+  readModelContexts.set(readModelName, contexts);
+};
+
+const appendProvider = (
+  providers: Map<string, CodegenCapabilityProvider[]>,
+  source: string,
+  provider: CodegenCapabilityProvider
+): void => {
+  const current = providers.get(source) ?? [];
+  current.push(provider);
+  providers.set(source, current);
+};
+
+const toCodegenCapabilityProvider = (provider: EmCapabilityProvider): CodegenCapabilityProvider => ({
+  capability: provider.capability,
+  kind: provider.kind,
+  ...(provider.source ? { source: provider.source } : {}),
+  mappings: provider.mappings
+});
 
 const toFrontendApplicationContexts = (
   application: EmModel['frontendApplications'][number],
@@ -781,6 +889,7 @@ const toCodegenSlice = (
   dependenciesByElementId: Map<string, CodegenDependency[]>,
   elementsByReference: Map<string, EmElement>,
   readmodelsByReference: Map<string, EmElement>,
+  capabilityProvidersByReadModel: Map<string, CodegenCapabilityProvider[]>,
   concepts: string[] = []
 ): CodegenSlice => {
   const commands = slice.elements.filter((element) => element.kind === 'command');
@@ -823,7 +932,19 @@ const toCodegenSlice = (
     ),
     events: events.map((element) => toCodegenElement(element, 'EVENT', aggregate, context, slice.name, dependenciesByElementId)),
     readmodels: readmodels.map((element) =>
-      toCodegenElement(element, 'READMODEL', aggregate, context, slice.name, dependenciesByElementId, false, undefined, false, readmodelsByReference)
+      toCodegenElement(
+        element,
+        'READMODEL',
+        aggregate,
+        context,
+        slice.name,
+        dependenciesByElementId,
+        false,
+        undefined,
+        false,
+        readmodelsByReference,
+        capabilityProvidersByReadModel
+      )
     ),
     screens: screens.map((element) => toCodegenElement(element, 'SCREEN', aggregate, context, slice.name, dependenciesByElementId)),
     processors: processors.map((element) => toCodegenElement(element, 'PROCESSOR', aggregate, context, slice.name, dependenciesByElementId)),
@@ -844,7 +965,8 @@ const toCodegenElement = (
   startsLifecycle = false,
   ui?: CodegenUi,
   port = false,
-  readmodelsByReference: Map<string, EmElement> = new Map()
+  readmodelsByReference: Map<string, EmElement> = new Map(),
+  capabilityProvidersByReadModel: Map<string, CodegenCapabilityProvider[]> = new Map()
 ): CodegenElement => ({
   id: stableId(element.kind, element.id),
   name: element.name,
@@ -869,8 +991,29 @@ const toCodegenElement = (
   ...(type === 'READMODEL' && element.eligibility?.length ? { eligibility: element.eligibility } : {}),
   ...(element.metadata && Object.keys(element.metadata).length > 0 ? { metadata: element.metadata } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {}),
-  ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {})
+  ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {}),
+  ...(type === 'READMODEL' && capabilityProvidersForReadModel(element, context, capabilityProvidersByReadModel).length
+    ? { capabilityProviders: capabilityProvidersForReadModel(element, context, capabilityProvidersByReadModel) }
+    : {})
 });
+
+const capabilityProvidersForReadModel = (
+  element: EmElement,
+  context: string,
+  providersByReadModel: Map<string, CodegenCapabilityProvider[]>
+): CodegenCapabilityProvider[] => {
+  const seen = new Set<string>();
+  const providers = [
+    ...(providersByReadModel.get(`${context}.${element.name}`) ?? []),
+    ...(providersByReadModel.get(element.name) ?? [])
+  ];
+  return providers.filter((provider) => {
+    const key = `${provider.capability}:${provider.kind}:${provider.source ?? ''}:${JSON.stringify(provider.mappings)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 const toCodegenSliceRef = (slice: EmSlice): { id: string; name: string; title: string } => ({
   id: stableId('slice', slice.id),

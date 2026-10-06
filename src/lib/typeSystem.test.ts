@@ -1375,6 +1375,153 @@ test('exports frontend applications independently from backend deployments', () 
   );
 });
 
+test('parses capability extensions and attaches providers to read models', () => {
+  const model = parseMedol(`
+    context Catalogs {
+      extend DictionaryMaintenance {
+        actors DictionaryAdministrator
+
+        provider dictionaryValues from OptionCatalog {
+          code dictionaryCode
+          value valueCode
+          label displayName
+          active active
+          state state
+          order displayOrder
+        }
+      }
+
+      slice OptionCatalogs {
+        readmodel OptionCatalog[] {
+          optionId: UUID id
+          dictionaryCode: String
+          valueCode: String
+          displayName: String
+          active: Boolean
+          state: String
+          displayOrder: Int?
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  assert.deepEqual(model.capabilityExtensions.map((extension) => ({
+    target: extension.target,
+    context: extension.context,
+    actors: extension.actors,
+    providers: extension.providers.map((provider) => ({
+      kind: provider.kind,
+      source: provider.source,
+      mappings: provider.mappings
+    }))
+  })), [{
+    target: 'DictionaryMaintenance',
+    context: 'Catalogs',
+    actors: ['DictionaryAdministrator'],
+    providers: [{
+      kind: 'dictionaryValues',
+      source: 'OptionCatalog',
+      mappings: {
+        code: 'dictionaryCode',
+        value: 'valueCode',
+        label: 'displayName',
+        active: 'active',
+        state: 'state',
+        order: 'displayOrder'
+      }
+    }]
+  }]);
+
+  const codegen = modelToCodegenModel(model);
+  const readModel = codegen.slices.flatMap((slice) => slice.readmodels).find((item) => item.name === 'OptionCatalog');
+  assert.deepEqual(readModel?.capabilityProviders, [{
+    capability: 'DictionaryMaintenance',
+    kind: 'dictionaryValues',
+    source: 'OptionCatalog',
+    mappings: {
+      code: 'dictionaryCode',
+      value: 'valueCode',
+      label: 'displayName',
+      active: 'active',
+      state: 'state',
+      order: 'displayOrder'
+    }
+  }]);
+});
+
+test('loads built-in dictionary maintenance import and provider metadata', () => {
+  const model = parseMedol(`
+    import dictionary-maintenance as PlatformDictionary deploy Support
+
+    context Support {
+      note "Application support context"
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  assert(model.contexts.some((context) => context.name === 'DictionaryMaintenance'));
+  assert.deepEqual(
+    model.deployments.find((deployment) => deployment.name === 'Support')?.contexts,
+    ['DictionaryMaintenance']
+  );
+
+  const codegen = modelToCodegenModel(model);
+  const dictionaryValueCatalog = codegen.slices
+    .flatMap((slice) => slice.readmodels)
+    .find((readModel) => readModel.name === 'DictionaryValueCatalog');
+  assert.equal(dictionaryValueCatalog?.capabilityProviders?.[0]?.kind, 'dictionaryValues');
+});
+
+test('keeps scoped capability providers off read models with the same name in other contexts', () => {
+  const model = parseMedol(`
+    context PlatformCatalogs {
+      extend DataExchange {
+        provider export from SharedCatalog {
+          id platformId
+          name platformName
+          format exportFormat
+        }
+      }
+
+      slice PlatformSharedCatalogs {
+        readmodel SharedCatalog[] {
+          platformId: UUID id
+          platformName: String
+          exportFormat: String
+        }
+      }
+    }
+
+    context AgentCatalogs {
+      slice AgentSharedCatalogs {
+        readmodel SharedCatalog[] {
+          agentId: UUID id
+          agentName: String
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  const readModels = codegen.slices.flatMap((slice) => slice.readmodels).filter((readModel) => readModel.name === 'SharedCatalog');
+  const platformReadModel = readModels.find((readModel) => readModel.modelContext === 'PlatformCatalogs');
+  const agentReadModel = readModels.find((readModel) => readModel.modelContext === 'AgentCatalogs');
+
+  assert.deepEqual(platformReadModel?.capabilityProviders, [{
+    capability: 'DataExchange',
+    kind: 'export',
+    source: 'SharedCatalog',
+    mappings: {
+      id: 'platformId',
+      name: 'platformName',
+      format: 'exportFormat'
+    }
+  }]);
+  assert.equal(agentReadModel?.capabilityProviders, undefined);
+});
+
 test('reports circular imports and keeps same concept names distinct across contexts', () => {
   const files = new Map<string, string>([
     ['/workspace/a.medol', 'import "./b.medol"\ncontext Sales { concept Item {} }'],

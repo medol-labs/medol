@@ -6,6 +6,9 @@ import {
   isAutomationTrigger,
   isBinaryExpr,
   isBooleanLiteral,
+  isCapabilityActors,
+  isCapabilityExtension,
+  isCapabilityProvider,
   isCommand,
   isClientEffect,
   isCondition,
@@ -55,6 +58,7 @@ import {
 } from '../language/generated/ast';
 import type {
   Automation as AstAutomation,
+  CapabilityExtension as AstCapabilityExtension,
   Command as AstCommand,
   Context as AstContext,
   Domain as AstDomain,
@@ -83,7 +87,7 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type MedolDiagnostic, type MedolSourceRange } from './model';
+import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmCapabilityExtension, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 import { resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
@@ -392,12 +396,15 @@ export const astToEmModel = (ast: AstModel): EmModel => {
     const domain = parseDomain(domainNode, model.edges);
     model.domains.push(domain);
     model.contexts.push(...domain.contexts);
+    model.capabilityExtensions.push(...domain.capabilityExtensions, ...domain.contexts.flatMap((context) => context.capabilityExtensions));
     domain.deployments.forEach(addDeployment);
     domain.frontendApplications.forEach(addFrontendApplication);
   }
 
   for (const contextNode of ast.contexts ?? []) {
-    model.contexts.push(parseContext(contextNode, undefined, model.edges));
+    const context = parseContext(contextNode, undefined, model.edges);
+    model.contexts.push(context);
+    model.capabilityExtensions.push(...context.capabilityExtensions);
   }
 
   for (const deploymentNode of ast.deployments ?? []) {
@@ -406,6 +413,10 @@ export const astToEmModel = (ast: AstModel): EmModel => {
 
   for (const frontendApplicationNode of ast.frontendApplications ?? []) {
     addFrontendApplication(parseFrontendApplication(frontendApplicationNode, undefined));
+  }
+
+  for (const extensionNode of ast.capabilityExtensions ?? []) {
+    model.capabilityExtensions.push(parseCapabilityExtension(extensionNode));
   }
 
   return model;
@@ -418,7 +429,8 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
     ...withSourceRange(node),
     contexts: [],
     deployments: [],
-    frontendApplications: []
+    frontendApplications: [],
+    capabilityExtensions: []
   };
 
   for (const contextNode of node.contexts ?? []) {
@@ -429,6 +441,9 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
   }
   for (const frontendApplicationNode of node.frontendApplications ?? []) {
     domain.frontendApplications.push(parseFrontendApplication(frontendApplicationNode, domain.name));
+  }
+  for (const extensionNode of node.capabilityExtensions ?? []) {
+    domain.capabilityExtensions.push(parseCapabilityExtension(extensionNode, { domain: domain.name }));
   }
 
   return domain;
@@ -472,7 +487,8 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     notes: [],
     risks: [],
     decisions: [],
-    metrics: []
+    metrics: [],
+    capabilityExtensions: []
   };
 
   for (const element of node.elements ?? []) {
@@ -516,6 +532,11 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
       context.metrics.push(element.name);
       continue;
     }
+    if (isCapabilityExtension(element)) {
+      const extension = parseCapabilityExtension(element, { context: contextName });
+      context.capabilityExtensions.push(extension);
+      continue;
+    }
     if (isIntegration(element) || isReadModel(element) || isAutomation(element)) {
       const looseElement = parseElement(element, context.id);
       context.looseElements.push(looseElement);
@@ -531,6 +552,32 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
   }
 
   return context;
+};
+
+const parseCapabilityExtension = (
+  node: AstCapabilityExtension,
+  scope: { domain?: string; context?: string } = {}
+): EmCapabilityExtension => {
+  const target = formatFieldSource(node.target);
+  const providers = (node.elements ?? [])
+    .filter(isCapabilityProvider)
+    .map((provider) => ({
+      capability: target,
+      kind: safeName(provider.kind, 'provider'),
+      ...(provider.source ? { source: formatFieldSource(provider.source) } : {}),
+      mappings: Object.fromEntries(provider.mappings.map((mapping) => [mapping.role, mapping.field]))
+    }));
+  const actors = (node.elements ?? [])
+    .filter(isCapabilityActors)
+    .flatMap((item) => item.actors.map((actor) => safeName(actor, 'Actor')));
+
+  return {
+    target,
+    ...scope,
+    ...withSourceRange(node),
+    providers,
+    actors
+  };
 };
 
 const parseExternalSystem = (node: AstExternal, contextId: string): EmExternalSystem => {

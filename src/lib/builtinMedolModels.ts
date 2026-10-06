@@ -1,27 +1,38 @@
 import type { MedolImportReference, MedolSource } from './dslParser';
 
-const loadIdentityAccessManagementMedol = async (): Promise<string> => {
+const loadBuiltinMedol = async (fileName: string): Promise<string> => {
   if (typeof window === 'undefined') {
     const importNodeModule = new Function('specifier', 'return import(specifier)') as (
       specifier: string
     ) => Promise<typeof import('node:fs')>;
     const { readFileSync } = await importNodeModule('node:fs');
     return readFileSync(
-      new URL('../builtin-models/identity-access-management.medol', import.meta.url),
+      new URL(`../builtin-models/${fileName}`, import.meta.url),
       'utf8'
     );
   }
 
-  const source = await import('../builtin-models/identity-access-management.medol?raw');
-  return source.default;
+  if (fileName === 'identity-access-management.medol') {
+    const source = await import('../builtin-models/identity-access-management.medol?raw');
+    return source.default;
+  }
+  if (fileName === 'dictionary-maintenance.medol') {
+    const source = await import('../builtin-models/dictionary-maintenance.medol?raw');
+    return source.default;
+  }
+  throw new Error(`Built-in Medol model not found: ${fileName}`);
 };
 
-const identityAccessManagementMedol = await loadIdentityAccessManagementMedol();
+const identityAccessManagementMedol = await loadBuiltinMedol('identity-access-management.medol');
+const dictionaryMaintenanceMedol = await loadBuiltinMedol('dictionary-maintenance.medol');
 
 export const builtinMedolModels = new Map<string, string>([
   ['identity-access-management', identityAccessManagementMedol],
   ['identityAccessManagement', identityAccessManagementMedol],
-  ['iam', identityAccessManagementMedol]
+  ['iam', identityAccessManagementMedol],
+  ['dictionary-maintenance', dictionaryMaintenanceMedol],
+  ['dictionaryMaintenance', dictionaryMaintenanceMedol],
+  ['dictionary', dictionaryMaintenanceMedol]
 ]);
 
 export const resolveBuiltinMedolImport = (

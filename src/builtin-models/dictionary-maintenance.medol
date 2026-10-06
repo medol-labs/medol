@@ -1,0 +1,359 @@
+domain DictionaryMaintenance {
+  context DictionaryMaintenance {
+    note "Dictionary maintenance owns dynamic option dictionaries used by platform contexts. Business contexts store valueCode and query DictionaryValueCatalog by dictionaryCode for selection. Localized display text is maintained in DictionaryValueTranslationCatalog by locale."
+  
+    risk "Runtime option changes can invalidate pending installation plans if dictionary values are removed instead of disabled."
+    risk "Duplicate dictionary value codes can cause inconsistent command payloads across deployables."
+    metric dictionaryValueActivationLatency
+  
+    type DictionaryCode = String
+    type DictionaryValueCode = String
+    type LocaleCode = String
+    type DisplayOrder = Int {
+      range 0..999999
+    }
+  
+    slice RegisterDictionary {
+      startsLifecycle
+  
+      actor DictionaryAdministrator
+      ui DictionaryCatalogScreen
+  
+      tags {
+        dictionaryCode
+      }
+  
+      command RegisterDictionary {
+        dictionaryId: UUID id generated technical
+        dictionaryCode: DictionaryCode
+        dictionaryName: String
+        description: Text?
+      }
+  
+      event DictionaryRegistered {
+        dictionaryId: UUID id technical
+        dictionaryCode: DictionaryCode
+        dictionaryName: String
+        description: Text?
+      }
+  
+      state Registered
+  
+      specification "Dictionary Code Unique" {
+        rule """
+          FederDictionary Codes must be unique.
+        """
+  
+        expression {
+          unique Dictionary.dictionaryCode
+        }
+  
+        scenario "Reject Duplicate Dictionary" {
+          given DictionaryRegistered {
+            dictionaryCode = "B"
+          }
+          when RegisterDictionary {
+            dictionaryCode = "B"
+          }
+          then reject "Dictionary Already Exists"
+        }
+      }
+    }
+  
+    slice UpdateDictionary {
+      actor DictionaryAdministrator
+      ui DictionaryCatalogScreen
+      reactsTo DictionaryRegistered
+  
+      command UpdateDictionary {
+        dictionaryId: UUID id technical
+        dictionaryName: String
+        description: Text?
+      }
+  
+      event DictionaryUpdated {
+        dictionaryId: UUID id technical
+        dictionaryName: String
+        description: Text?
+      }
+    }
+  
+    slice ArchiveDictionary {
+      actor DictionaryAdministrator
+      ui DictionaryCatalogScreen confirm
+      reactsTo DictionaryRegistered
+  
+      command ArchiveDictionary {
+        dictionaryId: UUID id technical
+        archiveReason: String
+      }
+  
+      event DictionaryArchived {
+        dictionaryId: UUID id technical
+        archiveReason: String
+      }
+  
+      state Archived
+    }
+  
+    slice DictionaryCatalog {
+      readmodel DictionaryCatalog[] {
+        dictionaryId: UUID id
+        dictionaryCode: DictionaryCode query
+        dictionaryName: String
+        description: Text?
+        state: Dictionary.State
+        registeredAt: DateTime
+        updatedAt: DateTime?
+        archivedAt: DateTime?
+        archiveReason: String?
+        subscribe DictionaryRegistered
+        subscribe DictionaryUpdated
+        subscribe DictionaryArchived
+      }
+    }
+  
+    slice AddDictionaryValue {
+      startsLifecycle
+  
+      actor DictionaryAdministrator
+      ui DictionaryValueCatalogScreen
+      reactsTo DictionaryRegistered
+  
+      tags {
+        dictionaryCode
+        valueCode
+      }
+  
+      command AddDictionaryValue {
+        dictionaryValueId: UUID id generated technical
+        dictionaryId: UUID
+        dictionaryCode: DictionaryCode
+        valueCode: DictionaryValueCode
+        defaultDisplayName: String
+        displayOrder: DisplayOrder?
+        description: Text?
+        active: Boolean
+      }
+  
+      event DictionaryValueAdded {
+        dictionaryValueId: UUID id technical
+        dictionaryId: UUID
+        dictionaryCode: DictionaryCode
+        valueCode: DictionaryValueCode
+        defaultDisplayName: String
+        displayOrder: DisplayOrder?
+        description: Text?
+        active: Boolean
+      }
+  
+      state Active
+    }
+  
+    slice DisableDictionaryValue {
+      actor DictionaryAdministrator
+      ui DictionaryValueCatalogScreen confirm
+      reactsTo DictionaryValueAdded
+  
+      command DisableDictionaryValue {
+        dictionaryValueId: UUID id technical
+        disabledReason: String
+      }
+  
+      event DictionaryValueDisabled {
+        dictionaryValueId: UUID id technical
+        disabledReason: String
+      }
+  
+      state Disabled
+    }
+  
+    slice EnableDictionaryValue {
+      actor DictionaryAdministrator
+      ui DictionaryValueCatalogScreen
+      reactsTo DictionaryValueDisabled
+  
+      command EnableDictionaryValue {
+        dictionaryValueId: UUID id technical
+        enableReason: String
+      }
+  
+      event DictionaryValueEnabled {
+        dictionaryValueId: UUID id technical
+        enableReason: String
+      }
+  
+      state Active
+    }
+  
+    slice DictionaryValueCatalog {
+      readmodel DictionaryValueCatalog[] {
+        dictionaryValueId: UUID id
+        dictionaryId: UUID
+        dictionaryCode: DictionaryCode query
+        valueCode: DictionaryValueCode
+        defaultDisplayName: String display
+        displayOrder: DisplayOrder?
+        description: Text?
+        active: Boolean query
+        state: DictionaryValue.State
+        addedAt: DateTime
+        updatedAt: DateTime?
+        disabledAt: DateTime?
+        disabledReason: String?
+        enabledAt: DateTime?
+        subscribe DictionaryValueAdded
+        subscribe DictionaryValueDisabled
+        subscribe DictionaryValueEnabled
+      }
+    }
+  
+    slice SetDictionaryValueTranslation {
+      startsLifecycle
+  
+      actor DictionaryAdministrator
+      ui DictionaryValueCatalogScreen
+      reactsTo DictionaryValueAdded
+  
+      tags {
+        dictionaryCode
+        valueCode
+        locale
+      }
+  
+      command SetDictionaryValueTranslation {
+        dictionaryValueTranslationId: UUID id technical
+        dictionaryValueId: UUID
+        dictionaryCode: DictionaryCode
+        valueCode: DictionaryValueCode
+        locale: LocaleCode
+        displayName: String
+        description: Text?
+      }
+  
+      event DictionaryValueTranslationSet {
+        dictionaryValueTranslationId: UUID id technical
+        dictionaryValueId: UUID
+        dictionaryCode: DictionaryCode
+        valueCode: DictionaryValueCode
+        locale: LocaleCode
+        displayName: String
+        description: Text?
+      }
+  
+      state Active
+  
+      specification "Dictionary Value Translation Locale Unique" {
+        rule """
+          A dictionary value can only have one translation for the same locale.
+        """
+  
+        expression {
+          unique (DictionaryValueTranslation.dictionaryCode, DictionaryValueTranslation.valueCode, DictionaryValueTranslation.locale)
+        }
+  
+        scenario "Reject Duplicate Dictionary Value Translation Locale" {
+          given DictionaryValueTranslationSet {
+            dictionaryCode = "RUNTIME_ENVIRONMENT_TYPE"
+            valueCode = "K3S"
+            locale = "zh-CN"
+          }
+          when SetDictionaryValueTranslation {
+            dictionaryCode = "RUNTIME_ENVIRONMENT_TYPE"
+            valueCode = "K3S"
+            locale = "zh-CN"
+          }
+          then reject "Dictionary value translation already exists for locale."
+        }
+      }
+    }
+  
+    slice UpdateDictionaryValueTranslation {
+      actor DictionaryAdministrator
+      ui DictionaryValueCatalogScreen
+      reactsTo DictionaryValueTranslationSet
+  
+      command UpdateDictionaryValueTranslation {
+        dictionaryValueTranslationId: UUID id technical
+        dictionaryValueId: UUID
+        dictionaryCode: DictionaryCode
+        valueCode: DictionaryValueCode
+        locale: LocaleCode
+        displayName: String
+        description: Text?
+      }
+  
+      event DictionaryValueTranslationUpdated {
+        dictionaryValueTranslationId: UUID id technical
+        dictionaryValueId: UUID
+        dictionaryCode: DictionaryCode
+        valueCode: DictionaryValueCode
+        locale: LocaleCode
+        displayName: String
+        description: Text?
+      }
+    }
+  
+    slice DictionaryValueTranslationCatalog {
+      readmodel DictionaryValueTranslationCatalog[] {
+        dictionaryValueTranslationId: UUID id
+        dictionaryValueId: UUID
+        dictionaryCode: DictionaryCode query
+        valueCode: DictionaryValueCode query
+        locale: LocaleCode query
+        displayName: String display
+        description: Text?
+        updatedAt: DateTime?
+        subscribe DictionaryValueTranslationSet
+        subscribe DictionaryValueTranslationUpdated
+      }
+    }
+  
+    concept Dictionary {
+      state Registered
+      state Archived
+  
+      slice RegisterDictionary
+      slice UpdateDictionary
+      slice ArchiveDictionary
+      slice DictionaryCatalog
+    }
+  
+    concept DictionaryValue {
+      state Active
+      state Disabled
+  
+      slice AddDictionaryValue
+      slice DisableDictionaryValue
+      slice EnableDictionaryValue
+      slice DictionaryValueCatalog
+    }
+  
+    concept DictionaryValueTranslation {
+      state Active
+  
+      slice SetDictionaryValueTranslation
+      slice UpdateDictionaryValueTranslation
+      slice DictionaryValueTranslationCatalog
+    }
+  
+    extend DictionaryMaintenance {
+      provider dictionaryValues from DictionaryValueCatalog {
+        code dictionaryCode
+        value valueCode
+        label defaultDisplayName
+        active active
+        state state
+        order displayOrder
+      }
+  
+      provider dictionaryTranslations from DictionaryValueTranslationCatalog {
+        code dictionaryCode
+        value valueCode
+        locale locale
+        label displayName
+        description description
+      }
+    }
+  }
+}

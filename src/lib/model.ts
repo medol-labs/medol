@@ -87,6 +87,22 @@ export interface EmDictionaryProvider {
   order?: string;
 }
 
+export interface EmCapabilityExtension {
+  target: string;
+  domain?: string;
+  context?: string;
+  sourceRange?: MedolSourceRange;
+  providers: EmCapabilityProvider[];
+  actors: string[];
+}
+
+export interface EmCapabilityProvider {
+  capability: string;
+  kind: string;
+  source?: string;
+  mappings: Record<string, string>;
+}
+
 export interface EmClientEffect {
   type: EmClientEffectType;
   options: Record<string, string>;
@@ -208,6 +224,7 @@ export interface EmContext {
   risks: string[];
   decisions: string[];
   metrics: string[];
+  capabilityExtensions: EmCapabilityExtension[];
 }
 
 export interface EmDomain {
@@ -217,6 +234,7 @@ export interface EmDomain {
   contexts: EmContext[];
   deployments: EmDeployment[];
   frontendApplications: EmFrontendApplication[];
+  capabilityExtensions: EmCapabilityExtension[];
 }
 
 export interface EmDeployment {
@@ -269,6 +287,7 @@ export interface EmModel {
   deployments: EmDeployment[];
   frontendApplications: EmFrontendApplication[];
   contexts: EmContext[];
+  capabilityExtensions: EmCapabilityExtension[];
   edges: EmEdge[];
   diagnostics: string[];
   diagnosticDetails: MedolDiagnostic[];
@@ -279,6 +298,7 @@ export const emptyModel = (): EmModel => ({
   deployments: [],
   frontendApplications: [],
   contexts: [],
+  capabilityExtensions: [],
   edges: [],
   diagnostics: [],
   diagnosticDetails: []

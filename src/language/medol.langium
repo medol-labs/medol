@@ -2,7 +2,7 @@ grammar Medol
 
 entry Model:
     imports+=Import*
-    (domains+=Domain | contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication)*
+    (domains+=Domain | contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | capabilityExtensions+=CapabilityExtension)*
 ;
 
 Import:
@@ -10,12 +10,21 @@ Import:
 ;
 
 ImportModuleName returns string:
-    ID ('-' ID)*
+    ImportModuleNamePart ('-' ImportModuleNamePart)*
+;
+
+ImportModuleNamePart returns string:
+      ID
+    | 'dictionary'
+    | 'identity'
+    | 'access'
+    | 'management'
+    | 'maintenance'
 ;
 
 Domain:
     'domain' name=ID '{'
-        (contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication)*
+        (contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | capabilityExtensions+=CapabilityExtension)*
     '}'
 ;
 
@@ -49,6 +58,7 @@ ContextElement:
       ValueType
     | EnumType
     | StructuredValueType
+    | CapabilityExtension
     | Slice
     | Concept
     | Automation
@@ -300,6 +310,37 @@ DictionaryProviderMappingKind returns string:
     | 'order'
 ;
 
+CapabilityExtension:
+    'extend' target=FieldSource '{'
+        elements+=CapabilityExtensionElement*
+    '}'
+;
+
+CapabilityExtensionElement:
+      CapabilityProvider
+    | CapabilityActors
+;
+
+CapabilityProvider:
+    'provider' kind=CapabilityProviderKind ('from' source=FieldSource)? '{'
+        mappings+=CapabilityProviderMapping*
+    '}'
+;
+
+CapabilityProviderMapping:
+    role=FieldName field=FieldName
+;
+
+CapabilityProviderKind returns string:
+      ID
+    | 'export'
+    | 'import'
+;
+
+CapabilityActors:
+    'actors' actors+=ID (',' actors+=ID)*
+;
+
 Automation:
     'automation' name=ID '{'
         elements+=AutomationElement*
@@ -418,15 +459,22 @@ FieldName returns string:
       ID
     | 'active'
     | 'code'
+    | 'description'
     | 'domain'
     | 'eligible'
     | 'event'
+    | 'export'
+    | 'format'
+    | 'id'
+    | 'import'
     | 'label'
     | 'missing'
+    | 'name'
     | 'order'
     | 'port'
     | 'state'
     | 'sync'
+    | 'type'
     | 'value'
 ;
 

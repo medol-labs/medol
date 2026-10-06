@@ -1,5 +1,6 @@
 import identity-access-management as PlatformIam deploy FederationLearningSupport
 import identity-access-management as ParticipantIam deploy FederationLearningRuntimeAgent
+import dictionary-maintenance as PlatformDictionary deploy FederationLearningSupport
 
 domain FederationLearningPlatform {
 context OrganizationManagement {
@@ -613,242 +614,6 @@ context FederationManagement {
 
 }
 
-context DictionaryMaintenance {
-  note "Dictionary maintenance owns dynamic option dictionaries used by platform contexts. Business contexts store valueCode and query DictionaryValueCatalog by dictionaryCode for display and selection."
-
-  risk "Runtime option changes can invalidate pending installation plans if dictionary values are removed instead of disabled."
-  risk "Duplicate dictionary value codes can cause inconsistent command payloads across deployables."
-  metric dictionaryValueActivationLatency
-
-  type DictionaryCode = String
-  type DictionaryValueCode = String
-  type DisplayOrder = Int {
-    range 0..999999
-  }
-
-  slice RegisterDictionary {
-    startsLifecycle
-
-    actor PlatformAdmin
-    ui DictionaryCatalogScreen
-
-    tags {
-      dictionaryCode
-    }
-
-    command RegisterDictionary {
-      dictionaryId: UUID id generated technical
-      dictionaryCode: DictionaryCode
-      dictionaryName: String
-      description: Text?
-    }
-
-    event DictionaryRegistered {
-      dictionaryId: UUID id technical
-      dictionaryCode: DictionaryCode
-      dictionaryName: String
-      description: Text?
-    }
-
-    state Registered
-
-    specification "Dictionary Code Unique" {
-      rule """
-        FederDictionary Codes must be unique.
-      """
-
-      expression {
-        unique Dictionary.dictionaryCode
-      }
-
-      scenario "Reject Duplicate Dictionary" {
-        given DictionaryRegistered {
-          dictionaryCode = "B"
-        }
-        when RegisterDictionary {
-          dictionaryCode = "B"
-        }
-        then reject "Dictionary Already Exists"
-      }
-    }
-  }
-
-  slice UpdateDictionary {
-    actor PlatformAdmin
-    ui DictionaryCatalogScreen
-    reactsTo DictionaryRegistered
-
-    command UpdateDictionary {
-      dictionaryId: UUID id technical
-      dictionaryName: String
-      description: Text?
-    }
-
-    event DictionaryUpdated {
-      dictionaryId: UUID id technical
-      dictionaryName: String
-      description: Text?
-    }
-  }
-
-  slice ArchiveDictionary {
-    actor PlatformAdmin
-    ui DictionaryCatalogScreen confirm
-    reactsTo DictionaryRegistered
-
-    command ArchiveDictionary {
-      dictionaryId: UUID id technical
-      archiveReason: String
-    }
-
-    event DictionaryArchived {
-      dictionaryId: UUID id technical
-      archiveReason: String
-    }
-
-    state Archived
-  }
-
-  slice DictionaryCatalog {
-    readmodel DictionaryCatalog[] {
-      dictionaryId: UUID id
-      dictionaryCode: DictionaryCode query
-      dictionaryName: String
-      description: Text?
-      state: Dictionary.State
-      registeredAt: DateTime
-      updatedAt: DateTime?
-      archivedAt: DateTime?
-      archiveReason: String?
-      subscribe DictionaryRegistered
-      subscribe DictionaryUpdated
-      subscribe DictionaryArchived
-    }
-  }
-
-  slice AddDictionaryValue {
-    startsLifecycle
-
-    actor PlatformAdmin
-    ui DictionaryValueCatalogScreen
-    reactsTo DictionaryRegistered
-
-    tags {
-      dictionaryCode
-      valueCode
-    }
-
-    command AddDictionaryValue {
-      dictionaryValueId: UUID id generated technical
-      dictionaryId: UUID
-      dictionaryCode: DictionaryCode
-      valueCode: DictionaryValueCode
-      displayName: String
-      displayOrder: DisplayOrder?
-      description: Text?
-      active: Boolean
-    }
-
-    event DictionaryValueAdded {
-      dictionaryValueId: UUID id technical
-      dictionaryId: UUID
-      dictionaryCode: DictionaryCode
-      valueCode: DictionaryValueCode
-      displayName: String
-      displayOrder: DisplayOrder?
-      description: Text?
-      active: Boolean
-    }
-
-    state Active
-  }
-
-  slice DisableDictionaryValue {
-    actor PlatformAdmin
-    ui DictionaryValueCatalogScreen confirm
-    reactsTo DictionaryValueAdded
-
-    command DisableDictionaryValue {
-      dictionaryValueId: UUID id technical
-      disabledReason: String
-    }
-
-    event DictionaryValueDisabled {
-      dictionaryValueId: UUID id technical
-      disabledReason: String
-    }
-
-    state Disabled
-  }
-
-  slice EnableDictionaryValue {
-    actor PlatformAdmin
-    ui DictionaryValueCatalogScreen
-    reactsTo DictionaryValueDisabled
-
-    command EnableDictionaryValue {
-      dictionaryValueId: UUID id technical
-      enableReason: String
-    }
-
-    event DictionaryValueEnabled {
-      dictionaryValueId: UUID id technical
-      enableReason: String
-    }
-
-    state Active
-  }
-
-  slice DictionaryValueCatalog {
-    readmodel DictionaryValueCatalog[] {
-      dictionaryProvider DictionaryValueCatalog {
-        code dictionaryCode
-        value valueCode
-        label displayName
-        active active
-        state state
-        order displayOrder
-      }
-      dictionaryValueId: UUID id
-      dictionaryId: UUID
-      dictionaryCode: DictionaryCode query
-      valueCode: DictionaryValueCode
-      displayName: String display
-      displayOrder: DisplayOrder?
-      description: Text?
-      active: Boolean query
-      state: DictionaryValue.State
-      addedAt: DateTime
-      updatedAt: DateTime?
-      disabledAt: DateTime?
-      disabledReason: String?
-      enabledAt: DateTime?
-      subscribe DictionaryValueAdded
-      subscribe DictionaryValueDisabled
-      subscribe DictionaryValueEnabled
-    }
-  }
-
-  concept Dictionary {
-    state Registered
-    state Archived
-
-    slice RegisterDictionary
-    slice UpdateDictionary
-    slice ArchiveDictionary
-    slice DictionaryCatalog
-  }
-
-  concept DictionaryValue {
-    state Active
-    state Disabled
-
-    slice AddDictionaryValue
-    slice DisableDictionaryValue
-    slice EnableDictionaryValue
-    slice DictionaryValueCatalog
-  }
-}
 
 context FileUpload {
   note "FileUpload is the shared persistent file-storage boundary. It stores uploaded content through a replaceable storage adapter, records each uploaded file, exposes an authenticated content URI, and applies optional retention through expiresAt. Business domains reference the uploaded file record instead of creating another physical storage tier."
@@ -6342,23 +6107,47 @@ context RuntimeAgentOperations {
 
   slice AgentDictionaryValueCatalog {
     sync readmodel AgentDictionaryValueCatalog[] from DictionaryMaintenance.DictionaryValueCatalog {
-      dictionaryProvider AgentDictionaryValueCatalog {
-        code dictionaryCode
-        value valueCode
-        label displayName
-        active active
-        state state
-        order displayOrder
-      }
       dictionaryValueId: UUID id
       dictionaryId: UUID
       dictionaryCode: String query
       valueCode: String
-      displayName: String display
+      defaultDisplayName: String display
       displayOrder: Int?
       active: Boolean query
       state: String
       syncedAt: DateTime
+    }
+  }
+
+  slice AgentDictionaryValueTranslationCatalog {
+    sync readmodel AgentDictionaryValueTranslationCatalog[] from DictionaryMaintenance.DictionaryValueTranslationCatalog {
+      dictionaryValueTranslationId: UUID id
+      dictionaryValueId: UUID
+      dictionaryCode: String query
+      valueCode: String query
+      locale: String query
+      displayName: String display
+      description: Text?
+      syncedAt: DateTime
+    }
+  }
+
+  extend DictionaryMaintenance {
+    provider dictionaryValues from AgentDictionaryValueCatalog {
+      code dictionaryCode
+      value valueCode
+      label defaultDisplayName
+      active active
+      state state
+      order displayOrder
+    }
+
+    provider dictionaryTranslations from AgentDictionaryValueTranslationCatalog {
+      code dictionaryCode
+      value valueCode
+      locale locale
+      label displayName
+      description description
     }
   }
 
@@ -8650,7 +8439,6 @@ context RuntimeAgentOperations {
   }
 
   deployment FederationLearningSupport {
-    includes DictionaryMaintenance
     includes FileUpload
   }
 

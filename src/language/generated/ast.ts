@@ -36,8 +36,10 @@ export type MedolKeywordNames =
     | "?"
     | "[]"
     | "[]?"
+    | "access"
     | "active"
     | "actor"
+    | "actors"
     | "as"
     | "assert"
     | "asyncJob"
@@ -59,6 +61,7 @@ export type MedolKeywordNames =
     | "deploy"
     | "deployment"
     | "derived"
+    | "description"
     | "detail"
     | "dialog"
     | "dictionary"
@@ -77,6 +80,7 @@ export type MedolKeywordNames =
     | "example"
     | "export"
     | "expression"
+    | "extend"
     | "external"
     | "false"
     | "field"
@@ -90,6 +94,7 @@ export type MedolKeywordNames =
     | "given"
     | "hotspot"
     | "id"
+    | "identity"
     | "import"
     | "includes"
     | "inline"
@@ -100,9 +105,12 @@ export type MedolKeywordNames =
     | "length"
     | "list"
     | "lookup"
+    | "maintenance"
+    | "management"
     | "matches"
     | "metric"
     | "missing"
+    | "name"
     | "navigate"
     | "note"
     | "null"
@@ -117,6 +125,7 @@ export type MedolKeywordNames =
     | "print"
     | "projection"
     | "protocol"
+    | "provider"
     | "query"
     | "range"
     | "reactsTo"
@@ -286,6 +295,90 @@ export const BooleanLiteral = {
 
 export function isBooleanLiteral(item: unknown): item is BooleanLiteral {
     return reflection.isInstance(item, BooleanLiteral.$type);
+}
+
+export interface CapabilityActors extends langium.AstNode {
+    readonly $container: CapabilityExtension;
+    readonly $type: 'CapabilityActors';
+    actors: Array<string>;
+}
+
+export const CapabilityActors = {
+    $type: 'CapabilityActors',
+    actors: 'actors'
+} as const;
+
+export function isCapabilityActors(item: unknown): item is CapabilityActors {
+    return reflection.isInstance(item, CapabilityActors.$type);
+}
+
+export interface CapabilityExtension extends langium.AstNode {
+    readonly $container: Context | Domain | Model;
+    readonly $type: 'CapabilityExtension';
+    elements: Array<CapabilityExtensionElement>;
+    target: FieldSource;
+}
+
+export const CapabilityExtension = {
+    $type: 'CapabilityExtension',
+    elements: 'elements',
+    target: 'target'
+} as const;
+
+export function isCapabilityExtension(item: unknown): item is CapabilityExtension {
+    return reflection.isInstance(item, CapabilityExtension.$type);
+}
+
+export type CapabilityExtensionElement = CapabilityActors | CapabilityProvider;
+
+export const CapabilityExtensionElement = {
+    $type: 'CapabilityExtensionElement'
+} as const;
+
+export function isCapabilityExtensionElement(item: unknown): item is CapabilityExtensionElement {
+    return reflection.isInstance(item, CapabilityExtensionElement.$type);
+}
+
+export interface CapabilityProvider extends langium.AstNode {
+    readonly $container: CapabilityExtension;
+    readonly $type: 'CapabilityProvider';
+    kind: CapabilityProviderKind;
+    mappings: Array<CapabilityProviderMapping>;
+    source?: FieldSource;
+}
+
+export const CapabilityProvider = {
+    $type: 'CapabilityProvider',
+    kind: 'kind',
+    mappings: 'mappings',
+    source: 'source'
+} as const;
+
+export function isCapabilityProvider(item: unknown): item is CapabilityProvider {
+    return reflection.isInstance(item, CapabilityProvider.$type);
+}
+
+export type CapabilityProviderKind = 'export' | 'import' | string;
+
+export function isCapabilityProviderKind(item: unknown): item is CapabilityProviderKind {
+    return item === 'export' || item === 'import' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+}
+
+export interface CapabilityProviderMapping extends langium.AstNode {
+    readonly $container: CapabilityProvider;
+    readonly $type: 'CapabilityProviderMapping';
+    field: FieldName;
+    role: FieldName;
+}
+
+export const CapabilityProviderMapping = {
+    $type: 'CapabilityProviderMapping',
+    field: 'field',
+    role: 'role'
+} as const;
+
+export function isCapabilityProviderMapping(item: unknown): item is CapabilityProviderMapping {
+    return reflection.isInstance(item, CapabilityProviderMapping.$type);
 }
 
 export type Cardinality = '?' | '[]' | '[]?';
@@ -467,7 +560,7 @@ export function isContext(item: unknown): item is Context {
     return reflection.isInstance(item, Context.$type);
 }
 
-export type ContextElement = Automation | Concept | Decision | EnumType | External | Integration | Metric | Note | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
+export type ContextElement = Automation | CapabilityExtension | Concept | Decision | EnumType | External | Integration | Metric | Note | ReadModel | Risk | Slice | StructuredValueType | UserJourney | ValueType;
 
 export const ContextElement = {
     $type: 'ContextElement'
@@ -567,6 +660,7 @@ export function isDictionaryProviderMappingKind(item: unknown): item is Dictiona
 export interface Domain extends langium.AstNode {
     readonly $container: Model;
     readonly $type: 'Domain';
+    capabilityExtensions: Array<CapabilityExtension>;
     contexts: Array<Context>;
     deployments: Array<Deployment>;
     frontendApplications: Array<FrontendApplication>;
@@ -575,6 +669,7 @@ export interface Domain extends langium.AstNode {
 
 export const Domain = {
     $type: 'Domain',
+    capabilityExtensions: 'capabilityExtensions',
     contexts: 'contexts',
     deployments: 'deployments',
     frontendApplications: 'frontendApplications',
@@ -935,14 +1030,14 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export type FieldName = 'active' | 'code' | 'domain' | 'eligible' | 'event' | 'label' | 'missing' | 'order' | 'port' | 'state' | 'sync' | 'value' | string;
+export type FieldName = 'active' | 'code' | 'description' | 'domain' | 'eligible' | 'event' | 'export' | 'format' | 'id' | 'import' | 'label' | 'missing' | 'name' | 'order' | 'port' | 'state' | 'sync' | 'type' | 'value' | string;
 
 export function isFieldName(item: unknown): item is FieldName {
-    return item === 'active' || item === 'code' || item === 'domain' || item === 'eligible' || item === 'event' || item === 'label' || item === 'missing' || item === 'order' || item === 'port' || item === 'state' || item === 'sync' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'active' || item === 'code' || item === 'description' || item === 'domain' || item === 'eligible' || item === 'event' || item === 'export' || item === 'format' || item === 'id' || item === 'import' || item === 'label' || item === 'missing' || item === 'name' || item === 'order' || item === 'port' || item === 'state' || item === 'sync' || item === 'type' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | ReadModel | RefExpr | SyncFilter | UniqueValidation;
+    readonly $container: AssertValidation | CapabilityExtension | CapabilityProvider | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | ReadModel | RefExpr | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1066,6 +1161,12 @@ export function isImportModuleName(item: unknown): item is ImportModuleName {
     return typeof item === 'string';
 }
 
+export type ImportModuleNamePart = 'access' | 'dictionary' | 'identity' | 'maintenance' | 'management' | string;
+
+export function isImportModuleNamePart(item: unknown): item is ImportModuleNamePart {
+    return item === 'dictionary' || item === 'identity' || item === 'access' || item === 'management' || item === 'maintenance' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+}
+
 export interface Integration extends langium.AstNode {
     readonly $container: Context;
     readonly $type: 'Integration';
@@ -1135,6 +1236,7 @@ export function isMetric(item: unknown): item is Metric {
 
 export interface Model extends langium.AstNode {
     readonly $type: 'Model';
+    capabilityExtensions: Array<CapabilityExtension>;
     contexts: Array<Context>;
     deployments: Array<Deployment>;
     domains: Array<Domain>;
@@ -1144,6 +1246,7 @@ export interface Model extends langium.AstNode {
 
 export const Model = {
     $type: 'Model',
+    capabilityExtensions: 'capabilityExtensions',
     contexts: 'contexts',
     deployments: 'deployments',
     domains: 'domains',
@@ -1862,6 +1965,11 @@ export type MedolAstType = {
     AutomationTrigger: AutomationTrigger
     BinaryExpr: BinaryExpr
     BooleanLiteral: BooleanLiteral
+    CapabilityActors: CapabilityActors
+    CapabilityExtension: CapabilityExtension
+    CapabilityExtensionElement: CapabilityExtensionElement
+    CapabilityProvider: CapabilityProvider
+    CapabilityProviderMapping: CapabilityProviderMapping
     ClientEffect: ClientEffect
     ClientEffectOption: ClientEffectOption
     Command: Command
@@ -2055,6 +2163,63 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [Literal.$type]
         },
+        CapabilityActors: {
+            name: CapabilityActors.$type,
+            properties: {
+                actors: {
+                    name: CapabilityActors.actors,
+                    defaultValue: []
+                }
+            },
+            superTypes: [CapabilityExtensionElement.$type]
+        },
+        CapabilityExtension: {
+            name: CapabilityExtension.$type,
+            properties: {
+                elements: {
+                    name: CapabilityExtension.elements,
+                    defaultValue: []
+                },
+                target: {
+                    name: CapabilityExtension.target
+                }
+            },
+            superTypes: [ContextElement.$type]
+        },
+        CapabilityExtensionElement: {
+            name: CapabilityExtensionElement.$type,
+            properties: {
+            },
+            superTypes: []
+        },
+        CapabilityProvider: {
+            name: CapabilityProvider.$type,
+            properties: {
+                kind: {
+                    name: CapabilityProvider.kind
+                },
+                mappings: {
+                    name: CapabilityProvider.mappings,
+                    defaultValue: []
+                },
+                source: {
+                    name: CapabilityProvider.source
+                }
+            },
+            superTypes: [CapabilityExtensionElement.$type]
+        },
+        CapabilityProviderMapping: {
+            name: CapabilityProviderMapping.$type,
+            properties: {
+                field: {
+                    name: CapabilityProviderMapping.field
+                },
+                role: {
+                    name: CapabilityProviderMapping.role
+                }
+            },
+            superTypes: []
+        },
         ClientEffect: {
             name: ClientEffect.$type,
             properties: {
@@ -2238,6 +2403,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Domain: {
             name: Domain.$type,
             properties: {
+                capabilityExtensions: {
+                    name: Domain.capabilityExtensions,
+                    defaultValue: []
+                },
                 contexts: {
                     name: Domain.contexts,
                     defaultValue: []
@@ -2649,6 +2818,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Model: {
             name: Model.$type,
             properties: {
+                capabilityExtensions: {
+                    name: Model.capabilityExtensions,
+                    defaultValue: []
+                },
                 contexts: {
                     name: Model.contexts,
                     defaultValue: []
