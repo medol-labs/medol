@@ -1,0 +1,96 @@
+context DataExchange {
+  slice DataExportJob {
+    startsLifecycle
+
+    command RequestDataExport {
+      dataExportJobId: UUID id
+      resourceName: String
+      criteriaJson: Text
+      sortJson: Text
+      columnsJson: Text
+      requestedLocale: String?
+      requestedAt: DateTime
+      snapshotUpperBound: DateTime
+      requestHash: String
+      fileName: String
+      status: String
+    }
+
+    event DataExportRequested {
+      dataExportJobId: UUID id
+      resourceName: String
+      criteriaJson: Text
+      sortJson: Text
+      columnsJson: Text
+      requestedLocale: String?
+      requestedAt: DateTime
+      snapshotUpperBound: DateTime
+      requestHash: String
+      fileName: String
+      status: String
+    }
+
+    command MarkDataExportProcessing {
+      dataExportJobId: UUID id
+      status: String
+    }
+
+    event DataExportProcessingStarted {
+      dataExportJobId: UUID id
+      status: String
+    }
+
+    command CompleteDataExport {
+      dataExportJobId: UUID id
+      fileName: String
+      filePath: String
+      rowCount: Long
+      status: String
+    }
+
+    event DataExportCompleted {
+      dataExportJobId: UUID id
+      fileName: String
+      filePath: String
+      rowCount: Long
+      status: String
+    }
+
+    command FailDataExport {
+      dataExportJobId: UUID id
+      errorMessage: Text
+      status: String
+    }
+
+    event DataExportFailed {
+      dataExportJobId: UUID id
+      errorMessage: Text
+      status: String
+    }
+
+    automation ExecuteDataExport {
+      on DataExportRequested
+      uses PlatformDataExchange.export
+      emits MarkDataExportProcessing
+      emits CompleteDataExport
+      emits FailDataExport
+    }
+
+    readmodel DataExportJobCatalog[] {
+      dataExportJobId: UUID id
+      resourceName: String display
+      criteriaJson: Text
+      sortJson: Text
+      columnsJson: Text
+      requestedLocale: String?
+      requestedAt: DateTime
+      snapshotUpperBound: DateTime
+      requestHash: String
+      status: String query
+      fileName: String?
+      filePath: String?
+      rowCount: Long?
+      errorMessage: Text?
+    }
+  }
+}

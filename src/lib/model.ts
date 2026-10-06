@@ -58,6 +58,7 @@ export interface EmElement {
   metadata?: Record<string, string>;
   ui?: EmUi;
   dictionaryProvider?: EmDictionaryProvider;
+  exportable?: EmExportable;
 }
 
 export interface EmSyncFilter {
@@ -85,6 +86,10 @@ export interface EmDictionaryProvider {
   active?: string;
   state?: string;
   order?: string;
+}
+
+export interface EmExportable {
+  capability?: string;
 }
 
 export interface EmCapabilityExtension {

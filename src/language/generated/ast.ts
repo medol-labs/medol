@@ -57,6 +57,7 @@ export type MedolKeywordNames =
     | "confirm"
     | "context"
     | "copy"
+    | "data"
     | "decision"
     | "deploy"
     | "deployment"
@@ -78,7 +79,9 @@ export type MedolKeywordNames =
     | "error"
     | "event"
     | "example"
+    | "exchange"
     | "export"
+    | "exportable"
     | "expression"
     | "extend"
     | "external"
@@ -158,6 +161,7 @@ export type MedolKeywordNames =
     | "unique"
     | "uploadFile"
     | "userJourney"
+    | "uses"
     | "value"
     | "view"
     | "when"
@@ -236,7 +240,22 @@ export function isAutomation(item: unknown): item is Automation {
     return reflection.isInstance(item, Automation.$type);
 }
 
-export type AutomationElement = AutomationTrigger | Condition | Emits | FanOut;
+export interface AutomationCapabilityUse extends langium.AstNode {
+    readonly $container: Automation;
+    readonly $type: 'AutomationCapabilityUse';
+    capability: QualifiedType;
+}
+
+export const AutomationCapabilityUse = {
+    $type: 'AutomationCapabilityUse',
+    capability: 'capability'
+} as const;
+
+export function isAutomationCapabilityUse(item: unknown): item is AutomationCapabilityUse {
+    return reflection.isInstance(item, AutomationCapabilityUse.$type);
+}
+
+export type AutomationElement = AutomationCapabilityUse | AutomationTrigger | Condition | Emits | FanOut;
 
 export const AutomationElement = {
     $type: 'AutomationElement'
@@ -791,6 +810,21 @@ export function isExampleBlock(item: unknown): item is ExampleBlock {
     return reflection.isInstance(item, ExampleBlock.$type);
 }
 
+export interface Exportable extends langium.AstNode {
+    readonly $container: ReadModel;
+    readonly $type: 'Exportable';
+    capability?: FieldSource;
+}
+
+export const Exportable = {
+    $type: 'Exportable',
+    capability: 'capability'
+} as const;
+
+export function isExportable(item: unknown): item is Exportable {
+    return reflection.isInstance(item, Exportable.$type);
+}
+
 export type Expression = BinaryExpr | PrimaryExpr;
 
 export const Expression = {
@@ -1037,7 +1071,7 @@ export function isFieldName(item: unknown): item is FieldName {
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | CapabilityExtension | CapabilityProvider | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | ReadModel | RefExpr | SyncFilter | UniqueValidation;
+    readonly $container: AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | ReadModel | RefExpr | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1161,10 +1195,10 @@ export function isImportModuleName(item: unknown): item is ImportModuleName {
     return typeof item === 'string';
 }
 
-export type ImportModuleNamePart = 'access' | 'dictionary' | 'file' | 'identity' | 'maintenance' | 'management' | string;
+export type ImportModuleNamePart = 'access' | 'data' | 'dictionary' | 'exchange' | 'file' | 'identity' | 'maintenance' | 'management' | string;
 
 export function isImportModuleNamePart(item: unknown): item is ImportModuleNamePart {
-    return item === 'dictionary' || item === 'file' || item === 'identity' || item === 'access' || item === 'management' || item === 'maintenance' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'dictionary' || item === 'data' || item === 'exchange' || item === 'file' || item === 'identity' || item === 'access' || item === 'management' || item === 'maintenance' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface Integration extends langium.AstNode {
@@ -1332,6 +1366,12 @@ export function isQualifiedType(item: unknown): item is QualifiedType {
     return typeof item === 'string';
 }
 
+export type QualifiedTypePart = 'export' | 'import' | string;
+
+export function isQualifiedTypePart(item: unknown): item is QualifiedTypePart {
+    return item === 'export' || item === 'import' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+}
+
 export interface ReactsTo extends langium.AstNode {
     readonly $container: Integration | Slice;
     readonly $type: 'ReactsTo';
@@ -1376,7 +1416,7 @@ export function isReadModel(item: unknown): item is ReadModel {
     return reflection.isInstance(item, ReadModel.$type);
 }
 
-export type ReadModelElement = DictionaryProvider | Field | Subscription;
+export type ReadModelElement = DictionaryProvider | Exportable | Field | Subscription;
 
 export const ReadModelElement = {
     $type: 'ReadModelElement'
@@ -1961,6 +2001,7 @@ export type MedolAstType = {
     AssertValidation: AssertValidation
     Assignment: Assignment
     Automation: Automation
+    AutomationCapabilityUse: AutomationCapabilityUse
     AutomationElement: AutomationElement
     AutomationTrigger: AutomationTrigger
     BinaryExpr: BinaryExpr
@@ -1995,6 +2036,7 @@ export type MedolAstType = {
     EventStep: EventStep
     Example: Example
     ExampleBlock: ExampleBlock
+    Exportable: Exportable
     Expression: Expression
     External: External
     ExternalCapabilities: ExternalCapabilities
@@ -2118,6 +2160,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [ContextElement.$type, SliceElement.$type]
+        },
+        AutomationCapabilityUse: {
+            name: AutomationCapabilityUse.$type,
+            properties: {
+                capability: {
+                    name: AutomationCapabilityUse.capability
+                }
+            },
+            superTypes: [AutomationElement.$type]
         },
         AutomationElement: {
             name: AutomationElement.$type,
@@ -2502,6 +2553,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: []
+        },
+        Exportable: {
+            name: Exportable.$type,
+            properties: {
+                capability: {
+                    name: Exportable.capability
+                }
+            },
+            superTypes: [ReadModelElement.$type]
         },
         Expression: {
             name: Expression.$type,

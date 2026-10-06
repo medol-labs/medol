@@ -16,6 +16,8 @@ ImportModuleName returns string:
 ImportModuleNamePart returns string:
       ID
     | 'dictionary'
+    | 'data'
+    | 'exchange'
     | 'file'
     | 'identity'
     | 'access'
@@ -280,6 +282,11 @@ ReadModelElement:
       Field
     | Subscription
     | DictionaryProvider
+    | Exportable
+;
+
+Exportable:
+    'exportable' ('by' capability=FieldSource)?
 ;
 
 Eligibility:
@@ -350,9 +357,14 @@ Automation:
 
 AutomationElement:
       AutomationTrigger
+    | AutomationCapabilityUse
     | Condition
     | FanOut
     | Emits
+;
+
+AutomationCapabilityUse:
+    'uses' capability=QualifiedType
 ;
 
 AutomationTrigger:
@@ -453,7 +465,13 @@ Field:
 ;
 
 QualifiedType returns string:
-    ID ('.' ID)*
+    QualifiedTypePart ('.' QualifiedTypePart)*
+;
+
+QualifiedTypePart returns string:
+      ID
+    | 'export'
+    | 'import'
 ;
 
 FieldName returns string:

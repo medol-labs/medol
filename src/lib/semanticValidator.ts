@@ -474,7 +474,6 @@ const validateAstSlice = (
   if (tagBlockCount > 1) diagnostics.push(`Slice ${sliceName}: declares more than one tags block.`);
   if (lifecycleMarkerCount > 1) diagnostics.push(`Slice ${sliceName}: declares startsLifecycle more than once.`);
   if (portMarkerCount > 1) diagnostics.push(`Slice ${sliceName}: declares port more than once.`);
-  if (commandCount > 1) diagnostics.push(`Slice ${sliceName}: declares more than one command.`);
   if (lifecycleMarkerCount > 0 && commandCount === 0) {
     diagnostics.push(`Slice ${sliceName}: startsLifecycle requires a command.`);
   }

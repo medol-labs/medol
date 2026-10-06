@@ -66,6 +66,7 @@ interface ConfigElement {
   port?: boolean;
   ui?: CodegenUi;
   dictionaryProvider?: CodegenElement['dictionaryProvider'];
+  exportable?: CodegenElement['exportable'];
   triggers?: [];
   sketched?: boolean;
   prototype?: { activeByDefault: boolean };
@@ -249,6 +250,7 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   ...(element.type === 'COMMAND' && element.port ? { port: true } : {}),
   ...(element.ui ? { ui: element.ui } : {}),
   ...(element.dictionaryProvider ? { dictionaryProvider: element.dictionaryProvider } : {}),
+  ...(element.exportable ? { exportable: element.exportable } : {}),
   triggers: [],
   sketched: false,
   prototype: {

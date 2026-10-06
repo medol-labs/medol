@@ -3,6 +3,7 @@ import { MedolGeneratedModule, MedolGeneratedSharedModule } from '../language/ge
 import {
   isActorRef,
   isAutomation,
+  isAutomationCapabilityUse,
   isAutomationTrigger,
   isBinaryExpr,
   isBooleanLiteral,
@@ -17,6 +18,7 @@ import {
   isStartsLifecycleMarker,
   isConcept,
   isEvent,
+  isExportable,
   isExternal,
   isExternalCapabilities,
   isExternalEndpoint,
@@ -905,7 +907,8 @@ const parseElement = (
     ...(isReadModel(node) && node.eligibility.length ? { eligibility: node.eligibility.map(parseEligibility) } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),
-    ...(isReadModel(node) ? parseReadModelDictionaryProvider(node) : {})
+    ...(isReadModel(node) ? parseReadModelDictionaryProvider(node) : {}),
+    ...(isReadModel(node) ? parseReadModelExportable(node) : {})
   };
 };
 
@@ -1033,6 +1036,17 @@ const parseReadModelDictionaryProvider = (node: AstReadModel): { dictionaryProvi
   };
 };
 
+const parseReadModelExportable = (node: AstReadModel): { exportable?: NonNullable<EmElement['exportable']> } => {
+  const exportable = node.elements.find(isExportable);
+  if (!exportable) return {};
+
+  return {
+    exportable: {
+      ...(exportable.capability ? { capability: formatFieldSource(exportable.capability) } : {})
+    }
+  };
+};
+
 const parseEligibility = (eligibility: AstReadModel['eligibility'][number]): NonNullable<EmElement['eligibility']>[number] => ({
   ...(eligibility.profile ? { profile: eligibility.profile } : {}),
   operator: 'AND',
@@ -1119,6 +1133,9 @@ const parseElementMetadata = (node: AstCommand | AstEvent | AstReadModel | AstAu
     });
     (node.elements ?? []).filter((element) => element.$type === 'Emits').forEach((emits, index) => {
       if (emits.command?.$refText) metadata[index === 0 ? 'emits' : `emits${index + 1}`] = emits.command.$refText;
+    });
+    (node.elements ?? []).filter(isAutomationCapabilityUse).forEach((use, index) => {
+      metadata[index === 0 ? 'uses' : `uses${index + 1}`] = use.capability;
     });
   }
 

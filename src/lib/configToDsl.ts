@@ -56,6 +56,11 @@ interface ConfigElement {
   dependencies?: Array<{ type?: string; title?: string; elementType?: string }>;
   ui?: ConfigUi;
   dictionaryProvider?: ConfigDictionaryProvider;
+  exportable?: ConfigExportable;
+}
+
+interface ConfigExportable {
+  capability?: string;
 }
 
 interface ConfigEligibility {
@@ -343,6 +348,9 @@ const appendSlice = (lines: string[], slice: ConfigSlice, indent: number): void 
     if (processor.metadata?.condition) {
       lines.push(`${pad(elementIndent + 2)}condition ${processor.metadata.condition}`);
     }
+    if (processor.metadata?.uses) {
+      lines.push(`${pad(elementIndent + 2)}uses ${processor.metadata.uses}`);
+    }
     if (processor.metadata?.fanOutSource && processor.metadata?.fanOutAlias) {
       lines.push(`${pad(elementIndent + 2)}for each ${processor.metadata.fanOutSource} as ${processor.metadata.fanOutAlias}`);
     }
@@ -517,6 +525,9 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   lines.push(`${pad}${syncMarker}${kind}${todoMarker} ${toDslId(element.title, kind)}${listMarker}${syncSourceMarker}${syncFilterMarker} {`);
   if (kind === 'readmodel' && element.dictionaryProvider) {
     appendDictionaryProvider(lines, element.dictionaryProvider, indent + 2);
+  }
+  if (kind === 'readmodel' && element.exportable) {
+    lines.push(`${pad}  exportable${element.exportable.capability ? ` by ${element.exportable.capability}` : ''}`);
   }
   for (const field of element.fields ?? []) {
     lines.push(`${pad}  ${formatField(field)}`);

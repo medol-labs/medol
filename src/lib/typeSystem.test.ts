@@ -81,6 +81,50 @@ test('parses optional list fields and preserves codegen cardinality', () => {
   assert.match(roundTripDsl, /shape: Int\[\]\?/);
 });
 
+test('preserves automation capability use metadata', () => {
+  const model = parseMedol(`
+    context DataExchange {
+      slice DataExportJob {
+        command MarkDataExportProcessing {
+          dataExportJobId: UUID id
+        }
+
+        command CompleteDataExport {
+          dataExportJobId: UUID id
+        }
+
+        command FailDataExport {
+          dataExportJobId: UUID id
+        }
+
+        event DataExportRequested {
+          dataExportJobId: UUID id
+        }
+
+        automation ExecuteDataExport {
+          on DataExportRequested
+          uses PlatformDataExchange.export
+          emits MarkDataExportProcessing
+          emits CompleteDataExport
+          emits FailDataExport
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  const processor = codegen.slices[0].processors[0];
+  assert.equal(processor.metadata?.on, 'DataExportRequested');
+  assert.equal(processor.metadata?.uses, 'PlatformDataExchange.export');
+  assert.equal(processor.metadata?.emits, 'MarkDataExportProcessing');
+  assert.equal(processor.metadata?.emits2, 'CompleteDataExport');
+  assert.equal(processor.metadata?.emits3, 'FailDataExport');
+
+  const roundTripDsl = configToDsl(codegenModelToConfig(codegen));
+  assert.match(roundTripDsl, /uses PlatformDataExchange\.export/);
+});
+
 test('parses command client effects and preserves codegen client effect metadata', () => {
   const model = parseMedol(`
     context ModelRepository {
@@ -1543,6 +1587,42 @@ test('keeps scoped capability providers off read models with the same name in ot
     }
   }]);
   assert.equal(agentReadModel?.capabilityProviders, undefined);
+});
+
+test('parses exportable read models and carries data exchange capability aliases to codegen', () => {
+  const model = parseMedol(`
+    import data-exchange as PlatformDataExchange deploy Support
+
+    context RuntimeGovernance {
+      slice RuntimeNodeInventory {
+        readmodel RuntimeNodeInventoryCatalog[] {
+          exportable by PlatformDataExchange
+          runtimeNodeInventoryId: UUID id
+          runtimeName: String display
+        }
+      }
+
+      slice RuntimeCapability {
+        readmodel RuntimeCapabilityCatalog[] {
+          exportable
+          runtimeCapabilityId: UUID id
+          capabilityName: String display
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  const readModels = codegen.slices.flatMap((slice) => slice.readmodels);
+  assert.deepEqual(
+    readModels.find((readModel) => readModel.name === 'RuntimeNodeInventoryCatalog')?.exportable,
+    { capability: 'PlatformDataExchange' }
+  );
+  assert.deepEqual(
+    readModels.find((readModel) => readModel.name === 'RuntimeCapabilityCatalog')?.exportable,
+    {}
+  );
 });
 
 test('reports circular imports and keeps same concept names distinct across contexts', () => {

@@ -20,6 +20,10 @@ const loadBuiltinMedol = async (fileName: string): Promise<string> => {
     const source = await import('../builtin-models/dictionary-maintenance.medol?raw');
     return source.default;
   }
+  if (fileName === 'data-exchange.medol') {
+    const source = await import('../builtin-models/data-exchange.medol?raw');
+    return source.default;
+  }
   if (fileName === 'file-upload.medol') {
     const source = await import('../builtin-models/file-upload.medol?raw');
     return source.default;
@@ -29,6 +33,7 @@ const loadBuiltinMedol = async (fileName: string): Promise<string> => {
 
 const identityAccessManagementMedol = await loadBuiltinMedol('identity-access-management.medol');
 const dictionaryMaintenanceMedol = await loadBuiltinMedol('dictionary-maintenance.medol');
+const dataExchangeMedol = await loadBuiltinMedol('data-exchange.medol');
 const fileUploadMedol = await loadBuiltinMedol('file-upload.medol');
 
 export const builtinMedolModels = new Map<string, string>([
@@ -38,6 +43,8 @@ export const builtinMedolModels = new Map<string, string>([
   ['dictionary-maintenance', dictionaryMaintenanceMedol],
   ['dictionaryMaintenance', dictionaryMaintenanceMedol],
   ['dictionary', dictionaryMaintenanceMedol],
+  ['data-exchange', dataExchangeMedol],
+  ['dataExchange', dataExchangeMedol],
   ['file-upload', fileUploadMedol],
   ['fileUpload', fileUploadMedol],
   ['file', fileUploadMedol]
