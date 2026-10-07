@@ -67,6 +67,7 @@ interface ConfigElement {
   ui?: CodegenUi;
   dictionaryProvider?: CodegenElement['dictionaryProvider'];
   exportable?: CodegenElement['exportable'];
+  importable?: CodegenElement['importable'];
   triggers?: [];
   sketched?: boolean;
   prototype?: { activeByDefault: boolean };
@@ -251,6 +252,7 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   ...(element.ui ? { ui: element.ui } : {}),
   ...(element.dictionaryProvider ? { dictionaryProvider: element.dictionaryProvider } : {}),
   ...(element.exportable ? { exportable: element.exportable } : {}),
+  ...(element.importable ? { importable: element.importable } : {}),
   triggers: [],
   sketched: false,
   prototype: {

@@ -99,6 +99,7 @@ export type MedolKeywordNames =
     | "id"
     | "identity"
     | "import"
+    | "importable"
     | "includes"
     | "inline"
     | "integration"
@@ -463,7 +464,7 @@ export function isCommand(item: unknown): item is Command {
     return reflection.isInstance(item, Command.$type);
 }
 
-export type CommandElement = ClientEffect | CommandResult | Example | Field;
+export type CommandElement = ClientEffect | CommandResult | Example | Field | Importable;
 
 export const CommandElement = {
     $type: 'CommandElement'
@@ -1071,7 +1072,7 @@ export function isFieldName(item: unknown): item is FieldName {
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | LookupKey | ReadModel | RefExpr | SyncFilter | UniqueValidation;
+    readonly $container: AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | ReadModel | RefExpr | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1187,6 +1188,21 @@ export const Import = {
 
 export function isImport(item: unknown): item is Import {
     return reflection.isInstance(item, Import.$type);
+}
+
+export interface Importable extends langium.AstNode {
+    readonly $container: Command;
+    readonly $type: 'Importable';
+    capability?: FieldSource;
+}
+
+export const Importable = {
+    $type: 'Importable',
+    capability: 'capability'
+} as const;
+
+export function isImportable(item: unknown): item is Importable {
+    return reflection.isInstance(item, Importable.$type);
 }
 
 export type ImportModuleName = string;
@@ -2058,6 +2074,7 @@ export type MedolAstType = {
     Given: Given
     Hotspot: Hotspot
     Import: Import
+    Importable: Importable
     Integration: Integration
     IntegrationElement: IntegrationElement
     Literal: Literal
@@ -2830,6 +2847,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: []
+        },
+        Importable: {
+            name: Importable.$type,
+            properties: {
+                capability: {
+                    name: Importable.capability
+                }
+            },
+            superTypes: [CommandElement.$type]
         },
         Integration: {
             name: Integration.$type,

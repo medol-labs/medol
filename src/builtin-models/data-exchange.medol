@@ -1,4 +1,99 @@
 context DataExchange {
+  slice DataImportJob {
+    startsLifecycle
+
+    command RequestDataImport {
+      dataImportJobId: UUID id
+      commandName: String
+      resourceName: String
+      originalFileName: String
+      filePath: String
+      requestedLocale: String?
+      requestedAt: DateTime
+      requestHash: String
+      status: String
+    }
+
+    event DataImportRequested {
+      dataImportJobId: UUID id
+      commandName: String
+      resourceName: String
+      originalFileName: String
+      filePath: String
+      requestedLocale: String?
+      requestedAt: DateTime
+      requestHash: String
+      status: String
+    }
+
+    command MarkDataImportProcessing {
+      dataImportJobId: UUID id
+      totalRows: Long
+      status: String
+    }
+
+    event DataImportProcessingStarted {
+      dataImportJobId: UUID id
+      totalRows: Long
+      status: String
+    }
+
+    command CompleteDataImport {
+      dataImportJobId: UUID id
+      totalRows: Long
+      successRows: Long
+      failedRows: Long
+      failureIndexPath: String?
+      status: String
+    }
+
+    event DataImportCompleted {
+      dataImportJobId: UUID id
+      totalRows: Long
+      successRows: Long
+      failedRows: Long
+      failureIndexPath: String?
+      status: String
+    }
+
+    command FailDataImport {
+      dataImportJobId: UUID id
+      errorMessage: Text
+      status: String
+    }
+
+    event DataImportFailed {
+      dataImportJobId: UUID id
+      errorMessage: Text
+      status: String
+    }
+
+    automation ExecuteDataImport {
+      on DataImportRequested
+      uses PlatformDataExchange.import
+      emits MarkDataImportProcessing
+      emits CompleteDataImport
+      emits FailDataImport
+    }
+
+    readmodel DataImportJobCatalog[] {
+      dataImportJobId: UUID id
+      commandName: String query
+      resourceName: String query
+      originalFileName: String display
+      filePath: String
+      requestedLocale: String?
+      requestedAt: DateTime
+      requestHash: String
+      status: String query
+      totalRows: Long?
+      successRows: Long?
+      failedRows: Long?
+      failureIndexPath: String?
+      errorMessage: Text?
+    }
+  }
+
   slice DataExportJob {
     startsLifecycle
 

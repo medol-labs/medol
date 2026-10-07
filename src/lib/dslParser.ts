@@ -29,6 +29,7 @@ import {
   isFieldSourceMapping,
   isFanOut,
   isHotspot,
+  isImportable,
   isIntegration,
   isDecision,
   isEnumType,
@@ -908,7 +909,8 @@ const parseElement = (
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),
     ...(isReadModel(node) ? parseReadModelDictionaryProvider(node) : {}),
-    ...(isReadModel(node) ? parseReadModelExportable(node) : {})
+    ...(isReadModel(node) ? parseReadModelExportable(node) : {}),
+    ...(isCommand(node) ? parseCommandImportable(node) : {})
   };
 };
 
@@ -1043,6 +1045,17 @@ const parseReadModelExportable = (node: AstReadModel): { exportable?: NonNullabl
   return {
     exportable: {
       ...(exportable.capability ? { capability: formatFieldSource(exportable.capability) } : {})
+    }
+  };
+};
+
+const parseCommandImportable = (node: AstCommand): { importable?: NonNullable<EmElement['importable']> } => {
+  const importable = node.elements.find(isImportable);
+  if (!importable) return {};
+
+  return {
+    importable: {
+      ...(importable.capability ? { capability: formatFieldSource(importable.capability) } : {})
     }
   };
 };

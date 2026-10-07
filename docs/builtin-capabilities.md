@@ -310,6 +310,46 @@ context DictionaryMaintenance {
 
 这样会造成模型职责和生成结果混乱。
 
+## DataExchange 建模
+
+默认使用内置数据交换能力时，只需要 import：
+
+```medol
+import data-exchange as PlatformDataExchange deploy FederationLearningSupport
+```
+
+内置 `DataExchange` 自身包含导出任务与导入任务两个业务 job：
+
+- `DataExportJob`：记录导出请求、处理状态、文件位置、行数和失败信息。
+- `DataImportJob`：记录导入请求、上传文件、请求哈希、处理状态、成功/失败行数和失败索引位置。
+
+业务模型通过简单标记接入通用导出或导入：
+
+```medol
+readmodel RuntimeNodeInventoryCatalog[] {
+  exportable by PlatformDataExchange
+  runtimeNodeInventoryId: UUID id
+  runtimeName: String display
+}
+
+command RegisterRuntimeNodeInventory {
+  importable by PlatformDataExchange
+  runtimeNodeInventoryId: UUID id
+  runtimeName: String display
+  nodeReady: Boolean?
+}
+```
+
+`exportable` 是 readmodel 能力，表示当前查询页面可以按页面可见字段、筛选条件、排序条件导出。
+
+`importable` 是 command 能力，表示上传文件后由通用导入 job 逐行转换为该业务命令并提交。导入不是“把 readmodel 反写回业务表”，也不是绕过业务规则直接写事件；每一行都会进入对应业务 command handler，因此唯一性、状态、引用、eligibility、specification 等业务校验仍由正常业务流程执行。
+
+如果导入语义和页面新增/修改完全一致，可以直接把正常业务命令标记为 `importable`。如果导入语义不同，例如允许 upsert、允许跳过重复行、允许覆盖某些字段，应建模一个专门的导入业务命令；这个导入业务命令仍然要复用或调用同一套业务 policy/decision，而不是在导入框架里另写一套校验。
+
+一个页面可以出现多个导入入口。只要该页面关联的业务 command 标记了 `importable`，生成前端会为每个导入命令生成独立上传按钮，并提交到对应命令的导入 endpoint。
+
+第一版导入默认支持 CSV。文件先落盘并创建 `DataImportJob`，真正执行由 `DataImportRequested` 事件触发；处理过程按行流式读取，行级失败只写入轻量失败索引，索引包含行号、行哈希和错误信息，不复制完整业务数据。后续下载失败数据或失败行重试时，应基于原始文件和失败索引按需生成失败数据文件。跨服务投递仍然属于 outbox 的适用场景，但导入 job 本身的状态不是 outbox 状态。
+
 ## 后续扩展方向
 
 后续如果新增通用业务能力，例如导入导出管理、审计管理、通知管理，应优先按同一模式设计：
@@ -318,4 +358,4 @@ context DictionaryMaintenance {
 2. 业务模型通过 `import` 直接引用该内置能力。
 3. 如果业务模型需要接入自己的表、投影或流程，再通过 `extend <内置能力> { provider <扩展点> ... }` 声明。
 
-导入导出管理不应简单理解为“某个 readmodel 可 export/import”。它更可能是一个内置管理能力，包含管理页面、任务记录、文件处理、执行状态和通用组件。业务模型后续再通过扩展点声明哪些业务资源接入该管理能力。
+通用管理能力不应简单理解为“某个 readmodel 增删改查”。它更可能是一个内置管理能力，包含管理页面、任务记录、文件处理、执行状态和通用组件。业务模型后续再通过扩展点声明哪些业务资源接入该管理能力。

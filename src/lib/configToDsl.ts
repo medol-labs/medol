@@ -57,9 +57,14 @@ interface ConfigElement {
   ui?: ConfigUi;
   dictionaryProvider?: ConfigDictionaryProvider;
   exportable?: ConfigExportable;
+  importable?: ConfigImportable;
 }
 
 interface ConfigExportable {
+  capability?: string;
+}
+
+interface ConfigImportable {
   capability?: string;
 }
 
@@ -528,6 +533,9 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   }
   if (kind === 'readmodel' && element.exportable) {
     lines.push(`${pad}  exportable${element.exportable.capability ? ` by ${element.exportable.capability}` : ''}`);
+  }
+  if (kind === 'command' && element.importable) {
+    lines.push(`${pad}  importable${element.importable.capability ? ` by ${element.importable.capability}` : ''}`);
   }
   for (const field of element.fields ?? []) {
     lines.push(`${pad}  ${formatField(field)}`);

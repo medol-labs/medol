@@ -1661,6 +1661,44 @@ test('parses exportable read models and carries data exchange capability aliases
   );
 });
 
+test('parses importable commands and carries data exchange capability aliases to codegen', () => {
+  const model = parseMedol(`
+    import data-exchange as PlatformDataExchange deploy Support
+
+    context RuntimeGovernance {
+      slice RuntimeNodeInventory {
+        command ImportRuntimeNodeInventory {
+          importable by PlatformDataExchange
+          runtimeNodeInventoryId: UUID id
+          runtimeName: String display
+        }
+
+        command ImportRuntimeCapability {
+          importable
+          runtimeCapabilityId: UUID id
+          capabilityName: String display
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  const commands = codegen.slices.flatMap((slice) => slice.commands);
+  assert.deepEqual(
+    commands.find((command) => command.name === 'ImportRuntimeNodeInventory')?.importable,
+    { capability: 'PlatformDataExchange' }
+  );
+  assert.deepEqual(
+    commands.find((command) => command.name === 'ImportRuntimeCapability')?.importable,
+    {}
+  );
+
+  const roundTripDsl = configToDsl(codegenModelToConfig(codegen));
+  assert.match(roundTripDsl, /importable by PlatformDataExchange/);
+  assert.match(roundTripDsl, /importable\s+runtimeCapabilityId: UUID id/s);
+});
+
 test('reports circular imports and keeps same concept names distinct across contexts', () => {
   const files = new Map<string, string>([
     ['/workspace/a.medol', 'import "./b.medol"\ncontext Sales { concept Item {} }'],

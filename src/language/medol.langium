@@ -225,6 +225,7 @@ Command:
 
 CommandElement:
       Field
+    | Importable
     | CommandResult
     | ClientEffect
     | Example
@@ -287,6 +288,10 @@ ReadModelElement:
 
 Exportable:
     'exportable' ('by' capability=FieldSource)?
+;
+
+Importable:
+    'importable' ('by' capability=FieldSource)?
 ;
 
 Eligibility:

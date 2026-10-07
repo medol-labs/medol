@@ -59,6 +59,7 @@ export interface EmElement {
   ui?: EmUi;
   dictionaryProvider?: EmDictionaryProvider;
   exportable?: EmExportable;
+  importable?: EmImportable;
 }
 
 export interface EmSyncFilter {
@@ -89,6 +90,10 @@ export interface EmDictionaryProvider {
 }
 
 export interface EmExportable {
+  capability?: string;
+}
+
+export interface EmImportable {
   capability?: string;
 }
 
