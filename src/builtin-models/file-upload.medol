@@ -253,6 +253,7 @@ domain FileUpload {
   
     slice UploadedFileCatalog {
       readmodel UploadedFileCatalog[] {
+        exportable
         fileId: UUID id
         originalFileName: String display
         contentType: String?

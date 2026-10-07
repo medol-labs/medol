@@ -98,6 +98,7 @@ domain DictionaryMaintenance {
   
     slice DictionaryCatalog {
       readmodel DictionaryCatalog[] {
+        exportable
         dictionaryId: UUID id
         dictionaryCode: DictionaryCode query
         dictionaryName: String
@@ -188,6 +189,7 @@ domain DictionaryMaintenance {
   
     slice DictionaryValueCatalog {
       readmodel DictionaryValueCatalog[] {
+        exportable
         dictionaryValueId: UUID id
         dictionaryId: UUID
         dictionaryCode: DictionaryCode query
@@ -296,6 +298,7 @@ domain DictionaryMaintenance {
   
     slice DictionaryValueTranslationCatalog {
       readmodel DictionaryValueTranslationCatalog[] {
+        exportable
         dictionaryValueTranslationId: UUID id
         dictionaryValueId: UUID
         dictionaryCode: DictionaryCode query

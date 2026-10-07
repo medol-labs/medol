@@ -1540,6 +1540,42 @@ test('loads built-in file upload import into support deployment', () => {
   assert.equal(uploadCommand?.fields.find((field) => field.name === 'uploadedFile')?.uploadFile, true);
 });
 
+test('built-in support catalogs are exportable', () => {
+  const model = parseMedol(`
+    import identity-access-management as PlatformIam deploy Support
+    import dictionary-maintenance as PlatformDictionary deploy Support
+    import file-upload as PlatformFileUpload deploy Support
+
+    context Support {
+      note "Application support context"
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  const readModels = codegen.slices.flatMap((slice) => slice.readmodels);
+  const exportableCatalogs = [
+    'UserAccountCatalog',
+    'RoleCatalog',
+    'PermissionCatalog',
+    'UserRoleAssignmentCatalog',
+    'RolePermissionGrantCatalog',
+    'ServiceAccountApiTokenCatalog',
+    'DictionaryCatalog',
+    'DictionaryValueCatalog',
+    'DictionaryValueTranslationCatalog',
+    'UploadedFileCatalog'
+  ];
+
+  for (const catalog of exportableCatalogs) {
+    assert.deepEqual(
+      readModels.find((readModel) => readModel.name === catalog)?.exportable,
+      {},
+      `${catalog} should be exportable`
+    );
+  }
+});
+
 test('keeps scoped capability providers off read models with the same name in other contexts', () => {
   const model = parseMedol(`
     context PlatformCatalogs {

@@ -264,6 +264,7 @@ domain IdentityAccessManagement {
       actor IdentityAdministrator
 
       readmodel UserAccountCatalog[] {
+        exportable
         userAccountId: UUID id
         username: String display
         providerSubject: String?
@@ -280,6 +281,7 @@ domain IdentityAccessManagement {
       actor IdentityAdministrator
 
       readmodel RoleCatalog[] {
+        exportable
         roleId: UUID id
         roleCode: String
         roleName: String display
@@ -291,6 +293,7 @@ domain IdentityAccessManagement {
       actor IdentityAdministrator
 
       readmodel PermissionCatalog[] {
+        exportable
         permissionId: UUID id
         permissionCode: String
         permissionName: String display
@@ -303,6 +306,7 @@ domain IdentityAccessManagement {
       actor IdentityAdministrator
 
       readmodel UserRoleAssignmentCatalog[] {
+        exportable
         userAccountId: UUID id
         username: String? display derived from UserAccountCatalog.username by userAccountId
         roleCode: String id
@@ -315,6 +319,7 @@ domain IdentityAccessManagement {
       actor IdentityAdministrator
 
       readmodel RolePermissionGrantCatalog[] {
+        exportable
         roleId: UUID
         roleCode: String id display derived from RoleCatalog.roleCode by roleId
         roleName: String? derived from RoleCatalog.roleName by roleId
@@ -328,6 +333,7 @@ domain IdentityAccessManagement {
       actor SuperAdministrator
 
       readmodel ServiceAccountApiTokenCatalog[] {
+        exportable
         apiTokenId: UUID id
         userAccountId: UUID
         username: String display
