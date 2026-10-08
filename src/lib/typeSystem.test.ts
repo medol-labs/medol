@@ -1699,6 +1699,32 @@ test('parses importable commands and carries data exchange capability aliases to
   assert.match(roundTripDsl, /importable\s+runtimeCapabilityId: UUID id/s);
 });
 
+test('parses system notification imports and event notifiable markers', () => {
+  const model = parseMedol(`
+    import system-notification as PlatformNotification deploy Support
+
+    context TrainingOperations {
+      slice CompleteTrainingJob {
+        event TrainingJobCompleted {
+          notifiable by PlatformNotification
+          trainingJobId: UUID id
+          trainingJobObjective: String
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+
+  const codegen = modelToCodegenModel(model);
+  assert(codegen.contexts.some((context) => context.name === 'SystemNotification'));
+  assert(codegen.valueTypes.some((valueType) => valueType.name === 'NotificationSeverity'));
+  const event = codegen.slices
+    .flatMap((slice) => slice.events)
+    .find((candidate) => candidate.name === 'TrainingJobCompleted');
+  assert.deepEqual(event?.notifiable, { capability: 'PlatformNotification' });
+});
+
 test('reports circular imports and keeps same concept names distinct across contexts', () => {
   const files = new Map<string, string>([
     ['/workspace/a.medol', 'import "./b.medol"\ncontext Sales { concept Item {} }'],

@@ -214,6 +214,7 @@ export interface CodegenElement {
   capabilityProviders?: CodegenCapabilityProvider[];
   exportable?: CodegenExportable;
   importable?: CodegenImportable;
+  notifiable?: CodegenNotifiable;
 }
 
 export type CodegenElementType = 'COMMAND' | 'EVENT' | 'SCREEN' | 'READMODEL' | 'PROCESSOR' | 'SPECIFICATION';
@@ -228,6 +229,10 @@ export interface CodegenExportable {
 }
 
 export interface CodegenImportable {
+  capability?: string;
+}
+
+export interface CodegenNotifiable {
   capability?: string;
 }
 
@@ -1004,6 +1009,7 @@ const toCodegenElement = (
   ...(type === 'READMODEL' && element.dictionaryProvider ? { dictionaryProvider: toCodegenDictionaryProvider(element.dictionaryProvider) } : {}),
   ...(type === 'READMODEL' && element.exportable ? { exportable: toCodegenExportable(element.exportable) } : {}),
   ...(type === 'COMMAND' && element.importable ? { importable: toCodegenImportable(element.importable) } : {}),
+  ...(type === 'EVENT' && element.notifiable ? { notifiable: toCodegenNotifiable(element.notifiable) } : {}),
   ...(type === 'READMODEL' && capabilityProvidersForReadModel(element, context, capabilityProvidersByReadModel).length
     ? { capabilityProviders: capabilityProvidersForReadModel(element, context, capabilityProvidersByReadModel) }
     : {})
@@ -1015,6 +1021,10 @@ const toCodegenExportable = (exportable: NonNullable<EmElement['exportable']>): 
 
 const toCodegenImportable = (importable: NonNullable<EmElement['importable']>): CodegenImportable => ({
   ...(importable.capability ? { capability: importable.capability } : {})
+});
+
+const toCodegenNotifiable = (notifiable: NonNullable<EmElement['notifiable']>): CodegenNotifiable => ({
+  ...(notifiable.capability ? { capability: notifiable.capability } : {})
 });
 
 const capabilityProvidersForReadModel = (

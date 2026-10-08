@@ -48,6 +48,7 @@ context DataExchange {
     }
 
     event DataImportCompleted {
+      notifiable
       dataImportJobId: UUID id
       totalRows: Long
       successRows: Long
@@ -63,6 +64,7 @@ context DataExchange {
     }
 
     event DataImportFailed {
+      notifiable
       dataImportJobId: UUID id
       errorMessage: Text
       status: String
@@ -144,6 +146,7 @@ context DataExchange {
     }
 
     event DataExportCompleted {
+      notifiable
       dataExportJobId: UUID id
       fileName: String
       filePath: String
@@ -158,6 +161,7 @@ context DataExchange {
     }
 
     event DataExportFailed {
+      notifiable
       dataExportJobId: UUID id
       errorMessage: Text
       status: String
@@ -188,4 +192,5 @@ context DataExchange {
       errorMessage: Text?
     }
   }
+
 }

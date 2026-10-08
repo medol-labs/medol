@@ -117,6 +117,8 @@ export type MedolKeywordNames =
     | "name"
     | "navigate"
     | "note"
+    | "notifiable"
+    | "notification"
     | "null"
     | "on"
     | "oneOf"
@@ -151,6 +153,7 @@ export type MedolKeywordNames =
     | "stream"
     | "subscribe"
     | "sync"
+    | "system"
     | "tags"
     | "target"
     | "technical"
@@ -752,18 +755,28 @@ export function isEnumType(item: unknown): item is EnumType {
 export interface Event extends langium.AstNode {
     readonly $container: Integration | Slice;
     readonly $type: 'Event';
-    fields: Array<Field>;
+    elements: Array<EventElement>;
     name: string;
 }
 
 export const Event = {
     $type: 'Event',
-    fields: 'fields',
+    elements: 'elements',
     name: 'name'
 } as const;
 
 export function isEvent(item: unknown): item is Event {
     return reflection.isInstance(item, Event.$type);
+}
+
+export type EventElement = Field | Notifiable;
+
+export const EventElement = {
+    $type: 'EventElement'
+} as const;
+
+export function isEventElement(item: unknown): item is EventElement {
+    return reflection.isInstance(item, EventElement.$type);
 }
 
 export interface EventStep extends langium.AstNode {
@@ -1072,7 +1085,7 @@ export function isFieldName(item: unknown): item is FieldName {
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | ReadModel | RefExpr | SyncFilter | UniqueValidation;
+    readonly $container: AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | Notifiable | ReadModel | RefExpr | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1211,10 +1224,10 @@ export function isImportModuleName(item: unknown): item is ImportModuleName {
     return typeof item === 'string';
 }
 
-export type ImportModuleNamePart = 'access' | 'data' | 'dictionary' | 'exchange' | 'file' | 'identity' | 'maintenance' | 'management' | string;
+export type ImportModuleNamePart = 'access' | 'data' | 'dictionary' | 'exchange' | 'file' | 'identity' | 'maintenance' | 'management' | 'notification' | 'system' | string;
 
 export function isImportModuleNamePart(item: unknown): item is ImportModuleNamePart {
-    return item === 'dictionary' || item === 'data' || item === 'exchange' || item === 'file' || item === 'identity' || item === 'access' || item === 'management' || item === 'maintenance' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'dictionary' || item === 'data' || item === 'exchange' || item === 'file' || item === 'identity' || item === 'access' || item === 'management' || item === 'maintenance' || item === 'notification' || item === 'system' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface Integration extends langium.AstNode {
@@ -1321,6 +1334,21 @@ export const Note = {
 
 export function isNote(item: unknown): item is Note {
     return reflection.isInstance(item, Note.$type);
+}
+
+export interface Notifiable extends langium.AstNode {
+    readonly $container: Event;
+    readonly $type: 'Notifiable';
+    capability?: FieldSource;
+}
+
+export const Notifiable = {
+    $type: 'Notifiable',
+    capability: 'capability'
+} as const;
+
+export function isNotifiable(item: unknown): item is Notifiable {
+    return reflection.isInstance(item, Notifiable.$type);
 }
 
 export interface NullLiteral extends langium.AstNode {
@@ -2049,6 +2077,7 @@ export type MedolAstType = {
     Emits: Emits
     EnumType: EnumType
     Event: Event
+    EventElement: EventElement
     EventStep: EventStep
     Example: Example
     ExampleBlock: ExampleBlock
@@ -2082,6 +2111,7 @@ export type MedolAstType = {
     Metric: Metric
     Model: Model
     Note: Note
+    Notifiable: Notifiable
     NullLiteral: NullLiteral
     NumberLiteral: NumberLiteral
     PortMarker: PortMarker
@@ -2532,8 +2562,8 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Event: {
             name: Event.$type,
             properties: {
-                fields: {
-                    name: Event.fields,
+                elements: {
+                    name: Event.elements,
                     defaultValue: []
                 },
                 name: {
@@ -2541,6 +2571,12 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [IntegrationElement.$type, SliceElement.$type]
+        },
+        EventElement: {
+            name: EventElement.$type,
+            properties: {
+            },
+            superTypes: []
         },
         EventStep: {
             name: EventStep.$type,
@@ -2702,7 +2738,7 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                     name: Field.type
                 }
             },
-            superTypes: [CommandElement.$type, ReadModelElement.$type]
+            superTypes: [CommandElement.$type, EventElement.$type, ReadModelElement.$type]
         },
         FieldDerivation: {
             name: FieldDerivation.$type,
@@ -2939,6 +2975,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [ContextElement.$type]
+        },
+        Notifiable: {
+            name: Notifiable.$type,
+            properties: {
+                capability: {
+                    name: Notifiable.capability
+                }
+            },
+            superTypes: [EventElement.$type]
         },
         NullLiteral: {
             name: NullLiteral.$type,

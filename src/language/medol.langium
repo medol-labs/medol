@@ -23,6 +23,8 @@ ImportModuleNamePart returns string:
     | 'access'
     | 'management'
     | 'maintenance'
+    | 'notification'
+    | 'system'
 ;
 
 Domain:
@@ -264,8 +266,13 @@ ClientEffectOption:
 
 Event:
     'event' name=ID '{'
-        fields+=Field*
+        elements+=EventElement*
     '}'
+;
+
+EventElement:
+      Field
+    | Notifiable
 ;
 
 ReadModel:
@@ -292,6 +299,10 @@ Exportable:
 
 Importable:
     'importable' ('by' capability=FieldSource)?
+;
+
+Notifiable:
+    'notifiable' ('by' capability=FieldSource)?
 ;
 
 Eligibility:

@@ -23,6 +23,7 @@ import identity-access-management as PlatformIam deploy FederationLearningSuppor
 import identity-access-management as ParticipantIam deploy FederationLearningRuntimeAgent
 import dictionary-maintenance as PlatformDictionary deploy FederationLearningSupport
 import file-upload as PlatformFileUpload deploy FederationLearningSupport
+import system-notification as PlatformNotification deploy FederationLearningSupport
 ```
 
 含义：
@@ -30,6 +31,7 @@ import file-upload as PlatformFileUpload deploy FederationLearningSupport
 - `identity-access-management` 引入内置 IAM 能力。
 - `dictionary-maintenance` 引入内置字典维护能力。
 - `file-upload` 引入内置文件上传能力。
+- `system-notification` 引入内置站内通知能力。
 - `as PlatformIam` / `as ParticipantIam` / `as PlatformDictionary` / `as PlatformFileUpload` 是业务模型中的引用别名。
 - `deploy FederationLearningSupport` 表示该内置能力部署到 `FederationLearningSupport`。
 - `deploy FederationLearningRuntimeAgent` 表示该内置能力部署到 `FederationLearningRuntimeAgent`。
@@ -349,6 +351,46 @@ command RegisterRuntimeNodeInventory {
 一个页面可以出现多个导入入口。只要该页面关联的业务 command 标记了 `importable`，生成前端会为每个导入命令生成独立上传按钮，并提交到对应命令的导入 endpoint。
 
 第一版导入默认支持 CSV。文件先落盘并创建 `DataImportJob`，真正执行由 `DataImportRequested` 事件触发；处理过程按行流式读取，行级失败只写入轻量失败索引，索引包含行号、行哈希和错误信息，不复制完整业务数据。后续下载失败数据或失败行重试时，应基于原始文件和失败索引按需生成失败数据文件。跨服务投递仍然属于 outbox 的适用场景，但导入 job 本身的状态不是 outbox 状态。
+
+## SystemNotification 建模
+
+默认使用内置站内通知能力时，只需要 import：
+
+```medol
+import system-notification as PlatformNotification deploy FederationLearningSupport
+```
+
+内置 `SystemNotification` 自身包含：
+
+- `PublishSystemNotification`：发布用户可见的站内通知。
+- `MarkSystemNotificationRead`：标记单条通知已读。
+- `MarkAllSystemNotificationsRead`：标记当前收件人通知已读。
+- `SystemNotificationCatalog`：通知列表。
+- `SystemNotificationSummary`：header 通知标识使用的轻量 summary。
+
+业务事件通过事件内 `notifiable` 标识接入通知能力：
+
+```medol
+event TrainingJobCompleted {
+  notifiable by PlatformNotification
+  trainingJobId: UUID id
+  trainingJobObjective: String
+  finalRoundId: UUID
+}
+```
+
+`notifiable` 表示某个业务事件发生后可以生成一条 `SystemNotificationPublished` 业务事实。它不是 outbox，也不是 Supabase/WebSocket 推送声明。推送、实时订阅、邮件或外部消息属于后续投递 adapter，可以基于 `SystemNotificationPublished` 再通过 outbox 做可靠投递。
+
+第一版保持轻量建模，不在业务模型里配置通知文案细节。生成器按事件上下文推导默认值：
+
+- `category`：优先按事件所在上下文/事件名推导，例如 data exchange、training、runtime，否则为 `SYSTEM`。
+- `severity`：按事件名推导，例如 `Completed/Succeeded` 为 `SUCCESS`，`Failed/Rejected` 为 `ERROR`，`Alert/Raised` 为 `WARNING`，否则为 `INFO`。
+- `messageKey`：按事件名生成稳定 key，例如 `notifications.trainingJobCompleted`。
+- `messageArgsJson`：默认序列化事件字段，保证导出/列表/详情使用同一套后端事实。
+- `targetId`：优先使用事件 id 字段；没有 id 字段时为空。
+- `toastPolicy`：按 severity 推导，错误/警告为 `IMPORTANT`，成功为 `DEFAULT`，其他为 `NONE`。
+
+通知列表是业务事实；header 红点、未读数量和 toast 是前端呈现策略。生成前端会在 header 中探测 `SystemNotificationSummary`，有未读时显示标识；当新通知的 `toastPolicy` 或 `severity` 需要即时提示时弹出 toast。没有引入 `SystemNotification` 时，header 通知入口不会显示。
 
 ## 后续扩展方向
 

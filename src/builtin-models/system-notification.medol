@@ -1,0 +1,146 @@
+context SystemNotification {
+  enum NotificationCategory {
+    SYSTEM
+    DATA_EXCHANGE
+    TRAINING
+    RUNTIME
+    SECURITY
+  }
+
+  enum NotificationSeverity {
+    INFO
+    SUCCESS
+    WARNING
+    ERROR
+  }
+
+  enum NotificationToastPolicy {
+    NONE
+    DEFAULT
+    IMPORTANT
+  }
+
+  slice PublishSystemNotification {
+    startsLifecycle
+
+    command PublishSystemNotification {
+      notificationId: UUID id generated technical
+      recipientUserId: String
+      recipientRole: String?
+      category: NotificationCategory
+      severity: NotificationSeverity
+      messageKey: String
+      messageArgsJson: Text?
+      fallbackTitle: String
+      fallbackBody: Text?
+      targetType: String?
+      targetId: String?
+      targetRoute: String?
+      toastPolicy: NotificationToastPolicy
+      publishedAt: DateTime
+      status: String
+    }
+
+    event SystemNotificationPublished {
+      notificationId: UUID id technical
+      recipientUserId: String
+      recipientRole: String?
+      category: NotificationCategory
+      severity: NotificationSeverity
+      messageKey: String
+      messageArgsJson: Text?
+      fallbackTitle: String
+      fallbackBody: Text?
+      targetType: String?
+      targetId: String?
+      targetRoute: String?
+      toastPolicy: NotificationToastPolicy
+      publishedAt: DateTime
+      status: String
+    }
+
+    state Unread
+  }
+
+  slice MarkSystemNotificationRead {
+    reactsTo SystemNotificationPublished
+
+    command MarkSystemNotificationRead {
+      notificationId: UUID id technical
+      recipientUserId: String
+      readAt: DateTime
+    }
+
+    event SystemNotificationRead {
+      notificationId: UUID id technical
+      recipientUserId: String
+      readAt: DateTime
+    }
+
+    state Read
+  }
+
+  slice MarkAllSystemNotificationsRead {
+    reactsTo SystemNotificationPublished
+
+    command MarkAllSystemNotificationsRead {
+      recipientUserId: String id technical
+      readAt: DateTime
+    }
+
+    event AllSystemNotificationsRead {
+      recipientUserId: String id technical
+      readAt: DateTime
+    }
+  }
+
+  slice SystemNotificationCatalog {
+    readmodel SystemNotificationCatalog[] {
+      notificationId: UUID id
+      recipientUserId: String query
+      recipientRole: String? query
+      category: NotificationCategory query
+      severity: NotificationSeverity query
+      messageKey: String
+      messageArgsJson: Text?
+      fallbackTitle: String display
+      fallbackBody: Text?
+      targetType: String?
+      targetId: String?
+      targetRoute: String?
+      toastPolicy: NotificationToastPolicy
+      publishedAt: DateTime
+      readAt: DateTime?
+      state: SystemNotification.State query
+      subscribe SystemNotificationPublished
+      subscribe SystemNotificationRead
+      subscribe AllSystemNotificationsRead
+    }
+
+    readmodel SystemNotificationSummary[] {
+      recipientUserId: String id
+      unreadCount: Long
+      latestNotificationId: UUID?
+      latestSeverity: NotificationSeverity?
+      latestPublishedAt: DateTime?
+      messageKey: String?
+      fallbackTitle: String?
+      fallbackBody: Text?
+      toastPolicy: NotificationToastPolicy?
+      hasUnreadError: Boolean
+      subscribe SystemNotificationPublished
+      subscribe SystemNotificationRead
+      subscribe AllSystemNotificationsRead
+    }
+  }
+
+  concept SystemNotification {
+    state Unread
+    state Read
+
+    slice PublishSystemNotification
+    slice MarkSystemNotificationRead
+    slice MarkAllSystemNotificationsRead
+    slice SystemNotificationCatalog
+  }
+}

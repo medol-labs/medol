@@ -28,6 +28,10 @@ const loadBuiltinMedol = async (fileName: string): Promise<string> => {
     const source = await import('../builtin-models/file-upload.medol?raw');
     return source.default;
   }
+  if (fileName === 'system-notification.medol') {
+    const source = await import('../builtin-models/system-notification.medol?raw');
+    return source.default;
+  }
   throw new Error(`Built-in Medol model not found: ${fileName}`);
 };
 
@@ -35,6 +39,7 @@ const identityAccessManagementMedol = await loadBuiltinMedol('identity-access-ma
 const dictionaryMaintenanceMedol = await loadBuiltinMedol('dictionary-maintenance.medol');
 const dataExchangeMedol = await loadBuiltinMedol('data-exchange.medol');
 const fileUploadMedol = await loadBuiltinMedol('file-upload.medol');
+const systemNotificationMedol = await loadBuiltinMedol('system-notification.medol');
 
 export const builtinMedolModels = new Map<string, string>([
   ['identity-access-management', identityAccessManagementMedol],
@@ -47,7 +52,11 @@ export const builtinMedolModels = new Map<string, string>([
   ['dataExchange', dataExchangeMedol],
   ['file-upload', fileUploadMedol],
   ['fileUpload', fileUploadMedol],
-  ['file', fileUploadMedol]
+  ['file', fileUploadMedol],
+  ['system-notification', systemNotificationMedol],
+  ['systemNotification', systemNotificationMedol],
+  ['notification', systemNotificationMedol],
+  ['notifications', systemNotificationMedol]
 ]);
 
 export const resolveBuiltinMedolImport = (

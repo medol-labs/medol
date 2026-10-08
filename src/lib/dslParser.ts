@@ -35,6 +35,7 @@ import {
   isEnumType,
   isMetric,
   isNote,
+  isNotifiable,
   isNullLiteral,
   isNumberLiteral,
   isPortMarker,
@@ -448,7 +449,6 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
   for (const extensionNode of node.capabilityExtensions ?? []) {
     domain.capabilityExtensions.push(parseCapabilityExtension(extensionNode, { domain: domain.name }));
   }
-
   return domain;
 };
 
@@ -910,7 +910,8 @@ const parseElement = (
     metadata: parseElementMetadata(node),
     ...(isReadModel(node) ? parseReadModelDictionaryProvider(node) : {}),
     ...(isReadModel(node) ? parseReadModelExportable(node) : {}),
-    ...(isCommand(node) ? parseCommandImportable(node) : {})
+    ...(isCommand(node) ? parseCommandImportable(node) : {}),
+    ...(isEvent(node) ? parseEventNotifiable(node) : {})
   };
 };
 
@@ -919,7 +920,7 @@ const parseElementFields = (node: AstCommand | AstEvent | AstReadModel | AstAuto
     return (node.elements ?? []).filter(isField).map(parseField);
   }
   if (isEvent(node)) {
-    return (node.fields ?? []).map(parseField);
+    return (node.elements ?? []).filter(isField).map(parseField);
   }
   if (isReadModel(node)) {
     return (node.elements ?? []).filter(isField).map(parseField);
@@ -1056,6 +1057,17 @@ const parseCommandImportable = (node: AstCommand): { importable?: NonNullable<Em
   return {
     importable: {
       ...(importable.capability ? { capability: formatFieldSource(importable.capability) } : {})
+    }
+  };
+};
+
+const parseEventNotifiable = (node: AstEvent): { notifiable?: NonNullable<EmElement['notifiable']> } => {
+  const notifiable = node.elements.find(isNotifiable);
+  if (!notifiable) return {};
+
+  return {
+    notifiable: {
+      ...(notifiable.capability ? { capability: formatFieldSource(notifiable.capability) } : {})
     }
   };
 };

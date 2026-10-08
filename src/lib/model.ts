@@ -60,6 +60,7 @@ export interface EmElement {
   dictionaryProvider?: EmDictionaryProvider;
   exportable?: EmExportable;
   importable?: EmImportable;
+  notifiable?: EmNotifiable;
 }
 
 export interface EmSyncFilter {
@@ -94,6 +95,10 @@ export interface EmExportable {
 }
 
 export interface EmImportable {
+  capability?: string;
+}
+
+export interface EmNotifiable {
   capability?: string;
 }
 

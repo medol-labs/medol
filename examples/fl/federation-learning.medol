@@ -2,6 +2,8 @@ import identity-access-management as PlatformIam deploy FederationLearningSuppor
 import identity-access-management as ParticipantIam deploy FederationLearningRuntimeAgent
 import dictionary-maintenance as PlatformDictionary deploy FederationLearningSupport
 import file-upload as PlatformFileUpload deploy FederationLearningSupport
+import data-exchange as PlatformDataExchange deploy FederationLearningSupport
+import system-notification as PlatformNotification deploy FederationLearningSupport
 
 domain FederationLearningPlatform {
 context OrganizationManagement {
@@ -3022,6 +3024,7 @@ context TrainingOrchestration {
     }
 
     event TrainingJobCompleted {
+      notifiable by PlatformNotification
       trainingJobId: UUID id technical
       finalRoundId: UUID
       finalModelId: UUID
@@ -4217,6 +4220,7 @@ context TrainingOrchestration {
     }
 
     event TrainingRoundFailed {
+      notifiable by PlatformNotification
       trainingJobId: UUID id technical from FailTrainingRound.trainingJobId
       trainingRunConfigurationId: UUID from FailTrainingRound.trainingRunConfigurationId
       featureSchemaId: UUID from FailTrainingRound.featureSchemaId
@@ -4622,6 +4626,7 @@ context ModelLifecycle {
     slice RetireModel
     slice ModelCatalog
   }
+
 }
 
 context RuntimeMonitoring {
@@ -4983,6 +4988,7 @@ context RuntimeMonitoring {
     }
 
     event TrainingAlertRaised {
+      notifiable by PlatformNotification
       alertId: UUID id technical
       nodeId: UUID
       trainingJobId: UUID?
