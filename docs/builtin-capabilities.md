@@ -320,9 +320,10 @@ context DictionaryMaintenance {
 import data-exchange as PlatformDataExchange deploy FederationLearningSupport
 ```
 
-内置 `DataExchange` 自身包含导出任务与导入任务两个业务 job：
+内置 `DataExchange` 自身包含导出任务、导出文件下载与导入任务：
 
-- `DataExportJob`：记录导出请求、处理状态、文件位置、行数和失败信息。
+- `DataExportJob`：记录导出请求、处理状态、文件位置、下载地址、行数和失败信息。
+- `DownloadDataExportFile`：导出 job 完成后，`DataExportJobCatalog` 通过 `eligible for DownloadDataExportFile when { DataExportJob.status == "COMPLETED" }` 暴露下载动作。
 - `DataImportJob`：记录导入请求、上传文件、请求哈希、处理状态、成功/失败行数和失败索引位置。
 
 业务模型通过简单标记接入通用导出或导入：

@@ -141,6 +141,7 @@ context DataExchange {
       dataExportJobId: UUID id
       fileName: String
       filePath: String
+      downloadUri: String
       rowCount: Long
       status: String
     }
@@ -150,6 +151,7 @@ context DataExchange {
       dataExportJobId: UUID id
       fileName: String
       filePath: String
+      downloadUri: String
       rowCount: Long
       status: String
     }
@@ -188,9 +190,41 @@ context DataExchange {
       status: String query
       fileName: String?
       filePath: String?
+      downloadUri: String?
       rowCount: Long?
       errorMessage: Text?
+
+      eligible for DownloadDataExportFile when {
+        DataExportJob.status == "COMPLETED"
+      }
     }
+  }
+
+  slice DownloadDataExportFile {
+    actor PlatformUser
+    ui DataExportJobCatalogScreen confirm
+    reactsTo DataExportCompleted
+
+    command DownloadDataExportFile {
+      clientEffect download {
+        uriField downloadUri
+        filenameField fileName
+      }
+      dataExportJobId: UUID id technical
+      fileName: String technical
+      downloadUri: String technical
+    }
+
+    event DataExportFileDownloadAuthorized {
+      dataExportJobId: UUID id technical
+      fileName: String
+      downloadUri: String
+    }
+  }
+
+  concept DataExportJob {
+    slice DataExportJob
+    slice DownloadDataExportFile
   }
 
 }

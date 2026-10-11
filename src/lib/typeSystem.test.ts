@@ -1699,6 +1699,41 @@ test('parses importable commands and carries data exchange capability aliases to
   assert.match(roundTripDsl, /importable\s+runtimeCapabilityId: UUID id/s);
 });
 
+test('built-in data exchange models completed export job downloads', () => {
+  const model = parseMedol(`
+    import data-exchange as PlatformDataExchange deploy Support
+
+    context Support {
+      note "Application support context"
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  const codegen = modelToCodegenModel(model);
+  const commands = codegen.slices.flatMap((slice) => slice.commands);
+  const readModels = codegen.slices.flatMap((slice) => slice.readmodels);
+  const downloadCommand = commands.find((command) => command.name === 'DownloadDataExportFile');
+  const dataExportCatalog = readModels.find((readModel) => readModel.name === 'DataExportJobCatalog');
+
+  assert.deepEqual(downloadCommand?.clientEffect, {
+    type: 'download',
+    options: {
+      uriField: 'downloadUri',
+      filenameField: 'fileName'
+    }
+  });
+  assert.equal(dataExportCatalog?.fields.some((field) => field.name === 'downloadUri'), true);
+  assert.deepEqual(dataExportCatalog?.eligibility?.[0], {
+    profile: 'DownloadDataExportFile',
+    operator: 'AND',
+    conditions: [{
+      left: 'DataExportJob.status',
+      operator: '==',
+      right: 'COMPLETED'
+    }]
+  });
+});
+
 test('parses system notification imports and event notifiable markers', () => {
   const model = parseMedol(`
     import system-notification as PlatformNotification deploy Support

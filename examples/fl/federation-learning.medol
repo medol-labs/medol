@@ -2015,6 +2015,7 @@ context ModelRepository {
       modelVersion: String
       modelDescription: String?
       sourceType: String? dictionary "MODEL_ARTIFACT_SOURCE_TYPE"
+      modelScope: String? dictionary "MODEL_SCOPE"
       modelArtifactUri: String
       modelRegistryRef: String
       modelFormat: String dictionary "MODEL_FORMAT"
@@ -2024,11 +2025,17 @@ context ModelRepository {
       trainingJobId: UUID?
       roundId: UUID?
       trainingJobObjective: String?
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      baseGlobalModelId: UUID?
       state: ModelArtifact.State
       registeredAt: DateTime?
       subscribe TrainingJobCreated
       subscribe ModelArtifactRegistered
       subscribe FederatedModelArtifactRegistered
+      subscribe PersonalizedModelArtifactRegistered
       subscribe GlobalModelUpdated
       eligible for DefineTrainingRunConfiguration when {
         ModelArtifact.state == Registered
@@ -2044,6 +2051,7 @@ context ModelRepository {
     ui ModelRepositoryScreen confirm
     reactsTo ModelArtifactRegistered
     reactsTo FederatedModelArtifactRegistered
+    reactsTo PersonalizedModelArtifactRegistered
     port
 
     command DownloadModelArtifact {
@@ -2114,6 +2122,7 @@ context ModelRepository {
       modelVersion: String from GlobalModelUpdated.aggregatedModelVersion
       modelDescription: String? from GlobalModelUpdated.aggregatedModelDescription
       sourceType: String from GlobalModelUpdated.modelSourceType
+      modelScope: String generated technical
       modelArtifactUri: String from GlobalModelUpdated.aggregatedModelArtifactUri
       modelRegistryRef: String from GlobalModelUpdated.aggregatedModelRegistryRef
       modelFormat: String from GlobalModelUpdated.modelFormat
@@ -2132,6 +2141,7 @@ context ModelRepository {
       modelVersion: String
       modelDescription: String?
       sourceType: String
+      modelScope: String dictionary "MODEL_SCOPE"
       modelArtifactUri: String
       modelRegistryRef: String
       modelFormat: String
@@ -2157,11 +2167,96 @@ context ModelRepository {
     }
   }
 
+  slice RegisterPersonalizedModelArtifact {
+    reactsTo PersonalizedModelResultRecorded
+
+    automation RegisterPersonalizedModelWhenResultRecorded {
+      on PersonalizedModelResultRecorded
+      emits RegisterPersonalizedModelArtifact
+    }
+
+    command RegisterPersonalizedModelArtifact {
+      modelId: UUID id technical from PersonalizedModelResultRecorded.personalizedModelId
+      modelName: String generated technical
+      modelPlugin: String derived {
+        from TrainingRunConfiguration.initialModelPlugin
+        rule "Personalized artifacts preserve the runtime-engine model plugin selected by the training configuration."
+      }
+      modelVersion: String generated technical
+      modelDescription: String? generated technical
+      sourceType: String generated technical
+      modelScope: String derived {
+        from PersonalizedModelResultRecorded.personalizationScope
+        rule "Map the personalization scope to model artifact scope so catalogs can distinguish global, cohort, organization, and participant artifacts."
+      }
+      modelArtifactUri: String from PersonalizedModelResultRecorded.personalizedModelArtifactRef
+      modelRegistryRef: String generated technical
+      modelFormat: String derived {
+        from TrainingRunConfiguration.initialModelFormat
+        rule "Personalized artifacts use the same model format family as the configured base model unless a runtime adapter records a stricter format."
+      }
+      modelArtifactDigest: String from PersonalizedModelResultRecorded.personalizedModelArtifactDigest
+      modelSignatureUri: String? generated technical
+      modelSizeBytes: Int? generated technical
+      trainingJobId: UUID from PersonalizedModelResultRecorded.trainingJobId
+      trainingJobObjective: String derived from TrainingJob.objective by trainingJobId
+      roundId: UUID from PersonalizedModelResultRecorded.roundId
+      personalizationMode: String? from PersonalizedModelResultRecorded.personalizationMode
+      personalizationTargetType: String? from PersonalizedModelResultRecorded.personalizationTargetType
+      personalizationTargetId: UUID? from PersonalizedModelResultRecorded.personalizationTargetId
+      personalizationCohortId: UUID? from PersonalizedModelResultRecorded.personalizationCohortId
+      baseGlobalModelId: UUID? derived {
+        from TrainingRoundCompleted.aggregatedModelId
+        rule "Link the personalized artifact to the latest global model completed before or with the personalized training round."
+      }
+    }
+
+    event PersonalizedModelArtifactRegistered {
+      modelId: UUID id technical
+      modelName: String
+      modelPlugin: String dictionary "MODEL_PLUGIN"
+      modelVersion: String
+      modelDescription: String?
+      sourceType: String
+      modelScope: String dictionary "MODEL_SCOPE"
+      modelArtifactUri: String
+      modelRegistryRef: String
+      modelFormat: String dictionary "MODEL_FORMAT"
+      modelArtifactDigest: String
+      modelSignatureUri: String?
+      modelSizeBytes: Int?
+      trainingJobId: UUID
+      trainingJobObjective: String?
+      roundId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      baseGlobalModelId: UUID?
+    }
+
+    state Registered
+
+    specification "Personalized Model Artifact Keeps Target Lineage" {
+      rule """
+        A personalized model artifact is registered only after an accepted local update records a personalized result. It shares the common ModelArtifact catalog but carries model scope and personalization target lineage so later execution plans can select the correct personalized base without confusing it with the global aggregated model.
+      """
+
+      scenario "Register Personalized Model Artifact" {
+        when RegisterPersonalizedModelArtifact {
+          modelId = "personalized-model-1"
+        }
+        then PersonalizedModelArtifactRegistered
+      }
+    }
+  }
+
   concept ModelArtifact {
     state Registered
 
     slice RegisterModelArtifact
     slice RegisterFederatedModelArtifact
+    slice RegisterPersonalizedModelArtifact
     slice DownloadModelArtifact
     slice ModelArtifactCatalog
   }
@@ -2308,6 +2403,11 @@ context TrainingOrchestration {
       runtimeEngineImageDigest: String? derived from RuntimeEngineProfileCatalog.imageDigest by runtimeEngineProfileId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       maxRounds: Int
       minimumNodesPerRound: Int
       roundTimeoutSeconds: Int
@@ -2377,6 +2477,11 @@ context TrainingOrchestration {
       }
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       maxRounds: Int
       minimumNodesPerRound: Int
       roundTimeoutSeconds: Int
@@ -2409,6 +2514,9 @@ context TrainingOrchestration {
           runtimeEngineProfileId = "engine-profile-1"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
+          personalizationMode = "GLOBAL_ONLY"
+          personalizationScope = "FEDERATION"
+          personalizedArtifactPolicy = "NONE"
           maxRounds = 10
           minimumNodesPerRound = 3
           roundTimeoutSeconds = 1800
@@ -2434,6 +2542,9 @@ context TrainingOrchestration {
           runtimeEngineProfileId = "engine-profile-1"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
+          personalizationMode = "GLOBAL_ONLY"
+          personalizationScope = "FEDERATION"
+          personalizedArtifactPolicy = "NONE"
           maxRounds = 0
           minimumNodesPerRound = 3
           roundTimeoutSeconds = 1800
@@ -2475,6 +2586,11 @@ context TrainingOrchestration {
       runtimeEngineImageDigest: String? derived from RuntimeEngineProfileCatalog.imageDigest by runtimeEngineProfileId
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       maxRounds: Int
       minimumNodesPerRound: Int
       roundTimeoutSeconds: Int
@@ -2545,6 +2661,11 @@ context TrainingOrchestration {
       }
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       maxRounds: Int
       minimumNodesPerRound: Int
       roundTimeoutSeconds: Int
@@ -2580,6 +2701,9 @@ context TrainingOrchestration {
           initialModelId = "model-2"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
+          personalizationMode = "GLOBAL_ONLY"
+          personalizationScope = "FEDERATION"
+          personalizedArtifactPolicy = "NONE"
           maxRounds = 20
           minimumNodesPerRound = 3
           roundTimeoutSeconds = 1800
@@ -2608,6 +2732,9 @@ context TrainingOrchestration {
           initialModelId = "model-2"
           strategyName = "FED_AVG"
           aggregationAlgorithm = "FEDERATED_AVERAGING"
+          personalizationMode = "GLOBAL_ONLY"
+          personalizationScope = "FEDERATION"
+          personalizedArtifactPolicy = "NONE"
           maxRounds = 20
           minimumNodesPerRound = 3
           roundTimeoutSeconds = 1800
@@ -2675,6 +2802,11 @@ context TrainingOrchestration {
       runtimeEngineImageDigest: String?
       strategyName: String dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       maxRounds: Int
       minimumNodesPerRound: Int
       roundTimeoutSeconds: Int
@@ -2845,6 +2977,9 @@ context TrainingOrchestration {
       objective: String
       strategyName: String? dictionary "TRAINING_STRATEGY"
       aggregationAlgorithm: String? dictionary "AGGREGATION_ALGORITHM"
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
       secureAggregationRequired: Boolean?
       state: TrainingJob.State
       workflowStage: String
@@ -2865,6 +3000,10 @@ context TrainingOrchestration {
       roundProgressPercent: Int
       globalAccuracy: Decimal?
       finalModelId: UUID?
+      personalizedModelCount: Int
+      meanPersonalizedAccuracy: Decimal?
+      worstPersonalizedAccuracy: Decimal?
+      meanPersonalizationLift: Decimal?
       stopReason: String?
       subscribe FederationCreated
       subscribe FeatureSchemaDefined
@@ -3019,15 +3158,20 @@ context TrainingOrchestration {
       trainingJobId: UUID id technical
       finalRoundId: UUID from TrainingRoundCompleted.roundId
       finalModelId: UUID from TrainingRoundCompleted.aggregatedModelId
+      finalModelArtifactDigest: String from TrainingRoundCompleted.modelArtifactDigest
+      finalGlobalAccuracy: Decimal from TrainingRoundCompleted.globalAccuracy
+      finalEvaluationReportId: UUID from TrainingRoundCompleted.roundId
       trainingJobObjective: String from TrainingRoundCompleted.trainingJobObjective
       stopReason: String generated technical
     }
 
     event TrainingJobCompleted {
-      notifiable by PlatformNotification
       trainingJobId: UUID id technical
       finalRoundId: UUID
       finalModelId: UUID
+      finalModelArtifactDigest: String
+      finalGlobalAccuracy: Decimal
+      finalEvaluationReportId: UUID
       trainingJobObjective: String
       stopReason: String
     }
@@ -3059,6 +3203,10 @@ context TrainingOrchestration {
     organizationId: UUID
     runtimeId: UUID
     datasetId: UUID
+    personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+    personalizationTargetId: UUID?
+    personalizationCohortId: UUID?
+    personalizationProfileId: UUID?
   }
 
   slice SelectTrainingRoundParticipants {
@@ -3100,6 +3248,11 @@ context TrainingOrchestration {
       maxRounds: Int
       minimumAccuracy: Decimal
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       minimumNodesPerRound: Int
       secureAggregationRequired: Boolean
       selectedOrganizationIds: UUID[]
@@ -3124,6 +3277,11 @@ context TrainingOrchestration {
       maxRounds: Int
       minimumAccuracy: Decimal
       aggregationAlgorithm: String dictionary "AGGREGATION_ALGORITHM"
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       minimumNodesPerRound: Int
       secureAggregationRequired: Boolean
       selectedOrganizationIds: UUID[]
@@ -3138,7 +3296,7 @@ context TrainingOrchestration {
 
     specification "Training Round Participants Are Snapshotted Per Round" {
       rule """
-        Each training round starts from a runtime snapshot selected by domain policy. Selection first verifies that the federation has joined organizations and that those organizations have dataset metadata for the training configuration's exact feature schema with both schema and label compatibility confirmed. Only then can an active runtime identity with the same organization and runtime identity be paired with that dataset. One deterministic dataset is selected per runtime for a round snapshot. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots. If federation membership, compatible dataset evidence, runtime identity matching, or quorum validation fails, the system records a failed participant selection event with a stage-specific reason so the operator can fix readiness and retry selection.
+        Each training round starts from a runtime snapshot selected by domain policy. Selection first verifies that the federation has joined organizations and that those organizations have dataset metadata for the training configuration's exact feature schema with both schema and label compatibility confirmed. Only then can an active runtime identity with the same organization and runtime identity be paired with that dataset. One deterministic dataset is selected per runtime for a round snapshot. When personalization is enabled, the selected participant also carries the stable personalization target and optional cohort/profile identity used by execution planning and personalized artifact lineage. Runtimes that become ready after a round has begun cannot join that round, but they can be selected for a later round when policy allows dynamic round snapshots. If federation membership, compatible dataset evidence, runtime identity matching, personalization capability matching, or quorum validation fails, the system records a failed participant selection event with a stage-specific reason so the operator can fix readiness and retry selection.
       """
 
       scenario "Select Participants When Runtime Pool Reaches Quorum" {
@@ -3290,7 +3448,30 @@ context TrainingOrchestration {
         from TrainingRoundParticipantsSelected.minimumAccuracy, HomomorphicEncryptionContextPrepared.minimumAccuracy
         rule "Carry the target global accuracy for downstream completion and next-round decisions."
       }
-      aggregationAlgorithm: String? from TrainingRoundParticipantsSelected.aggregationAlgorithm
+      aggregationAlgorithm: String? derived {
+        from TrainingRoundParticipantsSelected.aggregationAlgorithm, HomomorphicEncryptionContextPrepared.aggregationAlgorithm
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      personalizationMode: String? derived {
+        from TrainingRoundParticipantsSelected.personalizationMode, HomomorphicEncryptionContextPrepared.personalizationMode
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      personalizationScope: String? derived {
+        from TrainingRoundParticipantsSelected.personalizationScope, HomomorphicEncryptionContextPrepared.personalizationScope
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      personalizedArtifactPolicy: String? derived {
+        from TrainingRoundParticipantsSelected.personalizedArtifactPolicy, HomomorphicEncryptionContextPrepared.personalizedArtifactPolicy
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      personalizationMetric: String? derived {
+        from TrainingRoundParticipantsSelected.personalizationMetric, HomomorphicEncryptionContextPrepared.personalizationMetric
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
+      minimumPersonalizationLift: Decimal? derived {
+        from TrainingRoundParticipantsSelected.minimumPersonalizationLift, HomomorphicEncryptionContextPrepared.minimumPersonalizationLift
+        rule "Use the selected participant snapshot for plaintext rounds and the prepared encryption context for secure aggregation rounds."
+      }
       secureAggregationRequired: Boolean derived {
         from TrainingRoundParticipantsSelected.secureAggregationRequired, HomomorphicEncryptionContextPrepared.secureAggregationRequired
         rule "Plaintext rounds use false from participant selection; secure aggregation rounds use true from the prepared encryption context."
@@ -3323,6 +3504,11 @@ context TrainingOrchestration {
       maxRounds: Int
       minimumAccuracy: Decimal
       aggregationAlgorithm: String?
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -3351,6 +3537,11 @@ context TrainingOrchestration {
       minimumNodesPerRound: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -3414,6 +3605,15 @@ context TrainingOrchestration {
       roundNumber: Int from TrainingRoundStarted.roundNumber
       runtimeId: UUID from participant.runtimeId
       organizationId: UUID from participant.organizationId
+      personalizationMode: String? from TrainingRoundStarted.personalizationMode
+      personalizationScope: String? from TrainingRoundStarted.personalizationScope
+      personalizedArtifactPolicy: String? from TrainingRoundStarted.personalizedArtifactPolicy
+      personalizationMetric: String? from TrainingRoundStarted.personalizationMetric
+      minimumPersonalizationLift: Decimal? from TrainingRoundStarted.minimumPersonalizationLift
+      personalizationTargetType: String? from participant.personalizationTargetType
+      personalizationTargetId: UUID? from participant.personalizationTargetId
+      personalizationCohortId: UUID? from participant.personalizationCohortId
+      personalizationProfileId: UUID? from participant.personalizationProfileId
       baseModelId: UUID derived {
         from TrainingRunConfiguration.initialModelId, TrainingRoundCompleted.aggregatedModelId
         rule "Round one uses the initial model selected by the training configuration; later rounds use the aggregated model from the previous completed round."
@@ -3442,6 +3642,18 @@ context TrainingOrchestration {
         from TrainingRunConfiguration.initialModelSignatureUri, TrainingRoundCompleted.aggregatedModelSignatureUri
         rule "Snapshot the optional signature URI for the base model used by this participant execution plan."
       }
+      personalizedBaseModelId: UUID? derived {
+        from PersonalizedModelCatalog.personalizedModelId
+        rule "When a prior personalized artifact exists for the selected target, carry it as the optional personalized base model. Round one and global-only configurations may omit this value."
+      }
+      personalizedBaseModelArtifactUri: String? derived {
+        from PersonalizedModelCatalog.personalizedModelArtifactRef
+        rule "Carry the optional pullable personalized artifact reference for runtime-local fine tuning or personal-head initialization."
+      }
+      personalizedBaseModelArtifactDigest: String? derived {
+        from PersonalizedModelCatalog.personalizedModelArtifactDigest
+        rule "Carry the optional personalized artifact digest so the runtime agent can verify the personalized base."
+      }
       runtimeEngineProfileId: UUID from TrainingRunConfiguration.runtimeEngineProfileId
       runtimeEngineProfileName: String? from TrainingRunConfiguration.runtimeEngineProfileName
       runtimeEnginePluginProfile: String from TrainingRunConfiguration.runtimeEnginePluginProfile
@@ -3469,6 +3681,15 @@ context TrainingOrchestration {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
@@ -3476,6 +3697,9 @@ context TrainingOrchestration {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      personalizedBaseModelId: UUID?
+      personalizedBaseModelArtifactUri: String?
+      personalizedBaseModelArtifactDigest: String?
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String?
       runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
@@ -3493,7 +3717,7 @@ context TrainingOrchestration {
 
     specification "Participant Execution Plan Carries Base Model Artifact Snapshot" {
       rule """
-        A participant execution plan must carry the immutable base model artifact snapshot needed by the runtime agent: model identity, pullable artifact URI, registry reference, strict model plugin, model format, artifact digest, and optional signature URI. It must also carry the selected RuntimeEngineProfile snapshot: plugin profile, pullable runtime-engine image, and optional image digest. Runtime agents must not infer or query these values later from mutable repository views, display names, registry references, or local environment variables. Round one uses the initial model snapshot from the training run configuration; later rounds use the aggregated model snapshot recorded when the previous training round completed.
+        A participant execution plan must carry the immutable global base model artifact snapshot needed by the runtime agent: model identity, pullable artifact URI, registry reference, strict model plugin, model format, artifact digest, and optional signature URI. It must also carry the selected RuntimeEngineProfile snapshot: plugin profile, pullable runtime-engine image, and optional image digest. Runtime agents must not infer or query these values later from mutable repository views, display names, registry references, or local environment variables. Round one uses the initial model snapshot from the training run configuration; later rounds use the aggregated model snapshot recorded when the previous training round completed. When personalization is enabled, the plan additionally carries the selected personalization mode/scope/target and the previous personalized base artifact for that target when one exists. The global model update remains the aggregation input; personalized artifacts are separately reported and cataloged according to the configured artifact policy.
       """
 
       scenario "Generate Initial Round Plan With Initial Model Snapshot" {
@@ -3548,6 +3772,15 @@ context TrainingOrchestration {
       roundNumber: Int from ParticipantExecutionPlanGenerated.roundNumber
       runtimeId: UUID from ParticipantExecutionPlanGenerated.runtimeId
       organizationId: UUID from ParticipantExecutionPlanGenerated.organizationId
+      personalizationMode: String? from ParticipantExecutionPlanGenerated.personalizationMode
+      personalizationScope: String? from ParticipantExecutionPlanGenerated.personalizationScope
+      personalizedArtifactPolicy: String? from ParticipantExecutionPlanGenerated.personalizedArtifactPolicy
+      personalizationMetric: String? from ParticipantExecutionPlanGenerated.personalizationMetric
+      minimumPersonalizationLift: Decimal? from ParticipantExecutionPlanGenerated.minimumPersonalizationLift
+      personalizationTargetType: String? from ParticipantExecutionPlanGenerated.personalizationTargetType
+      personalizationTargetId: UUID? from ParticipantExecutionPlanGenerated.personalizationTargetId
+      personalizationCohortId: UUID? from ParticipantExecutionPlanGenerated.personalizationCohortId
+      personalizationProfileId: UUID? from ParticipantExecutionPlanGenerated.personalizationProfileId
       baseModelId: UUID from ParticipantExecutionPlanGenerated.baseModelId
       baseModelArtifactUri: String from ParticipantExecutionPlanGenerated.baseModelArtifactUri
       baseModelRegistryRef: String from ParticipantExecutionPlanGenerated.baseModelRegistryRef
@@ -3555,6 +3788,9 @@ context TrainingOrchestration {
       baseModelFormat: String from ParticipantExecutionPlanGenerated.baseModelFormat
       baseModelArtifactDigest: String from ParticipantExecutionPlanGenerated.baseModelArtifactDigest
       baseModelSignatureUri: String? from ParticipantExecutionPlanGenerated.baseModelSignatureUri
+      personalizedBaseModelId: UUID? from ParticipantExecutionPlanGenerated.personalizedBaseModelId
+      personalizedBaseModelArtifactUri: String? from ParticipantExecutionPlanGenerated.personalizedBaseModelArtifactUri
+      personalizedBaseModelArtifactDigest: String? from ParticipantExecutionPlanGenerated.personalizedBaseModelArtifactDigest
       runtimeEngineProfileId: UUID from ParticipantExecutionPlanGenerated.runtimeEngineProfileId
       runtimeEngineProfileName: String? from ParticipantExecutionPlanGenerated.runtimeEngineProfileName
       runtimeEnginePluginProfile: String from ParticipantExecutionPlanGenerated.runtimeEnginePluginProfile
@@ -3578,6 +3814,15 @@ context TrainingOrchestration {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
@@ -3585,6 +3830,9 @@ context TrainingOrchestration {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      personalizedBaseModelId: UUID?
+      personalizedBaseModelArtifactUri: String?
+      personalizedBaseModelArtifactDigest: String?
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String?
       runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
@@ -3615,6 +3863,15 @@ context TrainingOrchestration {
       roundExecutionId: UUID from AgentLocalModelUpdateSubmitted.roundExecutionId
       runtimeId: UUID from AgentLocalModelUpdateSubmitted.runtimeId
       featureSchemaId: UUID
+      personalizationMode: String? from AgentLocalModelUpdateSubmitted.personalizationMode
+      personalizationScope: String? from AgentLocalModelUpdateSubmitted.personalizationScope
+      personalizedArtifactPolicy: String? from AgentLocalModelUpdateSubmitted.personalizedArtifactPolicy
+      personalizationMetric: String? from AgentLocalModelUpdateSubmitted.personalizationMetric
+      minimumPersonalizationLift: Decimal? from AgentLocalModelUpdateSubmitted.minimumPersonalizationLift
+      personalizationTargetType: String? from AgentLocalModelUpdateSubmitted.personalizationTargetType
+      personalizationTargetId: UUID? from AgentLocalModelUpdateSubmitted.personalizationTargetId
+      personalizationCohortId: UUID? from AgentLocalModelUpdateSubmitted.personalizationCohortId
+      personalizationProfileId: UUID? from AgentLocalModelUpdateSubmitted.personalizationProfileId
       secureAggregationRequired: Boolean from AgentLocalModelUpdateSubmitted.secureAggregationRequired
       secureAggregationSessionId: UUID? from AgentLocalModelUpdateSubmitted.secureAggregationSessionId
       encryptionScheme: String? from AgentLocalModelUpdateSubmitted.encryptionScheme
@@ -3625,6 +3882,13 @@ context TrainingOrchestration {
       artifactDigest: String
       updateProtectionType: String from AgentLocalModelUpdateSubmitted.updateProtectionType
       trainingLoss: Decimal
+      personalizedArtifactAvailable: Boolean from AgentLocalModelUpdateSubmitted.personalizedArtifactAvailable
+      personalizedModelId: UUID? from AgentLocalModelUpdateSubmitted.personalizedModelId
+      personalizedModelArtifactRef: String? from AgentLocalModelUpdateSubmitted.personalizedModelArtifactRef
+      personalizedModelArtifactDigest: String? from AgentLocalModelUpdateSubmitted.personalizedModelArtifactDigest
+      personalizedMetricsArtifactRef: String? from AgentLocalModelUpdateSubmitted.personalizedMetricsArtifactRef
+      personalizedAccuracy: Decimal? from AgentLocalModelUpdateSubmitted.personalizedAccuracy
+      personalizationLift: Decimal? from AgentLocalModelUpdateSubmitted.personalizationLift
     }
 
     event ModelUpdateSubmissionReceived {
@@ -3637,6 +3901,15 @@ context TrainingOrchestration {
       roundExecutionId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -3647,6 +3920,13 @@ context TrainingOrchestration {
       artifactDigest: String
       updateProtectionType: String dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       trainingLoss: Decimal
+      personalizedArtifactAvailable: Boolean
+      personalizedModelId: UUID?
+      personalizedModelArtifactRef: String?
+      personalizedModelArtifactDigest: String?
+      personalizedMetricsArtifactRef: String?
+      personalizedAccuracy: Decimal?
+      personalizationLift: Decimal?
     }
 
     state Received
@@ -3669,6 +3949,15 @@ context TrainingOrchestration {
       roundId: UUID from ModelUpdateSubmissionReceived.roundId
       runtimeId: UUID from ModelUpdateSubmissionReceived.runtimeId
       featureSchemaId: UUID from ModelUpdateSubmissionReceived.featureSchemaId
+      personalizationMode: String? from ModelUpdateSubmissionReceived.personalizationMode
+      personalizationScope: String? from ModelUpdateSubmissionReceived.personalizationScope
+      personalizedArtifactPolicy: String? from ModelUpdateSubmissionReceived.personalizedArtifactPolicy
+      personalizationMetric: String? from ModelUpdateSubmissionReceived.personalizationMetric
+      minimumPersonalizationLift: Decimal? from ModelUpdateSubmissionReceived.minimumPersonalizationLift
+      personalizationTargetType: String? from ModelUpdateSubmissionReceived.personalizationTargetType
+      personalizationTargetId: UUID? from ModelUpdateSubmissionReceived.personalizationTargetId
+      personalizationCohortId: UUID? from ModelUpdateSubmissionReceived.personalizationCohortId
+      personalizationProfileId: UUID? from ModelUpdateSubmissionReceived.personalizationProfileId
       secureAggregationRequired: Boolean from ModelUpdateSubmissionReceived.secureAggregationRequired
       secureAggregationSessionId: UUID? from ModelUpdateSubmissionReceived.secureAggregationSessionId
       encryptionScheme: String? from ModelUpdateSubmissionReceived.encryptionScheme
@@ -3677,6 +3966,13 @@ context TrainingOrchestration {
       artifactRef: String from ModelUpdateSubmissionReceived.artifactRef
       artifactDigest: String from ModelUpdateSubmissionReceived.artifactDigest
       updateProtectionType: String from ModelUpdateSubmissionReceived.updateProtectionType
+      personalizedArtifactAvailable: Boolean from ModelUpdateSubmissionReceived.personalizedArtifactAvailable
+      personalizedModelId: UUID? from ModelUpdateSubmissionReceived.personalizedModelId
+      personalizedModelArtifactRef: String? from ModelUpdateSubmissionReceived.personalizedModelArtifactRef
+      personalizedModelArtifactDigest: String? from ModelUpdateSubmissionReceived.personalizedModelArtifactDigest
+      personalizedMetricsArtifactRef: String? from ModelUpdateSubmissionReceived.personalizedMetricsArtifactRef
+      personalizedAccuracy: Decimal? from ModelUpdateSubmissionReceived.personalizedAccuracy
+      personalizationLift: Decimal? from ModelUpdateSubmissionReceived.personalizationLift
       anomalyScore: Decimal generated technical
     }
 
@@ -3694,6 +3990,15 @@ context TrainingOrchestration {
       aggregationAlgorithm: String? from TrainingRoundStarted.aggregationAlgorithm
       runtimeId: UUID
       featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -3702,6 +4007,13 @@ context TrainingOrchestration {
       artifactRef: String
       artifactDigest: String
       updateProtectionType: String dictionary "MODEL_UPDATE_PROTECTION_TYPE"
+      personalizedArtifactAvailable: Boolean
+      personalizedModelId: UUID?
+      personalizedModelArtifactRef: String?
+      personalizedModelArtifactDigest: String?
+      personalizedMetricsArtifactRef: String?
+      personalizedAccuracy: Decimal?
+      personalizationLift: Decimal?
       anomalyScore: Decimal
       acceptedModelUpdateCount: Int derived from ModelUpdateSubmissionAccepted.acceptedRuntimeIds, EvaluateModelUpdateSubmission.runtimeId {
         rule "count(appendDistinct(ModelUpdateSubmissionAccepted.acceptedRuntimeIds, EvaluateModelUpdateSubmission.runtimeId))"
@@ -3778,6 +4090,122 @@ context TrainingOrchestration {
           anomalyScore = 0.98
         }
         then reject "Anomalous Model Update Rejected"
+      }
+    }
+  }
+
+  slice RecordPersonalizedModelResult {
+    startsLifecycle
+    reactsTo ModelUpdateSubmissionAccepted
+
+    automation RecordPersonalizedModelWhenAcceptedUpdateContainsArtifact {
+      on ModelUpdateSubmissionAccepted
+      condition personalizedArtifactAvailable == true
+      emits RecordPersonalizedModelResult
+    }
+
+    command RecordPersonalizedModelResult {
+      personalizedModelId: UUID id technical from ModelUpdateSubmissionAccepted.personalizedModelId
+      modelUpdateSubmissionId: UUID from ModelUpdateSubmissionAccepted.modelUpdateSubmissionId
+      trainingJobId: UUID from ModelUpdateSubmissionAccepted.trainingJobId
+      trainingRunConfigurationId: UUID from ModelUpdateSubmissionAccepted.trainingRunConfigurationId
+      roundId: UUID from ModelUpdateSubmissionAccepted.roundId
+      roundNumber: Int from ModelUpdateSubmissionAccepted.roundNumber
+      runtimeId: UUID from ModelUpdateSubmissionAccepted.runtimeId
+      featureSchemaId: UUID from ModelUpdateSubmissionAccepted.featureSchemaId
+      personalizationMode: String? from ModelUpdateSubmissionAccepted.personalizationMode
+      personalizationScope: String? from ModelUpdateSubmissionAccepted.personalizationScope
+      personalizedArtifactPolicy: String? from ModelUpdateSubmissionAccepted.personalizedArtifactPolicy
+      personalizationMetric: String? from ModelUpdateSubmissionAccepted.personalizationMetric
+      minimumPersonalizationLift: Decimal? from ModelUpdateSubmissionAccepted.minimumPersonalizationLift
+      personalizationTargetType: String? from ModelUpdateSubmissionAccepted.personalizationTargetType
+      personalizationTargetId: UUID? from ModelUpdateSubmissionAccepted.personalizationTargetId
+      personalizationCohortId: UUID? from ModelUpdateSubmissionAccepted.personalizationCohortId
+      personalizationProfileId: UUID? from ModelUpdateSubmissionAccepted.personalizationProfileId
+      personalizedModelArtifactRef: String from ModelUpdateSubmissionAccepted.personalizedModelArtifactRef
+      personalizedModelArtifactDigest: String from ModelUpdateSubmissionAccepted.personalizedModelArtifactDigest
+      personalizedMetricsArtifactRef: String? from ModelUpdateSubmissionAccepted.personalizedMetricsArtifactRef
+      personalizedAccuracy: Decimal? from ModelUpdateSubmissionAccepted.personalizedAccuracy
+      personalizationLift: Decimal? from ModelUpdateSubmissionAccepted.personalizationLift
+    }
+
+    event PersonalizedModelResultRecorded {
+      personalizedModelId: UUID id technical
+      modelUpdateSubmissionId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+      runtimeId: UUID
+      featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
+      personalizedModelArtifactRef: String
+      personalizedModelArtifactDigest: String
+      personalizedMetricsArtifactRef: String?
+      personalizedAccuracy: Decimal?
+      personalizationLift: Decimal?
+    }
+
+    state PersonalizedResultRecorded
+
+    specification "Personalized Artifacts Are Tracked Separately From Global Updates" {
+      rule """
+        Accepted model updates may include an optional personalized model artifact for the selected personalization target. Recording that artifact must not change the global aggregation input: aggregation still uses the accepted model update artifact references, while personalized artifacts are cataloged for later rounds, local deployment, or optional governance depending on the configured artifact policy.
+      """
+
+      scenario "Record Personalized Artifact From Accepted Update" {
+        given ModelUpdateSubmissionAccepted {
+          modelUpdateSubmissionId = "submission-1"
+          trainingJobId = "job-1"
+          personalizedArtifactAvailable = true
+          personalizedModelId = "personalized-model-1"
+          personalizedModelArtifactRef = "oci://registry.example.com/fl/personalized-model-1"
+          personalizedModelArtifactDigest = "sha256:personalized"
+        }
+        when RecordPersonalizedModelResult {
+          personalizedModelId = "personalized-model-1"
+        }
+        then PersonalizedModelResultRecorded
+      }
+    }
+  }
+
+  slice PersonalizedModelCatalog {
+    readmodel PersonalizedModelCatalog[] {
+      personalizedModelId: UUID id
+      modelUpdateSubmissionId: UUID
+      trainingJobId: UUID
+      trainingRunConfigurationId: UUID
+      roundId: UUID
+      roundNumber: Int
+      runtimeId: UUID
+      featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
+      personalizedModelArtifactRef: String
+      personalizedModelArtifactDigest: String
+      personalizedMetricsArtifactRef: String?
+      personalizedAccuracy: Decimal?
+      personalizationLift: Decimal?
+      state: PersonalizedModelResult.State
+      subscribe PersonalizedModelResultRecorded
+      eligible when {
+        PersonalizedModelResult.state == PersonalizedResultRecorded
       }
     }
   }
@@ -3886,6 +4314,12 @@ context TrainingOrchestration {
       minimumNodesPerRound: Int from TrainingRoundParticipantsSelected.minimumNodesPerRound
       maxRounds: Int from TrainingRoundParticipantsSelected.maxRounds
       minimumAccuracy: Decimal from TrainingRoundParticipantsSelected.minimumAccuracy
+      aggregationAlgorithm: String from TrainingRoundParticipantsSelected.aggregationAlgorithm
+      personalizationMode: String? from TrainingRoundParticipantsSelected.personalizationMode
+      personalizationScope: String? from TrainingRoundParticipantsSelected.personalizationScope
+      personalizedArtifactPolicy: String? from TrainingRoundParticipantsSelected.personalizedArtifactPolicy
+      personalizationMetric: String? from TrainingRoundParticipantsSelected.personalizationMetric
+      minimumPersonalizationLift: Decimal? from TrainingRoundParticipantsSelected.minimumPersonalizationLift
       secureAggregationRequired: Boolean from TrainingRoundParticipantsSelected.secureAggregationRequired
     }
 
@@ -3909,6 +4343,12 @@ context TrainingOrchestration {
       minimumNodesPerRound: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      aggregationAlgorithm: String
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       secureAggregationRequired: Boolean
     }
 
@@ -4220,7 +4660,6 @@ context TrainingOrchestration {
     }
 
     event TrainingRoundFailed {
-      notifiable by PlatformNotification
       trainingJobId: UUID id technical from FailTrainingRound.trainingJobId
       trainingRunConfigurationId: UUID from FailTrainingRound.trainingRunConfigurationId
       featureSchemaId: UUID from FailTrainingRound.featureSchemaId
@@ -4335,6 +4774,13 @@ context TrainingOrchestration {
     slice TrainingRoundProgress
   }
 
+  concept PersonalizedModelResult {
+    state PersonalizedResultRecorded
+
+    slice RecordPersonalizedModelResult
+    slice PersonalizedModelCatalog
+  }
+
   concept ParticipantExecutionPlan {
     state PlanGenerated
     state PlanDispatched
@@ -4362,14 +4808,14 @@ context ModelLifecycle {
     }
 
     command RegisterCandidateModel {
-      modelId: UUID id technical
+      modelId: UUID id technical from TrainingJobCompleted.finalModelId
       trainingJobId: UUID from TrainingJobCompleted.trainingJobId
       trainingJobObjective: String from TrainingJobCompleted.trainingJobObjective
       finalRoundId: UUID from TrainingJobCompleted.finalRoundId
-      modelArtifactId: UUID
-      modelArtifactDigest: String
-      evaluationReportId: UUID
-      finalGlobalAccuracy: Decimal
+      modelArtifactId: UUID from TrainingJobCompleted.finalModelId
+      modelArtifactDigest: String from TrainingJobCompleted.finalModelArtifactDigest
+      evaluationReportId: UUID from TrainingJobCompleted.finalEvaluationReportId
+      finalGlobalAccuracy: Decimal from TrainingJobCompleted.finalGlobalAccuracy
     }
 
     event ModelCandidateRegistered {
@@ -4584,29 +5030,31 @@ context ModelLifecycle {
       state: Model.State
       releaseChannel: String? dictionary "MODEL_RELEASE_CHANNEL"
       productionStage: String? dictionary "MODEL_PRODUCTION_STAGE"
-      previousModelId: UUID?
       experimentId: UUID?
       hyperparameterSnapshotId: UUID?
       reproducibilityManifestId: UUID?
       modelCardId: UUID?
-      baselineModelId: UUID?
-      hasEvaluationPackage: Boolean
-      approvalStatus: String
-      releaseStatus: String
-      isProduction: Boolean
-      canRecordEvaluationPackage: Boolean
-      canApprove: Boolean
-      canPromoteToProduction: Boolean
-      canRollback: Boolean
-      canRetire: Boolean
-      blockedReason: String?
-      subscribe TrainingJobCreated
       subscribe ModelCandidateRegistered
       subscribe ModelEvaluationPackageRecorded
       subscribe ModelApproved
       subscribe ModelPromotedToProduction
       subscribe ModelRolledBack
       subscribe ModelRetired
+      eligible for RecordModelEvaluationPackage when {
+        Model.state == Candidate
+      }
+      eligible for ApproveModel when {
+        Model.state == EvaluationPackaged
+      }
+      eligible for PromoteModelToProduction when {
+        Model.state == Approved
+      }
+      eligible for RollbackModel when {
+        Model.state == Production
+      }
+      eligible for RetireModel when {
+        Model.state == Production
+      }
     }
   }
 
@@ -4626,19 +5074,18 @@ context ModelLifecycle {
     slice RetireModel
     slice ModelCatalog
   }
-
 }
 
 context RuntimeMonitoring {
-  note "Runtime operations separates low-frequency runtime state changes, node inventory changes, latest telemetry views, training alerts, and append only audit records. High-frequency heartbeat and resource samples are telemetry, not event-sourced domain events."
+  note "Platform runtime monitoring keeps the control-plane view small: node inventory, latest telemetry/resource snapshots, health transitions, and actionable training alerts. High-frequency heartbeat and resource samples remain telemetry, not event-sourced domain events."
 
   risk "Operational alerts without acknowledgement or resolution tracking can hide node degradation during training."
-  risk "Audit records without payload hashes and source event classification weaken compliance evidence."
   metric runtimeAlertMeanTimeToAcknowledge
-  metric auditTrailCompleteness
+  metric runtimeAlertMeanTimeToResolve
 
   slice RuntimeTelemetryLatest {
     readmodel todo RuntimeTelemetryLatest[] {
+      exportable by PlatformDataExchange
       nodeId: UUID id
       runtimeAgentId: UUID
       federationId: UUID?
@@ -4651,23 +5098,25 @@ context RuntimeMonitoring {
       gpuLoad: Decimal?
       memoryLoad: Decimal?
       lastHeartbeatAt: DateTime?
-      heartbeatMissingBeyondThreshold: Boolean
-      heartbeatObservedAfterOffline: Boolean
-      resourcePressureDetected: Boolean
+      lastRecoveredAt: DateTime?
+      offlineDetectionPending: Boolean
+      recoveryDetectionPending: Boolean
+      resourcePressureDetectionPending: Boolean
+      offlineReason: String?
+      recoveryReason: String?
+      pressureType: String?
+      observedValue: Decimal?
+      thresholdValue: Decimal?
+      alertSeverity: String?
+      alertMessage: String?
+      healthStatus: String
       telemetryRetentionPolicy: String
+      subscribe RuntimeTelemetryRecorded
     }
   }
 
-  slice DetectRuntimeAgentOffline {
-    startsLifecycle
-
-    automation DetectOfflineRuntimeAgentFromTelemetry {
-      on todo RuntimeTelemetryLatest
-      condition heartbeatMissingBeyondThreshold == true
-      emits DetectRuntimeAgentOffline
-    }
-
-    command DetectRuntimeAgentOffline {
+  slice RecordRuntimeTelemetry {
+    command RecordRuntimeTelemetry {
       nodeId: UUID id technical
       runtimeAgentId: UUID
       federationId: UUID?
@@ -4676,7 +5125,75 @@ context RuntimeMonitoring {
       trainingJobObjective: String?
       roundExecutionId: UUID?
       runtimeNodeName: String?
-      offlineReason: String
+      cpuLoad: Decimal?
+      gpuLoad: Decimal?
+      memoryLoad: Decimal?
+      lastHeartbeatAt: DateTime?
+      lastRecoveredAt: DateTime?
+      offlineDetectionPending: Boolean
+      recoveryDetectionPending: Boolean
+      resourcePressureDetectionPending: Boolean
+      offlineReason: String?
+      recoveryReason: String?
+      pressureType: String?
+      observedValue: Decimal?
+      thresholdValue: Decimal?
+      alertSeverity: String?
+      alertMessage: String?
+      healthStatus: String
+      telemetryRetentionPolicy: String
+    }
+
+    event RuntimeTelemetryRecorded {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      federationId: UUID?
+      federationName: String?
+      trainingJobId: UUID?
+      trainingJobObjective: String?
+      roundExecutionId: UUID?
+      runtimeNodeName: String?
+      cpuLoad: Decimal?
+      gpuLoad: Decimal?
+      memoryLoad: Decimal?
+      lastHeartbeatAt: DateTime?
+      lastRecoveredAt: DateTime?
+      offlineDetectionPending: Boolean
+      recoveryDetectionPending: Boolean
+      resourcePressureDetectionPending: Boolean
+      offlineReason: String?
+      recoveryReason: String?
+      pressureType: String?
+      observedValue: Decimal?
+      thresholdValue: Decimal?
+      alertSeverity: String?
+      alertMessage: String?
+      healthStatus: String
+      telemetryRetentionPolicy: String
+    }
+
+    state Recorded
+  }
+
+  slice DetectRuntimeAgentOffline {
+    startsLifecycle
+
+    automation DetectOfflineRuntimeAgentFromTelemetry {
+      on todo RuntimeTelemetryLatest
+      condition offlineDetectionPending == true
+      emits DetectRuntimeAgentOffline
+    }
+
+    command DetectRuntimeAgentOffline {
+      nodeId: UUID id technical from RuntimeTelemetryLatest.nodeId
+      runtimeAgentId: UUID from RuntimeTelemetryLatest.runtimeAgentId
+      federationId: UUID? from RuntimeTelemetryLatest.federationId
+      federationName: String? from RuntimeTelemetryLatest.federationName
+      trainingJobId: UUID? from RuntimeTelemetryLatest.trainingJobId
+      trainingJobObjective: String? from RuntimeTelemetryLatest.trainingJobObjective
+      roundExecutionId: UUID? from RuntimeTelemetryLatest.roundExecutionId
+      runtimeNodeName: String? from RuntimeTelemetryLatest.runtimeNodeName
+      offlineReason: String from RuntimeTelemetryLatest.offlineReason
     }
 
     event RuntimeAgentOfflineDetected {
@@ -4699,20 +5216,20 @@ context RuntimeMonitoring {
 
     automation MarkRecoveredRuntimeAgentFromTelemetry {
       on todo RuntimeTelemetryLatest
-      condition heartbeatObservedAfterOffline == true
+      condition recoveryDetectionPending == true
       emits MarkRuntimeAgentRecovered
     }
 
     command MarkRuntimeAgentRecovered {
-      nodeId: UUID id technical
-      runtimeAgentId: UUID
-      federationId: UUID?
-      federationName: String?
-      trainingJobId: UUID?
-      trainingJobObjective: String?
-      roundExecutionId: UUID?
-      runtimeNodeName: String?
-      recoveryReason: String?
+      nodeId: UUID id technical from RuntimeTelemetryLatest.nodeId
+      runtimeAgentId: UUID from RuntimeTelemetryLatest.runtimeAgentId
+      federationId: UUID? from RuntimeTelemetryLatest.federationId
+      federationName: String? from RuntimeTelemetryLatest.federationName
+      trainingJobId: UUID? from RuntimeTelemetryLatest.trainingJobId
+      trainingJobObjective: String? from RuntimeTelemetryLatest.trainingJobObjective
+      roundExecutionId: UUID? from RuntimeTelemetryLatest.roundExecutionId
+      runtimeNodeName: String? from RuntimeTelemetryLatest.runtimeNodeName
+      recoveryReason: String? from RuntimeTelemetryLatest.recoveryReason
     }
 
     event RuntimeAgentRecovered {
@@ -4735,22 +5252,24 @@ context RuntimeMonitoring {
 
     automation DetectResourcePressureFromTelemetry {
       on todo RuntimeTelemetryLatest
-      condition resourcePressureDetected == true
+      condition resourcePressureDetectionPending == true
       emits DetectRuntimeNodeResourcePressure
     }
 
     command DetectRuntimeNodeResourcePressure {
-      nodeId: UUID id technical
-      runtimeAgentId: UUID
-      federationId: UUID?
-      federationName: String?
-      trainingJobId: UUID?
-      trainingJobObjective: String?
-      roundExecutionId: UUID?
-      runtimeNodeName: String?
-      pressureType: String
-      observedValue: Decimal
-      thresholdValue: Decimal
+      nodeId: UUID id technical from RuntimeTelemetryLatest.nodeId
+      runtimeAgentId: UUID from RuntimeTelemetryLatest.runtimeAgentId
+      federationId: UUID? from RuntimeTelemetryLatest.federationId
+      federationName: String? from RuntimeTelemetryLatest.federationName
+      trainingJobId: UUID? from RuntimeTelemetryLatest.trainingJobId
+      trainingJobObjective: String? from RuntimeTelemetryLatest.trainingJobObjective
+      roundExecutionId: UUID? from RuntimeTelemetryLatest.roundExecutionId
+      runtimeNodeName: String? from RuntimeTelemetryLatest.runtimeNodeName
+      pressureType: String from RuntimeTelemetryLatest.pressureType
+      observedValue: Decimal from RuntimeTelemetryLatest.observedValue
+      thresholdValue: Decimal from RuntimeTelemetryLatest.thresholdValue
+      alertSeverity: String from RuntimeTelemetryLatest.alertSeverity
+      alertMessage: String from RuntimeTelemetryLatest.alertMessage
     }
 
     event RuntimeNodeResourcePressureDetected {
@@ -4765,6 +5284,8 @@ context RuntimeMonitoring {
       pressureType: String
       observedValue: Decimal
       thresholdValue: Decimal
+      alertSeverity: String
+      alertMessage: String
     }
 
     state PressureDetected
@@ -4780,22 +5301,22 @@ context RuntimeMonitoring {
     }
 
     command RecordRuntimeNodeInventory {
-      nodeId: UUID id technical
-      runtimeNodeInventoryReportId: UUID
-      organizationId: UUID
-      organizationName: String?
-      runtimeInfrastructureId: UUID
-      runtimeAgentId: UUID
-      runtimeName: String?
-      runtimeNodeName: String
-      infrastructureNodeId: String?
-      runtimeNodeRole: String
-      nodeReady: Boolean
-      runtimeEngineVersion: String?
-      containerEngineVersion: String?
-      operatingSystem: String?
-      architecture: String
-      inventoryHash: String
+      nodeId: UUID id technical from AgentRuntimeNodeInventoryReported.nodeId
+      runtimeNodeInventoryReportId: UUID from AgentRuntimeNodeInventoryReported.runtimeNodeInventoryReportId
+      organizationId: UUID from AgentRuntimeNodeInventoryReported.organizationId
+      organizationName: String? from AgentRuntimeNodeInventoryReported.organizationName
+      runtimeInfrastructureId: UUID from AgentRuntimeNodeInventoryReported.runtimeInfrastructureId
+      runtimeAgentId: UUID from AgentRuntimeNodeInventoryReported.runtimeAgentId
+      runtimeName: String? from AgentRuntimeNodeInventoryReported.runtimeName
+      runtimeNodeName: String from AgentRuntimeNodeInventoryReported.runtimeNodeName
+      infrastructureNodeId: String? from AgentRuntimeNodeInventoryReported.infrastructureNodeId
+      runtimeNodeRole: String from AgentRuntimeNodeInventoryReported.runtimeNodeRole
+      nodeReady: Boolean from AgentRuntimeNodeInventoryReported.nodeReady
+      runtimeEngineVersion: String? from AgentRuntimeNodeInventoryReported.runtimeEngineVersion
+      containerEngineVersion: String? from AgentRuntimeNodeInventoryReported.containerEngineVersion
+      operatingSystem: String? from AgentRuntimeNodeInventoryReported.operatingSystem
+      architecture: String from AgentRuntimeNodeInventoryReported.architecture
+      inventoryHash: String from AgentRuntimeNodeInventoryReported.inventoryHash
     }
 
     event RuntimeNodeInventoryReported {
@@ -4822,6 +5343,7 @@ context RuntimeMonitoring {
 
   slice RuntimeNodeInventoryView {
     readmodel RuntimeNodeInventoryView[] {
+      exportable by PlatformDataExchange
       nodeId: UUID id
       runtimeNodeInventoryReportId: UUID
       organizationId: UUID
@@ -4840,15 +5362,13 @@ context RuntimeMonitoring {
       inventoryHash: String
       discoveredAt: DateTime
       recordedAt: DateTime
-      subscribe OrganizationRegistered
-      subscribe RuntimeInstallationPlanCreated
-      subscribe RuntimeInfrastructureRegistered
       subscribe RuntimeNodeInventoryReported
     }
   }
 
   slice RuntimeNodeResourceLatest {
     readmodel todo RuntimeNodeResourceLatest[] {
+      exportable by PlatformDataExchange
       nodeId: UUID id
       runtimeAgentId: UUID
       runtimeInfrastructureId: UUID?
@@ -4866,45 +5386,65 @@ context RuntimeMonitoring {
       runningWorkloadCount: Int
       workloadCapacity: Int
       observedAt: DateTime
-      allocatableCapacityChanged: Boolean
+      lastResourceSnapshotAt: DateTime
       telemetryRetentionPolicy: String
+      subscribe RuntimeNodeResourceTelemetryRecorded
     }
   }
 
-  slice DetectRuntimeNodeCapacityChange {
+  slice RecordRuntimeNodeResourceTelemetry {
     startsLifecycle
 
-    automation DetectCapacityChangeFromResourceTelemetry {
-      on todo RuntimeNodeResourceLatest
-      condition allocatableCapacityChanged == true
-      emits DetectRuntimeNodeCapacityChange
-    }
-
-    command DetectRuntimeNodeCapacityChange {
+    command RecordRuntimeNodeResourceTelemetry {
       nodeId: UUID id technical
       runtimeAgentId: UUID
-      previousCapacityHash: String?
-      currentCapacityHash: String
+      runtimeInfrastructureId: UUID?
+      runtimeNodeName: String?
+      nodeReady: Boolean
       allocatableCpuCores: Int
       allocatableMemoryGb: Int
       allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningWorkloadCount: Int
+      workloadCapacity: Int
+      observedAt: DateTime
+      lastResourceSnapshotAt: DateTime
+      telemetryRetentionPolicy: String
     }
 
-    event RuntimeNodeCapacityChanged {
+    event RuntimeNodeResourceTelemetryRecorded {
       nodeId: UUID id technical
       runtimeAgentId: UUID
-      previousCapacityHash: String?
-      currentCapacityHash: String
+      runtimeInfrastructureId: UUID?
+      runtimeNodeName: String?
+      nodeReady: Boolean
       allocatableCpuCores: Int
       allocatableMemoryGb: Int
       allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningWorkloadCount: Int
+      workloadCapacity: Int
+      observedAt: DateTime
+      lastResourceSnapshotAt: DateTime
+      telemetryRetentionPolicy: String
     }
 
-    state CapacityChanged
+    state Recorded
   }
 
   slice RuntimeHealthDashboard {
     readmodel RuntimeHealthDashboard[] {
+      exportable by PlatformDataExchange
       nodeId: UUID id
       runtimeAgentId: UUID
       federationId: UUID
@@ -4924,21 +5464,22 @@ context RuntimeMonitoring {
       healthStatus: String
       lastHeartbeatAt: DateTime
       lastResourceSnapshotAt: DateTime?
-      subscribe FederationCreated
-      subscribe TrainingJobCreated
       subscribe RuntimeAgentOfflineDetected
       subscribe RuntimeAgentRecovered
       subscribe RuntimeNodeResourcePressureDetected
-      subscribe RuntimeNodeCapacityChanged
       subscribe RuntimeNodeInventoryReported
+      subscribe RuntimeTelemetryRecorded
+      subscribe RuntimeNodeResourceTelemetryRecorded
       subscribe TrainingAlertRaised
     }
   }
 
   concept NodeRuntimeHealth {
+    state Recorded
     state Healthy
     state Offline
 
+    slice RecordRuntimeTelemetry
     slice RuntimeTelemetryLatest
     slice DetectRuntimeAgentOffline
     slice MarkRuntimeAgentRecovered
@@ -4951,12 +5492,6 @@ context RuntimeMonitoring {
     slice DetectRuntimeNodeResourcePressure
   }
 
-  concept RuntimeNodeCapacity {
-    state CapacityChanged
-
-    slice DetectRuntimeNodeCapacityChange
-  }
-
   concept RuntimeNodeInventory {
     state Reported
 
@@ -4965,6 +5500,9 @@ context RuntimeMonitoring {
   }
 
   concept RuntimeNodeResourceTelemetry {
+    state Recorded
+
+    slice RecordRuntimeNodeResourceTelemetry
     slice RuntimeNodeResourceLatest
   }
 
@@ -4983,12 +5521,11 @@ context RuntimeMonitoring {
       trainingJobId: UUID? from RuntimeNodeResourcePressureDetected.trainingJobId
       runtimeNodeName: String? from RuntimeNodeResourcePressureDetected.runtimeNodeName
       trainingJobObjective: String? from RuntimeNodeResourcePressureDetected.trainingJobObjective
-      severity: String
-      message: String
+      severity: String from RuntimeNodeResourcePressureDetected.alertSeverity
+      message: String from RuntimeNodeResourcePressureDetected.alertMessage
     }
 
     event TrainingAlertRaised {
-      notifiable by PlatformNotification
       alertId: UUID id technical
       nodeId: UUID
       trainingJobId: UUID?
@@ -5003,6 +5540,7 @@ context RuntimeMonitoring {
 
   slice TrainingAlertCatalog {
     readmodel TrainingAlertCatalog[] {
+      exportable by PlatformDataExchange
       alertId: UUID id
       nodeId: UUID
       trainingJobId: UUID?
@@ -5014,13 +5552,15 @@ context RuntimeMonitoring {
       acknowledgedAt: DateTime?
       resolvedAt: DateTime?
       resolutionSummary: String?
-      canAcknowledge: Boolean
-      canResolve: Boolean
-      subscribe RuntimeNodeInventoryReported
-      subscribe TrainingJobCreated
       subscribe TrainingAlertRaised
       subscribe TrainingAlertAcknowledged
       subscribe TrainingAlertResolved
+      eligible for AcknowledgeTrainingAlert when {
+        TrainingAlert.state == Raised
+      }
+      eligible for ResolveTrainingAlert when {
+        TrainingAlert.state == Acknowledged
+      }
     }
   }
 
@@ -5070,97 +5610,6 @@ context RuntimeMonitoring {
     slice ResolveTrainingAlert
     slice TrainingAlertCatalog
   }
-
-  slice AppendAuditTrail {
-    startsLifecycle
-    reactsTo TrainingAlertRaised
-
-    automation AuditCriticalTrainingEvents {
-      on TrainingAlertRaised
-      emits AppendAuditTrail
-    }
-
-    automation AuditFederationActivated {
-      on FederationActivated
-      emits AppendAuditTrail
-    }
-
-    automation AuditFederationSuspended {
-      on FederationSuspended
-      emits AppendAuditTrail
-    }
-
-    automation AuditFederationReactivated {
-      on FederationReactivated
-      emits AppendAuditTrail
-    }
-
-    automation AuditParticipantJoined {
-      on ParticipantJoined
-      emits AppendAuditTrail
-    }
-
-    automation AuditParticipantSuspended {
-      on ParticipantSuspended
-      emits AppendAuditTrail
-    }
-
-    automation AuditDatasetApproval {
-      on DatasetApprovedForTraining
-      emits AppendAuditTrail
-    }
-
-    automation AuditDatasetApprovalRevoked {
-      on DatasetTrainingApprovalRevoked
-      emits AppendAuditTrail
-    }
-
-    automation AuditTrainingJobSubmitted {
-      on TrainingJobSubmitted
-      emits AppendAuditTrail
-    }
-
-    automation AuditModelPromotedToProduction {
-      on ModelPromotedToProduction
-      emits AppendAuditTrail
-    }
-
-    command AppendAuditTrail {
-      auditRecordId: UUID id generated technical
-      sourceEventName: String
-      sourceEntityId: UUID?
-      severity: String
-      payloadHash: String
-    }
-
-    event AuditTrailAppended {
-      auditRecordId: UUID id technical
-      sourceEventName: String
-      sourceEntityId: UUID?
-      severity: String
-      payloadHash: String
-    }
-
-    state Appended
-  }
-
-  slice AuditRecordLog {
-    readmodel AuditRecordLog[] {
-      auditRecordId: UUID id
-      sourceEventName: String
-      sourceEntityId: UUID?
-      severity: String
-      payloadHash: String
-      subscribe AuditTrailAppended
-    }
-  }
-
-  concept AuditRecord {
-    state Appended
-
-    slice AppendAuditTrail
-    slice AuditRecordLog
-  }
 }
 
 context RuntimeGovernance {
@@ -5192,7 +5641,10 @@ context RuntimeGovernance {
     }
 
     command ActivateRuntimeIdentity {
-      runtimeId: UUID id generated technical
+      runtimeId: UUID id technical derived {
+        from RuntimeAgentInstallationSucceeded.runtimeAgentId, RuntimeConnectionEstablished.runtimeAgentId
+        rule "Use the stable runtime agent identity as the runtime identity id so installation success, manual connection, and bootstrap retries converge on one RuntimeIdentity."
+      }
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
       organizationId: UUID derived {
@@ -5344,6 +5796,12 @@ context SecureAggregation {
       minimumNodesPerRound: Int from SecureAggregationRequested.minimumNodesPerRound
       maxRounds: Int from SecureAggregationRequested.maxRounds
       minimumAccuracy: Decimal from SecureAggregationRequested.minimumAccuracy
+      aggregationAlgorithm: String from SecureAggregationRequested.aggregationAlgorithm
+      personalizationMode: String? from SecureAggregationRequested.personalizationMode
+      personalizationScope: String? from SecureAggregationRequested.personalizationScope
+      personalizedArtifactPolicy: String? from SecureAggregationRequested.personalizedArtifactPolicy
+      personalizationMetric: String? from SecureAggregationRequested.personalizationMetric
+      minimumPersonalizationLift: Decimal? from SecureAggregationRequested.minimumPersonalizationLift
       secureAggregationRequired: Boolean from SecureAggregationRequested.secureAggregationRequired
     }
 
@@ -5368,6 +5826,12 @@ context SecureAggregation {
       minimumNodesPerRound: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      aggregationAlgorithm: String
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       secureAggregationRequired: Boolean
     }
 
@@ -5403,6 +5867,12 @@ context SecureAggregation {
       minimumNodesPerRound: Int from SecureAggregationSessionCreated.minimumNodesPerRound
       maxRounds: Int from SecureAggregationSessionCreated.maxRounds
       minimumAccuracy: Decimal from SecureAggregationSessionCreated.minimumAccuracy
+      aggregationAlgorithm: String from SecureAggregationSessionCreated.aggregationAlgorithm
+      personalizationMode: String? from SecureAggregationSessionCreated.personalizationMode
+      personalizationScope: String? from SecureAggregationSessionCreated.personalizationScope
+      personalizedArtifactPolicy: String? from SecureAggregationSessionCreated.personalizedArtifactPolicy
+      personalizationMetric: String? from SecureAggregationSessionCreated.personalizationMetric
+      minimumPersonalizationLift: Decimal? from SecureAggregationSessionCreated.minimumPersonalizationLift
       secureAggregationRequired: Boolean from SecureAggregationSessionCreated.secureAggregationRequired
     }
 
@@ -5426,6 +5896,12 @@ context SecureAggregation {
       minimumNodesPerRound: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      aggregationAlgorithm: String
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       secureAggregationRequired: Boolean
     }
 
@@ -5462,6 +5938,12 @@ context SecureAggregation {
       minimumNodesPerRound: Int from SecureAggregationParticipantsSelected.minimumNodesPerRound
       maxRounds: Int from SecureAggregationParticipantsSelected.maxRounds
       minimumAccuracy: Decimal from SecureAggregationParticipantsSelected.minimumAccuracy
+      aggregationAlgorithm: String from SecureAggregationParticipantsSelected.aggregationAlgorithm
+      personalizationMode: String? from SecureAggregationParticipantsSelected.personalizationMode
+      personalizationScope: String? from SecureAggregationParticipantsSelected.personalizationScope
+      personalizedArtifactPolicy: String? from SecureAggregationParticipantsSelected.personalizedArtifactPolicy
+      personalizationMetric: String? from SecureAggregationParticipantsSelected.personalizationMetric
+      minimumPersonalizationLift: Decimal? from SecureAggregationParticipantsSelected.minimumPersonalizationLift
       secureAggregationRequired: Boolean from SecureAggregationParticipantsSelected.secureAggregationRequired
     }
 
@@ -5485,6 +5967,12 @@ context SecureAggregation {
       minimumNodesPerRound: Int
       maxRounds: Int
       minimumAccuracy: Decimal
+      aggregationAlgorithm: String
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
       secureAggregationRequired: Boolean
       // PAILLIER
       encryptionScheme: String portOutput
@@ -6807,6 +7295,15 @@ context RuntimeAgentOperations {
       roundNumber: Int from ParticipantExecutionPlanDispatched.roundNumber
       runtimeId: UUID from ParticipantExecutionPlanDispatched.runtimeId
       organizationId: UUID from ParticipantExecutionPlanDispatched.organizationId
+      personalizationMode: String? from ParticipantExecutionPlanDispatched.personalizationMode
+      personalizationScope: String? from ParticipantExecutionPlanDispatched.personalizationScope
+      personalizedArtifactPolicy: String? from ParticipantExecutionPlanDispatched.personalizedArtifactPolicy
+      personalizationMetric: String? from ParticipantExecutionPlanDispatched.personalizationMetric
+      minimumPersonalizationLift: Decimal? from ParticipantExecutionPlanDispatched.minimumPersonalizationLift
+      personalizationTargetType: String? from ParticipantExecutionPlanDispatched.personalizationTargetType
+      personalizationTargetId: UUID? from ParticipantExecutionPlanDispatched.personalizationTargetId
+      personalizationCohortId: UUID? from ParticipantExecutionPlanDispatched.personalizationCohortId
+      personalizationProfileId: UUID? from ParticipantExecutionPlanDispatched.personalizationProfileId
       baseModelId: UUID from ParticipantExecutionPlanDispatched.baseModelId
       baseModelArtifactUri: String from ParticipantExecutionPlanDispatched.baseModelArtifactUri
       baseModelRegistryRef: String from ParticipantExecutionPlanDispatched.baseModelRegistryRef
@@ -6814,6 +7311,9 @@ context RuntimeAgentOperations {
       baseModelFormat: String from ParticipantExecutionPlanDispatched.baseModelFormat
       baseModelArtifactDigest: String from ParticipantExecutionPlanDispatched.baseModelArtifactDigest
       baseModelSignatureUri: String? from ParticipantExecutionPlanDispatched.baseModelSignatureUri
+      personalizedBaseModelId: UUID? from ParticipantExecutionPlanDispatched.personalizedBaseModelId
+      personalizedBaseModelArtifactUri: String? from ParticipantExecutionPlanDispatched.personalizedBaseModelArtifactUri
+      personalizedBaseModelArtifactDigest: String? from ParticipantExecutionPlanDispatched.personalizedBaseModelArtifactDigest
       runtimeEngineProfileId: UUID from ParticipantExecutionPlanDispatched.runtimeEngineProfileId
       runtimeEngineProfileName: String? from ParticipantExecutionPlanDispatched.runtimeEngineProfileName
       runtimeEnginePluginProfile: String from ParticipantExecutionPlanDispatched.runtimeEnginePluginProfile
@@ -6838,6 +7338,15 @@ context RuntimeAgentOperations {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
@@ -6845,6 +7354,9 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      personalizedBaseModelId: UUID?
+      personalizedBaseModelArtifactUri: String?
+      personalizedBaseModelArtifactDigest: String?
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String?
       runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
@@ -6881,6 +7393,15 @@ context RuntimeAgentOperations {
       roundNumber: Int from ExecutionPlanReceived.roundNumber
       runtimeId: UUID from ExecutionPlanReceived.runtimeId
       organizationId: UUID from ExecutionPlanReceived.organizationId
+      personalizationMode: String? from ExecutionPlanReceived.personalizationMode
+      personalizationScope: String? from ExecutionPlanReceived.personalizationScope
+      personalizedArtifactPolicy: String? from ExecutionPlanReceived.personalizedArtifactPolicy
+      personalizationMetric: String? from ExecutionPlanReceived.personalizationMetric
+      minimumPersonalizationLift: Decimal? from ExecutionPlanReceived.minimumPersonalizationLift
+      personalizationTargetType: String? from ExecutionPlanReceived.personalizationTargetType
+      personalizationTargetId: UUID? from ExecutionPlanReceived.personalizationTargetId
+      personalizationCohortId: UUID? from ExecutionPlanReceived.personalizationCohortId
+      personalizationProfileId: UUID? from ExecutionPlanReceived.personalizationProfileId
       baseModelId: UUID from ExecutionPlanReceived.baseModelId
       baseModelArtifactUri: String from ExecutionPlanReceived.baseModelArtifactUri
       baseModelRegistryRef: String from ExecutionPlanReceived.baseModelRegistryRef
@@ -6888,6 +7409,9 @@ context RuntimeAgentOperations {
       baseModelFormat: String from ExecutionPlanReceived.baseModelFormat
       baseModelArtifactDigest: String from ExecutionPlanReceived.baseModelArtifactDigest
       baseModelSignatureUri: String? from ExecutionPlanReceived.baseModelSignatureUri
+      personalizedBaseModelId: UUID? from ExecutionPlanReceived.personalizedBaseModelId
+      personalizedBaseModelArtifactUri: String? from ExecutionPlanReceived.personalizedBaseModelArtifactUri
+      personalizedBaseModelArtifactDigest: String? from ExecutionPlanReceived.personalizedBaseModelArtifactDigest
       runtimeEngineProfileId: UUID from ExecutionPlanReceived.runtimeEngineProfileId
       runtimeEngineProfileName: String? from ExecutionPlanReceived.runtimeEngineProfileName
       runtimeEnginePluginProfile: String from ExecutionPlanReceived.runtimeEnginePluginProfile
@@ -6912,6 +7436,15 @@ context RuntimeAgentOperations {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
@@ -6919,6 +7452,9 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      personalizedBaseModelId: UUID?
+      personalizedBaseModelArtifactUri: String?
+      personalizedBaseModelArtifactDigest: String?
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String?
       runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
@@ -6951,6 +7487,15 @@ context RuntimeAgentOperations {
       roundNumber: Int
       runtimeId: UUID
       organizationId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
@@ -6958,6 +7503,9 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      personalizedBaseModelId: UUID?
+      personalizedBaseModelArtifactUri: String?
+      personalizedBaseModelArtifactDigest: String?
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String?
       runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
@@ -6984,7 +7532,7 @@ context RuntimeAgentOperations {
 
     specification "Execution Plan Local Acceptance Outcome" {
       rule """
-        When a participant execution plan is received, the runtime agent performs a local readiness check before starting any training work. The check verifies that the plan targets this runtime, the required dataset binding exists, dataset access has already been validated, the base model is available, the requested training configuration is supported, sufficient local resources are available, and the runtime agent is idle. The port records exactly one outcome: ExecutionPlanAccepted when all local requirements are satisfied, or ExecutionPlanRejected with rejection reasons when any requirement fails.
+        When a participant execution plan is received, the runtime agent performs a local readiness check before starting any training work. The check verifies that the plan targets this runtime, the required dataset binding exists, dataset access has already been validated, the global base model is available, any required personalized base model is available, the requested training and personalization configuration is supported, sufficient local resources are available, and the runtime agent is idle. The port records exactly one outcome: ExecutionPlanAccepted when all local requirements are satisfied, or ExecutionPlanRejected with rejection reasons when any requirement fails.
       """
 
       scenario "Execution Plan Accepted" {
@@ -7029,6 +7577,15 @@ context RuntimeAgentOperations {
       runtimeId: UUID from ExecutionPlanAccepted.runtimeId
       organizationId: UUID from ExecutionPlanAccepted.organizationId
       featureSchemaId: UUID from ExecutionPlanAccepted.featureSchemaId
+      personalizationMode: String? from ExecutionPlanAccepted.personalizationMode
+      personalizationScope: String? from ExecutionPlanAccepted.personalizationScope
+      personalizedArtifactPolicy: String? from ExecutionPlanAccepted.personalizedArtifactPolicy
+      personalizationMetric: String? from ExecutionPlanAccepted.personalizationMetric
+      minimumPersonalizationLift: Decimal? from ExecutionPlanAccepted.minimumPersonalizationLift
+      personalizationTargetType: String? from ExecutionPlanAccepted.personalizationTargetType
+      personalizationTargetId: UUID? from ExecutionPlanAccepted.personalizationTargetId
+      personalizationCohortId: UUID? from ExecutionPlanAccepted.personalizationCohortId
+      personalizationProfileId: UUID? from ExecutionPlanAccepted.personalizationProfileId
       baseModelId: UUID from ExecutionPlanAccepted.baseModelId
       baseModelArtifactUri: String from ExecutionPlanAccepted.baseModelArtifactUri
       baseModelRegistryRef: String from ExecutionPlanAccepted.baseModelRegistryRef
@@ -7036,6 +7593,9 @@ context RuntimeAgentOperations {
       baseModelFormat: String from ExecutionPlanAccepted.baseModelFormat
       baseModelArtifactDigest: String from ExecutionPlanAccepted.baseModelArtifactDigest
       baseModelSignatureUri: String? from ExecutionPlanAccepted.baseModelSignatureUri
+      personalizedBaseModelId: UUID? from ExecutionPlanAccepted.personalizedBaseModelId
+      personalizedBaseModelArtifactUri: String? from ExecutionPlanAccepted.personalizedBaseModelArtifactUri
+      personalizedBaseModelArtifactDigest: String? from ExecutionPlanAccepted.personalizedBaseModelArtifactDigest
       runtimeEngineProfileId: UUID from ExecutionPlanAccepted.runtimeEngineProfileId
       runtimeEngineProfileName: String? from ExecutionPlanAccepted.runtimeEngineProfileName
       runtimeEnginePluginProfile: String from ExecutionPlanAccepted.runtimeEnginePluginProfile
@@ -7060,6 +7620,15 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
@@ -7067,6 +7636,9 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      personalizedBaseModelId: UUID?
+      personalizedBaseModelArtifactUri: String?
+      personalizedBaseModelArtifactDigest: String?
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String?
       runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
@@ -7092,6 +7664,15 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       baseModelId: UUID
       baseModelArtifactUri: String
       baseModelRegistryRef: String
@@ -7099,6 +7680,9 @@ context RuntimeAgentOperations {
       baseModelFormat: String
       baseModelArtifactDigest: String
       baseModelSignatureUri: String?
+      personalizedBaseModelId: UUID?
+      personalizedBaseModelArtifactUri: String?
+      personalizedBaseModelArtifactDigest: String?
       runtimeEngineProfileId: UUID
       runtimeEngineProfileName: String?
       runtimeEnginePluginProfile: String dictionary "RUNTIME_ENGINE_PLUGIN_PROFILE"
@@ -7118,9 +7702,10 @@ context RuntimeAgentOperations {
 
     specification "Round Execution Runtime Engine Start Outcome" {
       rule """
-        Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, resource allocation, or training job submission fails.
+        Starting a round execution is responsible for launching the local runtime engine on demand for this participant round, not for calling a pre-existing always-on engine. The adapter prepares the local training workspace and configuration, starts the matching runtime engine service, process, or container, submits the local model training job to that engine, and records the created runtimeEngineJobId. The port records exactly one outcome: RoundExecutionStarted when the runtime engine is running and the training job has been accepted, or RoundExecutionStartFailed when environment preparation, engine startup, model loading, personalized base loading, resource allocation, or training job submission fails.
         Runtime engine model selection must come from the participant execution plan baseModelPlugin snapshot. Runtime agents must not decide the model plugin from model display names, registry references, or local environment variables because the selected model is platform training configuration data.
         Runtime engine image selection must come from the participant execution plan RuntimeEngineProfile snapshot. Runtime-agent local configuration is only a fallback for legacy plans that do not carry a runtimeEngineImage.
+        When personalization is enabled, StartRoundExecution must pass the personalization mode, target identity, artifact policy, and optional personalized base model artifact to the runtime engine. The runtime engine may return both a global model update and a personalized artifact, but only the global update participates in platform aggregation.
         When secureAggregationRequired is true, StartRoundExecution must pass encryptionScheme, publicKeyVersion, publicKeyRef, and encryptedParameterScale to the runtime engine so the local model update is encrypted inside the participant runtime boundary before any update artifact is reported to the platform.
       """
 
@@ -7166,6 +7751,15 @@ context RuntimeAgentOperations {
       runtimeId: UUID from RoundExecutionStarted.runtimeId
       organizationId: UUID from RoundExecutionStarted.organizationId
       featureSchemaId: UUID from RoundExecutionStarted.featureSchemaId
+      personalizationMode: String? from RoundExecutionStarted.personalizationMode
+      personalizationScope: String? from RoundExecutionStarted.personalizationScope
+      personalizedArtifactPolicy: String? from RoundExecutionStarted.personalizedArtifactPolicy
+      personalizationMetric: String? from RoundExecutionStarted.personalizationMetric
+      minimumPersonalizationLift: Decimal? from RoundExecutionStarted.minimumPersonalizationLift
+      personalizationTargetType: String? from RoundExecutionStarted.personalizationTargetType
+      personalizationTargetId: UUID? from RoundExecutionStarted.personalizationTargetId
+      personalizationCohortId: UUID? from RoundExecutionStarted.personalizationCohortId
+      personalizationProfileId: UUID? from RoundExecutionStarted.personalizationProfileId
       runtimeEngineJobId: String from RoundExecutionStarted.runtimeEngineJobId
       secureAggregationRequired: Boolean from RoundExecutionStarted.secureAggregationRequired
       secureAggregationSessionId: UUID? from RoundExecutionStarted.secureAggregationSessionId
@@ -7184,6 +7778,15 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       runtimeEngineJobId: String
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
@@ -7199,6 +7802,13 @@ context RuntimeAgentOperations {
       updateProtectionType: String? dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       metricsArtifactRef: String?
       trainingLoss: Decimal?
+      personalizedArtifactAvailable: Boolean?
+      personalizedModelId: UUID?
+      personalizedModelArtifactRef: String?
+      personalizedModelArtifactDigest: String?
+      personalizedMetricsArtifactRef: String?
+      personalizedAccuracy: Decimal?
+      personalizationLift: Decimal?
     }
 
     specification "Runtime Engine Job Observation Outcome" {
@@ -7259,6 +7869,15 @@ context RuntimeAgentOperations {
       runtimeId: UUID from RuntimeEngineJobObserved.runtimeId
       organizationId: UUID from RuntimeEngineJobObserved.organizationId
       featureSchemaId: UUID from RuntimeEngineJobObserved.featureSchemaId
+      personalizationMode: String? from RuntimeEngineJobObserved.personalizationMode
+      personalizationScope: String? from RuntimeEngineJobObserved.personalizationScope
+      personalizedArtifactPolicy: String? from RuntimeEngineJobObserved.personalizedArtifactPolicy
+      personalizationMetric: String? from RuntimeEngineJobObserved.personalizationMetric
+      minimumPersonalizationLift: Decimal? from RuntimeEngineJobObserved.minimumPersonalizationLift
+      personalizationTargetType: String? from RuntimeEngineJobObserved.personalizationTargetType
+      personalizationTargetId: UUID? from RuntimeEngineJobObserved.personalizationTargetId
+      personalizationCohortId: UUID? from RuntimeEngineJobObserved.personalizationCohortId
+      personalizationProfileId: UUID? from RuntimeEngineJobObserved.personalizationProfileId
       runtimeEngineJobId: String from RuntimeEngineJobObserved.runtimeEngineJobId
       secureAggregationRequired: Boolean from RuntimeEngineJobObserved.secureAggregationRequired
       secureAggregationSessionId: UUID? from RuntimeEngineJobObserved.secureAggregationSessionId
@@ -7272,6 +7891,13 @@ context RuntimeAgentOperations {
       updateProtectionType: String? from RuntimeEngineJobObserved.updateProtectionType
       metricsArtifactRef: String? from RuntimeEngineJobObserved.metricsArtifactRef
       trainingLoss: Decimal? from RuntimeEngineJobObserved.trainingLoss
+      personalizedArtifactAvailable: Boolean? from RuntimeEngineJobObserved.personalizedArtifactAvailable
+      personalizedModelId: UUID? from RuntimeEngineJobObserved.personalizedModelId
+      personalizedModelArtifactRef: String? from RuntimeEngineJobObserved.personalizedModelArtifactRef
+      personalizedModelArtifactDigest: String? from RuntimeEngineJobObserved.personalizedModelArtifactDigest
+      personalizedMetricsArtifactRef: String? from RuntimeEngineJobObserved.personalizedMetricsArtifactRef
+      personalizedAccuracy: Decimal? from RuntimeEngineJobObserved.personalizedAccuracy
+      personalizationLift: Decimal? from RuntimeEngineJobObserved.personalizationLift
     }
 
     event RoundExecutionCompleted {
@@ -7285,6 +7911,15 @@ context RuntimeAgentOperations {
       runtimeId: UUID
       organizationId: UUID
       featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       runtimeEngineJobId: String
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
@@ -7298,6 +7933,13 @@ context RuntimeAgentOperations {
       updateProtectionType: String? dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       metricsArtifactRef: String?
       trainingLoss: Decimal?
+      personalizedArtifactAvailable: Boolean?
+      personalizedModelId: UUID?
+      personalizedModelArtifactRef: String?
+      personalizedModelArtifactDigest: String?
+      personalizedMetricsArtifactRef: String?
+      personalizedAccuracy: Decimal?
+      personalizationLift: Decimal?
     }
 
     state Completed
@@ -7479,6 +8121,15 @@ context RuntimeAgentOperations {
       roundId: UUID from RoundExecutionCompleted.roundId
       runtimeId: UUID from RoundExecutionCompleted.runtimeId
       featureSchemaId: UUID from RoundExecutionCompleted.featureSchemaId
+      personalizationMode: String? from RoundExecutionCompleted.personalizationMode
+      personalizationScope: String? from RoundExecutionCompleted.personalizationScope
+      personalizedArtifactPolicy: String? from RoundExecutionCompleted.personalizedArtifactPolicy
+      personalizationMetric: String? from RoundExecutionCompleted.personalizationMetric
+      minimumPersonalizationLift: Decimal? from RoundExecutionCompleted.minimumPersonalizationLift
+      personalizationTargetType: String? from RoundExecutionCompleted.personalizationTargetType
+      personalizationTargetId: UUID? from RoundExecutionCompleted.personalizationTargetId
+      personalizationCohortId: UUID? from RoundExecutionCompleted.personalizationCohortId
+      personalizationProfileId: UUID? from RoundExecutionCompleted.personalizationProfileId
       secureAggregationRequired: Boolean from RoundExecutionCompleted.secureAggregationRequired
       secureAggregationSessionId: UUID? from RoundExecutionCompleted.secureAggregationSessionId
       encryptionScheme: String? from RoundExecutionCompleted.encryptionScheme
@@ -7490,6 +8141,13 @@ context RuntimeAgentOperations {
       artifactDigest: String from RoundExecutionCompleted.modelUpdateArtifactDigest
       updateProtectionType: String from RoundExecutionCompleted.updateProtectionType
       trainingLoss: Decimal from RoundExecutionCompleted.trainingLoss
+      personalizedArtifactAvailable: Boolean from RoundExecutionCompleted.personalizedArtifactAvailable
+      personalizedModelId: UUID? from RoundExecutionCompleted.personalizedModelId
+      personalizedModelArtifactRef: String? from RoundExecutionCompleted.personalizedModelArtifactRef
+      personalizedModelArtifactDigest: String? from RoundExecutionCompleted.personalizedModelArtifactDigest
+      personalizedMetricsArtifactRef: String? from RoundExecutionCompleted.personalizedMetricsArtifactRef
+      personalizedAccuracy: Decimal? from RoundExecutionCompleted.personalizedAccuracy
+      personalizationLift: Decimal? from RoundExecutionCompleted.personalizationLift
     }
 
     event AgentLocalModelUpdateSubmitted {
@@ -7502,6 +8160,15 @@ context RuntimeAgentOperations {
       roundId: UUID
       runtimeId: UUID
       featureSchemaId: UUID
+      personalizationMode: String? dictionary "PERSONALIZATION_MODE"
+      personalizationScope: String? dictionary "PERSONALIZATION_SCOPE"
+      personalizedArtifactPolicy: String? dictionary "PERSONALIZED_ARTIFACT_POLICY"
+      personalizationMetric: String? dictionary "MODEL_EVALUATION_METRIC"
+      minimumPersonalizationLift: Decimal?
+      personalizationTargetType: String? dictionary "PERSONALIZATION_TARGET_TYPE"
+      personalizationTargetId: UUID?
+      personalizationCohortId: UUID?
+      personalizationProfileId: UUID?
       secureAggregationRequired: Boolean
       secureAggregationSessionId: UUID?
       encryptionScheme: String? dictionary "SECURE_AGGREGATION_ENCRYPTION_SCHEME"
@@ -7513,6 +8180,13 @@ context RuntimeAgentOperations {
       artifactDigest: String
       updateProtectionType: String dictionary "MODEL_UPDATE_PROTECTION_TYPE"
       trainingLoss: Decimal
+      personalizedArtifactAvailable: Boolean
+      personalizedModelId: UUID?
+      personalizedModelArtifactRef: String?
+      personalizedModelArtifactDigest: String?
+      personalizedMetricsArtifactRef: String?
+      personalizedAccuracy: Decimal?
+      personalizationLift: Decimal?
     }
 
     state UpdateSubmitted
@@ -8039,10 +8713,46 @@ context RuntimeAgentOperations {
       memoryLoad: Decimal?
       lastHeartbeatAt: DateTime?
       telemetryRetentionPolicy: String
+      subscribe AgentRuntimeTelemetryReported
     }
   }
 
+  slice ReportAgentRuntimeTelemetry {
+    startsLifecycle
+
+    command ReportAgentRuntimeTelemetry {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      federationId: UUID?
+      trainingJobId: UUID?
+      roundExecutionId: UUID?
+      cpuLoad: Decimal?
+      gpuLoad: Decimal?
+      memoryLoad: Decimal?
+      lastHeartbeatAt: DateTime?
+      telemetryRetentionPolicy: String
+    }
+
+    event AgentRuntimeTelemetryReported {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      federationId: UUID?
+      trainingJobId: UUID?
+      roundExecutionId: UUID?
+      cpuLoad: Decimal?
+      gpuLoad: Decimal?
+      memoryLoad: Decimal?
+      lastHeartbeatAt: DateTime?
+      telemetryRetentionPolicy: String
+    }
+
+    state Reported
+  }
+
   concept AgentRuntimeTelemetry {
+    state Reported
+
+    slice ReportAgentRuntimeTelemetry
     slice AgentRuntimeTelemetryLatest
   }
 
@@ -8055,6 +8765,7 @@ context RuntimeAgentOperations {
     }
 
     command ReportAgentRuntimeNodeInventory {
+      nodeId: UUID id technical
       runtimeNodeInventoryReportId: UUID id generated technical
       organizationId: UUID
       organizationName: String?
@@ -8073,6 +8784,7 @@ context RuntimeAgentOperations {
     }
 
     event AgentRuntimeNodeInventoryReported {
+      nodeId: UUID id technical
       runtimeNodeInventoryReportId: UUID id technical
       organizationId: UUID
       organizationName: String?
@@ -8095,6 +8807,7 @@ context RuntimeAgentOperations {
 
   slice AgentRuntimeNodeInventoryCatalog {
     readmodel AgentRuntimeNodeInventoryCatalog[] {
+      nodeId: UUID
       runtimeNodeInventoryReportId: UUID id
       organizationId: UUID
       runtimeInfrastructureId: UUID
@@ -8142,10 +8855,62 @@ context RuntimeAgentOperations {
       workloadCapacity: Int
       observedAt: DateTime
       telemetryRetentionPolicy: String
+      subscribe AgentRuntimeNodeResourceTelemetryReported
     }
   }
 
+  slice ReportAgentRuntimeNodeResourceTelemetry {
+    startsLifecycle
+
+    command ReportAgentRuntimeNodeResourceTelemetry {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      runtimeNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningWorkloadCount: Int
+      workloadCapacity: Int
+      observedAt: DateTime
+      telemetryRetentionPolicy: String
+    }
+
+    event AgentRuntimeNodeResourceTelemetryReported {
+      nodeId: UUID id technical
+      runtimeAgentId: UUID
+      runtimeInfrastructureId: UUID?
+      runtimeNodeName: String?
+      nodeReady: Boolean
+      allocatableCpuCores: Int
+      allocatableMemoryGb: Int
+      allocatableGpuCount: Int
+      allocatedCpuCores: Int
+      allocatedMemoryGb: Int
+      allocatedGpuCount: Int
+      availableCpuCores: Int
+      availableMemoryGb: Int
+      availableGpuCount: Int
+      runningWorkloadCount: Int
+      workloadCapacity: Int
+      observedAt: DateTime
+      telemetryRetentionPolicy: String
+    }
+
+    state Reported
+  }
+
   concept AgentRuntimeNodeResourceTelemetry {
+    state Reported
+
+    slice ReportAgentRuntimeNodeResourceTelemetry
     slice AgentRuntimeNodeResourceLatest
   }
 
@@ -8175,6 +8940,8 @@ context RuntimeAgentOperations {
     includes FederationManagement from FederationLearningPlatform
     includes DictionaryMaintenance from FederationLearningSupport
     includes FileUpload from FederationLearningSupport
+    includes DataExchange from FederationLearningSupport
+    includes SystemNotification from FederationLearningSupport
     includes RuntimeProvisioning from FederationLearningPlatform
     includes DatasetGovernance from FederationLearningPlatform
     includes ModelRepository from FederationLearningPlatform
