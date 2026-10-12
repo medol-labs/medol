@@ -2,7 +2,7 @@ grammar Medol
 
 entry Model:
     imports+=Import*
-    (domains+=Domain | contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | capabilityExtensions+=CapabilityExtension)*
+    (domains+=Domain | contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | accessPolicies+=AccessPolicy | defaultAccesses+=DefaultAccess | capabilityExtensions+=CapabilityExtension)*
 ;
 
 Import:
@@ -29,8 +29,26 @@ ImportModuleNamePart returns string:
 
 Domain:
     'domain' name=ID '{'
-        (contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | capabilityExtensions+=CapabilityExtension)*
+        (contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | accessPolicies+=AccessPolicy | defaultAccesses+=DefaultAccess | capabilityExtensions+=CapabilityExtension)*
     '}'
+;
+
+DefaultAccess:
+    'default' 'access' policy=ID
+;
+
+AccessPolicy:
+    'access' 'policy' name=ID '{'
+        (rules+=AccessPolicyRule)*
+    '}'
+;
+
+AccessPolicyRule:
+    AccessFieldRule
+;
+
+AccessFieldRule:
+    targets+=FieldSource (',' targets+=FieldSource)*
 ;
 
 FrontendApplication:
@@ -277,9 +295,12 @@ EventElement:
 
 ReadModel:
     sync?='sync'? ('readmodel' | 'projection') todo?='todo'? name=ID listElement?='[]'? ('from' source=FieldSource)? ('where' syncFilters+=SyncFilter (',' syncFilters+=SyncFilter)*)? '{'
-        elements+=ReadModelElement*
-        eligibility+=Eligibility*
+        (elements+=ReadModelElement | accesses+=ReadModelAccess | eligibility+=Eligibility)*
     '}'
+;
+
+ReadModelAccess:
+    'access' policy=ID
 ;
 
 SyncFilter:

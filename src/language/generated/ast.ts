@@ -59,6 +59,7 @@ export type MedolKeywordNames =
     | "copy"
     | "data"
     | "decision"
+    | "default"
     | "deploy"
     | "deployment"
     | "derived"
@@ -175,6 +176,48 @@ export type MedolKeywordNames =
     | "}";
 
 export type MedolTokenNames = MedolTerminalNames | MedolKeywordNames;
+
+export interface AccessFieldRule extends langium.AstNode {
+    readonly $container: AccessPolicy;
+    readonly $type: 'AccessFieldRule';
+    targets: Array<FieldSource>;
+}
+
+export const AccessFieldRule = {
+    $type: 'AccessFieldRule',
+    targets: 'targets'
+} as const;
+
+export function isAccessFieldRule(item: unknown): item is AccessFieldRule {
+    return reflection.isInstance(item, AccessFieldRule.$type);
+}
+
+export interface AccessPolicy extends langium.AstNode {
+    readonly $container: Domain | Model;
+    readonly $type: 'AccessPolicy';
+    name: string;
+    rules: Array<AccessPolicyRule>;
+}
+
+export const AccessPolicy = {
+    $type: 'AccessPolicy',
+    name: 'name',
+    rules: 'rules'
+} as const;
+
+export function isAccessPolicy(item: unknown): item is AccessPolicy {
+    return reflection.isInstance(item, AccessPolicy.$type);
+}
+
+export type AccessPolicyRule = AccessFieldRule;
+
+export const AccessPolicyRule = {
+    $type: 'AccessPolicyRule'
+} as const;
+
+export function isAccessPolicyRule(item: unknown): item is AccessPolicyRule {
+    return reflection.isInstance(item, AccessPolicyRule.$type);
+}
 
 export interface ActorRef extends langium.AstNode {
     readonly $container: Slice | UserJourney;
@@ -608,6 +651,21 @@ export function isDecision(item: unknown): item is Decision {
     return reflection.isInstance(item, Decision.$type);
 }
 
+export interface DefaultAccess extends langium.AstNode {
+    readonly $container: Domain | Model;
+    readonly $type: 'DefaultAccess';
+    policy: string;
+}
+
+export const DefaultAccess = {
+    $type: 'DefaultAccess',
+    policy: 'policy'
+} as const;
+
+export function isDefaultAccess(item: unknown): item is DefaultAccess {
+    return reflection.isInstance(item, DefaultAccess.$type);
+}
+
 export interface Deployment extends langium.AstNode {
     readonly $container: Domain | Model;
     readonly $type: 'Deployment';
@@ -683,8 +741,10 @@ export function isDictionaryProviderMappingKind(item: unknown): item is Dictiona
 export interface Domain extends langium.AstNode {
     readonly $container: Model;
     readonly $type: 'Domain';
+    accessPolicies: Array<AccessPolicy>;
     capabilityExtensions: Array<CapabilityExtension>;
     contexts: Array<Context>;
+    defaultAccesses: Array<DefaultAccess>;
     deployments: Array<Deployment>;
     frontendApplications: Array<FrontendApplication>;
     name: string;
@@ -692,8 +752,10 @@ export interface Domain extends langium.AstNode {
 
 export const Domain = {
     $type: 'Domain',
+    accessPolicies: 'accessPolicies',
     capabilityExtensions: 'capabilityExtensions',
     contexts: 'contexts',
+    defaultAccesses: 'defaultAccesses',
     deployments: 'deployments',
     frontendApplications: 'frontendApplications',
     name: 'name'
@@ -1085,7 +1147,7 @@ export function isFieldName(item: unknown): item is FieldName {
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | Notifiable | ReadModel | RefExpr | SyncFilter | UniqueValidation;
+    readonly $container: AccessFieldRule | AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | Notifiable | ReadModel | RefExpr | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1299,8 +1361,10 @@ export function isMetric(item: unknown): item is Metric {
 
 export interface Model extends langium.AstNode {
     readonly $type: 'Model';
+    accessPolicies: Array<AccessPolicy>;
     capabilityExtensions: Array<CapabilityExtension>;
     contexts: Array<Context>;
+    defaultAccesses: Array<DefaultAccess>;
     deployments: Array<Deployment>;
     domains: Array<Domain>;
     frontendApplications: Array<FrontendApplication>;
@@ -1309,8 +1373,10 @@ export interface Model extends langium.AstNode {
 
 export const Model = {
     $type: 'Model',
+    accessPolicies: 'accessPolicies',
     capabilityExtensions: 'capabilityExtensions',
     contexts: 'contexts',
+    defaultAccesses: 'defaultAccesses',
     deployments: 'deployments',
     domains: 'domains',
     frontendApplications: 'frontendApplications',
@@ -1434,6 +1500,7 @@ export function isReactsTo(item: unknown): item is ReactsTo {
 export interface ReadModel extends langium.AstNode {
     readonly $container: Context | Slice;
     readonly $type: 'ReadModel';
+    accesses: Array<ReadModelAccess>;
     elements: Array<ReadModelElement>;
     eligibility: Array<Eligibility>;
     listElement: boolean;
@@ -1446,6 +1513,7 @@ export interface ReadModel extends langium.AstNode {
 
 export const ReadModel = {
     $type: 'ReadModel',
+    accesses: 'accesses',
     elements: 'elements',
     eligibility: 'eligibility',
     listElement: 'listElement',
@@ -1458,6 +1526,21 @@ export const ReadModel = {
 
 export function isReadModel(item: unknown): item is ReadModel {
     return reflection.isInstance(item, ReadModel.$type);
+}
+
+export interface ReadModelAccess extends langium.AstNode {
+    readonly $container: ReadModel;
+    readonly $type: 'ReadModelAccess';
+    policy: string;
+}
+
+export const ReadModelAccess = {
+    $type: 'ReadModelAccess',
+    policy: 'policy'
+} as const;
+
+export function isReadModelAccess(item: unknown): item is ReadModelAccess {
+    return reflection.isInstance(item, ReadModelAccess.$type);
 }
 
 export type ReadModelElement = DictionaryProvider | Exportable | Field | Subscription;
@@ -2041,6 +2124,9 @@ export function isWhen(item: unknown): item is When {
 }
 
 export type MedolAstType = {
+    AccessFieldRule: AccessFieldRule
+    AccessPolicy: AccessPolicy
+    AccessPolicyRule: AccessPolicyRule
     ActorRef: ActorRef
     AssertValidation: AssertValidation
     Assignment: Assignment
@@ -2068,6 +2154,7 @@ export type MedolAstType = {
     Context: Context
     ContextElement: ContextElement
     Decision: Decision
+    DefaultAccess: DefaultAccess
     Deployment: Deployment
     DeploymentContext: DeploymentContext
     DictionaryProvider: DictionaryProvider
@@ -2118,6 +2205,7 @@ export type MedolAstType = {
     PrimaryExpr: PrimaryExpr
     ReactsTo: ReactsTo
     ReadModel: ReadModel
+    ReadModelAccess: ReadModelAccess
     ReadModelElement: ReadModelElement
     RefExpr: RefExpr
     Risk: Risk
@@ -2159,6 +2247,35 @@ export type MedolAstType = {
 
 export class MedolAstReflection extends langium.AbstractAstReflection {
     override readonly types = {
+        AccessFieldRule: {
+            name: AccessFieldRule.$type,
+            properties: {
+                targets: {
+                    name: AccessFieldRule.targets,
+                    defaultValue: []
+                }
+            },
+            superTypes: [AccessPolicyRule.$type]
+        },
+        AccessPolicy: {
+            name: AccessPolicy.$type,
+            properties: {
+                name: {
+                    name: AccessPolicy.name
+                },
+                rules: {
+                    name: AccessPolicy.rules,
+                    defaultValue: []
+                }
+            },
+            superTypes: []
+        },
+        AccessPolicyRule: {
+            name: AccessPolicyRule.$type,
+            properties: {
+            },
+            superTypes: []
+        },
         ActorRef: {
             name: ActorRef.$type,
             properties: {
@@ -2451,6 +2568,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: [ContextElement.$type]
         },
+        DefaultAccess: {
+            name: DefaultAccess.$type,
+            properties: {
+                policy: {
+                    name: DefaultAccess.policy
+                }
+            },
+            superTypes: []
+        },
         Deployment: {
             name: Deployment.$type,
             properties: {
@@ -2501,12 +2627,20 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Domain: {
             name: Domain.$type,
             properties: {
+                accessPolicies: {
+                    name: Domain.accessPolicies,
+                    defaultValue: []
+                },
                 capabilityExtensions: {
                     name: Domain.capabilityExtensions,
                     defaultValue: []
                 },
                 contexts: {
                     name: Domain.contexts,
+                    defaultValue: []
+                },
+                defaultAccesses: {
+                    name: Domain.defaultAccesses,
                     defaultValue: []
                 },
                 deployments: {
@@ -2940,12 +3074,20 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         Model: {
             name: Model.$type,
             properties: {
+                accessPolicies: {
+                    name: Model.accessPolicies,
+                    defaultValue: []
+                },
                 capabilityExtensions: {
                     name: Model.capabilityExtensions,
                     defaultValue: []
                 },
                 contexts: {
                     name: Model.contexts,
+                    defaultValue: []
+                },
+                defaultAccesses: {
+                    name: Model.defaultAccesses,
                     defaultValue: []
                 },
                 deployments: {
@@ -3029,6 +3171,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         ReadModel: {
             name: ReadModel.$type,
             properties: {
+                accesses: {
+                    name: ReadModel.accesses,
+                    defaultValue: []
+                },
                 elements: {
                     name: ReadModel.elements,
                     defaultValue: []
@@ -3061,6 +3207,15 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 }
             },
             superTypes: [ContextElement.$type, SliceElement.$type]
+        },
+        ReadModelAccess: {
+            name: ReadModelAccess.$type,
+            properties: {
+                policy: {
+                    name: ReadModelAccess.policy
+                }
+            },
+            superTypes: []
         },
         ReadModelElement: {
             name: ReadModelElement.$type,

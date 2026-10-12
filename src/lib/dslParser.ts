@@ -2,6 +2,7 @@ import { createDefaultCoreModule, createDefaultSharedCoreModule, EmptyFileSystem
 import { MedolGeneratedModule, MedolGeneratedSharedModule } from '../language/generated/module';
 import {
   isActorRef,
+  isAccessFieldRule,
   isAutomation,
   isAutomationCapabilityUse,
   isAutomationTrigger,
@@ -62,6 +63,7 @@ import {
 } from '../language/generated/ast';
 import type {
   Automation as AstAutomation,
+  AccessPolicy as AstAccessPolicy,
   CapabilityExtension as AstCapabilityExtension,
   Command as AstCommand,
   Context as AstContext,
@@ -91,7 +93,7 @@ import type {
   ValidationOperand,
   UiRef as AstUiRef
 } from '../language/generated/ast';
-import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmCapabilityExtension, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type MedolDiagnostic, type MedolSourceRange } from './model';
+import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmAccessPolicy, type EmCapabilityExtension, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 import { resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
@@ -242,16 +244,21 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
   const contextGroups = models.map((model) => [...(model.contexts ?? [])]);
   const deploymentGroups = models.map((model) => [...(model.deployments ?? [])]);
   const frontendApplicationGroups = models.map((model) => [...(model.frontendApplications ?? [])]);
+  const accessPolicyGroups = models.map((model) => [...(model.accessPolicies ?? [])]);
+  const defaultAccessGroups = models.map((model) => [...(model.defaultAccesses ?? [])]);
   merged.imports = models.flatMap((model) => model.imports ?? []);
   merged.domains = [];
   merged.contexts = [];
   merged.deployments = [];
   merged.frontendApplications = [];
+  merged.accessPolicies = [];
+  merged.defaultAccesses = [];
 
   const domains = new Map<string, AstDomain>();
   const looseContexts = new Map<string, AstContext>();
   const looseDeployments = new Map<string, AstDeployment>();
   const looseFrontendApplications = new Map<string, AstFrontendApplication>();
+  const looseAccessPolicies = new Map<string, AstAccessPolicy>();
   for (let index = models.length - 1; index >= 0; index -= 1) {
     for (const domain of domainGroups[index]) {
       const existing = domains.get(domain.name);
@@ -259,17 +266,23 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
         domain.contexts = [...(domain.contexts ?? [])];
         domain.deployments = [...(domain.deployments ?? [])];
         domain.frontendApplications = [...(domain.frontendApplications ?? [])];
+        domain.accessPolicies = [...(domain.accessPolicies ?? [])];
+        domain.defaultAccesses = [...(domain.defaultAccesses ?? [])];
         domains.set(domain.name, domain);
         merged.domains.push(domain);
       } else {
         mergeContexts(existing.contexts, domain.contexts ?? []);
         mergeDeployments(existing.deployments, domain.deployments ?? []);
         mergeFrontendApplications(existing.frontendApplications, domain.frontendApplications ?? []);
+        appendUniqueNamedAstNodes(existing.accessPolicies, domain.accessPolicies ?? []);
+        appendUniqueDefaultAccesses(existing.defaultAccesses, domain.defaultAccesses ?? []);
       }
     }
     mergeContexts(merged.contexts, contextGroups[index], looseContexts);
     mergeDeployments(merged.deployments, deploymentGroups[index], looseDeployments);
     mergeFrontendApplications(merged.frontendApplications, frontendApplicationGroups[index], looseFrontendApplications);
+    appendUniqueAccessPolicies(merged.accessPolicies, accessPolicyGroups[index], looseAccessPolicies);
+    merged.defaultAccesses.push(...defaultAccessGroups[index]);
   }
   return merged;
 };
@@ -303,6 +316,31 @@ const appendUniqueNamedAstNodes = (target: AstNode[], additions: AstNode[]): voi
     if (key && seen.has(key)) continue;
     target.push(addition);
     if (key) seen.add(key);
+  }
+};
+
+const appendUniqueAccessPolicies = (
+  target: AstAccessPolicy[],
+  additions: AstAccessPolicy[],
+  existing = new Map(target.map((policy) => [policy.name, policy]))
+): void => {
+  for (const policy of additions) {
+    if (existing.has(policy.name)) continue;
+    policy.rules = [...(policy.rules ?? [])];
+    target.push(policy);
+    existing.set(policy.name, policy);
+  }
+};
+
+const appendUniqueDefaultAccesses = (
+  target: AstDefaultAccess[],
+  additions: AstDefaultAccess[]
+): void => {
+  const existing = new Set(target.map((item) => item.policy));
+  for (const item of additions) {
+    if (existing.has(item.policy)) continue;
+    target.push(item);
+    existing.add(item.policy);
   }
 };
 
@@ -400,6 +438,7 @@ export const astToEmModel = (ast: AstModel): EmModel => {
     const domain = parseDomain(domainNode, model.edges);
     model.domains.push(domain);
     model.contexts.push(...domain.contexts);
+    model.accessPolicies.push(...domain.accessPolicies);
     model.capabilityExtensions.push(...domain.capabilityExtensions, ...domain.contexts.flatMap((context) => context.capabilityExtensions));
     domain.deployments.forEach(addDeployment);
     domain.frontendApplications.forEach(addFrontendApplication);
@@ -419,6 +458,11 @@ export const astToEmModel = (ast: AstModel): EmModel => {
     addFrontendApplication(parseFrontendApplication(frontendApplicationNode, undefined));
   }
 
+  model.accessPolicies.push(...(ast.accessPolicies ?? []).map((policy) => parseAccessPolicy(policy)));
+  if (ast.defaultAccesses?.length) {
+    model.defaultAccessPolicy = ast.defaultAccesses.at(-1)?.policy;
+  }
+
   for (const extensionNode of ast.capabilityExtensions ?? []) {
     model.capabilityExtensions.push(parseCapabilityExtension(extensionNode));
   }
@@ -434,7 +478,9 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
     contexts: [],
     deployments: [],
     frontendApplications: [],
-    capabilityExtensions: []
+    capabilityExtensions: [],
+    accessPolicies: [],
+    ...(node.defaultAccesses?.length ? { defaultAccessPolicy: node.defaultAccesses.at(-1)?.policy } : {})
   };
 
   for (const contextNode of node.contexts ?? []) {
@@ -446,11 +492,30 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
   for (const frontendApplicationNode of node.frontendApplications ?? []) {
     domain.frontendApplications.push(parseFrontendApplication(frontendApplicationNode, domain.name));
   }
+  for (const policyNode of node.accessPolicies ?? []) {
+    domain.accessPolicies.push(parseAccessPolicy(policyNode, domain.name));
+  }
   for (const extensionNode of node.capabilityExtensions ?? []) {
     domain.capabilityExtensions.push(parseCapabilityExtension(extensionNode, { domain: domain.name }));
   }
   return domain;
 };
+
+const parseAccessPolicy = (node: AstAccessPolicy, domainName?: string): EmAccessPolicy => ({
+  id: domainName ? scopedId('access-policy', `${domainName}/${safeName(node.name, 'UnnamedAccessPolicy')}`) : scopedId('access-policy', safeName(node.name, 'UnnamedAccessPolicy')),
+  name: safeName(node.name, 'UnnamedAccessPolicy'),
+  ...(domainName ? { domain: domainName } : {}),
+  ...withSourceRange(node),
+  rules: (node.rules ?? []).map((rule) => {
+    if (isAccessFieldRule(rule)) {
+      return {
+        kind: 'fields' as const,
+        fields: rule.targets.map(formatFieldSource)
+      };
+    }
+    return { kind: 'fields' as const, fields: [] };
+  })
+});
 
 const parseDeployment = (node: AstDeployment, domainName: string | undefined): EmDeployment => ({
   id: domainName ? scopedId('deployment', `${domainName}/${safeName(node.name, 'UnnamedDeployment')}`) : scopedId('deployment', safeName(node.name, 'UnnamedDeployment')),
@@ -905,6 +970,7 @@ const parseElement = (
         source: formatFieldSource(filter.source)
       }))
     } : {}),
+    ...(isReadModel(node) && node.accesses.length === 1 ? { accessPolicy: safeName(node.accesses[0].policy, 'UnnamedAccessPolicy') } : {}),
     ...(isReadModel(node) && node.eligibility.length ? { eligibility: node.eligibility.map(parseEligibility) } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),

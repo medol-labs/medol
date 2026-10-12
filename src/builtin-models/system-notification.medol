@@ -1,3 +1,9 @@
+domain SystemNotification {
+  access policy SystemNotificationPublicAccess {
+  }
+
+  default access SystemNotificationPublicAccess
+
 context SystemNotification {
   enum NotificationCategory {
     SYSTEM
@@ -143,4 +149,5 @@ context SystemNotification {
     slice MarkAllSystemNotificationsRead
     slice SystemNotificationCatalog
   }
+}
 }

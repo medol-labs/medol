@@ -52,6 +52,7 @@ export interface EmElement {
   syncSource?: string;
   syncFilters?: EmSyncFilter[];
   eligibility?: EmEligibility[];
+  accessPolicy?: string;
   sliceId?: string;
   aggregateId?: string;
   sourceRange?: MedolSourceRange;
@@ -62,6 +63,17 @@ export interface EmElement {
   importable?: EmImportable;
   notifiable?: EmNotifiable;
 }
+
+export interface EmAccessPolicy {
+  id: string;
+  name: string;
+  domain?: string;
+  sourceRange?: MedolSourceRange;
+  rules: EmAccessPolicyRule[];
+}
+
+export type EmAccessPolicyRule =
+  | { kind: 'fields'; fields: string[] };
 
 export interface EmSyncFilter {
   target: string;
@@ -250,6 +262,8 @@ export interface EmDomain {
   deployments: EmDeployment[];
   frontendApplications: EmFrontendApplication[];
   capabilityExtensions: EmCapabilityExtension[];
+  accessPolicies: EmAccessPolicy[];
+  defaultAccessPolicy?: string;
 }
 
 export interface EmDeployment {
@@ -301,6 +315,8 @@ export interface EmModel {
   domains: EmDomain[];
   deployments: EmDeployment[];
   frontendApplications: EmFrontendApplication[];
+  accessPolicies: EmAccessPolicy[];
+  defaultAccessPolicy?: string;
   contexts: EmContext[];
   capabilityExtensions: EmCapabilityExtension[];
   edges: EmEdge[];
@@ -312,6 +328,7 @@ export const emptyModel = (): EmModel => ({
   domains: [],
   deployments: [],
   frontendApplications: [],
+  accessPolicies: [],
   contexts: [],
   capabilityExtensions: [],
   edges: [],

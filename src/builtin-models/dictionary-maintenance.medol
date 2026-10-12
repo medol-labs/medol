@@ -1,4 +1,9 @@
 domain DictionaryMaintenance {
+  access policy DictionaryMaintenancePublicAccess {
+  }
+
+  default access DictionaryMaintenancePublicAccess
+
   context DictionaryMaintenance {
     note "Dictionary maintenance owns dynamic option dictionaries used by platform contexts. Business contexts store valueCode and query DictionaryValueCatalog by dictionaryCode for selection. Localized display text is maintained in DictionaryValueTranslationCatalog by locale."
   

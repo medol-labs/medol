@@ -52,6 +52,8 @@ interface ConfigElement {
   aggregate?: string;
   listElement?: boolean;
   todo?: boolean;
+  accessPolicy?: string;
+  accessPolicyInherited?: boolean;
   eligibility?: CodegenElement['eligibility'];
   metadata?: Record<string, string>;
   aggregateDependencies?: string[];
@@ -160,6 +162,8 @@ export interface ConfigRoot {
   }>;
   transitions: CodegenModel['transitions'];
   domain?: string;
+  accessPolicies?: CodegenModel['accessPolicies'];
+  defaultAccessPolicy?: string;
   context: string;
   codeGen: ConfigCodeGen;
   sliceGroups: [];
@@ -188,6 +192,8 @@ export const codegenModelToConfig = (model: CodegenModel): ConfigRoot => ({
   concepts: model.concepts,
   transitions: model.transitions,
   ...(model.domain ? { domain: model.domain } : {}),
+  ...(model.accessPolicies?.length ? { accessPolicies: model.accessPolicies } : {}),
+  ...(model.defaultAccessPolicy ? { defaultAccessPolicy: model.defaultAccessPolicy } : {}),
   context: getPrimaryContextName(model),
   codeGen: {
     application: model.domain ?? '',
@@ -243,6 +249,7 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   aggregate: element.aggregate?.name,
   ...(element.type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(element.type === 'READMODEL' && element.todo ? { todo: true } : {}),
+  ...(element.type === 'READMODEL' && element.accessPolicy && !element.accessPolicyInherited ? { accessPolicy: element.accessPolicy } : {}),
   ...(element.type === 'READMODEL' && element.eligibility?.length ? { eligibility: element.eligibility } : {}),
   ...(element.metadata ? { metadata: element.metadata } : {}),
   ...(element.aggregate ? { aggregateDependencies: [element.aggregate.title] } : {}),

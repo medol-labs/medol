@@ -49,6 +49,7 @@ interface ConfigElement {
   sync?: boolean;
   syncSource?: string;
   syncFilters?: ConfigSyncFilter[];
+  accessPolicy?: string;
   eligibility?: ConfigEligibility[];
   metadata?: Record<string, string>;
   fields?: ConfigField[];
@@ -167,6 +168,8 @@ interface ConfigValueType {
 interface ConfigRoot {
   domain?: string;
   context?: string;
+  accessPolicies?: ConfigAccessPolicy[];
+  defaultAccessPolicy?: string;
   valueTypes?: ConfigValueType[];
   aggregates?: ConfigAggregate[];
   slices?: ConfigSlice[];
@@ -176,6 +179,14 @@ interface ConfigRoot {
     slices?: Array<{ name?: string; title?: string }>;
   }>;
 }
+
+interface ConfigAccessPolicy {
+  name?: string;
+  rules?: ConfigAccessPolicyRule[];
+}
+
+type ConfigAccessPolicyRule =
+  | { kind?: 'fields'; fields?: string[] };
 
 export const configToDsl = (config: ConfigRoot): string => {
   const domainName = config.domain ? toDslId(config.domain, 'Domain') : undefined;
@@ -233,6 +244,12 @@ export const configToDsl = (config: ConfigRoot): string => {
 
   if (domainName) {
     lines.push(`domain ${domainName} {`);
+  }
+  for (const policy of config.accessPolicies ?? []) {
+    appendAccessPolicy(lines, policy, contextIndent);
+  }
+  if (config.defaultAccessPolicy) {
+    lines.push(`${pad(contextIndent)}default access ${toDslId(config.defaultAccessPolicy, 'AccessPolicy')}`);
   }
   lines.push(`${pad(contextIndent)}context ${contextName} {`);
   for (const valueType of config.valueTypes ?? []) {
@@ -531,6 +548,9 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   if (kind === 'readmodel' && element.dictionaryProvider) {
     appendDictionaryProvider(lines, element.dictionaryProvider, indent + 2);
   }
+  if (kind === 'readmodel' && element.accessPolicy) {
+    lines.push(`${pad}  access ${toDslId(element.accessPolicy, 'AccessPolicy')}`);
+  }
   if (kind === 'readmodel' && element.exportable) {
     lines.push(`${pad}  exportable${element.exportable.capability ? ` by ${element.exportable.capability}` : ''}`);
   }
@@ -554,6 +574,18 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
     lines.push(`${pad}  ${extraLine}`);
   }
   lines.push(`${pad}}`);
+};
+
+const appendAccessPolicy = (lines: string[], policy: ConfigAccessPolicy, indent: number): void => {
+  const name = toDslId(policy.name, 'AccessPolicy');
+  lines.push(`${pad(indent)}access policy ${name} {`);
+  for (const rule of policy.rules ?? []) {
+    if (rule.kind === 'fields') {
+      if (!rule.fields?.length) continue;
+      lines.push(`${pad(indent + 2)}${rule.fields.join(', ')}`);
+    }
+  }
+  lines.push(`${pad(indent)}}`);
 };
 
 const appendEligibility = (lines: string[], eligibility: ConfigEligibility[], indent: number): void => {

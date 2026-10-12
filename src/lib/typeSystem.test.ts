@@ -385,6 +385,125 @@ test('parses projection eligibility conditions and preserves them for code gener
   assert.match(roundTripDsl, /SelectableDataset\.qualificationLevel >= 5/);
 });
 
+test('parses access policies and preserves read model access overrides', () => {
+  const model = parseMedol(`
+    access policy DefaultAccess {
+      RuntimeMonitoring.RuntimeIdentityCatalog.organizationId
+    }
+    access policy PublicAccess {
+    }
+    default access DefaultAccess
+
+    context RuntimeMonitoring {
+      slice RuntimeCatalogs {
+        projection RuntimeIdentityCatalog[] {
+          runtimeId: UUID id
+          organizationId: UUID
+        }
+        projection RuntimePublicCatalog[] {
+          access PublicAccess
+          runtimeId: UUID id
+          runtimeName: String
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  assert.equal(model.defaultAccessPolicy, 'DefaultAccess');
+  assert.deepEqual(model.accessPolicies.map((policy) => policy.name), ['DefaultAccess', 'PublicAccess']);
+  assert.deepEqual(model.accessPolicies[0].rules, [{
+    kind: 'fields',
+    fields: ['RuntimeMonitoring.RuntimeIdentityCatalog.organizationId']
+  }]);
+  assert.deepEqual(model.accessPolicies[1].rules, []);
+
+  const readmodel = model.contexts[0].slices[0].elements.find((element) => element.name === 'RuntimePublicCatalog');
+  assert.equal(readmodel?.accessPolicy, 'PublicAccess');
+
+  const codegen = modelToCodegenModel(model);
+  assert.equal(codegen.defaultAccessPolicy, 'DefaultAccess');
+  assert.deepEqual(codegen.accessPolicies?.map((policy) => policy.name), ['DefaultAccess', 'PublicAccess']);
+  const defaultedCodegenReadmodel = codegen.slices[0].readmodels.find((element) => element.name === 'RuntimeIdentityCatalog');
+  assert.equal(defaultedCodegenReadmodel?.accessPolicy, 'DefaultAccess');
+  const codegenReadmodel = codegen.slices[0].readmodels.find((element) => element.name === 'RuntimePublicCatalog');
+  assert.equal(codegenReadmodel?.accessPolicy, 'PublicAccess');
+
+  const roundTripDsl = configToDsl(codegenModelToConfig(codegen));
+  assert.match(roundTripDsl, /access policy DefaultAccess \{\s+RuntimeMonitoring\.RuntimeIdentityCatalog\.organizationId\s+\}/s);
+  assert.match(roundTripDsl, /access policy PublicAccess \{\s+\}/s);
+  assert.match(roundTripDsl, /default access DefaultAccess/);
+  assert.doesNotMatch(roundTripDsl, /readmodel RuntimeIdentityCatalog\[\] \{\s+access DefaultAccess/s);
+  assert.match(roundTripDsl, /readmodel RuntimePublicCatalog\[\] \{\s+access PublicAccess/s);
+});
+
+test('reports invalid access policy declarations', () => {
+  const model = parseMedol(`
+    access policy InvalidAccess {
+      organizationId
+    }
+    access policy PublicAccess {
+    }
+    default access MissingAccess
+
+    context RuntimeMonitoring {
+      slice RuntimeCatalogs {
+        projection RuntimeIdentityCatalog[] {
+          access UnknownAccess
+          runtimeId: UUID id
+        }
+        projection RuntimePublicCatalog[] {
+          access PublicAccess
+          access InvalidAccess
+          runtimeId: UUID id
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, [
+    'Access policy InvalidAccess: field organizationId must include context, entity, and field name.',
+    'Default access policy MissingAccess is not defined.',
+    'Projection RuntimeIdentityCatalog access policy UnknownAccess is not defined.',
+    'Projection RuntimePublicCatalog can declare at most one access policy.'
+  ]);
+});
+
+test('parses domain-scoped default access policies', () => {
+  const model = parseMedol(`
+    domain Platform {
+      access policy DefaultAccess {
+        RuntimeMonitoring.RuntimeIdentityCatalog.organizationId, RuntimeMonitoring.RuntimeIdentityCatalog.runtimeInfrastructureId
+      }
+      default access DefaultAccess
+
+      context RuntimeMonitoring {
+        slice RuntimeCatalogs {
+          projection RuntimeIdentityCatalog[] {
+            runtimeId: UUID id
+            organizationId: UUID
+          }
+        }
+      }
+    }
+  `);
+
+  assert.deepEqual(model.diagnostics, []);
+  assert.equal(model.domains[0].defaultAccessPolicy, 'DefaultAccess');
+  assert.equal(model.defaultAccessPolicy, undefined);
+  assert.equal(model.accessPolicies[0].domain, 'Platform');
+  assert.deepEqual(model.accessPolicies[0].rules, [{
+    kind: 'fields',
+    fields: [
+      'RuntimeMonitoring.RuntimeIdentityCatalog.organizationId',
+      'RuntimeMonitoring.RuntimeIdentityCatalog.runtimeInfrastructureId'
+    ]
+  }]);
+  const codegen = modelToCodegenModel(model);
+  assert.equal(codegen.domains?.[0]?.defaultAccessPolicy, 'DefaultAccess');
+  assert.equal(codegen.slices[0].readmodels[0].accessPolicy, 'DefaultAccess');
+});
+
 test('allows eligible as a read model field name', () => {
   const model = parseMedol(`
     context TrainingSelection {

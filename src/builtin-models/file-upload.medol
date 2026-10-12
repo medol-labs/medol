@@ -1,4 +1,9 @@
 domain FileUpload {
+  access policy FileUploadPublicAccess {
+  }
+
+  default access FileUploadPublicAccess
+
   context FileUpload {
     note "FileUpload is the shared persistent file-storage boundary. It stores uploaded content through a replaceable storage adapter, records each uploaded file, exposes an authenticated content URI, and applies optional retention through expiresAt. Business domains reference the uploaded file record instead of creating another physical storage tier."
   

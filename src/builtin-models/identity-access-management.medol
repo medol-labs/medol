@@ -1,4 +1,9 @@
 domain IdentityAccessManagement {
+  access policy IdentityAccessManagementPublicAccess {
+  }
+
+  default access IdentityAccessManagementPublicAccess
+
   context IdentityAccessManagement {
     slice RegisterUserAccount {
       startsLifecycle

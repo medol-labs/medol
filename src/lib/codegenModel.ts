@@ -6,12 +6,14 @@ import { coveredSpecificationExpressions } from './specificationCoverage';
 export interface CodegenModel {
   rootPackage: 'tech.medo';
   domain?: string;
-  domains?: Array<{ id: string; name: string; title: string; contexts: Array<{ id: string; name: string; title: string }> }>;
+  domains?: Array<{ id: string; name: string; title: string; defaultAccessPolicy?: string; contexts: Array<{ id: string; name: string; title: string }> }>;
   deployments?: Array<{ id: string; name: string; title: string; domain?: string; contexts: Array<{ id: string; name: string; title: string }> }>;
   frontendApplications?: CodegenFrontendApplication[];
   locales?: string[];
   defaultLocale?: string;
   translations?: Record<string, Record<string, string>>;
+  accessPolicies?: CodegenAccessPolicy[];
+  defaultAccessPolicy?: string;
   contexts: CodegenContext[];
   valueTypes: CodegenValueType[];
   aggregates: CodegenAggregate[];
@@ -22,6 +24,17 @@ export interface CodegenModel {
   externalSystems: CodegenExternalSystem[];
   capabilityExtensions?: CodegenCapabilityExtension[];
 }
+
+export interface CodegenAccessPolicy {
+  id: string;
+  name: string;
+  title: string;
+  domain?: string;
+  rules: CodegenAccessPolicyRule[];
+}
+
+export type CodegenAccessPolicyRule =
+  | { kind: 'fields'; fields: string[] };
 
 export interface CodegenCapabilityExtension {
   target: string;
@@ -207,6 +220,8 @@ export interface CodegenElement {
   sync?: boolean;
   syncSource?: string;
   syncFilters?: CodegenSyncFilter[];
+  accessPolicy?: string;
+  accessPolicyInherited?: boolean;
   eligibility?: CodegenEligibility[];
   metadata?: Record<string, string>;
   ui?: CodegenUi;
@@ -374,12 +389,16 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
   const actorRecords = new Map<string, CodegenActor>();
   const elementsById = new Map<string, EmElement>();
   const domainByContextId = new Map<string, string>();
+  const defaultAccessPolicyByContextId = new Map<string, string>();
   const contextByName = new Map(model.contexts.map((contextItem) => [contextItem.name, contextItem]));
   const readmodelsByReference = new Map<string, EmElement>();
 
   for (const domain of model.domains) {
     for (const contextItem of domain.contexts) {
       domainByContextId.set(contextItem.id, domain.name);
+      if (domain.defaultAccessPolicy) {
+        defaultAccessPolicyByContextId.set(contextItem.id, domain.defaultAccessPolicy);
+      }
     }
   }
 
@@ -438,7 +457,8 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           elementsByReference,
           readmodelsByReference,
           capabilityProvidersByReadModel,
-          contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name)
+          contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name),
+          defaultAccessPolicyByContextId.get(contextItem.id) ?? model.defaultAccessPolicy
         ));
       }
     }
@@ -452,7 +472,8 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         elementsByReference,
         readmodelsByReference,
         capabilityProvidersByReadModel,
-        contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name)
+          contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name),
+          defaultAccessPolicyByContextId.get(contextItem.id) ?? model.defaultAccessPolicy
       ));
     }
   }
@@ -466,6 +487,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
             id: stableId('domain', domain.id),
             name: domain.name,
             title: humanize(domain.name),
+            ...(domain.defaultAccessPolicy ? { defaultAccessPolicy: domain.defaultAccessPolicy } : {}),
             contexts: domain.contexts.map((contextItem) => ({
               id: stableId('context', contextItem.id),
               name: contextItem.name,
@@ -503,6 +525,18 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           }))
         }
       : {}),
+    ...(model.accessPolicies.length
+      ? {
+          accessPolicies: model.accessPolicies.map((policy) => ({
+            id: stableId('access-policy', policy.id),
+            name: policy.name,
+            title: humanize(policy.name),
+            ...(policy.domain ? { domain: policy.domain } : {}),
+            rules: policy.rules
+          }))
+        }
+      : {}),
+    ...(model.defaultAccessPolicy ? { defaultAccessPolicy: model.defaultAccessPolicy } : {}),
     contexts: model.contexts.map((contextItem) => ({
       id: stableId('context', contextItem.id),
       name: contextItem.name,
@@ -905,7 +939,8 @@ const toCodegenSlice = (
   elementsByReference: Map<string, EmElement>,
   readmodelsByReference: Map<string, EmElement>,
   capabilityProvidersByReadModel: Map<string, CodegenCapabilityProvider[]>,
-  concepts: string[] = []
+  concepts: string[] = [],
+  defaultAccessPolicy?: string
 ): CodegenSlice => {
   const commands = slice.elements.filter((element) => element.kind === 'command');
   const events = slice.elements.filter((element) => element.kind === 'event');
@@ -958,7 +993,8 @@ const toCodegenSlice = (
         undefined,
         false,
         readmodelsByReference,
-        capabilityProvidersByReadModel
+        capabilityProvidersByReadModel,
+        defaultAccessPolicy
       )
     ),
     screens: screens.map((element) => toCodegenElement(element, 'SCREEN', aggregate, context, slice.name, dependenciesByElementId)),
@@ -981,7 +1017,8 @@ const toCodegenElement = (
   ui?: CodegenUi,
   port = false,
   readmodelsByReference: Map<string, EmElement> = new Map(),
-  capabilityProvidersByReadModel: Map<string, CodegenCapabilityProvider[]> = new Map()
+  capabilityProvidersByReadModel: Map<string, CodegenCapabilityProvider[]> = new Map(),
+  defaultAccessPolicy?: string
 ): CodegenElement => ({
   id: stableId(element.kind, element.id),
   name: element.name,
@@ -1003,6 +1040,12 @@ const toCodegenElement = (
   ...(type === 'READMODEL' && element.sync ? { sync: true } : {}),
   ...(type === 'READMODEL' && element.syncSource ? { syncSource: element.syncSource } : {}),
   ...(type === 'READMODEL' && element.syncFilters?.length ? { syncFilters: element.syncFilters } : {}),
+  ...(type === 'READMODEL' && (element.accessPolicy ?? defaultAccessPolicy)
+    ? {
+        accessPolicy: element.accessPolicy ?? defaultAccessPolicy,
+        ...(!element.accessPolicy && defaultAccessPolicy ? { accessPolicyInherited: true } : {})
+      }
+    : {}),
   ...(type === 'READMODEL' && element.eligibility?.length ? { eligibility: element.eligibility } : {}),
   ...(element.metadata && Object.keys(element.metadata).length > 0 ? { metadata: element.metadata } : {}),
   ...(ui ?? element.ui ? { ui: ui ?? element.ui } : {}),

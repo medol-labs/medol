@@ -119,6 +119,7 @@ export const validateSemanticModel = (ast: AstModel, model: EmModel): string[] =
 
   validateDuplicateNames((ast.domains ?? []).map((domain) => domain.name), 'domain', 'model', diagnostics);
   validateDuplicateNames(astContexts.map((context) => context.name), 'context', 'model', diagnostics);
+  validateAccessPolicies(ast, model, diagnostics);
 
   astContexts.forEach((astContext, index) => {
     const context = model.contexts[index];
@@ -128,6 +129,53 @@ export const validateSemanticModel = (ast: AstModel, model: EmModel): string[] =
 
   validateUnresolvedEdges(model, diagnostics);
   return [...new Set(diagnostics)];
+};
+
+const validateAccessPolicies = (ast: AstModel, model: EmModel, diagnostics: string[]): void => {
+  const policyNames = model.accessPolicies.map((policy) => policy.name);
+  validateDuplicateNames(policyNames, 'access policy', 'model', diagnostics);
+  const policyNameSet = new Set(policyNames);
+
+  for (const policy of model.accessPolicies) {
+    for (const rule of policy.rules) {
+      for (const field of rule.fields) {
+        if (field.split('.').length < 3) {
+          diagnostics.push(`Access policy ${policy.name}: field ${field} must include context, entity, and field name.`);
+        }
+      }
+    }
+  }
+
+  if ((ast.defaultAccesses ?? []).length > 1) {
+    diagnostics.push('Model: default access can only be declared once.');
+  }
+  for (const domain of ast.domains ?? []) {
+    if ((domain.defaultAccesses ?? []).length > 1) {
+      diagnostics.push(`Domain ${domain.name}: default access can only be declared once.`);
+    }
+  }
+
+  if (model.defaultAccessPolicy && !policyNameSet.has(model.defaultAccessPolicy)) {
+    diagnostics.push(`Default access policy ${model.defaultAccessPolicy} is not defined.`);
+  }
+  for (const domain of model.domains) {
+    if (domain.defaultAccessPolicy && !policyNameSet.has(domain.defaultAccessPolicy)) {
+      diagnostics.push(`Domain ${domain.name}: default access policy ${domain.defaultAccessPolicy} is not defined.`);
+    }
+  }
+
+  for (const context of model.contexts) {
+    for (const element of [
+      ...context.looseElements,
+      ...allSlices(context).flatMap((slice) => slice.elements)
+    ]) {
+      if (element.kind !== 'readmodel') continue;
+      if (!element.accessPolicy) continue;
+      if (!policyNameSet.has(element.accessPolicy)) {
+        diagnostics.push(`Projection ${element.name} access policy ${element.accessPolicy} is not defined.`);
+      }
+    }
+  }
 };
 
 const validateContext = (
@@ -160,8 +208,15 @@ const validateContext = (
     if (isSlice(element)) {
       validateAstSlice(element, symbols, diagnostics);
     } else if (isReadModel(element)) {
+      validateReadModelAccess(element, diagnostics);
       validateEligibility(element, symbols, diagnostics);
     }
+  }
+};
+
+const validateReadModelAccess = (readmodel: AstReadModel, diagnostics: string[]): void => {
+  if (readmodel.accesses.length > 1) {
+    diagnostics.push(`Projection ${readmodel.name} can declare at most one access policy.`);
   }
 };
 
@@ -493,6 +548,7 @@ const validateAstSlice = (
   }
 
   for (const readmodel of (astSlice.elements ?? []).filter(isReadModel)) {
+    validateReadModelAccess(readmodel, diagnostics);
     validateEligibility(readmodel, symbols, diagnostics);
   }
 
