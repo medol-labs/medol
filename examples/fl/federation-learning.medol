@@ -8,12 +8,12 @@ import system-notification as PlatformNotification deploy FederationLearningSupp
 domain FederationLearningPlatform {
 context OrganizationManagement {
   
-  note "Organization management owns organization lifecycle and runtime-discovered compute node availability."
+  note "Organization management owns business organization lifecycle and user-account organization binding. Runtime installation, runtime identity, runtime health, and node availability are owned by RuntimeProvisioning, RuntimeGovernance, and RuntimeMonitoring."
 
   risk "Inactive organizations can be invited into federations if organization lifecycle state is not enforced."
-  risk "Disabled compute nodes can still be selected for training if runtime-discovered node availability is not enforced."
+  risk "Users can gain access to the wrong organization if account binding is not governed by organization lifecycle state."
   metric organizationActivationLeadTime
-  metric runtimeIdentityCoverage
+  metric organizationAccountBindingCoverage
 
   enum OrganizationType {
     HOSPITAL
@@ -2022,6 +2022,8 @@ context ModelRepository {
       modelArtifactDigest: String
       modelSignatureUri: String?
       modelSizeBytes: Int?
+      personalizedModelStorageLocation: String? dictionary "PERSONALIZED_MODEL_STORAGE_LOCATION"
+      platformManagedArtifactRef: String?
       trainingJobId: UUID?
       roundId: UUID?
       trainingJobObjective: String?
@@ -2198,6 +2200,8 @@ context ModelRepository {
       modelArtifactDigest: String from PersonalizedModelResultRecorded.personalizedModelArtifactDigest
       modelSignatureUri: String? generated technical
       modelSizeBytes: Int? generated technical
+      personalizedModelStorageLocation: String? from PersonalizedModelResultRecorded.personalizedModelStorageLocation
+      platformManagedArtifactRef: String? from PersonalizedModelResultRecorded.platformManagedArtifactRef
       trainingJobId: UUID from PersonalizedModelResultRecorded.trainingJobId
       trainingJobObjective: String derived from TrainingJob.objective by trainingJobId
       roundId: UUID from PersonalizedModelResultRecorded.roundId
@@ -2225,6 +2229,8 @@ context ModelRepository {
       modelArtifactDigest: String
       modelSignatureUri: String?
       modelSizeBytes: Int?
+      personalizedModelStorageLocation: String? dictionary "PERSONALIZED_MODEL_STORAGE_LOCATION"
+      platformManagedArtifactRef: String?
       trainingJobId: UUID
       trainingJobObjective: String?
       roundId: UUID
@@ -2239,7 +2245,7 @@ context ModelRepository {
 
     specification "Personalized Model Artifact Keeps Target Lineage" {
       rule """
-        A personalized model artifact is registered only after an accepted local update records a personalized result. It shares the common ModelArtifact catalog but carries model scope and personalization target lineage so later execution plans can select the correct personalized base without confusing it with the global aggregated model.
+        A personalized model artifact is registered only after an accepted local update records a personalized result. It shares the common ModelArtifact catalog but carries model scope, storage location, optional platform-managed artifact reference, and personalization target lineage so later execution plans can select the correct personalized base without confusing it with the global aggregated model. Runtime-local personalized artifacts remain owned by the producing runtime; the platform catalog stores a verifiable reference and digest rather than implying that the file bytes were copied into platform storage.
       """
 
       scenario "Register Personalized Model Artifact" {
@@ -4124,6 +4130,14 @@ context TrainingOrchestration {
       personalizationProfileId: UUID? from ModelUpdateSubmissionAccepted.personalizationProfileId
       personalizedModelArtifactRef: String from ModelUpdateSubmissionAccepted.personalizedModelArtifactRef
       personalizedModelArtifactDigest: String from ModelUpdateSubmissionAccepted.personalizedModelArtifactDigest
+      personalizedModelStorageLocation: String derived {
+        from ModelUpdateSubmissionAccepted.personalizedArtifactPolicy, ModelUpdateSubmissionAccepted.personalizedModelArtifactRef
+        rule "Default personalized model storage to RUNTIME_LOCAL. Use PLATFORM_MANAGED only when the configured personalizedArtifactPolicy explicitly requires platform custody. Use EXTERNAL_REGISTRY when the accepted artifact reference points to an external registry such as an OCI model artifact."
+      }
+      platformManagedArtifactRef: String? derived {
+        from ModelUpdateSubmissionAccepted.personalizedArtifactPolicy, ModelUpdateSubmissionAccepted.personalizedModelArtifactRef
+        rule "Set the platform-managed artifact reference only when personalizedArtifactPolicy requires platform custody; runtime-local and external-registry personalized artifacts leave this value empty."
+      }
       personalizedMetricsArtifactRef: String? from ModelUpdateSubmissionAccepted.personalizedMetricsArtifactRef
       personalizedAccuracy: Decimal? from ModelUpdateSubmissionAccepted.personalizedAccuracy
       personalizationLift: Decimal? from ModelUpdateSubmissionAccepted.personalizationLift
@@ -4149,6 +4163,8 @@ context TrainingOrchestration {
       personalizationProfileId: UUID?
       personalizedModelArtifactRef: String
       personalizedModelArtifactDigest: String
+      personalizedModelStorageLocation: String dictionary "PERSONALIZED_MODEL_STORAGE_LOCATION"
+      platformManagedArtifactRef: String?
       personalizedMetricsArtifactRef: String?
       personalizedAccuracy: Decimal?
       personalizationLift: Decimal?
@@ -4158,7 +4174,7 @@ context TrainingOrchestration {
 
     specification "Personalized Artifacts Are Tracked Separately From Global Updates" {
       rule """
-        Accepted model updates may include an optional personalized model artifact for the selected personalization target. Recording that artifact must not change the global aggregation input: aggregation still uses the accepted model update artifact references, while personalized artifacts are cataloged for later rounds, local deployment, or optional governance depending on the configured artifact policy.
+        Accepted model updates may include an optional personalized model artifact for the selected personalization target. Recording that artifact must not change the global aggregation input: aggregation still uses the accepted model update artifact references, while personalized artifacts are cataloged for later rounds, local deployment, or optional governance depending on the configured artifact policy. The default storage location is RUNTIME_LOCAL: the producing runtime keeps the model bytes in its local artifact store and the platform records only personalizedModelArtifactRef plus digest. PLATFORM_MANAGED is allowed only when the configured personalizedArtifactPolicy explicitly requires platform custody; in that case platformManagedArtifactRef must point to the uploaded platform FileUpload or artifact-store object. EXTERNAL_REGISTRY means the artifact is owned by a registry outside the platform but is still verified by digest.
       """
 
       scenario "Record Personalized Artifact From Accepted Update" {
@@ -4167,8 +4183,9 @@ context TrainingOrchestration {
           trainingJobId = "job-1"
           personalizedArtifactAvailable = true
           personalizedModelId = "personalized-model-1"
-          personalizedModelArtifactRef = "oci://registry.example.com/fl/personalized-model-1"
+          personalizedModelArtifactRef = "runtime-artifact://runtime-1/personalized-model-1"
           personalizedModelArtifactDigest = "sha256:personalized"
+          personalizedArtifactPolicy = "KEEP_AT_RUNTIME"
         }
         when RecordPersonalizedModelResult {
           personalizedModelId = "personalized-model-1"
@@ -4199,6 +4216,8 @@ context TrainingOrchestration {
       personalizationProfileId: UUID?
       personalizedModelArtifactRef: String
       personalizedModelArtifactDigest: String
+      personalizedModelStorageLocation: String dictionary "PERSONALIZED_MODEL_STORAGE_LOCATION"
+      platformManagedArtifactRef: String?
       personalizedMetricsArtifactRef: String?
       personalizedAccuracy: Decimal?
       personalizationLift: Decimal?
@@ -4790,302 +4809,16 @@ context TrainingOrchestration {
   }
 }
 
-context ModelLifecycle {
-  note "Model lifecycle starts after training has produced a final evaluated candidate."
-
-  risk "A model can be promoted without a reproducibility package, model card, or approved evaluation report."
-  risk "Rollback decisions may lose lineage if previous production versions are not captured."
-  metric modelApprovalLeadTime
-  metric productionRollbackRate
-
-  slice RegisterCandidateModel {
-    startsLifecycle
-    reactsTo TrainingJobCompleted
-
-    automation RegisterFinalModelWhenTrainingJobCompleted {
-      on TrainingJobCompleted
-      emits RegisterCandidateModel
-    }
-
-    command RegisterCandidateModel {
-      modelId: UUID id technical from TrainingJobCompleted.finalModelId
-      trainingJobId: UUID from TrainingJobCompleted.trainingJobId
-      trainingJobObjective: String from TrainingJobCompleted.trainingJobObjective
-      finalRoundId: UUID from TrainingJobCompleted.finalRoundId
-      modelArtifactId: UUID from TrainingJobCompleted.finalModelId
-      modelArtifactDigest: String from TrainingJobCompleted.finalModelArtifactDigest
-      evaluationReportId: UUID from TrainingJobCompleted.finalEvaluationReportId
-      finalGlobalAccuracy: Decimal from TrainingJobCompleted.finalGlobalAccuracy
-    }
-
-    event ModelCandidateRegistered {
-      modelId: UUID id technical
-      trainingJobId: UUID
-      trainingJobObjective: String
-      finalRoundId: UUID
-      modelArtifactId: UUID
-      modelArtifactDigest: String
-      evaluationReportId: UUID
-      finalGlobalAccuracy: Decimal
-    }
-
-    state Candidate
-  }
-
-  slice RecordModelEvaluationPackage {
-    actor GovernanceReviewer
-    ui ModelApprovalScreen
-    reactsTo ModelCandidateRegistered
-
-    command RecordModelEvaluationPackage {
-      modelId: UUID id technical
-      trainingJobId: UUID
-      evaluationReportId: UUID
-      experimentId: UUID
-      hyperparameterSnapshotId: UUID
-      reproducibilityManifestId: UUID
-      modelCardId: UUID
-      baselineModelId: UUID?
-    }
-
-    event ModelEvaluationPackageRecorded {
-      modelId: UUID id technical from RecordModelEvaluationPackage.modelId
-      trainingJobId: UUID from RecordModelEvaluationPackage.trainingJobId
-      evaluationReportId: UUID from RecordModelEvaluationPackage.evaluationReportId
-      experimentId: UUID from RecordModelEvaluationPackage.experimentId
-      hyperparameterSnapshotId: UUID from RecordModelEvaluationPackage.hyperparameterSnapshotId
-      reproducibilityManifestId: UUID from RecordModelEvaluationPackage.reproducibilityManifestId
-      modelCardId: UUID from RecordModelEvaluationPackage.modelCardId
-      baselineModelId: UUID? from RecordModelEvaluationPackage.baselineModelId
-    }
-
-    state EvaluationPackaged
-
-    specification "Model Approval Requires Evaluation Package" {
-      rule """
-        A model candidate must have an evaluation report, reproducibility manifest, hyperparameter snapshot, and model card before governance approval.
-      """
-
-      scenario "Record Complete Evaluation Package" {
-        given ModelCandidateRegistered {
-          modelId = "model-1"
-          evaluationReportId = "report-1"
-        }
-        when RecordModelEvaluationPackage {
-          modelId = "model-1"
-          reproducibilityManifestId = "manifest-1"
-          modelCardId = "card-1"
-        }
-        then ModelEvaluationPackageRecorded
-      }
-    }
-  }
-
-  slice ApproveModel {
-    actor GovernanceReviewer
-    ui ModelApprovalScreen
-    reactsTo ModelEvaluationPackageRecorded
-
-    command ApproveModel {
-      modelId: UUID id technical
-      approvalNote: String?
-    }
-
-    event ModelApproved {
-      modelId: UUID id technical
-      approvalNote: String?
-    }
-
-    state Approved
-
-    specification "Only Evaluation Packaged Models Can Be Approved" {
-      rule """
-        A model can be approved only after its evaluation package has been recorded.
-      """
-
-      scenario "Approve Evaluation Packaged Model" {
-        given ModelEvaluationPackageRecorded {
-          modelId = "model-1"
-          evaluationReportId = "report-1"
-          reproducibilityManifestId = "manifest-1"
-          modelCardId = "card-1"
-        }
-        when ApproveModel {
-          modelId = "model-1"
-        }
-        then ModelApproved
-      }
-
-      scenario "Reject Candidate Without Evaluation Package" {
-        given ModelCandidateRegistered {
-          modelId = "model-1"
-          evaluationReportId = "report-1"
-        }
-        when ApproveModel {
-          modelId = "model-1"
-        }
-        then reject "Model Evaluation Package Required"
-      }
-    }
-  }
-
-  slice PromoteModelToProduction {
-    actor ReleaseManager
-    ui ModelReleaseScreen
-    reactsTo ModelApproved
-
-    command PromoteModelToProduction {
-      modelId: UUID id technical
-      releaseChannel: String dictionary "MODEL_RELEASE_CHANNEL"
-      productionStage: String dictionary "MODEL_PRODUCTION_STAGE"
-    }
-
-    event ModelPromotedToProduction {
-      modelId: UUID id technical
-      releaseChannel: String dictionary "MODEL_RELEASE_CHANNEL"
-      productionStage: String dictionary "MODEL_PRODUCTION_STAGE"
-    }
-
-    state Production
-
-    specification "Only Approved Models Can Be Promoted To Production" {
-      rule """
-        A model can be promoted to production only after governance approval.
-      """
-
-      scenario "Promote Approved Model" {
-        given ModelApproved {
-          modelId = "model-1"
-        }
-        when PromoteModelToProduction {
-          modelId = "model-1"
-          releaseChannel = "stable"
-          productionStage = "production"
-        }
-        then ModelPromotedToProduction
-      }
-
-      scenario "Reject Unapproved Model Promotion" {
-        given ModelEvaluationPackageRecorded {
-          modelId = "model-1"
-        }
-        when PromoteModelToProduction {
-          modelId = "model-1"
-          releaseChannel = "stable"
-          productionStage = "production"
-        }
-        then reject "Model Approval Required"
-      }
-    }
-  }
-
-  slice RollbackModel {
-    actor ReleaseManager
-    ui ModelReleaseScreen
-    reactsTo ModelPromotedToProduction
-
-    command RollbackModel {
-      modelId: UUID id technical
-      previousModelId: UUID
-      rollbackReason: String
-    }
-
-    event ModelRolledBack {
-      modelId: UUID id technical
-      previousModelId: UUID
-      rollbackReason: String
-    }
-
-    state RolledBack
-  }
-
-  slice RetireModel {
-    actor ReleaseManager
-    ui ModelReleaseScreen
-    reactsTo ModelPromotedToProduction
-
-    command RetireModel {
-      modelId: UUID id technical
-      retirementReason: String
-    }
-
-    event ModelRetired {
-      modelId: UUID id technical
-      retirementReason: String
-    }
-
-    state Retired
-  }
-
-  slice ModelCatalog {
-    readmodel ModelCatalog[] {
-      modelId: UUID id
-      trainingJobId: UUID
-      finalRoundId: UUID
-      modelArtifactId: UUID
-      trainingJobObjective: String?
-      modelArtifactDigest: String
-      evaluationReportId: UUID
-      finalGlobalAccuracy: Decimal
-      state: Model.State
-      releaseChannel: String? dictionary "MODEL_RELEASE_CHANNEL"
-      productionStage: String? dictionary "MODEL_PRODUCTION_STAGE"
-      experimentId: UUID?
-      hyperparameterSnapshotId: UUID?
-      reproducibilityManifestId: UUID?
-      modelCardId: UUID?
-      subscribe ModelCandidateRegistered
-      subscribe ModelEvaluationPackageRecorded
-      subscribe ModelApproved
-      subscribe ModelPromotedToProduction
-      subscribe ModelRolledBack
-      subscribe ModelRetired
-      eligible for RecordModelEvaluationPackage when {
-        Model.state == Candidate
-      }
-      eligible for ApproveModel when {
-        Model.state == EvaluationPackaged
-      }
-      eligible for PromoteModelToProduction when {
-        Model.state == Approved
-      }
-      eligible for RollbackModel when {
-        Model.state == Production
-      }
-      eligible for RetireModel when {
-        Model.state == Production
-      }
-    }
-  }
-
-  concept Model {
-    state Candidate
-    state EvaluationPackaged
-    state Approved
-    state Production
-    state RolledBack
-    state Retired
-
-    slice RegisterCandidateModel
-    slice RecordModelEvaluationPackage
-    slice ApproveModel
-    slice PromoteModelToProduction
-    slice RollbackModel
-    slice RetireModel
-    slice ModelCatalog
-  }
-}
-
 context RuntimeMonitoring {
-  note "Platform runtime monitoring keeps the control-plane view small: node inventory, latest telemetry/resource snapshots, health transitions, and actionable training alerts. High-frequency heartbeat and resource samples remain telemetry, not event-sourced domain events."
+  note "Platform runtime monitoring keeps the control-plane view small: node inventory, internal latest telemetry snapshots, health transitions, and actionable training alerts. High-frequency heartbeat and resource samples remain telemetry, not event-sourced domain events."
+  note "RuntimeTelemetryLatest and RuntimeNodeResourceLatest are internal latest-state projections for dashboard composition and diagnostics. Runtime detection commands are triggered directly from telemetry events. Operator-facing monitoring pages use RuntimeHealthDashboard, RuntimeNodeInventoryView, and TrainingAlertCatalog."
 
   risk "Operational alerts without acknowledgement or resolution tracking can hide node degradation during training."
   metric runtimeAlertMeanTimeToAcknowledge
   metric runtimeAlertMeanTimeToResolve
 
   slice RuntimeTelemetryLatest {
-    readmodel todo RuntimeTelemetryLatest[] {
-      exportable by PlatformDataExchange
+    readmodel RuntimeTelemetryLatest[] {
       nodeId: UUID id
       runtimeAgentId: UUID
       federationId: UUID?
@@ -5179,21 +4912,21 @@ context RuntimeMonitoring {
     startsLifecycle
 
     automation DetectOfflineRuntimeAgentFromTelemetry {
-      on todo RuntimeTelemetryLatest
+      on RuntimeTelemetryRecorded
       condition offlineDetectionPending == true
       emits DetectRuntimeAgentOffline
     }
 
     command DetectRuntimeAgentOffline {
-      nodeId: UUID id technical from RuntimeTelemetryLatest.nodeId
-      runtimeAgentId: UUID from RuntimeTelemetryLatest.runtimeAgentId
-      federationId: UUID? from RuntimeTelemetryLatest.federationId
-      federationName: String? from RuntimeTelemetryLatest.federationName
-      trainingJobId: UUID? from RuntimeTelemetryLatest.trainingJobId
-      trainingJobObjective: String? from RuntimeTelemetryLatest.trainingJobObjective
-      roundExecutionId: UUID? from RuntimeTelemetryLatest.roundExecutionId
-      runtimeNodeName: String? from RuntimeTelemetryLatest.runtimeNodeName
-      offlineReason: String from RuntimeTelemetryLatest.offlineReason
+      nodeId: UUID id technical from RuntimeTelemetryRecorded.nodeId
+      runtimeAgentId: UUID from RuntimeTelemetryRecorded.runtimeAgentId
+      federationId: UUID? from RuntimeTelemetryRecorded.federationId
+      federationName: String? from RuntimeTelemetryRecorded.federationName
+      trainingJobId: UUID? from RuntimeTelemetryRecorded.trainingJobId
+      trainingJobObjective: String? from RuntimeTelemetryRecorded.trainingJobObjective
+      roundExecutionId: UUID? from RuntimeTelemetryRecorded.roundExecutionId
+      runtimeNodeName: String? from RuntimeTelemetryRecorded.runtimeNodeName
+      offlineReason: String from RuntimeTelemetryRecorded.offlineReason
     }
 
     event RuntimeAgentOfflineDetected {
@@ -5215,21 +4948,21 @@ context RuntimeMonitoring {
     reactsTo RuntimeAgentOfflineDetected
 
     automation MarkRecoveredRuntimeAgentFromTelemetry {
-      on todo RuntimeTelemetryLatest
+      on RuntimeTelemetryRecorded
       condition recoveryDetectionPending == true
       emits MarkRuntimeAgentRecovered
     }
 
     command MarkRuntimeAgentRecovered {
-      nodeId: UUID id technical from RuntimeTelemetryLatest.nodeId
-      runtimeAgentId: UUID from RuntimeTelemetryLatest.runtimeAgentId
-      federationId: UUID? from RuntimeTelemetryLatest.federationId
-      federationName: String? from RuntimeTelemetryLatest.federationName
-      trainingJobId: UUID? from RuntimeTelemetryLatest.trainingJobId
-      trainingJobObjective: String? from RuntimeTelemetryLatest.trainingJobObjective
-      roundExecutionId: UUID? from RuntimeTelemetryLatest.roundExecutionId
-      runtimeNodeName: String? from RuntimeTelemetryLatest.runtimeNodeName
-      recoveryReason: String? from RuntimeTelemetryLatest.recoveryReason
+      nodeId: UUID id technical from RuntimeTelemetryRecorded.nodeId
+      runtimeAgentId: UUID from RuntimeTelemetryRecorded.runtimeAgentId
+      federationId: UUID? from RuntimeTelemetryRecorded.federationId
+      federationName: String? from RuntimeTelemetryRecorded.federationName
+      trainingJobId: UUID? from RuntimeTelemetryRecorded.trainingJobId
+      trainingJobObjective: String? from RuntimeTelemetryRecorded.trainingJobObjective
+      roundExecutionId: UUID? from RuntimeTelemetryRecorded.roundExecutionId
+      runtimeNodeName: String? from RuntimeTelemetryRecorded.runtimeNodeName
+      recoveryReason: String? from RuntimeTelemetryRecorded.recoveryReason
     }
 
     event RuntimeAgentRecovered {
@@ -5251,25 +4984,25 @@ context RuntimeMonitoring {
     startsLifecycle
 
     automation DetectResourcePressureFromTelemetry {
-      on todo RuntimeTelemetryLatest
+      on RuntimeTelemetryRecorded
       condition resourcePressureDetectionPending == true
       emits DetectRuntimeNodeResourcePressure
     }
 
     command DetectRuntimeNodeResourcePressure {
-      nodeId: UUID id technical from RuntimeTelemetryLatest.nodeId
-      runtimeAgentId: UUID from RuntimeTelemetryLatest.runtimeAgentId
-      federationId: UUID? from RuntimeTelemetryLatest.federationId
-      federationName: String? from RuntimeTelemetryLatest.federationName
-      trainingJobId: UUID? from RuntimeTelemetryLatest.trainingJobId
-      trainingJobObjective: String? from RuntimeTelemetryLatest.trainingJobObjective
-      roundExecutionId: UUID? from RuntimeTelemetryLatest.roundExecutionId
-      runtimeNodeName: String? from RuntimeTelemetryLatest.runtimeNodeName
-      pressureType: String from RuntimeTelemetryLatest.pressureType
-      observedValue: Decimal from RuntimeTelemetryLatest.observedValue
-      thresholdValue: Decimal from RuntimeTelemetryLatest.thresholdValue
-      alertSeverity: String from RuntimeTelemetryLatest.alertSeverity
-      alertMessage: String from RuntimeTelemetryLatest.alertMessage
+      nodeId: UUID id technical from RuntimeTelemetryRecorded.nodeId
+      runtimeAgentId: UUID from RuntimeTelemetryRecorded.runtimeAgentId
+      federationId: UUID? from RuntimeTelemetryRecorded.federationId
+      federationName: String? from RuntimeTelemetryRecorded.federationName
+      trainingJobId: UUID? from RuntimeTelemetryRecorded.trainingJobId
+      trainingJobObjective: String? from RuntimeTelemetryRecorded.trainingJobObjective
+      roundExecutionId: UUID? from RuntimeTelemetryRecorded.roundExecutionId
+      runtimeNodeName: String? from RuntimeTelemetryRecorded.runtimeNodeName
+      pressureType: String from RuntimeTelemetryRecorded.pressureType
+      observedValue: Decimal from RuntimeTelemetryRecorded.observedValue
+      thresholdValue: Decimal from RuntimeTelemetryRecorded.thresholdValue
+      alertSeverity: String from RuntimeTelemetryRecorded.alertSeverity
+      alertMessage: String from RuntimeTelemetryRecorded.alertMessage
     }
 
     event RuntimeNodeResourcePressureDetected {
@@ -5367,8 +5100,7 @@ context RuntimeMonitoring {
   }
 
   slice RuntimeNodeResourceLatest {
-    readmodel todo RuntimeNodeResourceLatest[] {
-      exportable by PlatformDataExchange
+    readmodel RuntimeNodeResourceLatest[] {
       nodeId: UUID id
       runtimeAgentId: UUID
       runtimeInfrastructureId: UUID?
@@ -6354,7 +6086,7 @@ context RuntimeAgentOperations {
   }
 
   slice AgentRuntimeIdentityCatalog {
-    sync readmodel AgentRuntimeIdentityCatalog[] from RuntimeProvisioning.RuntimeIdentityCatalog where runtimeAgentId = sync.runtimeAgentId {
+    sync readmodel AgentRuntimeIdentityCatalog[] from RuntimeGovernance.RuntimeIdentityCatalog where runtimeAgentId = sync.runtimeAgentId {
       runtimeId: UUID id
       runtimeInfrastructureId: UUID
       runtimeAgentId: UUID
@@ -8924,7 +8656,6 @@ context RuntimeAgentOperations {
     includes DatasetGovernance
     includes ModelRepository
     includes TrainingOrchestration
-    includes ModelLifecycle
     includes RuntimeMonitoring
     includes RuntimeGovernance
     includes SecureAggregation
@@ -8946,7 +8677,6 @@ context RuntimeAgentOperations {
     includes DatasetGovernance from FederationLearningPlatform
     includes ModelRepository from FederationLearningPlatform
     includes TrainingOrchestration from FederationLearningPlatform
-    includes ModelLifecycle from FederationLearningPlatform
     includes RuntimeMonitoring from FederationLearningPlatform
     includes RuntimeGovernance from FederationLearningPlatform
     includes SecureAggregation from FederationLearningPlatform
