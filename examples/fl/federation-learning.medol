@@ -4280,6 +4280,18 @@ context TrainingOrchestration {
       aggregatedModelSizeBytes: Int? portOutput
     }
 
+    event PlainModelAggregationFailed {
+      trainingJobId: UUID id technical from AggregatePlainModelUpdates.trainingJobId
+      trainingRunConfigurationId: UUID from AggregatePlainModelUpdates.trainingRunConfigurationId
+      trainingJobObjective: String from AggregatePlainModelUpdates.trainingJobObjective
+      featureSchemaId: UUID from AggregatePlainModelUpdates.featureSchemaId
+      roundId: UUID from AggregatePlainModelUpdates.roundId
+      roundNumber: Int from AggregatePlainModelUpdates.roundNumber
+      selectedRuntimeCount: Int derived from TrainingRound.selectedRuntimeCount by roundId
+      minimumNodesPerRound: Int derived from TrainingRound.minimumNodesPerRound by roundId
+      failureReason: String portOutput
+    }
+
     state Completed
 
     specification "Plain Model Updates Are Aggregated After Quorum" {
@@ -4300,6 +4312,20 @@ context TrainingOrchestration {
           roundId = "round-1"
         }
         then PlainModelAggregationCompleted
+      }
+
+      scenario "Record Failed Plain Aggregation" {
+        given ModelUpdateSubmissionAccepted {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+          secureAggregationRequired = false
+          plainAggregationReady = true
+        }
+        when AggregatePlainModelUpdates {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+        }
+        then PlainModelAggregationFailed
       }
     }
   }
@@ -4762,6 +4788,7 @@ context TrainingOrchestration {
       subscribe ModelUpdateSubmissionReceived
       subscribe ModelUpdateSubmissionAccepted
       subscribe ModelUpdateSubmissionRejected
+      subscribe PlainModelAggregationFailed
       subscribe SecureAggregationRequested
       subscribe GlobalModelUpdated
       subscribe GlobalModelEvaluationSubmitted

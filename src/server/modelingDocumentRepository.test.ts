@@ -62,6 +62,55 @@ test('creates, lists, updates, reads, and deletes modeling documents', () => {
   assert.equal(repository.readModelingDocument(created.id), undefined);
 });
 
+test('recovers orphan documents when workspace database was restored separately', () => {
+  documentDatabase.prepare(`
+    INSERT INTO modeling_documents (
+      id, workspace_id, title, kind, language, markdown, generated_markdown, source_hash
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    'orphan-document-1',
+    'old-workspace-id',
+    'Recovered PRD',
+    'prd',
+    'en',
+    '# Recovered PRD',
+    '# Recovered PRD',
+    'fnv1a-recovered'
+  );
+  documentDatabase.prepare(`
+    INSERT INTO modeling_document_versions (
+      id, document_id, workspace_id, title, kind, language, source_hash, markdown
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    'orphan-document-version-1',
+    'orphan-document-1',
+    'old-workspace-id',
+    'Recovered PRD',
+    'prd',
+    'en',
+    'fnv1a-recovered',
+    '# Recovered PRD'
+  );
+
+  const workspace = workspaceRepository.createModelingWorkspace({
+    name: 'Restored workspace',
+    dsl: 'domain Restored {}'
+  });
+
+  const listed = repository.listModelingDocuments(workspace.id);
+
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].id, 'orphan-document-1');
+  assert.equal(listed[0].workspaceId, workspace.id);
+  assert.equal(
+    documentDatabase.prepare('SELECT workspace_id FROM modeling_document_versions WHERE id = ?')
+      .get('orphan-document-version-1')?.workspace_id,
+    workspace.id
+  );
+});
+
 test('parses multi-source section markers and stable MEDOL hashes', () => {
   const markdown = [
     '# Database',

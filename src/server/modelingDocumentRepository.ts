@@ -156,6 +156,31 @@ const listDocumentVersions = documentDatabase.prepare(`
   ORDER BY created_at ASC
 `);
 
+const countDocumentsForWorkspace = documentDatabase.prepare(`
+  SELECT COUNT(*) AS count
+  FROM modeling_documents
+  WHERE workspace_id = ?
+`);
+
+const listDocumentWorkspaceGroups = documentDatabase.prepare(`
+  SELECT workspace_id AS workspaceId, COUNT(*) AS count, MAX(updated_at) AS updatedAt
+  FROM modeling_documents
+  GROUP BY workspace_id
+  ORDER BY count DESC, updatedAt DESC
+`);
+
+const reassignDocumentsToWorkspace = documentDatabase.prepare(`
+  UPDATE modeling_documents
+  SET workspace_id = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE workspace_id = ?
+`);
+
+const reassignDocumentVersionsToWorkspace = documentDatabase.prepare(`
+  UPDATE modeling_document_versions
+  SET workspace_id = ?
+  WHERE workspace_id = ?
+`);
+
 const deleteDocument = documentDatabase.prepare(`
   DELETE FROM modeling_documents
   WHERE id = ?
@@ -184,8 +209,10 @@ const backfillDocumentVersionHistory = documentDatabase.prepare(`
   WHERE id = ?
 `);
 
-export const listModelingDocuments = (workspaceId: string): ModelingDocumentSummary[] =>
-  (listDocuments.all(workspaceId) as DocumentRow[]).map(ensureDocumentReferences).map(toSummary);
+export const listModelingDocuments = (workspaceId: string): ModelingDocumentSummary[] => {
+  recoverOrphanDocumentsForWorkspace(workspaceId);
+  return (listDocuments.all(workspaceId) as DocumentRow[]).map(ensureDocumentReferences).map(toSummary);
+};
 
 export const readModelingDocument = (documentId: string): ModelingDocument | undefined => {
   const row = selectDocument.get(documentId) as DocumentRow | undefined;
@@ -300,6 +327,29 @@ const requireDocument = (documentId: string): ModelingDocument => {
   const document = readModelingDocument(documentId);
   if (!document) throw new Error(`Document ${documentId} was not persisted`);
   return document;
+};
+
+const recoverOrphanDocumentsForWorkspace = (workspaceId: string): void => {
+  if (!readModelingWorkspace(workspaceId)) return;
+  const current = countDocumentsForWorkspace.get(workspaceId) as { count: number } | undefined;
+  if ((current?.count ?? 0) > 0) return;
+
+  const orphanGroups = (listDocumentWorkspaceGroups.all() as Array<{
+    workspaceId: string;
+    count: number;
+    updatedAt: string | null;
+  }>).filter((group) =>
+    group.workspaceId !== workspaceId
+    && !readModelingWorkspace(group.workspaceId)
+    && group.count > 0
+  );
+
+  if (orphanGroups.length !== 1) return;
+
+  documentDatabase.transaction(() => {
+    reassignDocumentsToWorkspace.run(workspaceId, orphanGroups[0].workspaceId);
+    reassignDocumentVersionsToWorkspace.run(workspaceId, orphanGroups[0].workspaceId);
+  })();
 };
 
 const toSummary = (row: DocumentRow): ModelingDocumentSummary => ({
