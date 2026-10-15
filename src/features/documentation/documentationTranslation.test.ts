@@ -724,3 +724,46 @@ test('includes editable change log front matter in generated Chinese Markdown', 
     assert.ok(markdown.includes(`| ${medolSoftwareVersion} | 2026-08-23 | 初始发布 | MEDOL |`));
   }
 });
+
+test('infers event-driven workflow inputs, emitted commands, and subscribed read models', () => {
+  const context: EmModel['contexts'][number] = {
+    ...model.contexts[0],
+    aggregates: [],
+    slices: [
+      {
+        id: 'slice/pause', name: 'PauseTrainingJob', tags: [], hotspots: [],
+        elements: [
+          { id: 'command/pause', kind: 'command', name: 'PauseTrainingJob', fields: [] },
+          { id: 'event/paused', kind: 'event', name: 'TrainingJobPaused', fields: [] }
+        ]
+      },
+      {
+        id: 'slice/dashboard', name: 'TrainingJobDashboard', tags: [], hotspots: [],
+        elements: [{ id: 'readmodel/dashboard', kind: 'readmodel', name: 'TrainingJobDashboard', fields: [] }]
+      },
+      {
+        id: 'slice/next-round', name: 'ScheduleNextTrainingRound', tags: [], hotspots: [],
+        elements: [{
+          id: 'automation/next-round', kind: 'automation', name: 'SelectNextRoundParticipants', fields: [],
+          metadata: {
+            on: 'TrainingRoundCompleted', condition: 'roundNumber < maxRounds',
+            emits: 'SelectTrainingRoundParticipants'
+          }
+        }]
+      }
+    ]
+  };
+  const eventModel: EmModel = {
+    ...model,
+    contexts: [context],
+    domains: [{ ...model.domains[0], contexts: [context] }],
+    edges: [{ id: 'edge/paused-dashboard', source: 'event/paused', target: 'readmodel/dashboard', label: 'updates' }]
+  };
+  const markdown = generateDocumentation(eventModel, 'software-design', { language: 'zh-CN' }).markdown;
+
+  assert.match(markdown, /Pause Training Job[^\n]*Training Job Dashboard/u);
+  assert.match(markdown, /输入: Training Round Completed \(条件: roundNumber < maxRounds\)/u);
+  assert.match(markdown, /业务结果: 触发提交操作 Select Training Round Participants/u);
+  assert.match(markdown, /读侧结果: 本步骤不直接更新查询视图/u);
+  assert.match(markdown, /执行条件: roundNumber < maxRounds/u);
+});

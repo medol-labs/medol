@@ -166,6 +166,13 @@ export const buildDocumentationBundle = (
           processors: slice.elements
             .filter((element) => element.kind === 'automation')
             .map((element) => element.name),
+          automations: slice.elements
+            .filter((element) => element.kind === 'automation')
+            .map((element) => ({
+              ...(element.metadata?.on ? { on: element.metadata.on } : {}),
+              ...(element.metadata?.condition ? { condition: element.metadata.condition } : {}),
+              ...(element.metadata?.emits ? { emits: element.metadata.emits } : {})
+            })),
           specifications: slice.elements
             .filter(isKind('gwt'))
             .map(toDocumentationSpecification),
@@ -215,6 +222,21 @@ export const buildDocumentationBundle = (
               .filter((field) => field.attributes.includes('id'))
               .map((field) => field.name)
           }));
+  }
+
+  const readmodelsByEventId = new Map<string, string[]>();
+  for (const readmodel of readmodels) {
+    for (const edge of model.edges.filter((edge) => edge.target === readmodel.id && edge.label === 'updates')) {
+      const names = readmodelsByEventId.get(edge.source) ?? [];
+      if (!names.includes(readmodel.name)) names.push(readmodel.name);
+      readmodelsByEventId.set(edge.source, names);
+    }
+  }
+  for (const workflow of workflows) {
+    workflow.readmodels = [...new Set([
+      ...workflow.readmodels,
+      ...workflow.events.flatMap((event) => readmodelsByEventId.get(event.id) ?? [])
+    ])];
   }
 
   const integrations = model.contexts.flatMap((context) =>

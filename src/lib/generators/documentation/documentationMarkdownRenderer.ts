@@ -76,7 +76,7 @@ export const renderSoftwareDesignMarkdown = (
     lines.push(`| ${text.capability} | ${text.actorOrTrigger} | ${text.input} | ${text.businessResult} | ${text.readSide} | ${text.rules} |`);
     lines.push('| --- | --- | --- | --- | --- | --- |');
     for (const workflow of workflows) {
-      lines.push(`| ${cell(humanize(workflow.slice))} | ${cell(workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || text.system)} | ${cell(workflow.commands.map((item) => humanize(item.name)).join(', ') || '-')} | ${cell(formatWorkflowResult(workflow, language))} | ${cell(workflow.readmodels.map(humanize).join(', ') || '-')} | ${cell(workflow.specifications.map((specification) => humanize(specification.name)).join(', ') || text.notModeled)} |`);
+      lines.push(`| ${cell(humanize(workflow.slice))} | ${cell(workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || text.system)} | ${cell(formatWorkflowInput(workflow, language))} | ${cell(formatWorkflowResult(workflow, language))} | ${cell(formatWorkflowReadSide(workflow, language))} | ${cell(formatWorkflowRules(workflow, language))} |`);
     }
     lines.push('');
 
@@ -269,9 +269,9 @@ const appendSoftwareWorkflow = (
   appendList(lines, [
     `${text.owner}: ${humanize(workflow.aggregate)}.`,
     `${text.actorOrTrigger}: ${workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || text.system}.`,
-    `${text.input}: ${workflow.commands.map((command) => humanize(command.name)).join(', ') || text.notModeled}.`,
+    `${text.input}: ${formatWorkflowInput(workflow, language)}.`,
     `${text.businessResult}: ${formatWorkflowResult(workflow, language)}.`,
-    `${text.readSide}: ${workflow.readmodels.map(humanize).join(', ') || text.notModeled}.`
+    `${text.readSide}: ${formatWorkflowReadSide(workflow, language)}.`
   ]);
   if (workflow.specifications.length) {
     lines.push('');
@@ -297,9 +297,44 @@ const formatWorkflowResult = (
   const text = softwareText[language];
   return [
     ...workflow.events.map((item) => humanize(item.name)),
-    ...(workflow.resultingState ? [`${text.state}: ${humanize(workflow.resultingState)}`] : [])
+    ...(workflow.resultingState ? [`${text.state}: ${humanize(workflow.resultingState)}`] : []),
+    ...(workflow.events.length === 0 ? (workflow.automations ?? [])
+      .filter((automation) => automation.emits)
+      .map((automation) => `${language === 'zh-CN' ? '触发提交操作' : 'Triggers command'} ${humanize(automation.emits ?? '')}`) : [])
   ].join(', ') || text.notModeled;
 };
+
+const formatWorkflowInput = (
+  workflow: DocumentationWorkflow,
+  language: DocumentationLanguage
+): string => {
+  const commands = workflow.commands.map((command) => humanize(command.name));
+  if (commands.length) return commands.join(', ');
+  const triggers = (workflow.automations ?? [])
+    .filter((automation) => automation.on)
+    .map((automation) => `${humanize(automation.on ?? '')}${automation.condition ? ` (${language === 'zh-CN' ? '条件' : 'condition'}: ${automation.condition})` : ''}`);
+  return triggers.join(', ') || softwareText[language].notModeled;
+};
+
+const formatWorkflowReadSide = (
+  workflow: DocumentationWorkflow,
+  language: DocumentationLanguage
+): string => {
+  if (workflow.readmodels.length) return workflow.readmodels.map(humanize).join(', ');
+  if ((workflow.automations ?? []).some((automation) => automation.emits)) {
+    return language === 'zh-CN' ? '本步骤不直接更新查询视图' : 'No direct read-model update in this step';
+  }
+  return softwareText[language].notModeled;
+};
+
+const formatWorkflowRules = (
+  workflow: DocumentationWorkflow,
+  language: DocumentationLanguage
+): string => [
+  ...workflow.specifications.map((specification) => humanize(specification.name)),
+  ...(workflow.automations ?? []).filter((automation) => automation.condition)
+    .map((automation) => `${language === 'zh-CN' ? '执行条件' : 'Execution condition'}: ${automation.condition}`)
+].join(', ') || softwareText[language].notModeled;
 
 const summarizeSpecifications = (
   bundle: DocumentationBundle,

@@ -58,6 +58,11 @@ export interface DocumentationWorkflow {
   events: DocumentationElement[];
   readmodels: string[];
   processors: string[];
+  automations?: Array<{
+    on?: string;
+    condition?: string;
+    emits?: string;
+  }>;
   specifications: DocumentationSpecification[];
   startsLifecycle: boolean;
   resultingState?: string;
