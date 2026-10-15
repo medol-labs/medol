@@ -243,3 +243,8 @@
 一个 aggregate 内的 state slices，应该共享同一个聚合身份与生命周期。
 
 也就是同一 aggregate 里的主要 command/event 应该大致围绕同一主键：
+
+
+## mind
+
+- 建模人工参与 ai 辅助，生成器具体实现等注册为 skill tool 等，借助 ai 进一步实现更自动化、智能化的代码生成。生成后 ai 逐 slice 进行完善。
