@@ -7,6 +7,7 @@ export type DocumentationKind =
   | 'process'
   | 'test-outline'
   | 'user-journey'
+  | 'diagrams'
   | 'installation-manual'
   | 'user-manual';
 

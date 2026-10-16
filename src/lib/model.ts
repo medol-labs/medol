@@ -260,6 +260,7 @@ export interface EmContext {
   decisions: string[];
   metrics: string[];
   capabilityExtensions: EmCapabilityExtension[];
+  userJourneys?: EmUserJourney[];
 }
 
 export interface EmDomain {
@@ -269,9 +270,21 @@ export interface EmDomain {
   contexts: EmContext[];
   deployments: EmDeployment[];
   frontendApplications: EmFrontendApplication[];
+  userJourneys?: EmUserJourney[];
   capabilityExtensions: EmCapabilityExtension[];
   accessPolicies: EmAccessPolicy[];
   defaultAccessPolicy?: string;
+}
+
+export interface EmUserJourney {
+  id: string;
+  name: string;
+  domain?: string;
+  context?: string;
+  actor?: string;
+  sourceRange?: MedolSourceRange;
+  stages: Array<{ id: string; name: string; context: string; contextId?: string }>;
+  transitions: Array<{ source: string; target: string; condition?: string }>;
 }
 
 export interface EmDeployment {
@@ -324,6 +337,7 @@ export interface EmModel {
   domains: EmDomain[];
   deployments: EmDeployment[];
   frontendApplications: EmFrontendApplication[];
+  userJourneys?: EmUserJourney[];
   accessPolicies: EmAccessPolicy[];
   defaultAccessPolicy?: string;
   contexts: EmContext[];
@@ -337,6 +351,7 @@ export const emptyModel = (): EmModel => ({
   domains: [],
   deployments: [],
   frontendApplications: [],
+  userJourneys: [],
   accessPolicies: [],
   contexts: [],
   capabilityExtensions: [],

@@ -1212,21 +1212,6 @@ export const renderUserJourneyMarkdown = (
   }
   lines.push('');
 
-  section(lines, text.endToEndJourneyMap);
-  lines.push('```mermaid');
-  lines.push('flowchart LR');
-  for (const [index, workflow] of bundle.workflows.entries()) {
-    const nodeId = `J${index + 1}`;
-    const actor = journeyActor(workflow, language);
-    lines.push(`  ${nodeId}["${mermaidLabel(`${actor}: ${humanize(workflow.slice)}`)}"]`);
-    if (index > 0 && bundle.workflows[index - 1].context === workflow.context) {
-      lines.push(`  J${index} --> ${nodeId}`);
-    }
-  }
-  if (bundle.workflows.length === 0) lines.push(`  Empty["${mermaidLabel(text.noCapabilities)}"]`);
-  lines.push('```');
-  lines.push('');
-
   section(lines, text.contextJourneys);
   for (const context of bundle.contexts) {
     lines.push(`<!-- em:section id="user-journey.context.${context.name}" source="${context.id}" -->`);
@@ -3438,7 +3423,6 @@ const userJourneyText = {
     goals: 'Goals / Capabilities',
     mainTouchpoints: 'Main Touchpoints',
     keyResults: 'Key Results',
-    endToEndJourneyMap: 'End-To-End Journey Map',
     contextJourneys: 'Context Journeys',
     step: 'Step',
     actorOrTrigger: 'Actor / Trigger',
@@ -3481,7 +3465,6 @@ const userJourneyText = {
     goals: '目标/能力',
     mainTouchpoints: '主要触点',
     keyResults: '关键结果',
-    endToEndJourneyMap: '端到端旅程图',
     contextJourneys: '业务域旅程',
     step: '步骤',
     actorOrTrigger: '角色/触发方',

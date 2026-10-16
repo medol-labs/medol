@@ -130,7 +130,33 @@ export const validateSemanticModel = (ast: AstModel, model: EmModel): string[] =
   });
 
   validateUnresolvedEdges(model, diagnostics);
+  validateUserJourneys(model, diagnostics);
   return [...new Set(diagnostics)];
+};
+
+const validateUserJourneys = (model: EmModel, diagnostics: string[]): void => {
+  const contextNames = new Set(model.contexts.map((context) => context.name));
+  for (const journey of model.userJourneys ?? []) {
+    if (!journey.stages.length) {
+      diagnostics.push(`User journey ${journey.name} must contain at least one stage.`);
+      continue;
+    }
+    const stageIds = new Set<string>();
+    for (const stage of journey.stages) {
+      if (stageIds.has(stage.id)) {
+        diagnostics.push(`User journey ${journey.name}: duplicate stage ${stage.name}.`);
+      }
+      stageIds.add(stage.id);
+      if (!contextNames.has(stage.context)) {
+        diagnostics.push(`User journey ${journey.name}: stage ${stage.name} references unknown context ${stage.context || '(none)'}.`);
+      }
+    }
+    for (const transition of journey.transitions) {
+      if (!stageIds.has(transition.source) || !stageIds.has(transition.target)) {
+        diagnostics.push(`User journey ${journey.name}: transition references an unknown stage.`);
+      }
+    }
+  }
 };
 
 const validateAccessPolicies = (ast: AstModel, model: EmModel, diagnostics: string[]): void => {

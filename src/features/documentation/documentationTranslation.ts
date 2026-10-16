@@ -25,6 +25,13 @@ export const buildDocumentationTranslationCatalog = (
   const narratives = new Set<string>();
 
   for (const domain of model.domains) identifiers.add(domain.name);
+  for (const journey of model.userJourneys ?? []) {
+    identifiers.add(journey.name);
+    journey.stages.forEach((stage) => identifiers.add(stage.name));
+    journey.transitions.forEach((transition) => {
+      if (transition.condition) narratives.add(transition.condition);
+    });
+  }
   for (const context of model.contexts) {
     collectContext(context, identifiers, narratives);
   }
@@ -115,6 +122,15 @@ export const translateDocumentationModel = (
   return {
     ...model,
     contexts,
+    userJourneys: model.userJourneys?.map((journey) => ({
+      ...journey,
+      name: translateIdentifier(journey.name),
+      stages: journey.stages.map((stage) => ({ ...stage, name: translateIdentifier(stage.name) })),
+      transitions: journey.transitions.map((transition) => ({
+        ...transition,
+        ...(transition.condition ? { condition: translateNarrative(transition.condition) } : {})
+      }))
+    })),
     domains: model.domains.map((domain) => ({
       ...domain,
       name: translateIdentifier(domain.name),

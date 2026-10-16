@@ -5,6 +5,50 @@ import { MedolValidationError, medolToCodegenModel } from './dslToConfig';
 
 const diagnosticsFor = (medol: string): string[] => parseMedol(medol).diagnostics;
 
+test('validates overall user journey stages and transitions', () => {
+  const valid = parseMedol(`domain Demo {
+    context Organizations {}
+    context Training {}
+    userJourney MainFlow {
+      stage Join in Organizations
+      stage Train in Training
+      from Join to Train when "Organization is ready"
+    }
+  }`);
+  assert.deepEqual(valid.diagnostics, []);
+  assert.equal(valid.userJourneys?.[0].transitions.length, 1);
+  assert.equal(valid.userJourneys?.[0].transitions[0].condition, 'Organization is ready');
+  assert.equal(valid.userJourneys?.[0].stages[1].contextId, valid.contexts[1].id);
+
+  const invalid = diagnosticsFor(`domain Demo {
+    context Organizations {}
+    userJourney MainFlow {
+      stage Join in Missing
+      stage Join in Organizations
+      from Join to Unknown
+    }
+  }`);
+  assert(invalid.some((message) => message.includes('duplicate stage Join')));
+  assert(invalid.some((message) => message.includes('unknown context Missing')));
+  assert(invalid.some((message) => message.includes('unknown stage')));
+});
+
+test('keeps context-local actor and steps journeys compatible', () => {
+  const parsed = parseMedol(`context Accounts {
+    userJourney Registration {
+      actor Administrator
+      steps {
+        view RegistrationForm
+        view AccountCatalog
+      }
+    }
+  }`);
+  assert.deepEqual(parsed.diagnostics, []);
+  assert.equal(parsed.userJourneys?.[0].context, 'Accounts');
+  assert.deepEqual(parsed.userJourneys?.[0].stages.map((stage) => stage.name), ['RegistrationForm', 'AccountCatalog']);
+  assert.equal(parsed.userJourneys?.[0].transitions.length, 1);
+});
+
 test('parses derived read model lookups with composite keys', () => {
   const model = parseMedol(`
     context Demo {

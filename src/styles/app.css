@@ -1651,11 +1651,100 @@ textarea {
 }
 
 .document-mermaid {
+  position: relative;
   min-width: 260px;
   overflow-x: auto;
   border: 1px solid #dbe2ea;
   background: #ffffff;
   padding: 16px;
+}
+
+.document-mermaid__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.document-mermaid__actions button {
+  width: 32px;
+  height: 32px;
+}
+
+.document-mermaid-dialog {
+  top: 2vh;
+  display: flex;
+  flex-direction: column;
+  width: 96vw;
+  max-width: none;
+  height: 96vh;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.document-mermaid-dialog__toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #dbe2ea;
+}
+
+.document-mermaid-dialog__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.document-mermaid-dialog__controls button {
+  width: 32px;
+  height: 32px;
+}
+
+.document-mermaid-dialog__scale {
+  width: 52px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.document-mermaid-dialog__viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #f4f7fb;
+  padding: 20px;
+}
+
+.document-mermaid-dialog__canvas {
+  min-width: 0;
+  margin: auto;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 12%);
+}
+
+.document-mermaid-dialog__canvas svg {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+}
+
+@media (max-width: 480px) {
+  .document-mermaid-dialog__toolbar {
+    gap: 4px;
+    padding: 8px;
+  }
+
+  .document-mermaid-dialog__controls {
+    gap: 2px;
+  }
+
+  .document-mermaid-dialog__scale {
+    width: 42px;
+  }
 }
 
 .document-mermaid svg {

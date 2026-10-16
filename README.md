@@ -366,6 +366,7 @@ The documentation generator builds a deterministic documentation model from `EmM
 - read-model-oriented database design, including fields, keys, query candidates, source events, and mappings
 - end-to-end business process documentation with Mermaid overviews
 - test outline material covering functional, integration, data, non-functional, regression, and acceptance scope
+- a standalone diagrams document with explicitly modeled cross-context user journeys, followed by actor-initiated journeys through modeled events, query views, and direct automations
 - installation manuals covering environment preparation, configuration, deployment order, smoke checks, rollback, and operations handover
 - user manuals covering roles, feature entry points, operation steps, input fields, data views, rules, and troubleshooting
 
@@ -393,6 +394,31 @@ Generate manuals:
 npm run docs:generate -- examples/fl/federation-learning.medol --kind=installation-manual --language=zh-CN
 npm run docs:generate -- examples/fl/federation-learning.medol --kind=user-manual --language=zh-CN
 ```
+
+Generate the diagrams document:
+
+```bash
+npm run docs:generate -- examples/fl/federation-learning.medol --kind=diagrams --language=zh-CN
+```
+
+For Chinese documentation, the CLI loads `model-translations.zh-CN.json` beside the MEDOL file when present. Use `--translations=/path/to/model-translations.zh-CN.json` to select another glossary. The web editor uses its saved Model Translation Glossary; rerun Translate model after adding journey stages or transitions so new diagram labels are translated.
+
+Declare the overall business journey in the domain model. Stages are named business activities owned by contexts; `from`/`to` declares their actual order, alternatives, and loops. The diagram does not infer a sequence from context declaration order or event links.
+
+```medol
+domain Example {
+  context Accounts {}
+  context Training {}
+  userJourney MainJourney {
+    stage OnboardOrganization in Accounts
+    stage RunTraining in Training
+    from OnboardOrganization to RunTraining
+    from RunTraining to RunTraining when "More rounds required"
+  }
+}
+```
+
+Detailed journeys retain modeled action outcomes and independent prerequisites. The user journey summary remains a textual overview; the diagrams live in the standalone document so other diagram types can be added there later.
 
 Generate all document types:
 

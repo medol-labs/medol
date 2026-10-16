@@ -139,6 +139,11 @@ export const buildModelTranslationUnits = (
     addIdentifier(domain.name, common.add);
     (domain.deployments ?? []).forEach((deployment) => addIdentifier(deployment.name, common.add));
   });
+  (model.userJourneys ?? []).forEach((journey) => {
+    addIdentifier(journey.name, common.add);
+    journey.stages.forEach((stage) => addIdentifier(stage.name, common.add));
+    journey.transitions.forEach((transition) => common.add(transition.condition));
+  });
   (model.deployments ?? []).forEach((deployment) => addIdentifier(deployment.name, common.add));
   (model.contexts ?? []).forEach((context) => {
     allContextSlicesWithOwners(context).forEach(({ slice }) => {

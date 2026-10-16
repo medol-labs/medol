@@ -8677,6 +8677,44 @@ context RuntimeAgentOperations {
   }
 
 
+  userJourney FederationLearningEndToEnd {
+    stage OnboardOrganization in OrganizationManagement
+    stage JoinFederation in FederationManagement
+    stage ProvisionRuntime in RuntimeProvisioning
+    stage ConfirmRuntimeReady in RuntimeGovernance
+    stage DefineFeatureSchema in DatasetGovernance
+    stage PrepareParticipantDataset in RuntimeAgentOperations
+    stage RegisterInitialModel in ModelRepository
+    stage ConfigureTraining in TrainingOrchestration
+    stage SelectParticipants in TrainingOrchestration
+    stage TrainOnParticipants in RuntimeAgentOperations
+    stage SecurelyAggregateUpdates in SecureAggregation
+    stage AggregateUpdates in TrainingOrchestration
+    stage EvaluateGlobalModel in TrainingOrchestration
+    stage ContinueOrCompleteTraining in TrainingOrchestration
+    stage PublishTrainedModel in ModelRepository
+    stage MonitorRuntimeHealth in RuntimeMonitoring
+
+    from OnboardOrganization to JoinFederation
+    from OnboardOrganization to ProvisionRuntime
+    from ProvisionRuntime to ConfirmRuntimeReady
+    from ConfirmRuntimeReady to PrepareParticipantDataset
+    from DefineFeatureSchema to PrepareParticipantDataset
+    from JoinFederation to ConfigureTraining
+    from PrepareParticipantDataset to ConfigureTraining
+    from RegisterInitialModel to ConfigureTraining
+    from ConfigureTraining to SelectParticipants
+    from SelectParticipants to TrainOnParticipants
+    from TrainOnParticipants to SecurelyAggregateUpdates when "Secure aggregation required"
+    from TrainOnParticipants to AggregateUpdates when "Secure aggregation not required"
+    from SecurelyAggregateUpdates to EvaluateGlobalModel
+    from AggregateUpdates to EvaluateGlobalModel
+    from EvaluateGlobalModel to ContinueOrCompleteTraining
+    from ContinueOrCompleteTraining to SelectParticipants when "More rounds required"
+    from ContinueOrCompleteTraining to PublishTrainedModel when "Training complete"
+    from ConfirmRuntimeReady to MonitorRuntimeHealth
+  }
+
   deployment FederationLearningPlatform {
     includes OrganizationManagement
     includes FederationManagement

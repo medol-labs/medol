@@ -4,6 +4,7 @@ import {
   isActorRef,
   isAccessFieldRule,
   isAutomation,
+  isCommandStep,
   isAutomationCapabilityUse,
   isAutomationTrigger,
   isBinaryExpr,
@@ -19,6 +20,7 @@ import {
   isStartsLifecycleMarker,
   isConcept,
   isEvent,
+  isEventStep,
   isExportable,
   isExternal,
   isExternalCapabilities,
@@ -59,7 +61,9 @@ import {
   isTypeOneOfConstraint,
   isTypeRangeConstraint,
   isUiRef,
-  isValueType
+  isUserJourney,
+  isValueType,
+  isViewStep
 } from '../language/generated/ast';
 import type {
   Automation as AstAutomation,
@@ -91,9 +95,10 @@ import type {
   Specification as AstSpecification,
   ValidationExpression,
   ValidationOperand,
-  UiRef as AstUiRef
+  UiRef as AstUiRef,
+  UserJourney as AstUserJourney
 } from '../language/generated/ast';
-import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmAccessPolicy, type EmCapabilityExtension, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type MedolDiagnostic, type MedolSourceRange } from './model';
+import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmAccessPolicy, type EmCapabilityExtension, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type EmUserJourney, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 import { resolveBuiltinCapabilityName, resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
@@ -247,6 +252,7 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
   const contextGroups = models.map((model) => [...(model.contexts ?? [])]);
   const deploymentGroups = models.map((model) => [...(model.deployments ?? [])]);
   const frontendApplicationGroups = models.map((model) => [...(model.frontendApplications ?? [])]);
+  const userJourneyGroups = models.map((model) => [...(model.userJourneys ?? [])]);
   const accessPolicyGroups = models.map((model) => [...(model.accessPolicies ?? [])]);
   const defaultAccessGroups = models.map((model) => [...(model.defaultAccesses ?? [])]);
   const capabilityExtensionGroups = models.map((model) => [...(model.capabilityExtensions ?? [])]);
@@ -256,6 +262,7 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
   merged.contexts = [];
   merged.deployments = [];
   merged.frontendApplications = [];
+  merged.userJourneys = [];
   merged.accessPolicies = [];
   merged.defaultAccesses = [];
 
@@ -271,6 +278,7 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
         domain.contexts = [...(domain.contexts ?? [])];
         domain.deployments = [...(domain.deployments ?? [])];
         domain.frontendApplications = [...(domain.frontendApplications ?? [])];
+        domain.userJourneys = [...(domain.userJourneys ?? [])];
         domain.accessPolicies = [...(domain.accessPolicies ?? [])];
         domain.defaultAccesses = [...(domain.defaultAccesses ?? [])];
         domains.set(domain.name, domain);
@@ -279,6 +287,7 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
         mergeContexts(existing.contexts, domain.contexts ?? []);
         mergeDeployments(existing.deployments, domain.deployments ?? []);
         mergeFrontendApplications(existing.frontendApplications, domain.frontendApplications ?? []);
+        appendUniqueNamedAstNodes(existing.userJourneys, domain.userJourneys ?? []);
         appendUniqueNamedAstNodes(existing.accessPolicies, domain.accessPolicies ?? []);
         appendUniqueDefaultAccesses(existing.defaultAccesses, domain.defaultAccesses ?? []);
       }
@@ -286,6 +295,7 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
     mergeContexts(merged.contexts, contextGroups[index], looseContexts);
     mergeDeployments(merged.deployments, deploymentGroups[index], looseDeployments);
     mergeFrontendApplications(merged.frontendApplications, frontendApplicationGroups[index], looseFrontendApplications);
+    appendUniqueNamedAstNodes(merged.userJourneys, userJourneyGroups[index]);
     appendUniqueAccessPolicies(merged.accessPolicies, accessPolicyGroups[index], looseAccessPolicies);
     merged.defaultAccesses.push(...defaultAccessGroups[index]);
   }
@@ -448,6 +458,7 @@ export const astToEmModel = (ast: AstModel, builtinRoots: ReadonlySet<RootCstNod
     const domain = parseDomain(domainNode, model.edges);
     model.domains.push(domain);
     model.contexts.push(...domain.contexts);
+    model.userJourneys?.push(...(domain.userJourneys ?? []), ...domain.contexts.flatMap((context) => context.userJourneys ?? []));
     model.accessPolicies.push(...domain.accessPolicies);
     model.capabilityExtensions.push(...domain.capabilityExtensions, ...domain.contexts.flatMap((context) => context.capabilityExtensions));
     domain.deployments.forEach(addDeployment);
@@ -457,6 +468,7 @@ export const astToEmModel = (ast: AstModel, builtinRoots: ReadonlySet<RootCstNod
   for (const contextNode of ast.contexts ?? []) {
     const context = parseContext(contextNode, undefined, model.edges);
     model.contexts.push(context);
+    model.userJourneys?.push(...(context.userJourneys ?? []));
     model.capabilityExtensions.push(...context.capabilityExtensions);
   }
 
@@ -466,6 +478,13 @@ export const astToEmModel = (ast: AstModel, builtinRoots: ReadonlySet<RootCstNod
 
   for (const frontendApplicationNode of ast.frontendApplications ?? []) {
     addFrontendApplication(parseFrontendApplication(frontendApplicationNode, undefined));
+  }
+
+  model.userJourneys?.push(...(ast.userJourneys ?? []).map((journey) => parseUserJourney(journey)));
+  for (const journey of model.userJourneys ?? []) {
+    for (const stage of journey.stages) {
+      stage.contextId = model.contexts.find((context) => context.name === stage.context)?.id;
+    }
   }
 
   model.accessPolicies.push(...(ast.accessPolicies ?? []).map((policy) => parseAccessPolicy(policy)));
@@ -490,6 +509,7 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
     contexts: [],
     deployments: [],
     frontendApplications: [],
+    userJourneys: (node.userJourneys ?? []).map((journey) => parseUserJourney(journey, safeName(node.name, 'UnnamedDomain'))),
     capabilityExtensions: [],
     accessPolicies: [],
     ...(node.defaultAccesses?.length ? { defaultAccessPolicy: node.defaultAccesses.at(-1)?.policy } : {})
@@ -552,6 +572,55 @@ const parseFrontendApplication = (
   }))
 });
 
+const parseUserJourney = (
+  node: AstUserJourney,
+  domainName?: string,
+  contextName?: string
+): EmUserJourney => {
+  const name = safeName(node.name, 'UnnamedJourney');
+  const id = scopedId('user-journey', [domainName, contextName, name].filter(Boolean).join('/'));
+  const declaredStages = (node.stages ?? []).map((stage) => ({
+    id: `${id}/stage/${stage.name}`,
+    name: stage.name,
+    context: stage.context
+  }));
+  const legacyStages = (node.steps?.values ?? []).map((step, index) => {
+    const name = isCommandStep(step)
+      ? step.command.$refText
+      : isEventStep(step)
+        ? step.event.$refText
+        : isViewStep(step)
+          ? step.view
+          : `Step${index + 1}`;
+    return {
+      id: `${id}/stage/${index + 1}`,
+      name,
+      context: contextName ?? ''
+    };
+  });
+  const stages = [...declaredStages, ...legacyStages];
+  return {
+    id,
+    name,
+    ...(domainName ? { domain: domainName } : {}),
+    ...(contextName ? { context: contextName } : {}),
+    ...(node.actor?.actor ? { actor: node.actor.actor } : {}),
+    ...withSourceRange(node),
+    stages,
+    transitions: [
+      ...(node.transitions ?? []).map((transition) => ({
+        source: `${id}/stage/${transition.source}`,
+        target: `${id}/stage/${transition.target}`,
+        ...(transition.condition ? { condition: transition.condition } : {})
+      })),
+      ...legacyStages.slice(1).map((stage, index) => ({
+        source: legacyStages[index].id,
+        target: stage.id
+      }))
+    ]
+  };
+};
+
 const parseContext = (node: AstContext, domainId: string | undefined, edges: EmEdge[]): EmContext => {
   const contextName = safeName(node.name, 'UnnamedContext');
   const context: EmContext = {
@@ -568,7 +637,8 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     risks: [],
     decisions: [],
     metrics: [],
-    capabilityExtensions: []
+    capabilityExtensions: [],
+    userJourneys: []
   };
 
   for (const element of node.elements ?? []) {
@@ -615,6 +685,10 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     if (isCapabilityExtension(element)) {
       const extension = parseCapabilityExtension(element, { context: contextName });
       context.capabilityExtensions.push(extension);
+      continue;
+    }
+    if (isUserJourney(element)) {
+      context.userJourneys?.push(parseUserJourney(element, domainId, contextName));
       continue;
     }
     if (isIntegration(element) || isReadModel(element) || isAutomation(element)) {

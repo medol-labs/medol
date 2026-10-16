@@ -2,7 +2,7 @@ grammar Medol
 
 entry Model:
     imports+=Import*
-    (domains+=Domain | contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | accessPolicies+=AccessPolicy | defaultAccesses+=DefaultAccess | capabilityExtensions+=CapabilityExtension)*
+    (domains+=Domain | contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | userJourneys+=UserJourney | accessPolicies+=AccessPolicy | defaultAccesses+=DefaultAccess | capabilityExtensions+=CapabilityExtension)*
 ;
 
 Import:
@@ -29,7 +29,7 @@ ImportModuleNamePart returns string:
 
 Domain:
     'domain' name=ID '{'
-        (contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | accessPolicies+=AccessPolicy | defaultAccesses+=DefaultAccess | capabilityExtensions+=CapabilityExtension)*
+        (contexts+=Context | deployments+=Deployment | frontendApplications+=FrontendApplication | userJourneys+=UserJourney | accessPolicies+=AccessPolicy | defaultAccesses+=DefaultAccess | capabilityExtensions+=CapabilityExtension)*
     '}'
 ;
 
@@ -650,9 +650,18 @@ Target:
 
 UserJourney:
     'userJourney' name=ID '{'
-        actor=ActorRef
-        steps=Steps
+        actor=ActorRef?
+        steps=Steps?
+        (stages+=JourneyStage | transitions+=JourneyTransition)*
     '}'
+;
+
+JourneyStage:
+    'stage' name=ID 'in' context=ID
+;
+
+JourneyTransition:
+    'from' source=ID 'to' target=ID ('when' condition=STRING)?
 ;
 
 Steps:

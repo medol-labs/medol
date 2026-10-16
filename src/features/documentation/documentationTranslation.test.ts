@@ -611,12 +611,248 @@ test('generates Chinese user journey summary documentation', () => {
   assert.match(markdown, /\| 角色 \| 目标\/能力 \| 主要触点 \| 关键结果 \|/);
   assert.match(markdown, /\| 系统 \| Register Account \|/);
   assert.match(markdown, /Register Account/);
-  assert.match(markdown, /## 三、端到端旅程图/);
-  assert.match(markdown, /```mermaid\nflowchart LR/);
-  assert.match(markdown, /## 四、业务域旅程/);
+  assert.doesNotMatch(markdown, /```mermaid\nflowchart LR/);
+  assert.match(markdown, /## 三、业务域旅程/);
   assert.match(markdown, /\| 步骤 \| 角色\/触发方 \| 用户目标 \| 触点 \| 业务结果 \| 完成证据 \|/);
-  assert.match(markdown, /## 七、AI 辅助业务梳理提示词/);
+  assert.match(markdown, /## 六、AI 辅助业务梳理提示词/);
   assert.match(markdown, /不得编造模型中不存在的角色、能力、状态、页面、集成或业务规则/);
+});
+
+test('generates actor journeys from explicit results and automation links', () => {
+  const context = {
+    ...model.contexts[0],
+    aggregates: [],
+    slices: [
+      {
+        id: 'slice/create', name: 'CreateTrainingJob', tags: [], hotspots: [],
+        elements: [
+          { id: 'actor/researcher', kind: 'actor' as const, name: 'ResearchLead', fields: [] },
+          { id: 'screen/create', kind: 'screen' as const, name: 'TrainingJobScreen', fields: [] },
+          { id: 'command/create', kind: 'command' as const, name: 'CreateTrainingJob', fields: [], sliceId: 'slice/create' },
+          { id: 'event/created', kind: 'event' as const, name: 'TrainingJobCreated', fields: [] },
+          { id: 'spec/failure', kind: 'gwt' as const, name: 'MissingConfiguration', fields: [], metadata: { when: 'CreateTrainingJob', thenError: 'Configuration required' } }
+        ]
+      },
+      {
+        id: 'slice/review', name: 'ReviewTrainingJob', tags: [], hotspots: [],
+        elements: [
+          { id: 'actor/reviewer', kind: 'actor' as const, name: 'GovernanceReviewer', fields: [] },
+          { id: 'screen/review', kind: 'screen' as const, name: 'TrainingReviewScreen', fields: [] },
+          { id: 'command/review', kind: 'command' as const, name: 'ReviewTrainingJob', fields: [], sliceId: 'slice/review' },
+          { id: 'event/reviewed', kind: 'event' as const, name: 'TrainingJobReviewed', fields: [] }
+        ]
+      },
+      {
+        id: 'slice/submit', name: 'SubmitTrainingJob', tags: [], hotspots: [],
+        elements: [
+          { id: 'automation/submit', kind: 'automation' as const, name: 'SubmitWhenCreated', fields: [] },
+          { id: 'command/submit', kind: 'command' as const, name: 'SubmitTrainingJob', fields: [], sliceId: 'slice/submit' },
+          { id: 'event/submitted', kind: 'event' as const, name: 'TrainingJobSubmitted', fields: [] }
+        ]
+      },
+      {
+        id: 'slice/catalog', name: 'TrainingJobCatalog', tags: [], hotspots: [],
+        elements: [{ id: 'readmodel/jobs', kind: 'readmodel' as const, name: 'TrainingJobCatalog', fields: [] }]
+      },
+      {
+        id: 'slice/delete', name: 'DeleteTrainingJob', tags: [], hotspots: [],
+        elements: [
+          { id: 'actor/operator', kind: 'actor' as const, name: 'TrainingOperator', fields: [] },
+          { id: 'command/delete', kind: 'command' as const, name: 'DeleteTrainingJob', fields: [], sliceId: 'slice/delete' }
+        ]
+      }
+    ]
+  };
+  const diagramModel: EmModel = {
+    ...model,
+    contexts: [context],
+    domains: [{ ...model.domains[0], contexts: [context] }],
+    userJourneys: [{
+      id: 'user-journey/TrainingOverview', name: 'TrainingOverview',
+      stages: [
+        { id: 'user-journey/TrainingOverview/stage/CreateTraining', name: 'CreateTraining', context: context.name, contextId: context.id },
+        { id: 'user-journey/TrainingOverview/stage/ReviewTraining', name: 'ReviewTraining', context: context.name, contextId: context.id }
+      ],
+      transitions: [{ source: 'user-journey/TrainingOverview/stage/CreateTraining', target: 'user-journey/TrainingOverview/stage/ReviewTraining', condition: 'Ready for review' }]
+    }],
+    edges: [
+      { id: '1', source: 'command/create', target: 'event/created', label: 'emits' },
+      { id: '2', source: 'event/created', target: 'automation/submit', label: 'triggers' },
+      { id: '3', source: 'automation/submit', target: 'command/submit', label: 'emits' },
+      { id: '4', source: 'command/submit', target: 'event/submitted', label: 'emits' },
+      { id: '5', source: 'event/submitted', target: 'readmodel/jobs', label: 'updates' },
+      { id: '6', source: 'event/created', target: 'command/review', label: 'reactsTo' }
+    ]
+  };
+  const markdown = generateDocumentation(diagramModel, 'diagrams', { language: 'zh-CN' }).markdown;
+  const diagrams = [...markdown.matchAll(/```mermaid\n([\s\S]*?)\n```/g)].map((match) => match[1]);
+  const [overview, diagram] = diagrams;
+
+  assert.match(markdown, /# Account Platform 图表文档/);
+  assert.match(markdown, /## 一、总体业务旅程/);
+  assert.match(markdown, /## 二、用户旅程图/);
+  assert.match(overview, /Create Training/);
+  assert.match(overview, /Review Training/);
+  assert.match(overview, /S1 -->\|Ready for review\| S2/);
+  assert.match(markdown, /角色: Research Lead/);
+  assert.match(markdown, /界面: Training Job Screen/);
+  assert.match(markdown, /操作: Create Training Job/);
+  assert.match(markdown, /结果: Training Job Created/);
+  assert.match(markdown, /自动步骤: Submit When Created/);
+  assert.match(diagram ?? '', /后续可操作: Governance Reviewer/);
+  assert.match(diagram ?? '', /后续界面: Training Review Screen/);
+  assert.match(diagram ?? '', /操作: Review Training Job/);
+  assert.doesNotMatch(diagram ?? '', /Delete Training Job/);
+  assert.match(markdown, /结果: Training Job Submitted/);
+  assert.match(markdown, /查询视图: Training Job Catalog/);
+  assert.match(markdown, /失败: Configuration required/);
+  assert.equal(diagrams.length, 4);
+  assert.match(renderSimpleMermaidSvg(overview) ?? '', /<svg\b/);
+  assert.match(renderSimpleMermaidSvg(overview) ?? '', /Ready for review/);
+  assert.match(renderSimpleMermaidSvg(diagram ?? '') ?? '', /<svg\b/);
+});
+
+test('includes diagram journey terms in model translation units and renders their translations', () => {
+  const diagramModel: EmModel = {
+    ...model,
+    userJourneys: [{
+      id: 'journey/setup', name: 'SetupJourney',
+      stages: [
+        { id: 'stage/register', name: 'RegisterAccount', context: 'AccountManagement', contextId: 'context/account' },
+        { id: 'stage/confirm', name: 'ConfirmAccount', context: 'AccountManagement', contextId: 'context/account' }
+      ],
+      transitions: [{ source: 'stage/register', target: 'stage/confirm', condition: 'Account is active' }]
+    }]
+  };
+  const commonTexts = buildModelTranslationUnits(diagramModel)
+    .find((unit) => unit.id === 'common')?.sourceTexts ?? [];
+  assert(commonTexts.includes('Setup Journey'));
+  assert(commonTexts.includes('Confirm Account'));
+  assert(commonTexts.includes('Account is active'));
+
+  const translated = translateDocumentationModelWithModelTranslations(diagramModel, {
+    'Account Platform': '账户平台',
+    'Account Management': '账户管理',
+    'Setup Journey': '账户开通旅程',
+    'Register Account': '注册账户',
+    'Confirm Account': '确认账户',
+    'Account is active': '账户已激活'
+  });
+  const markdown = generateDocumentation(translated, 'diagrams', { language: 'zh-CN' }).markdown;
+  assert.match(markdown, /账户开通旅程（Setup Journey）/);
+  assert.match(markdown, /注册账户（Register Account）/);
+  assert.match(markdown, /确认账户（Confirm Account）/);
+  assert.match(markdown, /S1 -->\|账户已激活\| S2/);
+});
+
+test('resolves raw journey identifiers and keeps complete bilingual labels in the SVG', () => {
+  const diagramModel: EmModel = {
+    ...model,
+    userJourneys: [{
+      id: 'journey/setup', name: 'SetupJourney',
+      stages: [
+        { id: 'stage/organization', name: 'OnboardOrganization', context: 'AccountManagement', contextId: 'context/account' },
+        { id: 'stage/dataset', name: 'PrepareParticipantDataset', context: 'AccountManagement', contextId: 'context/account' }
+      ],
+      transitions: [{ source: 'stage/organization', target: 'stage/dataset', condition: 'Secure aggregation required' }]
+    }]
+  };
+  const translated = translateDocumentationModelWithModelTranslations(diagramModel, {
+    OnboardOrganization: '组织入驻',
+    PrepareParticipantDataset: '准备参与方数据集',
+    AccountManagement: '账户管理',
+    'Secure aggregation required': '需要安全聚合'
+  });
+  const markdown = generateDocumentation(translated, 'diagrams', { language: 'zh-CN' }).markdown;
+  const overview = markdown.match(/```mermaid\n([\s\S]*?)\n```/)?.[1] ?? '';
+  assert.match(overview, /组织入驻（Onboard Organization）/);
+  assert.match(overview, /准备参与方数据集（Prepare Participant Dataset）/);
+  assert.match(overview, /S1 -->\|需要安全聚合\| S2/);
+
+  const svg = renderSimpleMermaidSvg(overview) ?? '';
+  assert.match(svg, /Organization）/);
+  assert.match(svg, /Dataset）/);
+  assert.match(svg, /Management）/);
+  assert.match(svg, /<rect[^>]+height="[789]\d"/);
+});
+
+test('routes cross-row and backward journey edges through orthogonal corridors', () => {
+  const svg = renderSimpleMermaidSvg([
+    'flowchart LR',
+    '  S1["Start"]', '  S2["Next"]', '  S3["Third"]', '  S4["Fourth"]',
+    '  S5["Fifth"]',
+    '  S1 --> S2',
+    '  S1 --> S4',
+    '  S4 --> S1',
+    '  S1 --> S5'
+  ].join('\n')) ?? '';
+  const paths = [...svg.matchAll(/<path d="([^"]+)"[^>]*marker-end/g)].map((match) => match[1]);
+  assert.equal(paths.length, 4);
+  assert(paths.every((path) => !/\bL\b/.test(path)));
+  assert.match(paths[0], /^M [\d.]+ [\d.]+ H [\d.]+$/);
+  assert(paths.slice(1).every((path) => / H [\d.]+ V [\d.]+ H [\d.]+ V [\d.]+ H [\d.]+$/.test(path)));
+  assert.notEqual(paths[1].match(/ V ([\d.]+) H/)?.[1], paths[2].match(/ V ([\d.]+) H/)?.[1]);
+  const portY = (path: string) => Number(path.match(/^M [\d.]+ ([\d.]+)/)?.[1]);
+  assert.notEqual(portY(paths[0]), portY(paths[1]));
+  assert.notEqual(portY(paths[0]), portY(paths[3]));
+  assert.notEqual(portY(paths[1]), portY(paths[3]));
+  assert.match(svg, /Start → Fourth/);
+  assert.match(svg, /Fourth → Start/);
+  assert.match(svg, /marker-end="url\(#arrow-0\)"/);
+  assert.match(svg, /marker-end="url\(#arrow-3\)"/);
+  assert.match(svg, /marker-end="url\(#arrow\)"/);
+});
+
+test('shows unconnected orthogonal crossings as separate lines', () => {
+  const svg = renderSimpleMermaidSvg([
+    'flowchart LR',
+    '  A["First"]', '  B["Second"]', '  C["Third"]', '  D["Fourth"]',
+    '  E["Fifth"]', '  F["Sixth"]', '  G["Seventh"]', '  H["Eighth"]',
+    '  I["Ninth"]', '  J["Tenth"]', '  K["Eleventh"]', '  L["Twelfth"]', '  M["Thirteenth"]',
+    '  A --> D', '  B --> E'
+  ].join('\n')) ?? '';
+  assert.match(svg, /First → Fourth/);
+  assert.match(svg, /Second → Fifth/);
+  assert.match(svg, /data-crossing-gap="true"/);
+});
+
+test('overall business flow follows declared journey transitions rather than inferred context links', () => {
+  const first = {
+    ...model.contexts[0], id: 'context/first', name: 'OrganizationManagement', aggregates: [],
+    slices: [{ id: 'slice/first', name: 'RegisterOrganization', tags: [], hotspots: [], elements: [
+      { id: 'event/registered', kind: 'event' as const, name: 'OrganizationRegistered', fields: [] }
+    ] }]
+  };
+  const second = {
+    ...first, id: 'context/second', name: 'RuntimeProvisioning',
+    slices: [{ id: 'slice/second', name: 'PlanRuntime', tags: [], hotspots: [], elements: [
+      { id: 'command/plan', kind: 'command' as const, name: 'PlanRuntime', fields: [] }
+    ] }]
+  };
+  const independent = { ...first, id: 'context/independent', name: 'DictionaryMaintenance', slices: [] };
+  const contexts = [first, second, independent];
+  const diagramModel: EmModel = {
+    ...model, contexts, domains: [{ ...model.domains[0], contexts }],
+    edges: [{ id: 'handoff', source: 'event/registered', target: 'command/plan', label: 'reactsTo' }],
+    userJourneys: [{
+      id: 'user-journey/Setup', name: 'Setup',
+      stages: [
+        { id: 'stage/organization', name: 'OnboardOrganization', context: first.name, contextId: first.id },
+        { id: 'stage/runtime', name: 'ProvisionRuntime', context: second.name, contextId: second.id },
+        { id: 'stage/dictionary', name: 'SeedDictionary', context: independent.name, contextId: independent.id }
+      ],
+      transitions: [{ source: 'stage/organization', target: 'stage/runtime' }]
+    }]
+  };
+  const markdown = generateDocumentation(diagramModel, 'diagrams', { language: 'zh-CN' }).markdown;
+  const overview = markdown.match(/```mermaid\n([\s\S]*?)\n```/)?.[1] ?? '';
+
+  assert.match(overview, /S1\["Onboard Organization<br\/>Organization Management"\]/);
+  assert.match(overview, /S2\["Provision Runtime<br\/>Runtime Provisioning"\]/);
+  assert.match(overview, /S3\["Seed Dictionary<br\/>Dictionary Maintenance"\]/);
+  assert.match(overview, /S1 --> S2/);
+  assert.doesNotMatch(overview, /S2 --> S3|S1 --> S3/);
+  assert.doesNotMatch(markdown, /业务域职责/);
 });
 
 test('generates Chinese installation and user manuals', () => {
@@ -711,7 +947,7 @@ const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 test('includes editable change log front matter in generated Chinese Markdown', () => {
-  for (const kind of ['prd', 'software-design', 'database-design', 'process', 'test-outline', 'user-journey', 'installation-manual', 'user-manual'] as const) {
+  for (const kind of ['prd', 'software-design', 'database-design', 'process', 'test-outline', 'user-journey', 'diagrams', 'installation-manual', 'user-manual'] as const) {
     const markdown = generateDocumentation(
       model,
       kind,

@@ -101,6 +101,7 @@ export type MedolKeywordNames =
     | "identity"
     | "import"
     | "importable"
+    | "in"
     | "includes"
     | "inline"
     | "integration"
@@ -147,6 +148,7 @@ export type MedolKeywordNames =
     | "slice"
     | "source"
     | "specification"
+    | "stage"
     | "startsLifecycle"
     | "state"
     | "steps"
@@ -159,6 +161,7 @@ export type MedolKeywordNames =
     | "target"
     | "technical"
     | "then"
+    | "to"
     | "todo"
     | "true"
     | "type"
@@ -748,6 +751,7 @@ export interface Domain extends langium.AstNode {
     deployments: Array<Deployment>;
     frontendApplications: Array<FrontendApplication>;
     name: string;
+    userJourneys: Array<UserJourney>;
 }
 
 export const Domain = {
@@ -758,7 +762,8 @@ export const Domain = {
     defaultAccesses: 'defaultAccesses',
     deployments: 'deployments',
     frontendApplications: 'frontendApplications',
-    name: 'name'
+    name: 'name',
+    userJourneys: 'userJourneys'
 } as const;
 
 export function isDomain(item: unknown): item is Domain {
@@ -1319,6 +1324,42 @@ export function isIntegrationElement(item: unknown): item is IntegrationElement 
     return reflection.isInstance(item, IntegrationElement.$type);
 }
 
+export interface JourneyStage extends langium.AstNode {
+    readonly $container: UserJourney;
+    readonly $type: 'JourneyStage';
+    context: string;
+    name: string;
+}
+
+export const JourneyStage = {
+    $type: 'JourneyStage',
+    context: 'context',
+    name: 'name'
+} as const;
+
+export function isJourneyStage(item: unknown): item is JourneyStage {
+    return reflection.isInstance(item, JourneyStage.$type);
+}
+
+export interface JourneyTransition extends langium.AstNode {
+    readonly $container: UserJourney;
+    readonly $type: 'JourneyTransition';
+    condition?: string;
+    source: string;
+    target: string;
+}
+
+export const JourneyTransition = {
+    $type: 'JourneyTransition',
+    condition: 'condition',
+    source: 'source',
+    target: 'target'
+} as const;
+
+export function isJourneyTransition(item: unknown): item is JourneyTransition {
+    return reflection.isInstance(item, JourneyTransition.$type);
+}
+
 export type Literal = BooleanLiteral | NullLiteral | NumberLiteral | StringLiteral;
 
 export const Literal = {
@@ -1369,6 +1410,7 @@ export interface Model extends langium.AstNode {
     domains: Array<Domain>;
     frontendApplications: Array<FrontendApplication>;
     imports: Array<Import>;
+    userJourneys: Array<UserJourney>;
 }
 
 export const Model = {
@@ -1380,7 +1422,8 @@ export const Model = {
     deployments: 'deployments',
     domains: 'domains',
     frontendApplications: 'frontendApplications',
-    imports: 'imports'
+    imports: 'imports',
+    userJourneys: 'userJourneys'
 } as const;
 
 export function isModel(item: unknown): item is Model {
@@ -2024,18 +2067,22 @@ export function isUniqueValidation(item: unknown): item is UniqueValidation {
 }
 
 export interface UserJourney extends langium.AstNode {
-    readonly $container: Context;
+    readonly $container: Context | Domain | Model;
     readonly $type: 'UserJourney';
-    actor: ActorRef;
+    actor?: ActorRef;
     name: string;
-    steps: Steps;
+    stages: Array<JourneyStage>;
+    steps?: Steps;
+    transitions: Array<JourneyTransition>;
 }
 
 export const UserJourney = {
     $type: 'UserJourney',
     actor: 'actor',
     name: 'name',
-    steps: 'steps'
+    stages: 'stages',
+    steps: 'steps',
+    transitions: 'transitions'
 } as const;
 
 export function isUserJourney(item: unknown): item is UserJourney {
@@ -2193,6 +2240,8 @@ export type MedolAstType = {
     Importable: Importable
     Integration: Integration
     IntegrationElement: IntegrationElement
+    JourneyStage: JourneyStage
+    JourneyTransition: JourneyTransition
     Literal: Literal
     LookupKey: LookupKey
     Metric: Metric
@@ -2653,6 +2702,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 name: {
                     name: Domain.name
+                },
+                userJourneys: {
+                    name: Domain.userJourneys,
+                    defaultValue: []
                 }
             },
             superTypes: []
@@ -3046,6 +3099,33 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             },
             superTypes: []
         },
+        JourneyStage: {
+            name: JourneyStage.$type,
+            properties: {
+                context: {
+                    name: JourneyStage.context
+                },
+                name: {
+                    name: JourneyStage.name
+                }
+            },
+            superTypes: []
+        },
+        JourneyTransition: {
+            name: JourneyTransition.$type,
+            properties: {
+                condition: {
+                    name: JourneyTransition.condition
+                },
+                source: {
+                    name: JourneyTransition.source
+                },
+                target: {
+                    name: JourneyTransition.target
+                }
+            },
+            superTypes: []
+        },
         Literal: {
             name: Literal.$type,
             properties: {
@@ -3104,6 +3184,10 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 imports: {
                     name: Model.imports,
+                    defaultValue: []
+                },
+                userJourneys: {
+                    name: Model.userJourneys,
                     defaultValue: []
                 }
             },
@@ -3565,8 +3649,16 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 name: {
                     name: UserJourney.name
                 },
+                stages: {
+                    name: UserJourney.stages,
+                    defaultValue: []
+                },
                 steps: {
                     name: UserJourney.steps
+                },
+                transitions: {
+                    name: UserJourney.transitions,
+                    defaultValue: []
                 }
             },
             superTypes: [ContextElement.$type]

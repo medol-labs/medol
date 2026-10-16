@@ -1,6 +1,6 @@
 import Editor from '@monaco-editor/react';
 import type { OnMount } from '@monaco-editor/react';
-import { Download, FileDown, FileText, LocateFixed, PanelLeftClose, PanelLeftOpen, Save, Trash2 } from 'lucide-react';
+import { Download, FileDown, FileText, LocateFixed, Maximize2, Minus, PanelLeftClose, PanelLeftOpen, RotateCcw, Save, Trash2, X, ZoomIn } from 'lucide-react';
 import type { MouseEvent, ReactNode } from 'react';
 import { Children, isValidElement, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -8,6 +8,7 @@ import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ModelingDocument, ModelingDocumentSummary } from '../../contracts/modelingDocument';
 import { Button } from '../../components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../../components/ui/dialog';
 import { OverflowText } from '../../components/ui/overflow-text';
 import { renderSimpleMermaidSvg } from '../../lib/generators/documentation/simpleMermaidRenderer';
 import {
@@ -545,6 +546,7 @@ const labelKind = (kind: ModelingDocumentSummary['kind']): string => ({
   process: 'Process',
   'test-outline': 'Test',
   'user-journey': 'Journey',
+  diagrams: 'Diagrams',
   'installation-manual': 'Install',
   'user-manual': 'User',
   'model-translations': 'I18N'
@@ -571,6 +573,8 @@ const markdownComponents: Components = {
 
 function MermaidDiagram({ source }: { source: string }) {
   const svg = useMemo(() => renderSimpleMermaidSvg(source), [source]);
+  const [expanded, setExpanded] = useState(false);
+  const [zoom, setZoom] = useState(1);
   if (!svg) {
     return (
       <pre className="document-mermaid-fallback">
@@ -578,11 +582,59 @@ function MermaidDiagram({ source }: { source: string }) {
       </pre>
     );
   }
+  const naturalWidth = Number(svg.match(/\bwidth="(\d+)"/)?.[1] ?? 900);
   return (
-    <div
-      className="document-mermaid"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <>
+      <div className="document-mermaid">
+        <div className="document-mermaid__actions">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            title="Expand diagram"
+            aria-label="Expand diagram"
+            onClick={(event) => {
+              event.stopPropagation();
+              setZoom(1);
+              setExpanded(true);
+            }}
+          >
+            <Maximize2 size={16} />
+          </Button>
+        </div>
+        <div className="document-mermaid__diagram" dangerouslySetInnerHTML={{ __html: svg }} />
+      </div>
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="document-mermaid-dialog" showCloseButton={false}>
+          <div className="document-mermaid-dialog__toolbar">
+            <DialogTitle className="text-sm font-semibold">Diagram</DialogTitle>
+            <DialogDescription className="sr-only">Expanded diagram preview with zoom controls.</DialogDescription>
+            <div className="document-mermaid-dialog__controls">
+              <Button type="button" variant="outline" size="icon" title="Zoom out" aria-label="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))}>
+                <Minus size={16} />
+              </Button>
+              <span className="document-mermaid-dialog__scale">{Math.round(zoom * 100)}%</span>
+              <Button type="button" variant="outline" size="icon" title="Zoom in" aria-label="Zoom in" disabled={zoom >= 3} onClick={() => setZoom((value) => Math.min(3, value + 0.25))}>
+                <ZoomIn size={16} />
+              </Button>
+              <Button type="button" variant="outline" size="icon" title="Reset zoom" aria-label="Reset zoom" disabled={zoom === 1} onClick={() => setZoom(1)}>
+                <RotateCcw size={16} />
+              </Button>
+              <Button type="button" variant="outline" size="icon" title="Close diagram" aria-label="Close diagram" onClick={() => setExpanded(false)}>
+                <X size={16} />
+              </Button>
+            </div>
+          </div>
+          <div className="document-mermaid-dialog__viewport">
+            <div
+              className="document-mermaid-dialog__canvas"
+              style={{ width: `${naturalWidth * zoom}px` }}
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

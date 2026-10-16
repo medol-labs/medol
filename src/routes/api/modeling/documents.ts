@@ -14,7 +14,10 @@ import {
 import { parseMedol } from '../../../lib/dslParser';
 import type { EmModel } from '../../../lib/model';
 import { readResolvedModelTranslations } from '../../../server/modelTranslationResolver';
-import { translateDocumentationModelWithModelTranslations } from '../../../features/documentation/documentationTranslation';
+import {
+  buildDocumentationTranslationCatalog,
+  translateDocumentationModelWithModelTranslations
+} from '../../../features/documentation/documentationTranslation';
 
 const documentKinds = new Set<DocumentationKind>([
   'prd',
@@ -23,6 +26,7 @@ const documentKinds = new Set<DocumentationKind>([
   'process',
   'test-outline',
   'user-journey',
+  'diagrams',
   'installation-manual',
   'user-manual'
 ]);
@@ -116,5 +120,11 @@ const readCurrentModelTranslations = (input: {
   const catalog = buildModelTranslationCatalogFromUnits(
     buildModelTranslationUnits(input.model)
   );
-  return readResolvedModelTranslations(input, catalog.sourceTexts).translations;
+  const documentationCatalog = buildDocumentationTranslationCatalog(input.model);
+  const sourceTexts = [...new Set([
+    ...catalog.sourceTexts,
+    ...documentationCatalog.identifiers,
+    ...documentationCatalog.narratives
+  ])];
+  return readResolvedModelTranslations(input, sourceTexts).translations;
 };

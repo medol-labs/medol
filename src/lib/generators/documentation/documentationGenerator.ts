@@ -26,6 +26,7 @@ import { numberMarkdownHeadings } from './documentHeadingNumbering';
 import { insertMarkdownTableOfContentsAfterTitle } from './documentTableOfContents';
 import { localizeDocumentationMarkdown } from './documentationLocalization';
 import { coveredSpecificationExpressions } from '../../specificationCoverage';
+import { renderDiagramsMarkdown } from './diagramMarkdownRenderer';
 
 export interface GenerateDocumentationOptions {
   generatedAt?: string;
@@ -51,6 +52,8 @@ export const generateDocumentation = (
           ? renderTestOutlineMarkdown(bundle, language)
           : kind === 'user-journey'
             ? renderUserJourneyMarkdown(bundle, language)
+            : kind === 'diagrams'
+              ? renderDiagramsMarkdown(model, bundle, language)
             : kind === 'installation-manual'
               ? renderInstallationManualMarkdown(bundle, language)
               : kind === 'user-manual'
@@ -77,6 +80,7 @@ export const generateDocumentationBundle = (
   process: generateDocumentation(model, 'process', options),
   'test-outline': generateDocumentation(model, 'test-outline', options),
   'user-journey': generateDocumentation(model, 'user-journey', options),
+  diagrams: generateDocumentation(model, 'diagrams', options),
   'installation-manual': generateDocumentation(model, 'installation-manual', options),
   'user-manual': generateDocumentation(model, 'user-manual', options)
 });
@@ -393,6 +397,7 @@ const documentTitle = (
     if (kind === 'database-design') return `${title} 数据库设计`;
     if (kind === 'test-outline') return `${title} 测试大纲`;
     if (kind === 'user-journey') return `${title} 用户旅程总结`;
+    if (kind === 'diagrams') return `${title} 图表文档`;
     if (kind === 'installation-manual') return `${title} 安装部署手册`;
     if (kind === 'user-manual') return `${title} 使用手册`;
     return `${title} 业务流程`;
@@ -402,6 +407,7 @@ const documentTitle = (
   if (kind === 'database-design') return `${title} Database Design`;
   if (kind === 'test-outline') return `${title} Test Outline`;
   if (kind === 'user-journey') return `${title} User Journey Summary`;
+  if (kind === 'diagrams') return `${title} Diagrams`;
   if (kind === 'installation-manual') return `${title} Installation And Deployment Guide`;
   if (kind === 'user-manual') return `${title} User Manual`;
   return `${title} Business Process`;
