@@ -385,6 +385,29 @@ test('parses projection eligibility conditions and preserves them for code gener
   assert.match(roundTripDsl, /SelectableDataset\.qualificationLevel >= 5/);
 });
 
+test('preserves qualified eligibility references separately from string literals', () => {
+  const model = parseMedol(`
+    context Catalogs {
+      slice Entries {
+        readmodel EntryCatalog[] {
+          entryId: UUID id
+          currentValue: String
+          expectedValue: String
+          eligible when {
+            EntryCatalog.currentValue == EntryCatalog.expectedValue
+            EntryCatalog.currentValue != "qualified.value"
+          }
+        }
+      }
+    }
+  `);
+  assert.deepEqual(model.diagnostics, []);
+  const eligibility = modelToCodegenModel(model).slices.flatMap((slice) => slice.readmodels)[0].eligibility!;
+  assert.equal(eligibility[0].conditions[0].rightReference, 'EntryCatalog.expectedValue');
+  assert.equal(eligibility[0].conditions[1].right, 'qualified.value');
+  assert.equal(eligibility[0].conditions[1].rightReference, undefined);
+});
+
 test('parses access policies and preserves read model access overrides', () => {
   const model = parseMedol(`
     access policy DefaultAccess {

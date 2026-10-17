@@ -264,6 +264,7 @@ export interface CodegenEligibilityCondition {
   left: string;
   operator: '>' | '<' | '>=' | '<=' | '==' | '!=';
   right: string | number | boolean | null;
+  rightReference?: string;
 }
 
 export interface CodegenField {

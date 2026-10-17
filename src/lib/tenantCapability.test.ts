@@ -276,3 +276,12 @@ test('removing the tenant import disables isolation even when custom bindings re
   assert.deepEqual(disabled.diagnostics, []);
   assert.equal(modelToCodegenModel(disabled).tenancy, undefined);
 });
+
+test('only imported IAM is classified as a platform control plane', () => {
+  const imported = parseMedol('import tenant-management\nimport identity-access-management as Accounts');
+  assert.deepEqual(imported.diagnostics, []);
+  assert(modelToCodegenModel(imported).tenancy?.managementContexts.includes('IdentityAccessManagement'));
+  const merelyNamed = parseMedol('import tenant-management\ncontext IdentityAccessManagement { note "Business context, not imported IAM" }');
+  assert.deepEqual(merelyNamed.diagnostics, []);
+  assert.equal(modelToCodegenModel(merelyNamed).tenancy?.managementContexts.includes('IdentityAccessManagement'), false);
+});

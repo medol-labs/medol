@@ -53,7 +53,8 @@ export const resolveTenantCapability = (model: EmModel): {
   ].filter((element) => element.kind === 'readmodel').map((element) => ({ context: context.name, element })));
 
   const resolved = new Map<string, TenantCapabilityProvider>();
-  const managementContexts = new Set<string>();
+  const managementContexts = new Set<string>(model.capabilityImports?.some((imported) => imported.name === 'IdentityAccessManagement')
+    ? ['IdentityAccessManagement'] : []);
   for (const [kind, requiredRoles] of Object.entries(rolesByKind)) {
     const providers = candidates.filter((candidate) => candidate.provider.kind === kind);
     const overrides = providers.filter(({ extension }) => !extension.builtinDefault);

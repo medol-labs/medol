@@ -90,6 +90,7 @@ export interface EmEligibilityCondition {
   left: string;
   operator: '>' | '<' | '>=' | '<=' | '==' | '!=';
   right: string | number | boolean | null;
+  rightReference?: string;
 }
 
 export interface EmDictionaryProvider {

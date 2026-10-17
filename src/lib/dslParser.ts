@@ -1165,7 +1165,9 @@ const parseEligibilityCondition = (
   return {
     left: formatLiteral(expression.left),
     operator: expression.operator as NonNullable<EmElement['eligibility']>[number]['conditions'][number]['operator'],
-    right: literalValue(expression.right)
+    right: literalValue(expression.right),
+    ...(isRefExpr(expression.right) && expression.right.ref.parts.length > 1
+      ? { rightReference: formatFieldSource(expression.right.ref) } : {})
   };
 };
 
