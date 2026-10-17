@@ -32,6 +32,10 @@ const loadBuiltinMedol = async (fileName: string): Promise<string> => {
     const source = await import('../builtin-models/system-notification.medol?raw');
     return source.default;
   }
+  if (fileName === 'tenant-management.medol') {
+    const source = await import('../builtin-models/tenant-management.medol?raw');
+    return source.default;
+  }
   throw new Error(`Built-in Medol model not found: ${fileName}`);
 };
 
@@ -40,8 +44,11 @@ const dictionaryMaintenanceMedol = await loadBuiltinMedol('dictionary-maintenanc
 const dataExchangeMedol = await loadBuiltinMedol('data-exchange.medol');
 const fileUploadMedol = await loadBuiltinMedol('file-upload.medol');
 const systemNotificationMedol = await loadBuiltinMedol('system-notification.medol');
+const tenantManagementMedol = await loadBuiltinMedol('tenant-management.medol');
 
 export const builtinMedolModels = new Map<string, string>([
+  ['tenant-management', tenantManagementMedol],
+  ['tenantManagement', tenantManagementMedol],
   ['identity-access-management', identityAccessManagementMedol],
   ['identityAccessManagement', identityAccessManagementMedol],
   ['iam', identityAccessManagementMedol],
@@ -59,6 +66,10 @@ export const builtinMedolModels = new Map<string, string>([
   ['notifications', systemNotificationMedol]
 ]);
 
+const builtinCapabilityNames = new Map([...builtinMedolModels].flatMap(([module, source]) =>
+  [[module, extractBuiltinContextName(source)], [extractBuiltinContextName(source), extractBuiltinContextName(source)]] as Array<[string, string]>
+));
+
 export const resolveBuiltinMedolImport = (
   imported: MedolImportReference
 ): MedolSource | undefined => {
@@ -67,6 +78,7 @@ export const resolveBuiltinMedolImport = (
   if (!source) return undefined;
   return {
     sourceName: `<builtin:${moduleName}>`,
+    builtin: true,
     text: appendBuiltinDeployment(source, imported.deployment)
   };
 };
@@ -85,6 +97,9 @@ export const resolveBuiltinDeploymentOnlyImport = (
 
 export const supportedBuiltinMedolImports = (): string[] => [...builtinMedolModels.keys()];
 
+export const resolveBuiltinCapabilityName = (reference: string): string | undefined =>
+  builtinCapabilityNames.get(reference);
+
 const appendBuiltinDeployment = (text: string, deployment?: string): string => {
   return `${text}
 
@@ -99,7 +114,7 @@ const builtinDeployment = (text: string, deployment?: string): string => {
 `;
 };
 
-const extractBuiltinContextName = (text: string): string => {
+function extractBuiltinContextName(text: string): string {
   const match = text.match(/\bcontext\s+([A-Za-z_][A-Za-z0-9_]*)\b/);
   return match?.[1] ?? 'IdentityAccessManagement';
-};
+}

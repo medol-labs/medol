@@ -393,6 +393,22 @@ event TrainingJobCompleted {
 
 通知列表是业务事实；header 红点、未读数量和 toast 是前端呈现策略。生成前端会在 header 中探测 `SystemNotificationSummary`，有未读时显示标识；当新通知的 `toastPolicy` 或 `severity` 需要即时提示时弹出 toast。没有引入 `SystemNotification` 时，header 通知入口不会显示。
 
+## TenantManagement 建模
+
+### 租户模块
+
+通过 `import tenant-management as PlatformTenants deploy Support` 引用内置租户管理，使用 `TenantManagement` 上下文生成管理页面。内置模块自带应用级 `extend TenantManagement` 默认绑定，不需要额外 JSON 或 context 开关。
+
+自定义模型仍须导入 `tenant-management`，然后在应用级声明 `extend TenantManagement { provider ... }`，将标准租户能力绑定到自己的租户目录和成员关系。用户的 context、读模型和字段名不受限制。管理页面可通过 frontend 选择，不要求展示内置页面。
+
+是否开启先看实际 import：未导入 `tenant-management` 时不输出 `tenancy`，即使有同名 `extend` 或不完整绑定，也不开启、不做租户能力校验。已导入时才解析和校验最终绑定，有歧义或无效映射则报错。生成器消费解析后的契约，不维护第二套运行时扩展注册表。租户绑定必须位于 domain/context 外；内置默认绑定按来源标记，用户绑定可逐项覆盖，不通过 context 名字推断默认优先级。导入别名与间接导入同样有效。
+
+内置模型包含租户注册、激活、暂停、恢复、信息维护，以及成员加入、撤销和恢复。通过现有 `extend ... { provider ... }` 可以替换租户目录与成员数据源，或完全自定义管理模型。
+
+启用后整个应用模型的业务部署都会保留租户契约。当前 Axon5 生成器要求接入完整 `TenantIsolationRuntime` 适配器，没有适配器时启动失败；租户管理模型和元数据本身不等于已经实现数据库与事件存储隔离。
+
+详见 [租户管理内置能力](tenant-management.md)。
+
 ## 后续扩展方向
 
 后续如果新增通用业务能力，例如导入导出管理、审计管理、通知管理，应优先按同一模式设计：

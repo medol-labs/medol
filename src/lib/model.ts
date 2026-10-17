@@ -115,12 +115,19 @@ export interface EmNotifiable {
 }
 
 export interface EmCapabilityExtension {
+  // Set by the builtin source loader, never inferred from context or provider names.
+  builtinDefault?: true;
   target: string;
   domain?: string;
   context?: string;
   sourceRange?: MedolSourceRange;
   providers: EmCapabilityProvider[];
   actors: string[];
+}
+
+export interface EmCapabilityImport {
+  name: string;
+  alias?: string;
 }
 
 export interface EmCapabilityProvider {
@@ -312,6 +319,7 @@ export interface MedolDiagnostic {
 }
 
 export interface EmModel {
+  capabilityImports?: EmCapabilityImport[];
   domains: EmDomain[];
   deployments: EmDeployment[];
   frontendApplications: EmFrontendApplication[];

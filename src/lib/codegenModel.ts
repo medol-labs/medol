@@ -2,8 +2,11 @@ import type { EmCapabilityProvider, EmDictionaryProvider, EmElement, EmField, Em
 import { allContextSlices } from './dslParser';
 import { humanize } from './name';
 import { coveredSpecificationExpressions } from './specificationCoverage';
+import type { TenantCapability } from './tenantCapability';
+import { resolveTenantCapability } from './tenantCapability';
 
 export interface CodegenModel {
+  tenancy?: TenantCapability;
   rootPackage: 'tech.medo';
   domain?: string;
   domains?: Array<{ id: string; name: string; title: string; defaultAccessPolicy?: string; contexts: Array<{ id: string; name: string; title: string }> }>;
@@ -385,6 +388,8 @@ export interface CodegenSpecificationReject {
 }
 
 export const modelToCodegenModel = (model: EmModel): CodegenModel => {
+  const runtime = resolveTenantCapability(model);
+  if (runtime.diagnostics.length) throw new Error(runtime.diagnostics.join('\n'));
   const aggregateRecords = new Map<string, CodegenAggregate>();
   const actorRecords = new Map<string, CodegenActor>();
   const elementsById = new Map<string, EmElement>();
@@ -537,6 +542,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         }
       : {}),
     ...(model.defaultAccessPolicy ? { defaultAccessPolicy: model.defaultAccessPolicy } : {}),
+    ...(runtime.capability ? { tenancy: runtime.capability } : {}),
     contexts: model.contexts.map((contextItem) => ({
       id: stableId('context', contextItem.id),
       name: contextItem.name,

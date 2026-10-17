@@ -1,0 +1,295 @@
+domain TenantManagement {
+  context TenantManagement {
+    note "Tenant management is the platform control plane. Tenant identities are system isolation boundaries, not business organizations. Membership does not grant business roles or permissions."
+    note "Effective tenant access requires both an Active tenant and an Active membership for the trusted account. Suspending a tenant does not rewrite member states. Restoring membership never resumes a suspended tenant."
+
+    type TenantCode = String {
+      length 1..64
+      matches "[A-Za-z0-9][A-Za-z0-9_-]*"
+    }
+
+    type TenantName = String {
+      length 1..200
+      matches ".*\\S.*"
+    }
+
+    type TenantChangeReason = String {
+      length 1..1000
+      matches "[\\s\\S]*\\S[\\s\\S]*"
+    }
+
+    slice RegisterTenant {
+      startsLifecycle
+      actor TenantAdministrator
+      ui TenantCatalogScreen
+
+      command RegisterTenant {
+        tenantId: UUID id generated technical
+        tenantCode: TenantCode { example "acme" }
+        tenantName: TenantName { example "Acme" }
+        description: Text?
+      }
+
+      event TenantRegistered {
+        tenantId: UUID id technical
+        tenantCode: TenantCode
+        tenantName: TenantName
+        description: Text?
+      }
+
+      state Registered
+
+      specification "Tenant Code Unique" {
+        expression {
+          unique Tenant.tenantCode
+        }
+        scenario "Reject Duplicate Tenant Code" {
+          given TenantRegistered { tenantCode = "acme" }
+          when RegisterTenant { tenantCode = "acme" }
+          then reject "Tenant code already exists."
+        }
+      }
+    }
+
+    slice UpdateTenant {
+      actor TenantAdministrator
+      ui TenantCatalogScreen
+      reactsTo TenantRegistered
+      reactsTo TenantActivated
+      reactsTo TenantSuspended
+      reactsTo TenantResumed
+
+      command UpdateTenant {
+        tenantId: UUID id technical
+        tenantName: TenantName
+        description: Text?
+      }
+
+      event TenantUpdated {
+        tenantId: UUID id technical
+        tenantCode: TenantCode from TenantRegistered.tenantCode
+        tenantName: TenantName
+        description: Text?
+      }
+    }
+
+    slice ActivateTenant {
+      actor TenantAdministrator
+      ui TenantCatalogScreen confirm
+      reactsTo TenantRegistered
+
+      command ActivateTenant {
+        tenantId: UUID id technical
+      }
+
+      event TenantActivated {
+        tenantId: UUID id technical
+        tenantCode: TenantCode from TenantRegistered.tenantCode
+        tenantName: TenantName from TenantRegistered.tenantName
+        description: Text? from TenantRegistered.description
+      }
+
+      state Active
+    }
+
+    slice SuspendTenant {
+      actor TenantAdministrator
+      ui TenantCatalogScreen confirm
+      reactsTo TenantActivated
+      reactsTo TenantResumed
+
+      command SuspendTenant {
+        tenantId: UUID id technical
+        suspensionReason: TenantChangeReason
+      }
+
+      event TenantSuspended {
+        tenantId: UUID id technical
+        tenantCode: TenantCode from TenantRegistered.tenantCode
+        tenantName: TenantName from TenantRegistered.tenantName
+        description: Text? from TenantRegistered.description
+        suspensionReason: TenantChangeReason
+      }
+
+      state Suspended
+    }
+
+    slice ResumeTenant {
+      actor TenantAdministrator
+      ui TenantCatalogScreen confirm
+      reactsTo TenantSuspended
+
+      command ResumeTenant {
+        tenantId: UUID id technical
+        resumptionReason: TenantChangeReason
+      }
+
+      event TenantResumed {
+        tenantId: UUID id technical
+        tenantCode: TenantCode from TenantRegistered.tenantCode
+        tenantName: TenantName from TenantRegistered.tenantName
+        description: Text? from TenantRegistered.description
+        resumptionReason: TenantChangeReason
+      }
+
+      state Active
+    }
+
+    slice TenantCatalog {
+      actor TenantAdministrator
+
+      readmodel TenantCatalog[] {
+        eligible when {
+          Tenant.state == Active
+        }
+        tenantId: UUID id
+        tenantCode: TenantCode query
+        tenantName: TenantName display
+        description: Text?
+        state: Tenant.State query
+        suspensionReason: TenantChangeReason?
+        resumptionReason: TenantChangeReason?
+        subscribe TenantRegistered
+        subscribe TenantUpdated
+        subscribe TenantActivated
+        subscribe TenantSuspended
+        subscribe TenantResumed
+      }
+    }
+
+    slice AddTenantMember {
+      startsLifecycle
+      actor TenantAdministrator
+      ui TenantMembershipCatalogScreen
+
+      command AddTenantMember {
+        tenantMembershipId: UUID id generated technical
+        tenantId: UUID from TenantCatalog.tenantId
+        userAccountId: UUID
+      }
+
+      event TenantMemberAdded {
+        tenantMembershipId: UUID id technical
+        tenantId: UUID
+        userAccountId: UUID
+      }
+
+      state Active
+
+      specification "Tenant Membership Unique" {
+        expression {
+          unique (TenantMembership.tenantId, TenantMembership.userAccountId)
+        }
+        scenario "Reject Duplicate Tenant Member" {
+          given TenantMemberAdded {
+            tenantId = "11111111-1111-1111-1111-111111111111"
+            userAccountId = "22222222-2222-2222-2222-222222222222"
+          }
+          when AddTenantMember {
+            tenantId = "11111111-1111-1111-1111-111111111111"
+            userAccountId = "22222222-2222-2222-2222-222222222222"
+          }
+          then reject "Tenant membership already exists. Restore the existing membership instead."
+        }
+      }
+    }
+
+    slice RevokeTenantMember {
+      actor TenantAdministrator
+      ui TenantMembershipCatalogScreen confirm
+      reactsTo TenantMemberAdded
+      reactsTo TenantMemberRestored
+
+      command RevokeTenantMember {
+        tenantMembershipId: UUID id technical
+        revocationReason: TenantChangeReason
+      }
+
+      event TenantMemberRevoked {
+        tenantMembershipId: UUID id technical
+        tenantId: UUID from TenantMemberAdded.tenantId
+        userAccountId: UUID from TenantMemberAdded.userAccountId
+        revocationReason: TenantChangeReason
+      }
+
+      state Revoked
+    }
+
+    slice RestoreTenantMember {
+      actor TenantAdministrator
+      ui TenantMembershipCatalogScreen confirm
+      reactsTo TenantMemberRevoked
+
+      command RestoreTenantMember {
+        tenantMembershipId: UUID id technical
+        restorationReason: TenantChangeReason
+      }
+
+      event TenantMemberRestored {
+        tenantMembershipId: UUID id technical
+        tenantId: UUID from TenantMemberAdded.tenantId
+        userAccountId: UUID from TenantMemberAdded.userAccountId
+        restorationReason: TenantChangeReason
+      }
+
+      state Active
+    }
+
+    slice TenantMembershipCatalog {
+      actor TenantAdministrator
+
+      readmodel TenantMembershipCatalog[] {
+        eligible when {
+          TenantMembership.state == Active
+        }
+        tenantMembershipId: UUID id
+        tenantId: UUID query
+        userAccountId: UUID query
+        state: TenantMembership.State query
+        revocationReason: TenantChangeReason?
+        restorationReason: TenantChangeReason?
+        subscribe TenantMemberAdded
+        subscribe TenantMemberRevoked
+        subscribe TenantMemberRestored
+      }
+    }
+
+    concept Tenant {
+      state Registered
+      state Active
+      state Suspended
+      slice RegisterTenant
+      slice UpdateTenant
+      slice ActivateTenant
+      slice SuspendTenant
+      slice ResumeTenant
+      slice TenantCatalog
+    }
+
+    concept TenantMembership {
+      state Active
+      state Revoked
+      slice AddTenantMember
+      slice RevokeTenantMember
+      slice RestoreTenantMember
+      slice TenantMembershipCatalog
+    }
+
+  }
+}
+
+extend TenantManagement {
+  provider tenantDirectory from TenantManagement.TenantCatalog {
+    id tenantId
+    code tenantCode
+    label tenantName
+    state state
+  }
+
+  provider tenantMemberships from TenantManagement.TenantMembershipCatalog {
+    id tenantMembershipId
+    tenant tenantId
+    user userAccountId
+    state state
+  }
+}

@@ -9,6 +9,7 @@
     "build": "vite build",
     "test:semantic": "node --import tsx --test src/lib/semanticValidator.test.ts",
     "test:types": "node --import tsx --test src/lib/typeSystem.test.ts",
+    "test:tenancy": "node --import tsx --test src/lib/tenantCapability.test.ts",
     "test:specification": "node --import tsx --test src/lib/specificationCoverage.test.ts",
     "test:agent": "node --import tsx --test src/features/agent-chat/dslOperationTools.test.ts",
     "test:search": "node --import tsx --test src/features/model-search/modelSearch.test.ts",

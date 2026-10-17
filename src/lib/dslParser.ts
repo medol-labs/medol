@@ -96,7 +96,7 @@ import type {
 import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmAccessPolicy, type EmCapabilityExtension, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
-import { resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
+import { resolveBuiltinCapabilityName, resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
 
 const sharedServices = inject(
   createDefaultSharedCoreModule(EmptyFileSystem),
@@ -111,6 +111,7 @@ const medolServices = inject(
 export interface MedolSource {
   sourceName: string;
   text: string;
+  builtin?: true;
 }
 
 export const parseMedol = (text: string): EmModel => {
@@ -143,7 +144,9 @@ export const parseMedolSources = (sources: MedolSource[]): EmModel => {
       if (root) sourceNamesByRoot.set(root, source.sourceName);
     }
     const ast = mergeAstModels(results.map(({ result }) => result.value));
-    const model = astToEmModel(ast);
+    const builtinRoots = new Set(results.filter(({ source }) => source.builtin)
+      .flatMap(({ result }) => result.value.$cstNode ? [result.value.$cstNode.root] : []));
+    const model = astToEmModel(ast, builtinRoots);
 
     for (const { source, result } of results) {
       const sourcePrefix = source.sourceName === '<memory>' ? '' : `${source.sourceName}: `;
@@ -246,7 +249,9 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
   const frontendApplicationGroups = models.map((model) => [...(model.frontendApplications ?? [])]);
   const accessPolicyGroups = models.map((model) => [...(model.accessPolicies ?? [])]);
   const defaultAccessGroups = models.map((model) => [...(model.defaultAccesses ?? [])]);
+  const capabilityExtensionGroups = models.map((model) => [...(model.capabilityExtensions ?? [])]);
   merged.imports = models.flatMap((model) => model.imports ?? []);
+  merged.capabilityExtensions = capabilityExtensionGroups.flat();
   merged.domains = [];
   merged.contexts = [];
   merged.deployments = [];
@@ -404,8 +409,13 @@ const appendUniqueFrontendIncludes = (
   }
 };
 
-export const astToEmModel = (ast: AstModel): EmModel => {
+export const astToEmModel = (ast: AstModel, builtinRoots: ReadonlySet<RootCstNode> = new Set()): EmModel => {
   const model = emptyModel();
+  const capabilityImports = (ast.imports ?? []).flatMap((imported) => {
+    const name = imported.module ? resolveBuiltinCapabilityName(imported.module) : undefined;
+    return name ? [{ name, ...(imported.alias ? { alias: imported.alias } : {}) }] : [];
+  });
+  if (capabilityImports.length) model.capabilityImports = capabilityImports;
   const deploymentsByName = new Map<string, EmDeployment>();
   const frontendApplicationsByName = new Map<string, EmFrontendApplication>();
   const addDeployment = (deployment: EmDeployment): void => {
@@ -464,7 +474,9 @@ export const astToEmModel = (ast: AstModel): EmModel => {
   }
 
   for (const extensionNode of ast.capabilityExtensions ?? []) {
-    model.capabilityExtensions.push(parseCapabilityExtension(extensionNode));
+    const extension = parseCapabilityExtension(extensionNode);
+    if (extensionNode.$cstNode && builtinRoots.has(extensionNode.$cstNode.root)) extension.builtinDefault = true;
+    model.capabilityExtensions.push(extension);
   }
 
   return model;

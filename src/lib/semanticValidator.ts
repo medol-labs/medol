@@ -43,6 +43,7 @@ import type {
   EmSlice,
   EmValueType
 } from './model';
+import { resolveTenantCapability } from './tenantCapability';
 
 const builtinTypes = new Set([
   'Any',
@@ -120,6 +121,7 @@ export const validateSemanticModel = (ast: AstModel, model: EmModel): string[] =
   validateDuplicateNames((ast.domains ?? []).map((domain) => domain.name), 'domain', 'model', diagnostics);
   validateDuplicateNames(astContexts.map((context) => context.name), 'context', 'model', diagnostics);
   validateAccessPolicies(ast, model, diagnostics);
+  diagnostics.push(...resolveTenantCapability(model).diagnostics);
 
   astContexts.forEach((astContext, index) => {
     const context = model.contexts[index];
