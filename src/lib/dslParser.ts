@@ -905,12 +905,14 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[]): EmSlice =
     }
   }
 
-  const reactsTo = elements.find(isReactsTo)?.event?.$refText;
+  const reactions = elements.filter(isReactsTo);
   const firstReactionElement = slice.elements.find((element) =>
     element.kind === 'readmodel' || element.kind === 'automation' || element.kind === 'command'
   );
-  if (reactsTo && firstReactionElement) {
-    edges.push(edge(`ref/event/${reactsTo}`, firstReactionElement.id, 'reactsTo'));
+  if (firstReactionElement) {
+    for (const reaction of reactions) {
+      if (reaction.event?.$refText) edges.push(edge(`ref/event/${reaction.event.$refText}`, firstReactionElement.id, 'reactsTo'));
+    }
   }
 
   const screens = slice.elements.filter((element) => element.kind === 'screen');

@@ -1031,6 +1031,62 @@ test('exports concept lifecycle states and qualified readmodel field types', () 
   );
 });
 
+test('retains every lifecycle reaction and deduplicates allowed source states', () => {
+  const parsed = parseMedol(`
+    context Equipment {
+      slice Register {
+        startsLifecycle
+        command Register { id: UUID id }
+        event Registered { id: UUID id }
+        state Registered
+      }
+      slice Calibrate {
+        reactsTo Registered
+        reactsTo MaintenanceCompleted
+        reactsTo Calibrated
+        reactsTo CalibrationExtended
+        reactsTo OtherReady
+        command Calibrate { id: UUID id }
+        event Calibrated { id: UUID id }
+        state Available
+      }
+      slice FinishMaintenance {
+        reactsTo Calibrated
+        command FinishMaintenance { id: UUID id }
+        event MaintenanceCompleted { id: UUID id }
+        state AwaitingCalibration
+      }
+      slice ExtendCalibration {
+        reactsTo Calibrated
+        command ExtendCalibration { id: UUID id }
+        event CalibrationExtended { id: UUID id }
+        state Available
+      }
+      slice RegisterOther {
+        startsLifecycle
+        command RegisterOther { id: UUID id }
+        event OtherReady { id: UUID id }
+        state Ready
+      }
+      concept Other { state Ready slice RegisterOther }
+      concept Instrument {
+        state Registered
+        state Available
+        state AwaitingCalibration
+        slice Register
+        slice Calibrate
+        slice FinishMaintenance
+        slice ExtendCalibration
+      }
+    }
+  `);
+  assert.deepEqual(parsed.diagnostics, []);
+  const transition = modelToCodegenModel(parsed).transitions.find(item => item.command?.name === 'Calibrate');
+  assert.deepEqual(transition?.fromStates, ['Registered', 'AwaitingCalibration', 'Available']);
+  assert.equal(transition?.triggers?.length, 5);
+  assert.equal(parsed.edges.filter(edge => edge.label === 'reactsTo').length, 7);
+});
+
 test('derives codegen transitions from lifecycle state changes and reactsTo', () => {
   const model = parseMedol(`
     context Federation {

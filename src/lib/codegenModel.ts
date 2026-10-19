@@ -160,6 +160,8 @@ export interface CodegenTransition {
   event?: { id: string; name: string; title: string };
   trigger?: { id: string; name: string; title: string };
   from?: string;
+  fromStates?: string[];
+  triggers?: Array<{ id: string; name: string; title: string }>;
   to: string;
   startsLifecycle: boolean;
 }
@@ -789,13 +791,15 @@ const buildTransitions = (model: EmModel): CodegenTransition[] => {
     }
   }
 
-  const reactsToBySliceId = new Map<string, EmElement>();
+  const reactsToBySliceId = new Map<string, EmElement[]>();
   for (const edge of model.edges) {
     if (edge.label !== 'reactsTo') continue;
     const source = elementsById.get(edge.source);
     const target = elementsById.get(edge.target);
     if (!source || source.kind !== 'event' || !target?.sliceId) continue;
-    reactsToBySliceId.set(target.sliceId, source);
+    const existing = reactsToBySliceId.get(target.sliceId) ?? [];
+    if (!existing.some((element) => element.id === source.id)) existing.push(source);
+    reactsToBySliceId.set(target.sliceId, existing);
   }
 
   const transitions: CodegenTransition[] = [];
@@ -807,9 +811,14 @@ const buildTransitions = (model: EmModel): CodegenTransition[] => {
 
       const command = slice.elements.find((element) => element.kind === 'command');
       const event = slice.elements.find((element) => element.kind === 'event');
-      const trigger = reactsToBySliceId.get(slice.id);
+      const triggers = reactsToBySliceId.get(slice.id) ?? [];
+      const trigger = triggers[0];
 
       for (const owner of owners) {
+        const fromStates = slice.startsLifecycle ? [] : [...new Set(triggers.flatMap((item) => {
+          const inferred = inferTransitionFromState(owner, item, eventToSlice, ownersBySliceId, model, contextBySliceId);
+          return 'from' in inferred ? [inferred.from] : [];
+        }))];
         transitions.push({
           id: stableId('transition', `${owner.id}/${slice.id}`),
           context: contextBySliceId.get(slice.id) ?? contextItem.name,
@@ -818,7 +827,9 @@ const buildTransitions = (model: EmModel): CodegenTransition[] => {
           ...(command ? { command: toCodegenTransitionElement(command) } : {}),
           ...(event ? { event: toCodegenTransitionElement(event) } : {}),
           ...(trigger ? { trigger: toCodegenTransitionElement(trigger) } : {}),
-          ...(!slice.startsLifecycle ? inferTransitionFromState(owner, trigger, eventToSlice, ownersBySliceId, model, contextBySliceId) : {}),
+          ...(triggers.length > 1 ? {triggers: triggers.map(toCodegenTransitionElement)} : {}),
+          ...(fromStates.length ? {from: fromStates[0]} : {}),
+          ...(fromStates.length > 1 ? {fromStates} : {}),
           to: slice.resultingState,
           startsLifecycle: Boolean(slice.startsLifecycle)
         });
