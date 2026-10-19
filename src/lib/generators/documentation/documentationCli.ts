@@ -1,8 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parseMedolFile } from '../../medolProject';
 import { translateDocumentationModelWithModelTranslations } from '../../../features/documentation/documentationTranslation';
 import type { ModelTranslations } from '../../../features/model-i18n/modelTranslation';
+import { enhanceDocumentationWithAgent } from '../../../features/documentation/documentationAgent';
 import {
   generateDocumentation,
   generateDocumentationBundle
@@ -33,12 +34,18 @@ const kindArgument = args.find((arg) => arg.startsWith('--kind='))?.slice('--kin
 const languageArgument = args.find((arg) => arg.startsWith('--language='))?.slice('--language='.length);
 const translationsArgument = args.find((arg) => arg.startsWith('--translations='))?.slice('--translations='.length);
 const outputJson = args.includes('--json');
+const enhanceWithAi = args.includes('--enhance-with-ai');
+const outputPath = args.find((arg) => arg.startsWith('--out='))?.slice('--out='.length);
+if (enhanceWithAi) {
+  const envPath = join(process.cwd(), '.env');
+  if (existsSync(envPath)) process.loadEnvFile(envPath);
+}
 const language: DocumentationLanguage = languageArgument === 'zh-CN' || languageArgument === 'zh'
   ? 'zh-CN'
   : 'en';
 
 if (!input) {
-  console.error('Usage: npm run docs:generate -- ./model.medol [--kind=prd|software-design|database-design|process|test-outline|user-journey|diagrams|installation-manual|user-manual|all] [--language=en|zh-CN] [--translations=path/to/model-translations.zh-CN.json] [--json]');
+  console.error('Usage: npm run docs:generate -- ./model.medol [--kind=prd|software-design|database-design|process|test-outline|user-journey|diagrams|installation-manual|user-manual|all] [--language=en|zh-CN] [--translations=path/to/model-translations.zh-CN.json] [--json] [--enhance-with-ai] [--out=path]');
   process.exitCode = 1;
 } else {
   const sourceText = readFileSync(input, 'utf8');
@@ -52,14 +59,34 @@ if (!input) {
     : model;
   const kind = parseKind(kindArgument);
 
+  let output: string;
   if (kind === 'all') {
     const documents = generateDocumentationBundle(documentationModel, { sourceText, language });
-    console.log(outputJson
+    if (enhanceWithAi) {
+      for (const document of Object.values(documents)) {
+        const review = await enhanceDocumentationWithAgent(document);
+        document.markdown = review.markdown;
+        if (review.warning) console.error(`[docs] ${document.kind}: ${review.warning}`);
+      }
+    }
+    output = outputJson
       ? JSON.stringify(documents, null, 2)
-      : Object.values(documents).map((document) => document.markdown).join('\n\n---\n\n'));
+      : Object.values(documents).map((document) => document.markdown).join('\n\n---\n\n');
   } else {
     const document = generateDocumentation(documentationModel, kind, { sourceText, language });
-    console.log(outputJson ? JSON.stringify(document, null, 2) : document.markdown);
+    if (enhanceWithAi) {
+      const review = await enhanceDocumentationWithAgent(document);
+      document.markdown = review.markdown;
+      if (review.warning) console.error(`[docs] ${kind}: ${review.warning}`);
+    }
+    output = outputJson ? JSON.stringify(document, null, 2) : document.markdown;
+  }
+  if (outputPath) {
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, `${output.trimEnd()}\n`, 'utf8');
+    console.error(`Wrote ${outputPath}`);
+  } else {
+    console.log(output);
   }
 }
 

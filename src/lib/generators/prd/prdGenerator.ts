@@ -14,7 +14,9 @@ import type {
   PrdSlice,
   PrdSourceRef,
   PrdTrace,
-  PrdTraceSection
+  PrdTraceSection,
+  PrdUseCase,
+  PrdUseCaseFact
 } from './prdModel';
 import { coveredSpecificationExpressions } from '../../specificationCoverage';
 
@@ -74,6 +76,11 @@ const buildPrdDocument = (
       ))
     ]
   );
+  const useCases = contexts.flatMap((context) => [
+    ...context.aggregates.flatMap((aggregate) => aggregate.slices),
+    ...context.slices
+  ]).filter((slice) => slice.elements.some((element) => element.kind === 'command' || element.kind === 'readmodel'))
+    .map((slice) => toPrdUseCase(slice));
 
   return {
     id,
@@ -105,6 +112,7 @@ const buildPrdDocument = (
       ]
     ),
     slices,
+    useCases,
     dataDictionary: collectDataDictionary(model),
     automations: collectAutomations(model),
     risks,
@@ -181,6 +189,7 @@ const toPrdSpecification = (element: EmElement): PrdSpecification => {
     .sort(([left], [right]) => Number(left.slice(10)) - Number(right.slice(10)))
     .map(([, expression]) => expression);
   return {
+    sourceRef: element.id,
     name: element.name,
     ...(metadata.specification ? { specification: metadata.specification } : {}),
     ...(metadata.rule ? { rule: metadata.rule } : {}),
@@ -202,6 +211,125 @@ const toPrdSpecification = (element: EmElement): PrdSpecification => {
   };
 };
 
+const toPrdUseCase = (slice: EmSlice): PrdUseCase => {
+  const actor = slice.elements.find((element) => element.kind === 'actor');
+  const command = slice.elements.find((element) => element.kind === 'command');
+  const automation = slice.elements.find((element) => element.kind === 'automation' && element.metadata?.on);
+  const events = slice.elements.filter((element) => element.kind === 'event');
+  const readModels = slice.elements.filter((element) => element.kind === 'readmodel');
+  if (!command) {
+    const readModel = readModels[0];
+    const sourceRefs = [slice.id, ...slice.elements.map((element) => element.id)];
+    return {
+      id: `UC-${hashText(slice.id).toUpperCase()}`,
+      sliceId: slice.id,
+      name: slice.name,
+      ...(actor ? { actor: { kind: 'actor', text: actor.name, sourceRefs: [actor.id] } } : {}),
+      initiation: actor ? 'user' : 'unspecified',
+      trigger: { kind: 'readmodel', text: readModel.name, sourceRefs: [readModel.id] },
+      inputs: readModels.flatMap((view) => view.fields
+        .filter((field) => field.attributes.includes('query'))
+        .map((field) => ({
+          name: field.name,
+          type: field.type,
+          required: false,
+          origin: 'user' as const,
+          sourceRefs: [view.id]
+        }))),
+      businessRules: [],
+      preconditions: [],
+      mainFlow: readModels.map((view) => ({ kind: 'readmodel' as const, text: view.name, sourceRefs: [view.id] })),
+      alternateFlows: [],
+      outcomes: readModels.map((view) => ({ kind: 'readmodel' as const, text: view.name, sourceRefs: [view.id] })),
+      openQuestions: [
+        ...(!actor ? ['Confirm who can access this query.'] : []),
+        'Confirm the access conditions and exceptional results for this query.'
+      ],
+      sourceRefs
+    };
+  }
+  const specifications = slice.elements.filter((element) => element.kind === 'gwt').map(toPrdSpecification);
+  const fact = (kind: PrdUseCaseFact['kind'], text: string, sourceRefs: string[]): PrdUseCaseFact =>
+    ({ kind, text, sourceRefs });
+  const businessRuleByText = new Map<string, PrdUseCaseFact>();
+  for (const specification of specifications) {
+    if (!specification.rule) continue;
+    const existing = businessRuleByText.get(specification.rule);
+    if (existing) existing.sourceRefs.push(specification.sourceRef);
+    else businessRuleByText.set(specification.rule, fact('condition', specification.rule, [specification.sourceRef]));
+  }
+  const isFailureEvent = (name: string): boolean =>
+    /(Failed|Rejected|Denied|Unavailable|Error)$/i.test(name);
+  const alternateFlows = specifications
+    .filter((specification) => specification.reject || specification.error || (specification.then && isFailureEvent(specification.then)))
+    .map((specification) => {
+      const matchingEvent = events.find((event) => event.name === specification.then);
+      return {
+        name: specification.name,
+        scenarioContext: specification.given.map((given) => fact('condition', given, [specification.sourceRef])),
+        conditions: [],
+        ...(specification.rule ? { rule: fact('condition', specification.rule, [specification.sourceRef]) } : {}),
+        outcome: specification.reject
+          ? fact('rejection', specification.reject, [specification.sourceRef])
+          : specification.error
+            ? fact('error', specification.error, [specification.sourceRef])
+            : fact('event', specification.then!, [specification.sourceRef, ...(matchingEvent ? [matchingEvent.id] : [])]),
+        sourceRefs: [specification.sourceRef, ...(matchingEvent ? [matchingEvent.id] : [])]
+      };
+    });
+  const mainFlow: PrdUseCaseFact[] = [fact('command', command.name, [command.id])];
+  const successEvents = events.filter((event) => !isFailureEvent(event.name));
+  if (successEvents.length === 1) {
+    const matchingSpecification = specifications.find((specification) => specification.then === successEvents[0].name);
+    mainFlow.push(fact('event', successEvents[0].name, [successEvents[0].id, ...(matchingSpecification ? [matchingSpecification.sourceRef] : [])]));
+  }
+  const openQuestions: string[] = [];
+  if (!actor && !automation) openQuestions.push('Confirm who initiates this use case.');
+  openQuestions.push('Confirm the business preconditions for this use case.');
+  if (successEvents.length !== 1) openQuestions.push('Confirm the normal outcome path.');
+  if (alternateFlows.some((flow) => !flow.conditions.length)) {
+    openQuestions.push('Confirm the conditions that select each alternative path.');
+  }
+  if (!alternateFlows.length) openQuestions.push('Confirm the exceptional and rejection paths.');
+  return {
+    id: `UC-${hashText(slice.id).toUpperCase()}`,
+    sliceId: slice.id,
+    name: slice.name,
+    ...(actor ? { actor: fact('actor', actor.name, [actor.id]) } : {}),
+    initiation: automation ? 'automation' : actor ? 'user' : 'unspecified',
+    trigger: automation
+      ? fact('triggerEvent', automation.metadata!.on, [automation.id])
+      : fact('command', command.name, [command.id]),
+    inputs: command.fields
+      .map((field) => ({
+        name: field.name,
+        type: field.type,
+        required: !['Optional', 'OptionalList'].includes(field.cardinality ?? 'Single'),
+        origin: field.attributes.includes('generated')
+          ? 'generated' as const
+          : field.mapping?.kind === 'derived'
+            ? 'derived' as const
+            : field.mapping?.kind === 'from'
+              ? 'event' as const
+              : field.attributes.includes('technical')
+                ? 'technical' as const
+                : 'user' as const,
+        sourceRefs: [command.id]
+      })),
+    businessRules: [...businessRuleByText.values()],
+    preconditions: [],
+    mainFlow,
+    alternateFlows,
+    outcomes: [
+      ...events.map((event) => fact('event', event.name, [event.id])),
+      ...(slice.resultingState ? [fact('state', slice.resultingState, [slice.id])] : []),
+      ...readModels.map((readModel) => fact('readmodel', readModel.name, [readModel.id]))
+    ],
+    openQuestions,
+    sourceRefs: [slice.id, ...slice.elements.map((element) => element.id)]
+  };
+};
+
 const toElementSummary = (element: EmElement): PrdElementSummary => ({
   id: element.id,
   kind: element.kind,
@@ -215,15 +343,8 @@ const toPrdField = (field: EmField): PrdField => ({
   cardinality: field.cardinality ?? 'Single',
   attributes: field.attributes,
   ...(field.example ? { example: field.example } : {}),
-  ...(field.mapping ? { mapping: formatMapping(field) } : {})
+  ...(field.mapping ? { mapping: field.mapping } : {})
 });
-
-const formatMapping = (field: EmField): string | undefined => {
-  if (!field.mapping) return undefined;
-  const source = field.mapping.sources.length ? ` from ${field.mapping.sources.join(', ')}` : '';
-  const rule = field.mapping.rule ? ` rule: ${field.mapping.rule}` : '';
-  return `${field.mapping.kind}${source}${rule}`.trim();
-};
 
 const collectActors = (model: EmModel): PrdActor[] => {
   const actors = new Map<string, PrdActor>();
@@ -301,7 +422,8 @@ const buildTrace = (model: EmModel, document: PrdDocument, options: PrdGenerateO
       section(`prd.section.slice.${slice.name}`, humanize(slice.name), 'feature', slice.sourceRefs.map(sourceRef), [
         'userStory',
         'businessRules',
-        'acceptanceCriteria'
+        'acceptanceCriteria',
+        'useCase'
       ])
     ),
     section('prd.section.dataDictionary', 'Data Dictionary', 'dataDictionary', document.dataDictionary.map((item) => sourceRef(item.sourceRef)), ['fields']),

@@ -356,6 +356,24 @@ npm run prd:generate -- examples/federation.medol --trace
 ```
 
 The PRD generator emits stable Markdown section markers and a trace JSON shape so generated sections can be mapped back to source MEDOL nodes.
+Use `--json` to inspect the structured PRD, including `useCases`. Each use case has a stable ID and sourced actor, trigger, inputs with origin, business rules, main steps, outcomes, and modeled exception flows. Missing business preconditions or branch conditions appear as open questions; the generator does not invent them. This structured layer can be reviewed before drafting delivery-specific requirements documents.
+
+For downstream document pipelines, export only the traceable use-case snapshot to a file:
+
+```bash
+npm run prd:generate -- examples/fl/federation-learning.medol --use-cases --out=../federation-learning/.medol/prd-use-cases.json
+```
+
+The snapshot includes a source hash. Consumers should reject it when the MEDOL source changes without regeneration. The document CLI also accepts `--out=<path>` for directly refreshing a translated Markdown source, for example `--kind=prd --language=zh-CN --translations=<codegen-model.json> --out=<prd.zh-CN.md>`.
+
+All nine document kinds support optional AI review through the same `AGENT_PROVIDER`, `OPENAI_*`, or `MINIMAX_*` settings used by the Medol server. The Documents toolbar requests it by default; the CLI uses it only with `--enhance-with-ai`:
+
+```bash
+npm run docs:generate -- examples/fl/federation-learning.medol --kind=software-design --language=zh-CN --enhance-with-ai --out=software-design.review.md
+```
+
+The model receives a bounded sample of generated content and source facts. Its evidence-linked suggestions are appended as a separate, unapproved review section; it does not rewrite requirements, tables, identifiers, diagrams, or the deterministic body. Missing provider configuration or a failed request leaves the original document intact. Human review is required before moving any suggestion into delivery text.
+The CLI loads the Medol project's `.env` only when `--enhance-with-ai` is specified; variables already present in the process environment take precedence.
 
 ## Generate Design Documents
 

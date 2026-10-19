@@ -4,5 +4,9 @@ export type {
   PrdDocument,
   PrdGenerationResult,
   PrdTrace,
-  PrdTraceSection
+  PrdTraceSection,
+  PrdUseCase,
+  PrdUseCaseFact,
+  PrdUseCaseAlternateFlow,
+  PrdUseCaseInput
 } from './prdModel';

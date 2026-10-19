@@ -1,13 +1,10 @@
-import {
-  generateDocumentation,
-  type GeneratedDocumentation
-} from '../../lib/generators/documentation';
-import type { EmModel } from '../../lib/model';
+import type { GeneratedDocumentation } from '../../lib/generators/documentation';
 import type { AgentUsage } from '../agent-chat/agentUsage';
-import type { ModelTranslations } from '../model-i18n/modelTranslation';
 import {
-  translateDocumentationModelWithModelTranslations
-} from './documentationTranslation';
+  requestDocumentationReview,
+  type DocumentationReviewRequest,
+  type DocumentationReviewResult
+} from './documentationReviewProvider';
 
 export interface DocumentationAgentResult {
   markdown: string;
@@ -17,52 +14,140 @@ export interface DocumentationAgentResult {
 }
 
 export const userJourneyClarificationPrompt = [
-  'You are a senior business analyst helping review an Event Modeling design.',
-  'Use the MEDOL DSL and generated user journey summary as the only source of truth.',
-  'Refine the journey summary by actor: business goal, entry touchpoint, step sequence, expected business result, visible feedback/read model, and critical rule or exception.',
-  'Do not invent roles, features, states, integrations, data views, or rules that are not present in the source model.',
-  'When the source model is ambiguous or incomplete, preserve the gap as a business question.',
-  'Return Markdown only and preserve existing heading levels, section markers, tables, and stable document structure where possible.'
+  'Review a modeled user journey using only the supplied source facts.',
+  'Identify missing actor goals, handoffs, visible outcomes, and exception paths.',
+  'Do not invent behavior; return review suggestions for human approval.'
 ].join('\n');
 
-export const enhanceDocumentationWithAgent = async (input: {
-  dsl: string;
-  model: EmModel;
-  document: GeneratedDocumentation;
-  modelTranslations?: ModelTranslations;
-}): Promise<DocumentationAgentResult> => {
-  if (input.document.language !== 'zh-CN') {
-    return {
-      markdown: input.document.markdown,
-      enhanced: false
-    };
-  }
+export const enhanceDocumentationWithAgent = async (
+  document: GeneratedDocumentation,
+  requestReview: (input: DocumentationReviewRequest) => Promise<DocumentationReviewResult> = requestDocumentationReview
+): Promise<DocumentationAgentResult> => {
+  const evidence = selectDocumentationEvidence(document);
+  if (!evidence.length) return { markdown: document.markdown, enhanced: false };
 
-  const modelTranslations = input.modelTranslations ?? {};
-  if (Object.keys(modelTranslations).length === 0) {
+  const review = await requestReview({
+    kind: document.kind,
+    language: document.language,
+    title: document.title,
+    excerpt: document.markdown.slice(0, 9000),
+    evidence
+  });
+  if (!review.items) {
     return {
-      markdown: input.document.markdown,
+      markdown: document.markdown,
       enhanced: false,
-      warning: '未找到模型国际化术语库，已使用基础中文模板。请先执行 Translate model 以获得统一术语。'
+      ...(review.warning ? { warning: review.warning } : {}),
+      ...(review.usage ? { usage: review.usage } : {})
     };
   }
 
-  const translatedModel = translateDocumentationModelWithModelTranslations(
-    input.model,
-    modelTranslations
-  );
-  const translatedDocument = generateDocumentation(
-    translatedModel,
-    input.document.kind,
-    {
-      sourceText: input.dsl,
-      language: 'zh-CN',
-      generatedAt: input.document.bundle.generatedAt
-    }
-  );
+  const evidenceById = new Map(evidence.map((item) => [item.id, item]));
+  const validItems = review.items
+    .filter((item) => evidenceById.has(item.sourceId) && item.suggestion.trim())
+    .slice(0, 8);
+  if (!validItems.length) {
+    return {
+      markdown: document.markdown,
+      enhanced: false,
+      warning: document.language === 'zh-CN'
+        ? 'AI 审校结果没有可核对的模型依据，未写入文档。'
+        : 'AI review had no verifiable source references; the document was left unchanged.',
+      ...(review.usage ? { usage: review.usage } : {})
+    };
+  }
 
+  const zh = document.language === 'zh-CN';
+  const lines = [
+    '<!-- em:section id="document.aiReview" -->',
+    `## ${zh ? 'AI 辅助审校建议（待人工确认）' : 'AI-assisted review suggestions (pending human approval)'}`,
+    '',
+    zh
+      ? '以下为部分来源事项的抽样审校建议，不能代替已确认的需求、设计或部署事实。'
+      : 'These suggestions review a sample of source items and do not replace approved requirements, design, or deployment facts.',
+    ''
+  ];
+  for (const item of validItems) {
+    const source = evidenceById.get(item.sourceId)!;
+    lines.push(`- **${escapeReviewText(source.label)}**：${escapeReviewText(item.suggestion)}`);
+  }
   return {
-    markdown: translatedDocument.markdown,
-    enhanced: true
+    markdown: `${document.markdown.trimEnd()}\n\n${lines.join('\n')}\n`,
+    enhanced: true,
+    ...(review.usage ? { usage: review.usage } : {}),
+    ...(review.warning ? { warning: review.warning } : {})
   };
+};
+
+const escapeReviewText = (value: string): string => value.trim()
+  .replace(/\s+/g, ' ')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;');
+
+const selectDocumentationEvidence = (
+  document: GeneratedDocumentation
+): DocumentationReviewRequest['evidence'] => {
+  const { bundle, kind } = document;
+  const workflowItems = bundle.workflows.map((workflow) => ({
+    id: workflow.id,
+    label: workflow.slice,
+    facts: JSON.stringify({
+      context: workflow.context,
+      actor: workflow.actor,
+      commands: workflow.commands.map((item) => item.name),
+      events: workflow.events.map((item) => item.name),
+      specifications: workflow.specifications.map((item) => ({
+        name: item.name,
+        rule: item.rule,
+        given: item.given,
+        when: item.when,
+        then: item.then,
+        reject: item.reject,
+        error: item.error
+      })),
+      resultingState: workflow.resultingState
+    }).slice(0, 1200)
+  }));
+  const contextItems = bundle.contexts.map((context) => ({
+    id: context.id,
+    label: context.name,
+    facts: JSON.stringify({
+      notes: context.notes,
+      risks: context.risks,
+      decisions: context.decisions,
+      aggregates: context.aggregates.map((item) => item.name)
+    }).slice(0, 1200)
+  }));
+  const readModelItems = bundle.readmodels.map((view) => ({
+    id: view.id,
+    label: view.name,
+    facts: JSON.stringify({
+      context: view.context,
+      sourceEvents: view.sourceEvents,
+      fields: view.fields.map((field) => `${field.name}: ${field.type}`)
+    }).slice(0, 1200)
+  }));
+  const deploymentItems = bundle.deployments.map((deployment) => ({
+    id: deployment.id,
+    label: deployment.name,
+    facts: JSON.stringify({ contexts: deployment.contexts, domain: deployment.domain })
+  }));
+  const integrationItems = bundle.integrations.map((integration) => ({
+    id: integration.id,
+    label: integration.name,
+    facts: JSON.stringify({ source: integration.source, target: integration.target, context: integration.context })
+  }));
+  const selected = kind === 'database-design'
+    ? [...readModelItems, ...contextItems]
+    : kind === 'installation-manual'
+      ? [...deploymentItems, ...integrationItems, ...contextItems]
+      : kind === 'software-design' || kind === 'diagrams'
+        ? [...contextItems, ...integrationItems, ...deploymentItems, ...workflowItems]
+        : kind === 'test-outline'
+          ? [...workflowItems.filter((item) => item.facts.includes('specifications')), ...contextItems]
+          : kind === 'user-manual' || kind === 'user-journey'
+            ? [...workflowItems.filter((item) => item.facts.includes('actor')), ...contextItems]
+            : [...workflowItems, ...contextItems];
+  return selected.slice(0, 24);
 };

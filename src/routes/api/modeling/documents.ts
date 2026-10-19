@@ -85,12 +85,7 @@ export const Route = createFileRoute('/api/modeling/documents')({
           });
         }
 
-        const enhanced = await enhanceDocumentationWithAgent({
-          dsl: medol,
-          model,
-          document,
-          modelTranslations
-        });
+        const enhanced = await enhanceDocumentationWithAgent(document);
         return Response.json({
           ...document,
           markdown: enhanced.markdown,

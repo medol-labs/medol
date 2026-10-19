@@ -6,7 +6,9 @@ import type {
   PrdField,
   PrdAggregate,
   PrdSlice,
-  PrdSpecification
+  PrdSpecification,
+  PrdUseCase,
+  PrdUseCaseFact
 } from './prdModel';
 
 export const renderPrdMarkdown = (
@@ -94,6 +96,7 @@ export const renderPrdMarkdown = (
   const groupedObjects = document.aggregates.filter((object) =>
     document.slices.some((slice) => slice.aggregate === object.name)
   );
+  const renderedSliceIds = new Set<string>();
   if (groupedObjects.length) {
     for (const object of groupedObjects) {
       lines.push(`<!-- em:section id="prd.section.aggregate.${object.name}" source="${object.id}" -->`);
@@ -103,11 +106,18 @@ export const renderPrdMarkdown = (
       lines.push(`**${text.lifecycle}:** ${formatLifecycle(object, language)}`);
       lines.push('');
       const slices = document.slices.filter((slice) => slice.aggregate === object.name);
-      for (const slice of slices) appendFeatureRequirement(lines, slice, language);
+      for (const slice of slices) {
+        renderedSliceIds.add(slice.id);
+        appendFeatureRequirement(lines, slice, language);
+        const useCase = document.useCases.find((item) => item.sliceId === slice.id);
+        if (useCase) appendUseCase(lines, useCase, language);
+      }
     }
-  } else {
-    appendList(lines, document.slices.map((slice) => `${humanize(slice.name)}: ${formatResult(slice, language)}.`));
-    lines.push('');
+  }
+  for (const slice of document.slices.filter((item) => !renderedSliceIds.has(item.id))) {
+    appendFeatureRequirement(lines, slice, language);
+    const useCase = document.useCases.find((item) => item.sliceId === slice.id);
+    if (useCase) appendUseCase(lines, useCase, language);
   }
 
   lines.push(sectionMarker('prd.section.userExperience', sliceSources));
@@ -150,7 +160,7 @@ export const renderPrdMarkdown = (
       : '| Owner | Field | Type | Cardinality | Attributes | Example | Source / Rule |');
     lines.push('| --- | --- | --- | --- | --- | --- | --- |');
     for (const field of keyFields) {
-      lines.push(`| ${cell(humanize(field.owner))} | ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(field.mapping ?? '-')} |`);
+      lines.push(`| ${cell(humanize(field.owner))} | ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(formatFieldMapping(field, language))} |`);
     }
   } else {
     lines.push(text.noKeyFields);
@@ -283,7 +293,7 @@ const renderLegacyPrdMarkdown = (
       : '| Owner | Field | Type | Cardinality | Attributes | Example | Source / Rule |');
     lines.push('| --- | --- | --- | --- | --- | --- | --- |');
     for (const field of keyFields) {
-      lines.push(`| ${cell(humanize(field.owner))} | ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(field.mapping ?? '-')} |`);
+      lines.push(`| ${cell(humanize(field.owner))} | ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(formatFieldMapping(field, language))} |`);
     }
   } else {
     lines.push(zh ? '当前未定义需要单独说明的标识、查询、示例或映射字段。' : 'No identifier, query, example, or mapping fields require separate documentation.');
@@ -565,6 +575,70 @@ const appendFeatureRequirement = (
   }
 };
 
+const appendUseCase = (
+  lines: string[],
+  useCase: PrdUseCase,
+  language: DocumentationLanguage
+): void => {
+  const zh = language === 'zh-CN';
+  lines.push(`**${zh ? '用例流程' : 'Use Case Flow'}**`);
+  lines.push('');
+  lines.push(`- ${zh ? '用例标识' : 'Use case ID'}: ${useCase.id}`);
+  lines.push(`- ${zh ? '发起方' : 'Actor'}: ${useCase.actor
+    ? humanize(useCase.actor.text)
+    : useCase.initiation === 'automation'
+      ? zh ? '系统自动触发' : 'System automation'
+      : zh ? '待确认' : 'To be confirmed'}`);
+  lines.push(`- ${zh ? '触发操作' : 'Trigger'}: ${humanize(useCase.trigger.text)}`);
+  lines.push(`- ${zh ? '业务前提' : 'Business preconditions'}: ${useCase.preconditions.length
+    ? useCase.preconditions.map((item) => humanize(item.text)).join(zh ? '；' : '; ')
+    : zh ? '待确认' : 'To be confirmed'}`);
+  const userInputs = useCase.inputs.filter((item) => item.origin === 'user');
+  const otherInputs = useCase.inputs.filter((item) => item.origin !== 'user');
+  lines.push(`- ${zh ? '人工输入' : 'User inputs'}: ${userInputs.map((item) => item.name).join(', ') || (zh ? '无' : 'None')}`);
+  if (otherInputs.length) {
+    lines.push(`- ${zh ? '系统或事件提供的数据' : 'System or event data'}: ${otherInputs.map((item) => item.name).join(', ')}`);
+  }
+  lines.push(`- ${zh ? '主流程' : 'Main flow'}:`);
+  useCase.mainFlow.forEach((step, index) => {
+    lines.push(`  ${index + 1}. ${formatUseCaseStep(step, useCase, language)}`);
+  });
+  lines.push(`- ${zh ? '异常或扩展流程' : 'Alternative or exception flows'}:`);
+  if (useCase.alternateFlows.length) {
+    for (const flow of useCase.alternateFlows) {
+      const outcomeKind = flow.outcome.kind === 'rejection'
+        ? zh ? '拒绝' : 'Rejected'
+        : flow.outcome.kind === 'error'
+          ? zh ? '错误' : 'Error'
+          : zh ? '业务结果' : 'Outcome';
+      lines.push(`  - ${humanize(flow.name)}: ${zh ? '判定条件待确认；' : 'Branch condition to be confirmed; '}${outcomeKind}${zh ? '：' : ': '}${humanize(flow.outcome.text)}`);
+    }
+  } else {
+    lines.push(`  - ${zh ? '待确认' : 'To be confirmed'}`);
+  }
+  lines.push(`- ${zh ? '结果' : 'Outcomes'}: ${useCase.outcomes.map((item) => humanize(item.text)).join(zh ? '；' : '; ') || '-'}`);
+  lines.push('');
+};
+
+const formatUseCaseStep = (
+  step: PrdUseCaseFact,
+  useCase: PrdUseCase,
+  language: DocumentationLanguage
+): string => {
+  const name = humanize(step.text);
+  if (step.kind === 'readmodel') {
+    return language === 'zh-CN' ? `系统提供“${name}”查询结果。` : `The system provides ${name} query results.`;
+  }
+  if (step.kind === 'command') {
+    if (useCase.initiation === 'automation') {
+      return language === 'zh-CN' ? `系统执行“${name}”。` : `The system executes ${name}.`;
+    }
+    const initiator = useCase.actor ? humanize(useCase.actor.text) : language === 'zh-CN' ? '发起方' : 'Actor';
+    return language === 'zh-CN' ? `发起方（${initiator}）提交“${name}”。` : `${initiator} submits ${name}.`;
+  }
+  return language === 'zh-CN' ? `系统完成“${name}”。` : `The system completes ${name}.`;
+};
+
 const appendSlice = (
   lines: string[],
   slice: PrdSlice,
@@ -766,9 +840,20 @@ const appendFields = (
     : '| Field | Type | Cardinality | Constraints | Example | Source / Rule |');
   lines.push('| --- | --- | --- | --- | --- | --- |');
   for (const field of fields) {
-    lines.push(`| ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(field.mapping ?? '-')} |`);
+    lines.push(`| ${cell(field.name)} | ${cell(field.type)} | ${cell(field.cardinality)} | ${cell(field.attributes.join(', ') || '-')} | ${cell(field.example ?? '-')} | ${cell(formatFieldMapping(field, language))} |`);
   }
   lines.push('');
+};
+
+const formatFieldMapping = (field: PrdField, language: DocumentationLanguage): string => {
+  const mapping = field.mapping;
+  if (!mapping) return '-';
+  const zh = language === 'zh-CN';
+  const source = mapping.kind === 'derived'
+    ? zh ? '根据关联业务数据确定' : 'Determined from related business data'
+    : zh ? '来自已有业务记录' : 'Provided by an existing business record';
+  if (!mapping.rule || (zh && !/[\u3400-\u9fff]/u.test(mapping.rule))) return source;
+  return `${source}${zh ? '；' : '; '}${mapping.rule}`;
 };
 
 const localizeOpenQuestion = (question: string): string => {

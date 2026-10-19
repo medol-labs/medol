@@ -1,4 +1,4 @@
-import type { EmElementKind } from '../../model';
+import type { EmElementKind, EmFieldMapping } from '../../model';
 
 export interface PrdDocument {
   id: string;
@@ -11,6 +11,7 @@ export interface PrdDocument {
   actors: PrdActor[];
   aggregates: PrdAggregate[];
   slices: PrdSlice[];
+  useCases: PrdUseCase[];
   dataDictionary: PrdDataDictionaryItem[];
   automations: PrdAutomation[];
   risks: string[];
@@ -56,6 +57,7 @@ export interface PrdSlice {
 }
 
 export interface PrdSpecification {
+  sourceRef: string;
   name: string;
   specification?: string;
   rule?: string;
@@ -67,6 +69,46 @@ export interface PrdSpecification {
   reject?: string;
   error?: string;
   examples: Record<string, string>;
+}
+
+export interface PrdUseCase {
+  id: string;
+  sliceId: string;
+  name: string;
+  actor?: PrdUseCaseFact;
+  initiation: 'user' | 'automation' | 'unspecified';
+  trigger: PrdUseCaseFact;
+  inputs: PrdUseCaseInput[];
+  businessRules: PrdUseCaseFact[];
+  preconditions: PrdUseCaseFact[];
+  mainFlow: PrdUseCaseFact[];
+  alternateFlows: PrdUseCaseAlternateFlow[];
+  outcomes: PrdUseCaseFact[];
+  openQuestions: string[];
+  sourceRefs: string[];
+}
+
+export interface PrdUseCaseFact {
+  kind: 'actor' | 'command' | 'triggerEvent' | 'event' | 'state' | 'readmodel' | 'condition' | 'rejection' | 'error';
+  text: string;
+  sourceRefs: string[];
+}
+
+export interface PrdUseCaseInput {
+  name: string;
+  type: string;
+  required: boolean;
+  origin: 'user' | 'generated' | 'derived' | 'event' | 'technical';
+  sourceRefs: string[];
+}
+
+export interface PrdUseCaseAlternateFlow {
+  name: string;
+  scenarioContext: PrdUseCaseFact[];
+  conditions: PrdUseCaseFact[];
+  rule?: PrdUseCaseFact;
+  outcome: PrdUseCaseFact;
+  sourceRefs: string[];
 }
 
 export interface PrdElementSummary {
@@ -82,7 +124,7 @@ export interface PrdField {
   cardinality: string;
   attributes: string[];
   example?: string;
-  mapping?: string;
+  mapping?: EmFieldMapping;
 }
 
 export interface PrdDataDictionaryItem extends PrdField {
