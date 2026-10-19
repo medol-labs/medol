@@ -267,11 +267,11 @@ const appendSoftwareWorkflow = (
   lines.push(`##### ${humanize(workflow.slice)}`);
   lines.push('');
   appendList(lines, [
-    `${text.owner}: ${humanize(workflow.aggregate)}.`,
-    `${text.actorOrTrigger}: ${workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || text.system}.`,
-    `${text.input}: ${formatWorkflowInput(workflow, language)}.`,
-    `${text.businessResult}: ${formatWorkflowResult(workflow, language)}.`,
-    `${text.readSide}: ${formatWorkflowReadSide(workflow, language)}.`
+    endSentence(`${text.owner}: ${humanize(workflow.aggregate)}`, language),
+    endSentence(`${text.actorOrTrigger}: ${workflow.actor ? humanize(workflow.actor) : workflow.processors.map(humanize).join(', ') || text.system}`, language),
+    endSentence(`${text.input}: ${formatWorkflowInput(workflow, language)}`, language),
+    endSentence(`${text.businessResult}: ${formatWorkflowResult(workflow, language)}`, language),
+    endSentence(`${text.readSide}: ${formatWorkflowReadSide(workflow, language)}`, language)
   ]);
   if (workflow.specifications.length) {
     lines.push('');
@@ -288,6 +288,14 @@ const appendSoftwareWorkflow = (
     appendList(lines, workflow.hotspots);
   }
   lines.push('');
+};
+
+const endSentence = (value: string, language: DocumentationLanguage): string => {
+  const trimmed = value.trimEnd();
+  if (language === 'zh-CN') {
+    return /[。！？!?]$/u.test(trimmed) ? trimmed : `${trimmed.replace(/\.$/u, '')}。`;
+  }
+  return /[.!?]$/u.test(trimmed) ? trimmed : `${trimmed}.`;
 };
 
 const formatWorkflowResult = (
@@ -361,7 +369,7 @@ const formatSpecificationSummary = (
       : specification.then
         ? humanize(specification.then)
         : text.notModeled;
-  return `${title} - ${text.when} ${specification.when ? humanize(specification.when) : text.notModeled}, ${text.then} ${result}.`;
+  return endSentence(`${title} - ${text.when} ${specification.when ? humanize(specification.when) : text.notModeled}, ${text.then} ${result}`, language);
 };
 
 const softwareText = {

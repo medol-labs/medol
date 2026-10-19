@@ -1002,4 +1002,6 @@ test('infers event-driven workflow inputs, emitted commands, and subscribed read
   assert.match(markdown, /业务结果: 触发提交操作 Select Training Round Participants/u);
   assert.match(markdown, /读侧结果: 本步骤不直接更新查询视图/u);
   assert.match(markdown, /执行条件: roundNumber < maxRounds/u);
+  assert.match(markdown, /^- 输入: Training Round Completed \(条件: roundNumber < maxRounds\)。$/mu);
+  assert.doesNotMatch(markdown, /^- (?:归属|角色\/触发条件|输入|业务结果|读侧结果):[^\n]*\.$/mu);
 });
