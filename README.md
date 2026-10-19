@@ -75,6 +75,8 @@ slice 1 { command, event, GWT business rules }
 
 ## Project Structure
 
+For generated business-system repositories, follow the [system project layout](docs/system-project-layout.md): keep generation inputs in `.medol/`, and place backend, frontend, operations and system-level scripts alongside one another.
+
 ```text
 medol/
   examples/

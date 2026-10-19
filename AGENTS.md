@@ -63,6 +63,8 @@ There is no aggregate `npm test` — pick the suite that covers the changed area
 
 ## Project layout
 
+- Business systems modeled with MEDOL follow `docs/system-project-layout.md`: generation inputs live under `.medol/`; backend/frontend applications, `operations/`, `scripts/`, `dictionary-init/`, and `docs/` are peer directories. Do not use scratch `generated/<target>` layouts as the default system structure. Use existing workspace output configuration rather than inventing another path registry.
+
 - `src/language/` — Langium grammar + generated AST/syntax files.
 - `src/lib/` — DSL parsers, semantic validator, type system, EmModel/CodegenModel exporters, generators (PRD, documentation).
 - `src/features/` — UI features: `agent-chat/`, `model-search/`, `documentation/`, etc.
