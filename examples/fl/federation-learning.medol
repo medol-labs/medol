@@ -411,6 +411,29 @@ context FederationManagement {
     }
 
     state Invited
+
+    specification "Federation Participant Invitation Unique" {
+      rule """
+        A federation and organization identify one membership. Inviting the same organization into the same federation again must be rejected, including when its membership already exists. The organization may be invited into other federations.
+      """
+
+      expression {
+        unique (FederationMembership.federationId, FederationMembership.organizationId)
+      }
+
+      scenario "Reject Duplicate Participant Invitation" {
+        given ParticipantInvited {
+          federationId = "11111111-1111-4111-8111-111111111111"
+          organizationId = "22222222-2222-4222-8222-222222222222"
+        }
+        when InviteParticipant {
+          federationId = "11111111-1111-4111-8111-111111111111"
+          organizationId = "22222222-2222-4222-8222-222222222222"
+          invitationNote = "Duplicate invitation"
+        }
+        then reject "Participant Already Invited"
+      }
+    }
   }
 
 
