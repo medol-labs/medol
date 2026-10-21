@@ -16,7 +16,7 @@ import {
   parseDocumentMarkdownSections
 } from './documentReferences';
 import { markdownHeadingAnchor } from '../../lib/generators/documentation/documentTableOfContents';
-import { toRenderableDocumentMarkdown } from './documentMarkdownPresentation';
+import { toExportableDocumentMarkdown, toRenderableDocumentMarkdown } from './documentMarkdownPresentation';
 import { exportModelingDocumentWord, type WordExportProfileId } from './modelingDocumentClient';
 import type { DocumentPersistenceStatus } from './useModelingDocuments';
 
@@ -126,8 +126,8 @@ export function DocumentWorkspace({
     [markdownSections]
   );
   const downloadableMarkdown = useMemo(
-    () => toRenderableDocumentMarkdown(markdown),
-    [markdown]
+    () => toExportableDocumentMarkdown(markdown, activeDocument?.revisions, dirty),
+    [markdown, activeDocument?.revisions, dirty]
   );
 
   useEffect(() => {
@@ -252,7 +252,7 @@ export function DocumentWorkspace({
     try {
       const exported = await exportModelingDocumentWord({
         title: title.trim(),
-        markdown,
+        markdown: toExportableDocumentMarkdown(markdown, activeDocument?.revisions, dirty, 'word'),
         profileId: wordExportProfile
       });
       downloadBlob(exported.blob, exported.filename);
@@ -350,6 +350,7 @@ export function DocumentWorkspace({
               title="Whether this document was generated from the current MEDOL content"
             >
               {sourceStatus}
+              {activeDocument.revisionNo !== undefined ? ` · r${activeDocument.revisionNo}` : ''}
             </span>
             <div className="flex shrink-0 rounded border border-slate-200 p-0.5 lg:hidden">
               <button

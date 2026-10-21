@@ -16,6 +16,7 @@
     "test:documentation": "node --import tsx --test src/features/documentation/documentationTranslation.test.ts",
     "test:model-translations": "node --import tsx --test src/server/modelTranslationRepository.test.ts src/server/modelTranslationResolver.test.ts",
     "test:workspace": "node --import tsx --test src/server/modelingWorkspaceRepository.test.ts",
+    "test:provenance": "node --import tsx --test src/lib/codegenProvenance.test.ts src/features/workspace/codegenExport.test.ts src/server/modelingWorkspaceRepository.test.ts src/features/documentation/documentMarkdownPresentation.test.ts",
     "test:documents": "node --import tsx --test src/server/modelingDocumentRepository.test.ts",
     "test:document-export": "node --import tsx --test src/server/modelingDocumentExport.test.ts",
     "preview": "node dist/server/server.js",

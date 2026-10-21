@@ -10,6 +10,9 @@ import type {
 } from '../contracts/modelingWorkspace';
 import { hashMedolSource } from '../features/documentation/documentReferences';
 import { database } from './database';
+import { validateWorkspaceVersionInput } from './modelingWorkspaceVersionValidation';
+
+export class WorkspaceReleaseError extends Error {}
 
 interface WorkspaceRow {
   id: string;
@@ -247,8 +250,16 @@ export const createModelingWorkspaceVersion = (
   const current = readModelingWorkspace(workspaceId);
   if (!current) return undefined;
 
+  const validated = validateWorkspaceVersionInput(input);
+  if (validated.error) throw new WorkspaceReleaseError(validated.error);
+  input = validated;
   const sourceDsl = input.dsl ?? current.dsl;
   const createdVersion = database.transaction(() => {
+    if (input.releaseLabel && listModelingWorkspaceVersions(workspaceId).some(
+      (version) => version.release?.label?.replace(/^v/, '') === input.releaseLabel?.replace(/^v/, '')
+    )) {
+      throw new WorkspaceReleaseError(`Release ${input.releaseLabel} already exists`);
+    }
     if (sourceDsl !== current.dsl) {
       updateWorkspaceDslStatement.run(sourceDsl, workspaceId);
     }

@@ -1,5 +1,8 @@
 # MEDOL
 
+Version baselines, document revisions, generation provenance, and delivery tags
+follow [Version And Release Traceability](docs/versioning.md).
+
 MEDOL is a Domain Design Language for describing business domains, bounded contexts, concepts, event-modeling timelines, read models, rules, UI interactions, and code-generation intent.
 
 The project provides a Langium language implementation, Monaco editor, React Flow visual model, agentic modeling workflow, design-document generation, and adapters for application code generation. Each `slice` is rendered as a timeline column in the order it appears in MEDOL.

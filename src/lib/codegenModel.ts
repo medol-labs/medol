@@ -4,8 +4,10 @@ import { humanize } from './name';
 import { coveredSpecificationExpressions } from './specificationCoverage';
 import type { TenantCapability } from './tenantCapability';
 import { resolveTenantCapability } from './tenantCapability';
+import type { CodegenMetadata } from './codegenProvenance';
 
 export interface CodegenModel {
+  metadata?: CodegenMetadata;
   tenancy?: TenantCapability;
   rootPackage: 'tech.medo';
   domain?: string;

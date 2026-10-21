@@ -153,6 +153,9 @@ const toSummary = (document: ModelingDocument): ModelingDocumentSummary => ({
   language: document.language,
   sourceRefs: document.sourceRefs,
   ...(document.sourceHash ? { sourceHash: document.sourceHash } : {}),
+  ...(document.revisionNo !== undefined ? { revisionNo: document.revisionNo } : {}),
+  ...(document.workspaceVersionId ? { workspaceVersionId: document.workspaceVersionId } : {}),
+  ...(document.workspaceReleaseLabel ? { workspaceReleaseLabel: document.workspaceReleaseLabel } : {}),
   createdAt: document.createdAt,
   updatedAt: document.updatedAt
 });

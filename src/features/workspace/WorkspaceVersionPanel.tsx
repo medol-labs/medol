@@ -87,7 +87,9 @@ export function WorkspaceVersionPanel({
         setMessage('');
         setReleaseLabel('');
         setReleaseNotes('');
-        setFeedback(`${version.release ? 'Released' : 'Created'} v${version.versionNo}`);
+        setFeedback(version.release
+          ? `Released ${version.release.label} (snapshot #${version.versionNo})`
+          : `Created snapshot #${version.versionNo}`);
       }
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Failed to create version');
@@ -98,7 +100,7 @@ export function WorkspaceVersionPanel({
 
   const restoreVersion = async (version: ModelingWorkspaceVersionSummary) => {
     if (pending) return;
-    if (typeof window !== 'undefined' && !window.confirm(`Restore v${version.versionNo}?`)) {
+    if (typeof window !== 'undefined' && !window.confirm(`Restore snapshot #${version.versionNo}?`)) {
       return;
     }
 
@@ -106,7 +108,7 @@ export function WorkspaceVersionPanel({
     setFeedback(undefined);
     try {
       await onRestoreVersion(version.id);
-      setFeedback(`Restored v${version.versionNo}`);
+      setFeedback(`Restored snapshot #${version.versionNo}`);
       setOpen(false);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Failed to restore version');
@@ -186,7 +188,7 @@ export function WorkspaceVersionPanel({
             />
             <button
               type="submit"
-              disabled={pending || !activeWorkspaceId || !message.trim()}
+              disabled={pending || !activeWorkspaceId || !message.trim() || (releaseEnabled && !releaseLabel.trim())}
             >
               {pending ? 'Working' : releaseEnabled ? 'Release' : 'Create'}
             </button>
@@ -218,7 +220,9 @@ export function WorkspaceVersionPanel({
                 <input
                   value={releaseLabel}
                   onChange={(event) => setReleaseLabel(event.target.value)}
-                  placeholder="Release label"
+                  placeholder="v1.0.0"
+                  required
+                  pattern="v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
                   maxLength={120}
                   disabled={pending || !activeWorkspaceId}
                 />
@@ -250,7 +254,7 @@ export function WorkspaceVersionPanel({
                   <article key={version.id} className="workspace-version-item">
                     <div className="workspace-version-item__body">
                       <div className="workspace-version-item__title">
-                        <strong>v{version.versionNo}</strong>
+                        <strong>{version.release?.label ?? `#${version.versionNo}`}</strong>
                         {version.id === activeHeadVersionId && <span>Current</span>}
                         {version.release && (
                           <span className="workspace-version-item__release">
@@ -270,7 +274,7 @@ export function WorkspaceVersionPanel({
                         className="workspace-version-restore"
                         onClick={() => void showDiff(version)}
                         disabled={pending || !version.parentVersionId}
-                        title={`Diff v${version.versionNo}`}
+                        title={`Diff snapshot #${version.versionNo}`}
                       >
                         <GitCompare size={14} />
                         Diff
@@ -280,7 +284,7 @@ export function WorkspaceVersionPanel({
                         className="workspace-version-restore"
                         onClick={() => void restoreVersion(version)}
                         disabled={pending || version.id === activeHeadVersionId}
-                        title={`Restore v${version.versionNo}`}
+                        title={`Restore snapshot #${version.versionNo}`}
                       >
                         <RotateCcw size={14} />
                         Restore
@@ -295,7 +299,7 @@ export function WorkspaceVersionPanel({
               <section className="workspace-version-diff">
                 <header>
                   <div>
-                    <strong>{`v${diffState.base.versionNo} -> v${diffState.target.versionNo}`}</strong>
+                    <strong>{`#${diffState.base.versionNo} -> #${diffState.target.versionNo}`}</strong>
                     <span>
                       +{diffState.diff.addedLines} / -{diffState.diff.removedLines}
                     </span>

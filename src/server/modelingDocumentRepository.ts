@@ -4,6 +4,7 @@ import type {
   ModelingDocumentKind,
   ModelingDocument,
   ModelingDocumentSummary,
+  ModelingDocumentRevision,
   UpdateModelingDocumentInput
 } from '../contracts/modelingDocument';
 import type { DocumentationLanguage } from '../lib/generators/documentation';
@@ -24,6 +25,7 @@ import { humanize } from '../lib/name';
 import { documentDatabase } from './documentDatabase';
 import {
   listModelingWorkspaceVersions,
+  readModelingWorkspaceVersion,
   readModelingWorkspace
 } from './modelingWorkspaceRepository';
 
@@ -36,6 +38,7 @@ interface DocumentRow {
   markdown: string;
   generated_markdown: string | null;
   source_hash: string | null;
+  source_association: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,7 +54,11 @@ interface DocumentVersionRow {
   workspace_version_id: string | null;
   workspace_version_no: number | null;
   workspace_version_message: string | null;
+  workspace_release_label: string | null;
   created_at: string;
+  revision_no: number;
+  origin: ModelingDocumentRevision['origin'];
+  markdown: string;
 }
 
 documentDatabase.exec(`
@@ -99,22 +106,61 @@ if (!documentColumns.some((column) => column.name === 'source_hash')) {
 if (!documentColumns.some((column) => column.name === 'generated_markdown')) {
   documentDatabase.exec('ALTER TABLE modeling_documents ADD COLUMN generated_markdown TEXT');
 }
+if (!documentColumns.some((column) => column.name === 'source_association')) {
+  documentDatabase.exec('ALTER TABLE modeling_documents ADD COLUMN source_association TEXT');
+}
+
+const versionColumns = documentDatabase.prepare('PRAGMA table_info(modeling_document_versions)')
+  .all() as Array<{ name: string }>;
+documentDatabase.transaction(() => {
+  if (!versionColumns.some((column) => column.name === 'revision_no')) {
+    documentDatabase.exec(`
+      ALTER TABLE modeling_document_versions ADD COLUMN revision_no INTEGER;
+      WITH numbered AS (
+        SELECT id, ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY created_at, rowid) AS number
+        FROM modeling_document_versions
+      )
+      UPDATE modeling_document_versions SET revision_no = (
+        SELECT number FROM numbered WHERE numbered.id = modeling_document_versions.id
+      );
+    `);
+  }
+  if (!versionColumns.some((column) => column.name === 'origin')) {
+    documentDatabase.exec("ALTER TABLE modeling_document_versions ADD COLUMN origin TEXT NOT NULL DEFAULT 'legacy'");
+  }
+  if (!versionColumns.some((column) => column.name === 'workspace_release_label')) {
+    documentDatabase.exec('ALTER TABLE modeling_document_versions ADD COLUMN workspace_release_label TEXT');
+    const rows = documentDatabase.prepare(`
+      SELECT id, workspace_id, workspace_version_id FROM modeling_document_versions
+      WHERE workspace_version_id IS NOT NULL
+    `).all() as Array<{ id: string; workspace_id: string; workspace_version_id: string }>;
+    const updateLabel = documentDatabase.prepare('UPDATE modeling_document_versions SET workspace_release_label = ? WHERE id = ?');
+    for (const row of rows) {
+      const label = readModelingWorkspaceVersion(row.workspace_id, row.workspace_version_id)?.release?.label;
+      if (label) updateLabel.run(label, row.id);
+    }
+  }
+  documentDatabase.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS modeling_document_versions_revision
+    ON modeling_document_versions(document_id, revision_no);
+  `);
+})();
 
 const listDocuments = documentDatabase.prepare(`
-  SELECT id, workspace_id, title, kind, language, markdown, generated_markdown, source_hash, created_at, updated_at
+  SELECT *
   FROM modeling_documents
   WHERE workspace_id = ?
   ORDER BY updated_at DESC, title ASC
 `);
 
 const selectDocument = documentDatabase.prepare(`
-  SELECT id, workspace_id, title, kind, language, markdown, generated_markdown, source_hash, created_at, updated_at
+  SELECT *
   FROM modeling_documents
   WHERE id = ?
 `);
 
 const selectMatchingDocument = documentDatabase.prepare(`
-  SELECT id, workspace_id, title, kind, language, markdown, generated_markdown, source_hash, created_at, updated_at
+  SELECT *
   FROM modeling_documents
   WHERE workspace_id = ? AND kind = ? AND language = ?
   ORDER BY updated_at DESC
@@ -131,9 +177,9 @@ const insertDocument = documentDatabase.prepare(`
 const insertDocumentVersion = documentDatabase.prepare(`
   INSERT INTO modeling_document_versions (
     id, document_id, workspace_id, title, kind, language, source_hash,
-    workspace_version_id, workspace_version_no, workspace_version_message, markdown, created_at
+    workspace_version_id, workspace_version_no, workspace_version_message, workspace_release_label, markdown, revision_no, origin, created_at
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const updateDocument = documentDatabase.prepare(`
@@ -148,12 +194,31 @@ const updateGeneratedDocument = documentDatabase.prepare(`
   WHERE id = ?
 `);
 
+const updateSourceAssociation = documentDatabase.prepare(`
+  UPDATE modeling_documents SET source_association = ? WHERE id = ?
+`);
+
 const listDocumentVersions = documentDatabase.prepare(`
   SELECT id, document_id, workspace_id, title, kind, language, source_hash,
-    workspace_version_id, workspace_version_no, workspace_version_message, created_at
+    workspace_version_id, workspace_version_no, workspace_version_message, workspace_release_label, markdown, revision_no, origin, created_at
   FROM modeling_document_versions
   WHERE document_id = ?
-  ORDER BY created_at ASC
+  ORDER BY COALESCE(revision_no, 0) ASC, created_at ASC, rowid ASC
+`);
+
+const selectLatestDocumentVersionMetadata = documentDatabase.prepare(`
+  SELECT revision_no, workspace_version_id, workspace_version_no, workspace_release_label
+  FROM modeling_document_versions
+  WHERE document_id = ?
+  ORDER BY revision_no DESC, created_at DESC, rowid DESC
+  LIMIT 1
+`);
+
+const selectLatestDocumentVersion = documentDatabase.prepare(`
+  SELECT * FROM modeling_document_versions
+  WHERE document_id = ?
+  ORDER BY revision_no DESC, created_at DESC, rowid DESC
+  LIMIT 1
 `);
 
 const countDocumentsForWorkspace = documentDatabase.prepare(`
@@ -221,7 +286,7 @@ export const readModelingDocument = (documentId: string): ModelingDocument | und
 
 export const createModelingDocument = (
   input: CreateModelingDocumentInput
-): ModelingDocument => {
+): ModelingDocument => documentDatabase.transaction(() => {
   const tracksVersions = supportsDocumentVersionHistory(input.kind);
   const existing = selectMatchingDocument.get(
     input.workspaceId,
@@ -258,6 +323,8 @@ export const createModelingDocument = (
     );
     if (documentVersion) {
       persistDocumentVersion(prepared.id, input, documentVersion, markdown);
+    } else {
+      persistSourceAssociation(prepared.id, input);
     }
     return {
       ...requireDocument(prepared.id),
@@ -290,6 +357,8 @@ export const createModelingDocument = (
   );
   if (documentVersion) {
     persistDocumentVersion(documentId, input, documentVersion, markdown);
+  } else {
+    persistSourceAssociation(documentId, input);
   }
   return {
     ...requireDocument(documentId),
@@ -301,21 +370,37 @@ export const createModelingDocument = (
       removed: 0
     }
   };
-};
+})();
 
 export const updateModelingDocument = (
   documentId: string,
   input: UpdateModelingDocumentInput
-): ModelingDocument | undefined => {
+): ModelingDocument | undefined => documentDatabase.transaction(() => {
   const current = readModelingDocument(documentId);
   if (!current) return undefined;
-  updateDocument.run(
-    input.title ?? current.title,
-    input.markdown ?? current.markdown,
-    documentId
-  );
+  if (supportsDocumentVersionHistory(current.kind)) {
+    const versionInput: CreateModelingDocumentInput = {
+      ...current,
+      title: input.title ?? current.title,
+      markdown: input.markdown ?? current.markdown
+    };
+    const previous = readLatestDocumentVersion(documentId);
+    const version = createDocumentVersionSnapshot(documentId, versionInput);
+    if (previous) {
+      version.workspace_version_id = previous.workspace_version_id;
+      version.workspace_version_no = previous.workspace_version_no;
+      version.workspace_version_message = previous.workspace_version_message;
+      version.workspace_release_label = previous.workspace_release_label;
+    }
+    version.origin = 'manual';
+    const markdown = prepareVersionedEditableMarkdown(versionInput.markdown, version);
+    updateDocument.run(versionInput.title, markdown, documentId);
+    persistDocumentVersion(documentId, versionInput, version, markdown);
+  } else {
+    updateDocument.run(input.title ?? current.title, input.markdown ?? current.markdown, documentId);
+  }
   return requireDocument(documentId);
-};
+})();
 
 export const removeModelingDocument = (documentId: string): boolean =>
   documentDatabase.transaction(() => {
@@ -352,21 +437,47 @@ const recoverOrphanDocumentsForWorkspace = (workspaceId: string): void => {
   })();
 };
 
-const toSummary = (row: DocumentRow): ModelingDocumentSummary => ({
-  id: row.id,
-  workspaceId: row.workspace_id,
-  title: row.title,
-  kind: row.kind,
-  language: row.language,
-  sourceRefs: extractDocumentSourceRefs(row.markdown),
-  ...(row.source_hash ? { sourceHash: row.source_hash } : {}),
-  createdAt: row.created_at,
-  updatedAt: row.updated_at
-});
+const toSummary = (row: DocumentRow): ModelingDocumentSummary => {
+  const version = supportsDocumentVersionHistory(row.kind) ? selectLatestDocumentVersionMetadata.get(row.id) as Pick<
+    DocumentVersionRow, 'revision_no' | 'workspace_version_id' | 'workspace_version_no' | 'workspace_release_label'
+  > | undefined : row.source_association ? JSON.parse(row.source_association) as DocumentVersionRow : undefined;
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    title: row.title,
+    kind: row.kind,
+    language: row.language,
+    sourceRefs: extractDocumentSourceRefs(row.markdown),
+    ...(row.source_hash ? { sourceHash: row.source_hash } : {}),
+    ...(supportsDocumentVersionHistory(row.kind)
+      ? { revisionNo: version?.revision_no ?? 0 }
+      : {}),
+    ...(version?.workspace_version_id ? { workspaceVersionId: version.workspace_version_id } : {}),
+    ...(version?.workspace_version_no != null ? { workspaceVersionNo: version.workspace_version_no } : {}),
+    ...(version?.workspace_release_label ? { workspaceReleaseLabel: version.workspace_release_label } : {}),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+};
 
 const toDocument = (row: DocumentRow): ModelingDocument => ({
   ...toSummary(row),
-  markdown: row.markdown
+  markdown: row.markdown,
+  ...(supportsDocumentVersionHistory(row.kind) ? {
+    revisions: readDocumentVersionRows(row.id).map((version) => ({
+      id: version.id,
+      revisionNo: version.revision_no,
+      origin: version.origin,
+      title: version.title,
+      markdown: version.markdown,
+      ...(version.source_hash ? { sourceHash: version.source_hash } : {}),
+      ...(version.workspace_version_id ? { workspaceVersionId: version.workspace_version_id } : {}),
+      ...(version.workspace_version_no != null ? { workspaceVersionNo: version.workspace_version_no } : {}),
+      ...(version.workspace_version_message ? { workspaceVersionMessage: version.workspace_version_message } : {}),
+      ...(version.workspace_release_label ? { workspaceReleaseLabel: version.workspace_release_label } : {}),
+      createdAt: version.created_at
+    }))
+  } : {})
 });
 
 const documentVersionHistorySectionId = 'document.version-history';
@@ -380,14 +491,21 @@ const supportsDocumentVersionHistory = (kind: ModelingDocumentKind): boolean =>
 const readDocumentVersionRows = (documentId: string): DocumentVersionRow[] =>
   listDocumentVersions.all(documentId) as DocumentVersionRow[];
 
+const readLatestDocumentVersion = (documentId: string): DocumentVersionRow | undefined =>
+  selectLatestDocumentVersion.get(documentId) as DocumentVersionRow | undefined;
+
 const createDocumentVersionSnapshot = (
   documentId: string,
-  input: CreateModelingDocumentInput
+  input: CreateModelingDocumentInput,
+  bindSource = true
 ): DocumentVersionRow => {
-  const workspaceVersion = input.sourceHash
+  const matchingVersions = bindSource && input.sourceHash
     ? listModelingWorkspaceVersions(input.workspaceId)
-        .find((version) => version.modelHash === input.sourceHash)
-    : undefined;
+        .filter((version) => version.modelHash === input.sourceHash)
+    : [];
+  const headVersionId = readModelingWorkspace(input.workspaceId)?.headVersionId;
+  const workspaceVersion = matchingVersions.find((version) => version.id === headVersionId)
+    ?? matchingVersions[0];
   return {
     id: randomUUID(),
     document_id: documentId,
@@ -399,8 +517,23 @@ const createDocumentVersionSnapshot = (
     workspace_version_id: workspaceVersion?.id ?? null,
     workspace_version_no: workspaceVersion?.versionNo ?? null,
     workspace_version_message: workspaceVersion?.message ?? null,
+    workspace_release_label: workspaceVersion?.release?.label ?? null,
+    revision_no: (readLatestDocumentVersion(documentId)?.revision_no ?? 0) + 1,
+    origin: 'generated',
+    markdown: input.markdown,
     created_at: new Date().toISOString()
   };
+};
+
+// Catalogs retain generation provenance without exposing document revision history.
+const persistSourceAssociation = (documentId: string, input: CreateModelingDocumentInput): void => {
+  const snapshot = createDocumentVersionSnapshot(documentId, input);
+  updateSourceAssociation.run(JSON.stringify({
+    source_hash: snapshot.source_hash,
+    workspace_version_id: snapshot.workspace_version_id,
+    workspace_version_no: snapshot.workspace_version_no,
+    workspace_release_label: snapshot.workspace_release_label
+  }), documentId);
 };
 
 const persistDocumentVersion = (
@@ -409,7 +542,13 @@ const persistDocumentVersion = (
   version: DocumentVersionRow,
   markdown: string
 ): void => {
-  if (hasEquivalentDocumentVersion(readDocumentVersionRows(documentId), version)) return;
+  const previous = readLatestDocumentVersion(documentId);
+  if (previous
+    && previous.title === input.title
+    && stripDocumentVersionHistory(previous.markdown, previous.title) === stripDocumentVersionHistory(markdown, input.title)
+    && previous.source_hash === (input.sourceHash ?? null)
+    && previous.workspace_version_id === version.workspace_version_id
+    && previous.workspace_release_label === version.workspace_release_label) return;
   insertDocumentVersion.run(
     version.id,
     documentId,
@@ -421,7 +560,11 @@ const persistDocumentVersion = (
     version.workspace_version_id,
     version.workspace_version_no,
     version.workspace_version_message,
-    markdown
+    version.workspace_release_label,
+    markdown,
+    version.revision_no,
+    version.origin,
+    version.created_at
   );
 };
 
@@ -472,23 +615,10 @@ const preparePersistedEditableMarkdown = (
   markdown: string,
   title: string
 ): string => {
-  const rows = readDocumentVersionRows(documentId);
-  if (rows.length === 0) return stripDocumentVersionHistory(markdown, title);
-  return stripDocumentVersionHistory(numberMarkdownHeadings(markdown, rows[rows.length - 1].language), title);
+  const version = readLatestDocumentVersion(documentId);
+  if (!version) return stripDocumentVersionHistory(markdown, title);
+  return stripDocumentVersionHistory(numberMarkdownHeadings(markdown, version.language), title);
 };
-
-const hasEquivalentDocumentVersion = (
-  rows: DocumentVersionRow[],
-  nextRow: DocumentVersionRow
-): boolean =>
-  rows.some((row) => {
-    if (row.workspace_version_id && nextRow.workspace_version_id) {
-      return row.workspace_version_id === nextRow.workspace_version_id;
-    }
-    return Boolean(row.source_hash)
-      && Boolean(nextRow.source_hash)
-      && row.source_hash === nextRow.source_hash;
-  });
 
 const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
   if (extractDocumentSourceRefs(row.markdown).length > 0) {
@@ -504,7 +634,9 @@ const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
     return ensureDocumentVersionRows(prepared);
   }
   const workspace = readModelingWorkspace(row.workspace_id);
-  if (!workspace?.dsl) return row;
+  if (!workspace?.dsl || row.source_hash !== hashMedolSource(workspace.dsl)) {
+    return ensureDocumentVersionRows(row);
+  }
 
   const model = parseMedol(workspace.dsl);
   const references = row.kind === 'software-design'
@@ -567,7 +699,7 @@ const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
           }))
         ]);
   const markdown = addDocumentSectionReferences(stripDocumentVersionHistory(row.markdown, row.title), references);
-  const sourceHash = hashMedolSource(workspace.dsl);
+  const sourceHash = row.source_hash;
   const prepared = {
     ...row,
     markdown,
@@ -577,18 +709,17 @@ const ensureDocumentReferences = (row: DocumentRow): DocumentRow => {
   if (markdown !== row.markdown) {
     backfillDocument.run(markdown, markdown, sourceHash, row.id);
   }
-  return ensureDocumentVersionRows(prepared, workspace);
+  return ensureDocumentVersionRows(prepared);
 };
 
 const ensureDocumentVersionRows = (
-  row: DocumentRow,
-  workspace = readModelingWorkspace(row.workspace_id)
+  row: DocumentRow
 ): DocumentRow => {
   if (!supportsDocumentVersionHistory(row.kind)) {
     return row;
   }
-  const existingRows = readDocumentVersionRows(row.id);
-  const sourceHash = row.source_hash ?? (workspace?.dsl ? hashMedolSource(workspace.dsl) : undefined);
+  const previous = readLatestDocumentVersion(row.id);
+  const sourceHash = row.source_hash;
   const input: CreateModelingDocumentInput = {
     workspaceId: row.workspace_id,
     title: row.title,
@@ -597,9 +728,22 @@ const ensureDocumentVersionRows = (
     markdown: row.markdown,
     ...(sourceHash ? { sourceHash } : {})
   };
-  const documentVersion = existingRows.length === 0
-    ? createDocumentVersionSnapshot(row.id, input)
+  const documentVersion = !previous
+    || previous.title !== row.title
+    || stripDocumentVersionHistory(previous.markdown, previous.title)
+      !== preparePersistedEditableMarkdown(row.id, row.markdown, row.title)
+    || previous.source_hash !== (sourceHash ?? null)
+    ? createDocumentVersionSnapshot(row.id, input, false)
     : undefined;
+  if (documentVersion) {
+    documentVersion.origin = 'legacy';
+    if (previous && previous.source_hash === documentVersion.source_hash) {
+      documentVersion.workspace_version_id = previous.workspace_version_id;
+      documentVersion.workspace_version_no = previous.workspace_version_no;
+      documentVersion.workspace_version_message = previous.workspace_version_message;
+      documentVersion.workspace_release_label = previous.workspace_release_label;
+    }
+  }
   const markdown = documentVersion
     ? prepareVersionedEditableMarkdown(row.markdown, documentVersion)
     : preparePersistedEditableMarkdown(row.id, row.markdown, row.title);

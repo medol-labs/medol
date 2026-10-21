@@ -2,7 +2,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import {
   createModelingWorkspaceVersion,
   listModelingWorkspaceVersions,
-  readModelingWorkspace
+  readModelingWorkspace,
+  WorkspaceReleaseError
 } from '../../../server/modelingWorkspaceRepository';
 import { validateWorkspaceVersionInput } from '../../../server/modelingWorkspaceVersionValidation';
 
@@ -32,10 +33,17 @@ export const Route = createFileRoute('/api/modeling/workspaces/$workspaceId/vers
           return Response.json({ error: validation.error }, { status: 400 });
         }
 
-        const result = createModelingWorkspaceVersion(params.workspaceId, validation);
-        return result
-          ? Response.json(result, { status: 201 })
-          : Response.json({ error: 'workspace not found' }, { status: 404 });
+        try {
+          const result = createModelingWorkspaceVersion(params.workspaceId, validation);
+          return result
+            ? Response.json(result, { status: 201 })
+            : Response.json({ error: 'workspace not found' }, { status: 404 });
+        } catch (error) {
+          if (error instanceof WorkspaceReleaseError) {
+            return Response.json({ error: error.message }, { status: 409 });
+          }
+          throw error;
+        }
       }
     }
   }

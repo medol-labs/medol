@@ -10,6 +10,7 @@ import {
 import { exportFlowViewportToPng, exportFlowViewportToSvg } from '../lib/exportFlowImage';
 import type { DocumentationLanguage } from '../lib/generators/documentation';
 import { getFlowBounds } from './flowBounds';
+import { resolveCodegenModelExport } from '../features/workspace/codegenExport';
 import {
   documentationKindFromAction,
   isDocumentationAction,
@@ -23,7 +24,6 @@ interface UseToolbarActionsOptions {
   activeWorkspaceId?: string;
   dsl: string;
   emModelJson: string;
-  codegenModelJson: string;
   configJson: string;
   medolSourceHash: string;
   flowNodes: Node[];
@@ -41,7 +41,6 @@ export const useToolbarActions = ({
   activeWorkspaceId,
   dsl,
   emModelJson,
-  codegenModelJson,
   configJson,
   medolSourceHash,
   flowNodes,
@@ -68,11 +67,11 @@ export const useToolbarActions = ({
       if (toolbarAction === 'em-model') {
         downloadJson('em-model.json', emModelJson);
       } else if (toolbarAction === 'codegen-model') {
-        const resolvedJson = await resolveCodegenModelJson({
-          fallbackJson: codegenModelJson,
+        const resolvedJson = await resolveCodegenModelExport({
+          dsl,
           locale: documentationLanguage,
           workspaceId: activeWorkspaceId
-        });
+        }, readCodegenModelJson, resolveModelTranslations);
         downloadJson(getCodegenModelFilename(documentationLanguage), resolvedJson);
       } else if (toolbarAction === 'config') {
         downloadJson('config.json', configJson);
@@ -162,7 +161,7 @@ export const useToolbarActions = ({
       }
     } catch (error) {
       console.error(error);
-      if (isModelTranslationAction(toolbarAction)) {
+      if (isModelTranslationAction(toolbarAction) || toolbarAction === 'codegen-model') {
         setModelTranslationMessage(error instanceof Error ? error.message : 'Model translation failed');
       }
     } finally {
@@ -188,20 +187,6 @@ const isModelTranslationAction = (action: ToolbarAction): boolean => {
 
 const modelTranslationLocale = (language: DocumentationLanguage): DocumentationLanguage =>
   language === 'en' ? 'zh-CN' : language;
-
-const resolveCodegenModelJson = async (input: {
-  fallbackJson: string;
-  locale: DocumentationLanguage;
-  workspaceId?: string;
-}): Promise<string> => {
-  if (!input.workspaceId || input.locale === 'en') {
-    return input.fallbackJson;
-  }
-  return readCodegenModelJson({
-    workspaceId: input.workspaceId,
-    locale: input.locale
-  });
-};
 
 const getCodegenModelFilename = (locale: DocumentationLanguage): string => {
   return locale === 'en' ? 'codegen-model.json' : `codegen-model.${locale}.json`;

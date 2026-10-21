@@ -40,7 +40,7 @@ test('creates immutable workspace versions and restores a version into the draft
     dsl: nextDsl,
     author: 'tester',
     releaseChannel: 'stable',
-    releaseLabel: 'Orders v1',
+    releaseLabel: '1.0.0',
     releaseNotes: 'Ready for generated application review.'
   });
 
@@ -52,7 +52,7 @@ test('creates immutable workspace versions and restores a version into the draft
   assert.equal(created.version.author, 'tester');
   assert.deepEqual(created.version.release, {
     channel: 'stable',
-    label: 'Orders v1',
+    label: 'v1.0.0',
     notes: 'Ready for generated application review.',
     releasedAt: created.version.release?.releasedAt
   });
@@ -67,4 +67,17 @@ test('creates immutable workspace versions and restores a version into the draft
   assert.ok(restored);
   assert.equal(restored.dsl, initialDsl);
   assert.equal(restored.headVersionId, initialVersions[0].id);
+});
+
+test('rejects reused release baselines without changing the draft', () => {
+  const workspace = repository.createModelingWorkspace({ name: 'Release history', dsl: 'domain Orders {}' });
+  repository.createModelingWorkspaceVersion(workspace.id, { releaseChannel: 'stable', releaseLabel: 'v1.0.0' });
+  assert.throws(() => repository.createModelingWorkspaceVersion(workspace.id, {
+    dsl: 'domain Changed {}', releaseChannel: 'beta', releaseLabel: '1.0.0'
+  }), /already exists/);
+  assert.equal(repository.readModelingWorkspace(workspace.id)?.dsl, 'domain Orders {}');
+  assert.equal(repository.listModelingWorkspaceVersions(workspace.id).length, 2);
+  assert.throws(() => repository.createModelingWorkspaceVersion(workspace.id, {
+    releaseChannel: 'stable', releaseLabel: 'v1.0.0.1'
+  }), /vX.Y.Z/);
 });

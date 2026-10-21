@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
+import { toExportableDocumentMarkdown } from '../features/documentation/documentMarkdownPresentation';
 import {
   exportMarkdownToWord,
   prepareMarkdownForWord,
@@ -199,6 +200,33 @@ test('exports zh-formal DOCX with front matter, body page numbering, and cleaned
     assert.doesNotMatch(footerXml, /NUMPAGES/);
     assert.match(settingsXml, /<w:updateFields w:val="true" ?\/>/);
     assert.match(archiveListing, /word\/media\//);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('retains revision and source metadata in both Word export profiles', async (context) => {
+  if (!hasWordExportTools()) {
+    context.skip('pandoc, zip, and unzip are required for DOCX export integration test');
+    return;
+  }
+  const markdown = toExportableDocumentMarkdown('# Revision export\n\nBody.', [{
+    id: 'revision-1', revisionNo: 1, origin: 'manual', title: 'Revision export', markdown: 'Body.',
+    sourceHash: 'source-hash-original', workspaceVersionId: 'snapshot-original', workspaceVersionNo: 7,
+    createdAt: '2026-10-21T00:00:00.000Z'
+  }]);
+  const directory = await mkdtemp(path.join(tmpdir(), 'medol-revision-export-'));
+  try {
+    for (const profileId of ['default', 'zh-formal'] as const) {
+      const exported = await exportMarkdownToWord({ title: 'Revision export', markdown, profileId });
+      const docxPath = path.join(directory, `${profileId}.docx`);
+      await writeFile(docxPath, exported.content);
+      const { stdout } = await execFileAsync('unzip', ['-p', docxPath, 'word/document.xml']);
+      assert.match(stdout, /Revision History/);
+      assert.match(stdout, /source-hash-original/);
+      assert.match(stdout, /snapshot-original/);
+      assert.match(stdout, /manual/);
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

@@ -5,6 +5,20 @@ import type {
 
 export type ModelingDocumentKind = DocumentationKind | 'model-translations';
 
+export interface ModelingDocumentRevision {
+  id: string;
+  revisionNo: number;
+  origin: 'generated' | 'manual' | 'legacy';
+  title: string;
+  markdown: string;
+  sourceHash?: string;
+  workspaceVersionId?: string;
+  workspaceVersionNo?: number;
+  workspaceVersionMessage?: string;
+  workspaceReleaseLabel?: string;
+  createdAt: string;
+}
+
 export interface ModelingDocumentSummary {
   id: string;
   workspaceId: string;
@@ -13,12 +27,18 @@ export interface ModelingDocumentSummary {
   language: DocumentationLanguage;
   sourceRefs: string[];
   sourceHash?: string;
+  revisionNo?: number;
+  // Generation-time source identity is also available for catalogs without revisions.
+  workspaceVersionId?: string;
+  workspaceVersionNo?: number;
+  workspaceReleaseLabel?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ModelingDocument extends ModelingDocumentSummary {
   markdown: string;
+  revisions?: ModelingDocumentRevision[];
   mergeSummary?: ModelingDocumentMergeSummary;
 }
 

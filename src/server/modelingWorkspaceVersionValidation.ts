@@ -1,3 +1,5 @@
+import { normalizeReleaseLabel } from '../lib/codegenProvenance';
+
 const maxDslLength = 2_000_000;
 const maxMessageLength = 500;
 const maxAuthorLength = 120;
@@ -25,7 +27,7 @@ export const validateWorkspaceVersionInput = (
   const message = typeof body.message === 'string' ? body.message.trim() : undefined;
   const author = typeof body.author === 'string' ? body.author.trim() : undefined;
   const releaseChannel = typeof body.releaseChannel === 'string' ? body.releaseChannel.trim() : undefined;
-  const releaseLabel = typeof body.releaseLabel === 'string' ? body.releaseLabel.trim() : undefined;
+  let releaseLabel = typeof body.releaseLabel === 'string' ? body.releaseLabel.trim() : undefined;
   const releaseNotes = typeof body.releaseNotes === 'string' ? body.releaseNotes.trim() : undefined;
 
   if (body.message !== undefined && !message) return { error: 'message must not be empty' };
@@ -44,6 +46,13 @@ export const validateWorkspaceVersionInput = (
   }
   if ((releaseLabel || releaseNotes) && !releaseChannel) {
     return { error: 'release channel is required for release metadata' };
+  }
+  if (releaseChannel) {
+    try {
+      releaseLabel = normalizeReleaseLabel(releaseLabel ?? '');
+    } catch (error) {
+      return { error: (error as Error).message };
+    }
   }
   if (body.dsl !== undefined && typeof body.dsl !== 'string') {
     return { error: 'dsl must be a string' };

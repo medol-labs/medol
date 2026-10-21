@@ -1,4 +1,11 @@
 {
+  "metadata": {
+    "schemaVersion": 1,
+    "medolVersion": "0.1.0",
+    "source": {
+      "sha256": "0610060148b1b1c037d937161ea7d3ccea1ae0387f691f4d14e3cfef8d771815"
+    }
+  },
   "rootPackage": "tech.medo",
   "domain": "FederationLearningPlatform",
   "domains": [

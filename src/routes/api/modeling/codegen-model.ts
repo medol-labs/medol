@@ -7,6 +7,7 @@ import {
 } from '../../../features/model-i18n/modelTranslation';
 import { modelToCodegenModel, type CodegenModel } from '../../../lib/codegenModel';
 import { parseMedol } from '../../../lib/dslParser';
+import { withCodegenProvenance } from '../../../lib/codegenProvenance';
 import { readResolvedModelTranslations } from '../../../server/modelTranslationResolver';
 import {
   listModelingWorkspaces,
@@ -17,7 +18,7 @@ import {
 export const Route = createFileRoute('/api/modeling/codegen-model')({
   server: {
     handlers: {
-      GET: ({ request }) => {
+      GET: async ({ request }) => {
         const url = new URL(request.url);
         const workspaceId = url.searchParams.get('workspaceId')?.trim();
         const versionId = url.searchParams.get('versionId')?.trim();
@@ -38,9 +39,11 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
           }, { status: 404 });
         }
 
-        const version = versionId
-          ? readModelingWorkspaceVersion(workspace.id, versionId)
+        const selectedVersionId = versionId ?? workspace.headVersionId;
+        const selectedVersion = selectedVersionId
+          ? readModelingWorkspaceVersion(workspace.id, selectedVersionId)
           : undefined;
+        const version = (versionId || selectedVersion?.dsl === workspace.dsl) ? selectedVersion : undefined;
         if (versionId && !version) {
           return Response.json({ error: 'workspace version not found' }, { status: 404 });
         }
@@ -66,6 +69,7 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
           codegenModel = withCodegenTranslations(codegenModel, locale, translations);
         }
 
+        codegenModel = await withCodegenProvenance(codegenModel, dsl, { workspaceId: workspace.id, version });
         return new Response(JSON.stringify(codegenModel, null, 2), {
           headers: {
             'Content-Type': 'application/json; charset=utf-8',

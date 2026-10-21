@@ -157,7 +157,6 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const overviewFlow = useMemo(() => toOverviewFlow(model), [model]);
   const modelSearchIndex = useMemo(() => buildModelSearchIndex(model), [model]);
   const emModelJson = useMemo(() => emModelToJson(model), [model]);
-  const codegenModelJson = useMemo(() => JSON.stringify(codegenModel, null, 2), [codegenModel]);
   const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
   const medolSourceHash = useMemo(() => hashMedolSource(dsl), [dsl]);
   const documentSourceRefs = useMemo(
@@ -176,7 +175,6 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     activeWorkspaceId,
     dsl,
     emModelJson,
-    codegenModelJson,
     configJson,
     medolSourceHash,
     flowNodes: flow.nodes,
