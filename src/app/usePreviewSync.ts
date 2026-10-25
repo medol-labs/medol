@@ -17,6 +17,8 @@ interface UsePreviewSyncOptions {
   selectedConceptId?: string;
   selectedSliceId?: string;
   selectedNodeId?: string;
+  localContextOnly: boolean;
+  collapsedContextIds: string[];
   switchWorkspace: (workspaceId: string) => void | Promise<void>;
   updateDsl: (dsl: string) => void;
   onPreviewModeChange: (mode: PreviewMode) => void;
@@ -34,6 +36,8 @@ export const usePreviewSync = ({
   selectedConceptId,
   selectedSliceId,
   selectedNodeId,
+  localContextOnly,
+  collapsedContextIds,
   switchWorkspace,
   updateDsl,
   onPreviewModeChange,
@@ -44,6 +48,8 @@ export const usePreviewSync = ({
     ...(activeWorkspaceId ? { workspaceId: activeWorkspaceId } : {}),
     dsl,
     previewMode,
+    localContextOnly,
+    collapsedContextIds,
     ...(selectedDomainId ? { selectedDomainId } : {}),
     ...(selectedContextId ? { selectedContextId } : {}),
     ...(selectedAggregateId ? { selectedAggregateId } : {}),
@@ -59,7 +65,9 @@ export const usePreviewSync = ({
     selectedAggregateId,
     selectedConceptId,
     selectedSliceId,
-    selectedNodeId
+    selectedNodeId,
+    localContextOnly,
+    collapsedContextIds
   ]);
 
   useEffect(() => {

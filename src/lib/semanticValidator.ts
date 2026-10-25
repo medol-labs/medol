@@ -44,6 +44,7 @@ import type {
   EmValueType
 } from './model';
 import { resolveTenantCapability } from './tenantCapability';
+import { reactionDiagnostics } from './reactionSemantics';
 
 const builtinTypes = new Set([
   'Any',
@@ -130,6 +131,7 @@ export const validateSemanticModel = (ast: AstModel, model: EmModel): string[] =
   });
 
   validateUnresolvedEdges(model, diagnostics);
+  diagnostics.push(...reactionDiagnostics(model));
   validateUserJourneys(model, diagnostics);
   return [...new Set(diagnostics)];
 };

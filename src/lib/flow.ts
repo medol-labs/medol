@@ -1,5 +1,7 @@
 import type { Edge, Node } from '@xyflow/react';
 import { EmContext, EmElement, EmModel, EmSlice } from './model';
+import { scopeCanvasModel, type CanvasScopeOptions } from './canvasScope';
+import { isBuiltinDefinition } from './modelSource';
 
 const sliceLaneOrder: EmElement['kind'][] = [
   'actor',
@@ -77,11 +79,7 @@ interface SliceLayout {
   height: number;
 }
 
-export interface ReactFlowOptions {
-  contextId?: string;
-  aggregateId?: string;
-  conceptId?: string;
-  sliceId?: string;
+export interface ReactFlowOptions extends CanvasScopeOptions {
   compactSlices?: boolean;
   showFields?: boolean;
 }
@@ -97,7 +95,7 @@ const conceptHeaderHeight = 64;
 const aggregatePadding = 18;
 const startX = 32;
 const contextPadding = 24;
-const contextHeaderHeight = 44;
+const contextHeaderHeight = 64;
 const compactColumns = 4;
 const compactColumnWidth = 250;
 const compactColumnGap = 24;
@@ -106,60 +104,29 @@ const compactRowHeight = 194;
 export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
   let currentY = 48;
-  const contexts = model.contexts
-    .filter((context) => !options.contextId || context.id === options.contextId)
+  const scopedModel = scopeCanvasModel(model, options);
+  const contexts = scopedModel.contexts
     .map((context) => ({
       ...context,
       aggregates: toCanvasGroups(context)
-        .filter((group) =>
-          (!options.aggregateId || group.id === options.aggregateId)
-          && (!options.conceptId || group.id === options.conceptId)
-        )
-        .map((aggregate) => ({
-          ...aggregate,
-          slices: aggregate.slices.filter((slice) => !options.sliceId || slice.id === options.sliceId)
-        }))
     }));
-
-  const looseElements = contexts.flatMap((context) => context.looseElements);
-  if (looseElements.length > 0) {
-    nodes.push({
-      id: 'external-integrations',
-      type: 'group',
-      position: { x: startX, y: currentY },
-      draggable: false,
-      selectable: false,
-      data: { label: 'External Integrations' },
-      style: {
-        width: Math.max(aggregateLabelWidth + looseElements.length * 230, 520),
-        height: externalRowHeight,
-        borderRadius: 8,
-        border: '1px dashed #8fb7b1',
-        background: 'rgba(240, 253, 250, 0.68)',
-        pointerEvents: 'none'
-      }
-    });
-
-    for (const [index, element] of looseElements.entries()) {
-      nodes.push(toNode(element, {
-        x: aggregateLabelWidth + index * 220,
-        y: 44
-      }, 'external-integrations'));
-    }
-
-    currentY += externalRowHeight + aggregateGap;
-  }
 
   if (options.compactSlices) {
     for (const context of contexts) {
+      if (options.collapsedContextIds?.includes(context.id)) {
+        addCollapsedContext(nodes, context, currentY);
+        currentY += 104 + aggregateGap;
+        continue;
+      }
       const aggregateLayouts = context.aggregates.map((aggregate) => ({
         aggregate,
         ...compactAggregateSize(aggregate.slices.length, aggregate)
       }));
-      const contextWidth = Math.max(...aggregateLayouts.map((layout) => layout.width), 520) + contextPadding * 2;
+      const looseHeight = context.looseElements.length ? looseRowHeight(context.looseElements, options.showFields ?? false) + aggregateGap : 0;
+      const contextWidth = Math.max(...aggregateLayouts.map((layout) => layout.width), looseWidth(context.looseElements), 520) + contextPadding * 2;
       const contextHeight =
         contextHeaderHeight +
-        contextPadding * 2 +
+        contextPadding * 2 + looseHeight +
         aggregateLayouts.reduce((sum, layout) => sum + layout.height, 0) +
         Math.max(aggregateLayouts.length - 1, 0) * aggregateGap;
 
@@ -182,19 +149,22 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
 
       nodes.push({
         id: `${context.id}/header`,
-        type: 'laneLabel',
+        type: 'contextHeader',
         parentId: context.id,
         extent: 'parent',
         draggable: false,
         selectable: false,
-        position: { x: 0, y: 14 },
-        data: { label: `CONTEXT / ${context.name}` },
+        position: { x: contextPadding, y: 12 },
+        data: contextHeaderData(context, false),
         style: {
-          width: contextWidth
+          width: contextWidth - contextPadding * 2,
+          height: 44
         }
       });
 
       let aggregateY = contextHeaderHeight + contextPadding;
+      addLooseNodes(nodes, context.id, context.looseElements, aggregateY, options.showFields ?? false);
+      aggregateY += looseHeight;
       for (const layout of aggregateLayouts) {
         addCompactAggregateNodes(nodes, layout.aggregate, context.id, {
           x: contextPadding,
@@ -207,6 +177,18 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
     }
   } else {
   for (const context of contexts) {
+    if (options.collapsedContextIds?.includes(context.id)) {
+      addCollapsedContext(nodes, context, currentY);
+      currentY += 104 + aggregateGap;
+      continue;
+    }
+    const contextStart = currentY;
+    const nodeStart = nodes.length;
+    currentY += contextHeaderHeight + contextPadding;
+    if (context.looseElements.length) {
+      addLooseNodes(nodes, undefined, context.looseElements, currentY, options.showFields ?? false);
+      currentY += looseRowHeight(context.looseElements, options.showFields ?? false) + aggregateGap;
+    }
     for (const aggregate of context.aggregates) {
       const sliceLayouts = toAggregateSliceLayouts(aggregate.slices, options.showFields ?? false);
       const aggregateWidth =
@@ -250,60 +232,99 @@ export const toReactFlow = (model: EmModel, options: ReactFlowOptions = {}): { n
 
       currentY += aggregateHeight + aggregateGap;
     }
-  }
-  }
-
-  const visibleElementIds = new Set(nodes.filter((node) => node.type === 'emElement').map((node) => node.id));
-  const visibleSummaryIds = new Set(nodes.filter((node) => node.type === 'sliceSummary').map((node) => node.id));
-  const edges: Edge[] = model.edges
-    .filter((edgeItem) => visibleElementIds.has(edgeItem.source) && visibleElementIds.has(edgeItem.target))
-    .map((edgeItem) => {
-      const visual = toEdgeVisual(edgeItem.label);
-      return {
-        id: edgeItem.id,
-        source: edgeItem.source,
-        target: edgeItem.target,
-        label: edgeItem.label,
-        animated: false,
-        type: 'smoothstep',
-        style: {
-          stroke: visual.stroke,
-          strokeDasharray: visual.strokeDasharray,
-          strokeWidth: visual.strokeWidth
-        },
-        labelStyle: { fill: visual.labelColor, fontSize: 11, fontWeight: 700 },
-        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.9 }
-      };
+    const children = nodes.slice(nodeStart);
+    const contextWidth = Math.max(520, looseWidth(context.looseElements), ...children.filter((node) => !node.parentId).map((node) => Number(node.style?.width ?? 0))) + contextPadding * 2;
+    const contextHeight = Math.max(currentY - contextStart - aggregateGap + contextPadding, contextHeaderHeight + contextPadding * 2);
+    for (const node of children.filter((node) => !node.parentId)) {
+      node.parentId = context.id;
+      node.extent = 'parent';
+      node.position = { x: node.position.x - startX + contextPadding, y: node.position.y - contextStart };
+    }
+    nodes.splice(nodeStart, 0, {
+      id: context.id, type: 'group', position: { x: startX, y: contextStart },
+      draggable: false, selectable: false, data: { label: context.name },
+      style: { width: contextWidth, height: contextHeight, borderRadius: 0,
+        border: context.id === options.contextId ? '1px solid #429982' : '1px solid #c7ced5',
+        background: 'rgba(250, 252, 251, 0.7)', pointerEvents: 'none' }
+    }, {
+      id: `${context.id}/header`, type: 'contextHeader', parentId: context.id, extent: 'parent',
+      position: { x: contextPadding, y: 12 }, draggable: false, selectable: false,
+      data: contextHeaderData(context, false), style: { width: contextWidth - contextPadding * 2, height: 44 }
     });
+    currentY = contextStart + contextHeight + aggregateGap;
+  }
+  }
 
-  if (options.compactSlices) {
-    for (const context of contexts) {
-      for (const aggregate of context.aggregates) {
-        for (let index = 0; index < aggregate.slices.length - 1; index += 1) {
-          const source = `${aggregate.slices[index].id}/summary`;
-          const target = `${aggregate.slices[index + 1].id}/summary`;
-          if (!visibleSummaryIds.has(source) || !visibleSummaryIds.has(target)) continue;
-          edges.push({
-            id: `timeline/${source}->${target}`,
-            source,
-            target,
-            label: 'then',
-            animated: false,
-            type: 'smoothstep',
-            style: {
-              stroke: '#94a3b8',
-              strokeDasharray: '5 5',
-              strokeWidth: 1.8
-            },
-            labelStyle: { fill: '#64748b', fontSize: 11, fontWeight: 700 },
-            labelBgStyle: { fill: '#ffffff', fillOpacity: 0.88 }
-          });
-        }
-      }
+  return { nodes, edges: canvasEdges(scopedModel, nodes) };
+};
+
+const contextHeaderData = (context: { id: string; name: string; aggregates: CanvasGroup[]; sources?: EmContext['sources'] }, collapsed: boolean) => ({
+  contextId: context.id, name: context.name, collapsed,
+  builtin: isBuiltinDefinition(context),
+  sliceCount: context.aggregates.reduce((sum, group) => sum + group.slices.length, 0)
+});
+
+const addCollapsedContext = (nodes: Node[], context: { id: string; name: string; aggregates: CanvasGroup[]; sources?: EmContext['sources'] }, y: number) => {
+  nodes.push({ id: context.id, type: 'group', position: { x: startX, y }, data: { label: context.name },
+    draggable: false, selectable: false,
+    style: { width: 568, height: 104, borderRadius: 0, border: '1px solid #c7ced5', background: '#f8faf9', pointerEvents: 'none' }
+  }, { id: `${context.id}/header`, type: 'contextHeader', parentId: context.id, extent: 'parent',
+    position: { x: contextPadding, y: 28 }, draggable: false, selectable: false,
+    data: contextHeaderData(context, true), style: { width: 520, height: 44 }
+  });
+};
+
+function canvasEdges(model: EmModel, nodes: Node[]): Edge[] {
+  const ids = new Set(nodes.map((node) => node.id));
+  const endpoints = new Map<string, { id: string; contextId: string }>();
+  for (const context of model.contexts) {
+    const slices = [...context.slices, ...context.aggregates.flatMap((owner) => owner.slices)];
+    const records = [...context.looseElements.map((element) => ({ element, sliceId: undefined as string | undefined })),
+      ...slices.flatMap((slice) => slice.elements.map((element) => ({ element, sliceId: slice.id })))];
+    const header = nodes.find((node) => node.id === `${context.id}/header`);
+    for (const { element, sliceId } of records) {
+      const id = ids.has(element.id) ? element.id : sliceId && ids.has(`${sliceId}/summary`) ? `${sliceId}/summary`
+        : header?.data.collapsed ? header.id : undefined;
+      if (id && ids.has(id)) endpoints.set(element.id, { id, contextId: context.id });
     }
   }
+  const edges = new Map<string, Edge>();
+  for (const relation of model.edges) {
+    const source = endpoints.get(relation.source);
+    const target = endpoints.get(relation.target);
+    if (!source || !target || source.id === target.id) continue;
+    const overview = source.id !== relation.source || target.id !== relation.target;
+    const kind = relation.label ?? 'Related';
+    const key = JSON.stringify([source.id, target.id, overview ? 'overview' : relation.label]);
+    const existing = edges.get(key);
+    if (existing) {
+      const originals = existing.data!.relationIds as string[];
+      originals.push(relation.id);
+      const counts = existing.data!.relationCounts as Record<string, number>;
+      counts[kind] = (counts[kind] ?? 0) + 1;
+      existing.data!.relations = Object.keys(counts);
+      existing.label = Object.entries(counts).map(([name, count]) => count > 1 ? `${name} (${count})` : name).join(' / ');
+      continue;
+    }
+    const visual = toEdgeVisual(relation.label);
+    edges.set(key, { id: relation.id, source: source.id, target: target.id, label: relation.label,
+      data: { crossContext: source.contextId !== target.contextId, relation: relation.label, relations: [kind], relationCounts: { [kind]: 1 }, relationIds: [relation.id] },
+      animated: false, type: 'smoothstep',
+      ...(overview ? { pathOptions: { stepPosition: 0.35, borderRadius: 8, offset: 24 } } : {}),
+      style: { stroke: visual.stroke, strokeDasharray: visual.strokeDasharray, strokeWidth: visual.strokeWidth },
+      labelStyle: { fill: visual.labelColor, fontSize: 11, fontWeight: 700 },
+      labelBgStyle: { fill: '#ffffff', fillOpacity: 0.9 }
+    });
+  }
+  return [...edges.values()];
+}
 
-  return { nodes, edges };
+const looseWidth = (elements: EmElement[]) => elements.length * columnWidth;
+const looseRowHeight = (elements: EmElement[], showFields: boolean) => Math.max(externalRowHeight, ...elements.map((element) => elementHeight(element, showFields)));
+const addLooseNodes = (nodes: Node[], parentId: string | undefined, elements: EmElement[], y: number, showFields: boolean) => {
+  for (const [index, element] of elements.entries()) {
+    nodes.push(toNode(element, { x: (parentId ? contextPadding : startX) + index * columnWidth, y }, parentId, showFields));
+  }
 };
 
 interface CanvasGroup {

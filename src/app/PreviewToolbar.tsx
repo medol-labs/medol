@@ -83,10 +83,11 @@ export function PreviewToolbar({
             onChange={(event) => onPreviewModeChange(event.target.value as PreviewMode)}
             aria-label="Preview mode"
           >
+            <option value="analysis">Business Analysis</option>
             <option value="canvas">Model Canvas</option>
             <option value="global">Domain Map</option>
-            <option value="layout">UI Preview</option>
             <option value="documents">Documents</option>
+            <option value="layout">Page Structure (Auxiliary)</option>
           </select>
         </div>
         <div className="toolbar-utility-controls">

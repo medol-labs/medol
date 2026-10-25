@@ -22,6 +22,8 @@ npm run test:types            # src/lib/typeSystem.test.ts
 npm run test:specification    # src/lib/specificationCoverage.test.ts
 npm run test:agent            # src/features/agent-chat/dslOperationTools.test.ts
 npm run test:search           # src/features/model-search/modelSearch.test.ts
+npm run test:canvas           # canvas scope + source provenance
+npm run test:reactions        # src/lib/reactionSemantics.test.ts
 npm run test:documentation    # src/features/documentation/documentationTranslation.test.ts
 npm run test:workspace        # src/server/modelingWorkspaceRepository.test.ts
 npm run test:documents        # src/server/modelingDocumentRepository.test.ts
@@ -86,11 +88,11 @@ The working backlog is in `TODO.md` (medol-only) and `outputs/事件驱动的医
 
 ## Federation Learning model rules
 
-- `examples/fl/federation-learning.medol` is the source of truth for the generated Federation Learning platform.
-- When generated backend/frontend behavior is wrong because the domain behavior is wrong, fix this MEDOL file first instead of patching generated code.
-- After changing the model, regenerate the codegen model from the `medol/` root:
+- `../federation-learning/.medol/source.medol` is the authoritative source for Federation Learning business-model changes. `examples/fl/federation-learning.medol` is a synchronized example, not the only file to update.
+- When generated backend/frontend behavior is wrong because the domain behavior is wrong, fix the system source first instead of patching generated code. Keep the example synchronized without overwriting independent changes.
+- After changing the model, refresh both `.medol/codegen-model.json` in the system repository and `examples/fl/codegen-model.json` here from their respective sources. Preserve curated localization enrichment. The following command exports the system source from the `medol/` root:
   ```bash
-  npm run medol:to-codegen-model -- examples/fl/federation-learning.medol > examples/fl/codegen-model.json
+  node --import tsx src/lib/dslToCodegenModelCli.ts ../federation-learning/.medol/source.medol
   ```
 - User commands may contain only user-provided identifiers and inputs, but emitted events should contain full snapshots needed by downstream consumers and replay.
 - If an event field is derived from another concept state and generation cannot express it, fix the model/generator. Do not accept generated random UUIDs or empty strings as meaningful business data.

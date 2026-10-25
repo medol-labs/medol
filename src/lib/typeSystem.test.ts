@@ -1157,7 +1157,7 @@ test('derives codegen transitions from lifecycle state changes and reactsTo', ()
   );
 });
 
-test('infers transition fromState from specific failure trigger event', () => {
+test('blocks lifecycle guards that would require guessing a secondary event state', () => {
   const model = parseMedol(`
     context Runtime {
       slice StartRoundExecution {
@@ -1226,13 +1226,8 @@ test('infers transition fromState from specific failure trigger event', () => {
     }
   `);
 
-  assert.deepEqual(model.diagnostics, []);
-  const codegen = modelToCodegenModel(model);
-  const transitionByCommand = new Map(codegen.transitions.map((transition) => [transition.command?.name, transition]));
-
-  assert.equal(transitionByCommand.get('RetryRoundExecutionAfterStartFailure')?.from, 'StartFailed');
-  assert.equal(transitionByCommand.get('ReleaseRuntimeEngineJobAfterStartFailure')?.from, 'StartFailed');
-  assert.equal(transitionByCommand.get('ReleaseRuntimeEngineJobAfterRetryFailure')?.from, 'Failed');
+  assert.equal(model.diagnostics.filter((message) => message.includes('event names are not state declarations')).length, 3);
+  assert.throws(() => modelToCodegenModel(model), /no explicit state association/);
 });
 
 test('does not infer fromState from cross concept reactsTo events', () => {

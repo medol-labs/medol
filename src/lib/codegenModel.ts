@@ -5,6 +5,7 @@ import { coveredSpecificationExpressions } from './specificationCoverage';
 import type { TenantCapability } from './tenantCapability';
 import { resolveTenantCapability } from './tenantCapability';
 import type { CodegenMetadata } from './codegenProvenance';
+import { reactionDiagnostics } from './reactionSemantics';
 
 export interface CodegenModel {
   metadata?: CodegenMetadata;
@@ -393,6 +394,8 @@ export interface CodegenSpecificationReject {
 }
 
 export const modelToCodegenModel = (model: EmModel): CodegenModel => {
+  const invalidReactions = reactionDiagnostics(model);
+  if (invalidReactions.length) throw new Error(invalidReactions.join('\n'));
   const runtime = resolveTenantCapability(model);
   if (runtime.diagnostics.length) throw new Error(runtime.diagnostics.join('\n'));
   const aggregateRecords = new Map<string, CodegenAggregate>();
@@ -818,7 +821,7 @@ const buildTransitions = (model: EmModel): CodegenTransition[] => {
 
       for (const owner of owners) {
         const fromStates = slice.startsLifecycle ? [] : [...new Set(triggers.flatMap((item) => {
-          const inferred = inferTransitionFromState(owner, item, eventToSlice, ownersBySliceId, model, contextBySliceId);
+          const inferred = inferTransitionFromState(owner, item, eventToSlice, ownersBySliceId);
           return 'from' in inferred ? [inferred.from] : [];
         }))];
         transitions.push({
@@ -846,9 +849,7 @@ const inferTransitionFromState = (
   owner: CodegenTransitionOwner,
   trigger: EmElement | undefined,
   eventToSlice: Map<string, EmSlice>,
-  ownersBySliceId: Map<string, CodegenTransitionOwner[]>,
-  model: EmModel,
-  contextBySliceId: Map<string, string>
+  ownersBySliceId: Map<string, CodegenTransitionOwner[]>
 ): { from: string } | {} => {
   if (!trigger) return {};
   const sourceSlice = eventToSlice.get(trigger.id);
@@ -857,91 +858,13 @@ const inferTransitionFromState = (
   const sameOwner = sourceOwners.some((candidate) => candidate.id === owner.id && candidate.type === owner.type);
   if (!sameOwner) return {};
 
-  return {
-    from: inferTriggerEventState(owner, trigger, sourceSlice, model, contextBySliceId) ?? sourceSlice.resultingState
-  };
-};
-
-const inferTriggerEventState = (
-  owner: CodegenTransitionOwner,
-  trigger: EmElement,
-  sourceSlice: EmSlice,
-  model: EmModel,
-  contextBySliceId: Map<string, string>
-): string | undefined => {
+  // Retain the legacy slice-state association for its primary event. Secondary
+  // outcomes have no state declaration here; names must never determine guards.
   const stateChangeEvent = sourceSlice.elements.find((element) => element.kind === 'event');
-  if (stateChangeEvent?.id === trigger.id) return sourceSlice.resultingState;
-
-  const states = findOwnerStates(owner, sourceSlice, model, contextBySliceId);
-  return bestStateForEventName(trigger.name, states);
-};
-
-const findOwnerStates = (
-  owner: CodegenTransitionOwner,
-  sourceSlice: EmSlice,
-  model: EmModel,
-  contextBySliceId: Map<string, string>
-): string[] => {
-  const sourceContextName = contextBySliceId.get(sourceSlice.id);
-  const contexts = [
-    ...model.contexts.filter((contextItem) => contextItem.name === sourceContextName),
-    ...model.contexts.filter((contextItem) => contextItem.name !== sourceContextName)
-  ];
-
-  for (const contextItem of contexts) {
-    const source = owner.type === 'concept'
-      ? contextItem.concepts.find((concept) => stableId('concept', concept.id) === owner.id || concept.name === owner.name)
-      : contextItem.aggregates.find((aggregate) => stableId('aggregate', aggregate.id) === owner.id || aggregate.name === owner.name);
-    if (source) return source.states;
+  if (stateChangeEvent?.id !== trigger.id) {
+    throw new Error(`Slice ${sourceSlice.name}: event ${trigger.name} has no explicit state association for ${owner.name}. Cannot derive a lifecycle guard from reactsTo without guessing. Model this outcome in a separate state-bearing slice before exporting.`);
   }
-
-  return [];
-};
-
-const bestStateForEventName = (eventName: string, states: string[]): string | undefined => {
-  const normalizedEventName = normalizeOutcomeName(eventName);
-  const direct = states.find((state) => normalizedEventName.includes(normalizeOutcomeName(state)));
-  if (direct) return direct;
-
-  const eventWords = semanticOutcomeWords(eventName);
-  const ranked = states
-    .map((state) => {
-      const stateWords = semanticOutcomeWords(state);
-      const overlap = stateWords.filter((word) => eventWords.includes(word)).length;
-      const extraStateWords = stateWords.filter((word) => !eventWords.includes(word)).length;
-      return {
-        state,
-        score: overlap * 3 - extraStateWords
-      };
-    })
-    .sort((left, right) => right.score - left.score || left.state.length - right.state.length);
-
-  return ranked[0]?.score > 0 ? ranked[0].state : undefined;
-};
-
-const normalizeOutcomeName = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-const semanticOutcomeWords = (value: string): string[] => {
-  const synonyms: Record<string, string> = {
-    failure: 'failed',
-    fail: 'failed',
-    fails: 'failed',
-    failing: 'failed',
-    installation: 'deployment',
-    installed: 'deployment',
-    install: 'deployment',
-    succeeded: 'ready',
-    success: 'ready',
-    established: 'connected'
-  };
-
-  return humanize(value)
-    .replace(/[^A-Za-z0-9]+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.toLowerCase())
-    .map((word) => synonyms[word] ?? word);
+  return { from: sourceSlice.resultingState };
 };
 
 const toCodegenTransitionElement = (element: EmElement): { id: string; name: string; title: string } => ({

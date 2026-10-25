@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { OverflowText } from '../../components/ui/overflow-text';
 import { agentSliceStatusValues, type AgentSliceStatus } from '../../contracts/agentSliceStatus';
 import type { EmAggregate, EmConcept, EmContext, EmDomain, EmModel, EmSlice } from '../../lib/model';
+import { canvasBoards } from '../../lib/canvasScope';
+import { canLocateInEditor, hasBuiltinSource, isBuiltinDefinition } from '../../lib/modelSource';
 
 interface ModelExplorerProps {
   model: EmModel;
@@ -14,6 +16,7 @@ interface ModelExplorerProps {
   sliceAgentStatuses?: Record<string, AgentSliceStatus>;
   documentSourceRefs: ReadonlySet<string>;
   onSelectDomain: (domain: EmDomain) => void;
+  onSelectBoard: (boardId: string) => void;
   onSelectContext: (context: EmContext) => void;
   onSelectAggregate: (context: EmContext, aggregate: EmAggregate) => void;
   onSelectConcept: (context: EmContext, concept: EmConcept) => void;
@@ -38,6 +41,7 @@ export function ModelExplorer({
   sliceAgentStatuses = {},
   documentSourceRefs,
   onSelectDomain,
+  onSelectBoard,
   onSelectContext,
   onSelectAggregate,
   onSelectConcept,
@@ -46,7 +50,7 @@ export function ModelExplorer({
   onLocateDocumentation,
   onCollapse
 }: ModelExplorerProps) {
-  const domains = useMemo(() => getExplorerDomains(model), [model]);
+  const domains = useMemo(() => canvasBoards(model), [model]);
   const collapsibleIds = useMemo(() => collectCollapsibleIds(domains), [domains]);
   const knownCollapsibleIdsRef = useRef<Set<string>>(new Set(collapsibleIds));
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(collapsibleIds));
@@ -160,7 +164,11 @@ export function ModelExplorer({
                   type="button"
                   className={domain.id === activeDomainId ? 'explorer-item is-active' : 'explorer-item'}
                   data-explorer-id={domain.id}
-                  onClick={() => onSelectDomain(domain as EmDomain)}
+                  onClick={() => {
+                    const source = model.domains.find((item) => item.id === domain.id);
+                    if (source) onSelectDomain(source);
+                    else onSelectBoard(domain.id);
+                  }}
                 >
                   <span>{domain.contexts.length} contexts</span>
                   <OverflowText as="strong" text={domain.name} />
@@ -193,7 +201,7 @@ export function ModelExplorer({
                             data-explorer-id={context.id}
                             onClick={() => onSelectContext(context)}
                           >
-                            <span>Context</span>
+                            <span>{isBuiltinDefinition(context) ? 'Built-in / Read only' : hasBuiltinSource(context) ? 'Extended built-in' : 'Context'}</span>
                             <OverflowText as="strong" text={context.name} />
                           </button>
                           <DocumentationLocator
@@ -253,6 +261,7 @@ export function ModelExplorer({
                             <OverflowText as="strong" text={slice.name} />
                           </button>
                           <SliceAgentStatusSelect
+                            readOnly={!canLocateInEditor(slice.sourceRange)}
                             value={sliceAgentStatuses[slice.id] ?? 'unplanned'}
                             onChange={(status) => onChangeSliceAgentStatus?.(context, aggregate, slice, status)}
                           />
@@ -286,6 +295,7 @@ export function ModelExplorer({
                                   <OverflowText as="strong" text={slice.name} />
                                 </button>
                                 <SliceAgentStatusSelect
+                                  readOnly={!canLocateInEditor(slice.sourceRange)}
                                   value={sliceAgentStatuses[slice.id] ?? 'unplanned'}
                                   onChange={(status) => onChangeSliceAgentStatus?.(context, undefined, slice, status)}
                                 />
@@ -350,6 +360,7 @@ export function ModelExplorer({
                                             <OverflowText as="strong" text={slice.name} />
                                           </button>
                                           <SliceAgentStatusSelect
+                                            readOnly={!canLocateInEditor(slice.sourceRange)}
                                             value={sliceAgentStatuses[slice.id] ?? 'unplanned'}
                                             onChange={(status) => onChangeSliceAgentStatus?.(context, undefined, slice, status)}
                                           />
@@ -392,16 +403,6 @@ const contextSourceIds = (context: EmContext): string[] => [
 
 type ExplorerDomain = Pick<EmDomain, 'id' | 'name' | 'contexts'>;
 
-const getExplorerDomains = (model: EmModel): ExplorerDomain[] => (
-  model.domains.length > 0
-    ? model.domains
-    : [{
-      id: 'default-domain',
-      name: 'Model',
-      contexts: model.contexts
-    }]
-);
-
 const collectCollapsibleIds = (domains: ExplorerDomain[]): string[] => (
   domains.flatMap((domain) => [
     domain.id,
@@ -415,11 +416,14 @@ const collectCollapsibleIds = (domains: ExplorerDomain[]): string[] => (
 
 function SliceAgentStatusSelect({
   value,
-  onChange
+  onChange,
+  readOnly = false
 }: {
   value: AgentSliceStatus;
   onChange: (status: AgentSliceStatus) => void;
+  readOnly?: boolean;
 }) {
+  if (readOnly) return <span className="explorer-imported-status">Imported</span>;
   return (
     <select
       className={`explorer-agent-status explorer-agent-status--${value}`}

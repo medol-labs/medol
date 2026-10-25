@@ -3,6 +3,7 @@ import { OverflowText } from './ui/overflow-text';
 
 interface ContextOverviewNodeData extends Record<string, unknown> {
   title: string;
+  builtin?: boolean;
   note?: string;
   aggregates: number;
   concepts: number;
@@ -17,7 +18,7 @@ export function ContextOverviewNode({ data }: NodeProps) {
   return (
     <section className="context-overview-node">
       <div>
-        <span>Bounded Context</span>
+        <span>{context.builtin ? 'Built-in / Read only' : 'Bounded Context'}</span>
         <OverflowText as="strong" text={context.title} />
         {context.note && <OverflowText as="p" text={context.note} />}
       </div>

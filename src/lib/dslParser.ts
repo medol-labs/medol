@@ -100,6 +100,7 @@ import type {
 } from '../language/generated/ast';
 import { EmContext, EmConcept, EmDeployment, EmDomain, EmEdge, EmElement, EmField, EmFieldMapping, EmModel, EmSlice, EmUi, EmValueType, EmValueTypeConstraint, emptyModel, type EmAccessPolicy, type EmCapabilityExtension, type EmDerivedLookup, type EmDictionaryProvider, type EmExternalSystem, type EmFrontendApplication, type EmUserJourney, type MedolDiagnostic, type MedolSourceRange } from './model';
 import { validateSemanticModel } from './semanticValidator';
+import { resolveSliceReactions } from './reactionSemantics';
 import { locateSemanticDiagnostics } from './diagnosticLocation';
 import { resolveBuiltinCapabilityName, resolveBuiltinMedolImport, supportedBuiltinMedolImports } from './builtinMedolModels';
 
@@ -108,6 +109,12 @@ const sharedServices = inject(
   MedolGeneratedSharedModule
 );
 
+const sourceNamesForRanges = new WeakMap<RootCstNode, string>();
+const sourceOriginsByNode = new WeakMap<AstNode, NonNullable<EmContext['sources']>>();
+const mergeSourceOrigins = (target: AstNode, addition: AstNode) => {
+  const sources = [...(sourceOriginsByNode.get(target) ?? []), ...(sourceOriginsByNode.get(addition) ?? [])];
+  sourceOriginsByNode.set(target, [...new Map(sources.map((source) => [JSON.stringify(source), source])).values()]);
+};
 const medolServices = inject(
   createDefaultCoreModule({ shared: sharedServices }),
   MedolGeneratedModule
@@ -145,8 +152,14 @@ export const parseMedolSources = (sources: MedolSource[]): EmModel => {
     }));
     const sourceNamesByRoot = new Map<RootCstNode, string>();
     for (const { source, result } of results) {
+      const nodes = [...(result.value.domains ?? []), ...(result.value.contexts ?? []),
+        ...(result.value.domains ?? []).flatMap((domain) => domain.contexts ?? [])];
+      for (const node of nodes) sourceOriginsByNode.set(node, [{ sourceName: source.sourceName, ...(source.builtin ? { builtin: true } : {}) }]);
       const root = result.value.$cstNode?.root;
-      if (root) sourceNamesByRoot.set(root, source.sourceName);
+      if (root) {
+        sourceNamesByRoot.set(root, source.sourceName);
+        sourceNamesForRanges.set(root, source.sourceName);
+      }
     }
     const ast = mergeAstModels(results.map(({ result }) => result.value));
     const builtinRoots = new Set(results.filter(({ source }) => source.builtin)
@@ -284,6 +297,7 @@ const mergeAstModels = (models: AstModel[]): AstModel => {
         domains.set(domain.name, domain);
         merged.domains.push(domain);
       } else {
+        mergeSourceOrigins(existing, domain);
         mergeContexts(existing.contexts, domain.contexts ?? []);
         mergeDeployments(existing.deployments, domain.deployments ?? []);
         mergeFrontendApplications(existing.frontendApplications, domain.frontendApplications ?? []);
@@ -310,6 +324,7 @@ const mergeContexts = (
   for (const context of additions) {
     const current = existing.get(context.name);
     if (current) {
+      mergeSourceOrigins(current, context);
       appendUniqueNamedAstNodes(current.elements, context.elements ?? []);
     } else {
       context.elements = [...(context.elements ?? [])];
@@ -506,6 +521,7 @@ const parseDomain = (node: AstDomain, edges: EmEdge[]): EmDomain => {
     id: scopedId('domain', safeName(node.name, 'UnnamedDomain')),
     name: safeName(node.name, 'UnnamedDomain'),
     ...withSourceRange(node),
+    ...(sourceOriginsByNode.has(node) ? { sources: sourceOriginsByNode.get(node) } : {}),
     contexts: [],
     deployments: [],
     frontendApplications: [],
@@ -627,6 +643,7 @@ const parseContext = (node: AstContext, domainId: string | undefined, edges: EmE
     id: domainId ? `${domainId}/context/${contextName}` : scopedId('context', contextName),
     name: contextName,
     ...withSourceRange(node),
+    ...(sourceOriginsByNode.has(node) ? { sources: sourceOriginsByNode.get(node) } : {}),
     valueTypes: [],
     aggregates: [],
     slices: [],
@@ -905,15 +922,13 @@ const parseSlice = (node: AstSlice, scopeId: string, edges: EmEdge[]): EmSlice =
     }
   }
 
-  const reactions = elements.filter(isReactsTo);
-  const firstReactionElement = slice.elements.find((element) =>
-    element.kind === 'readmodel' || element.kind === 'automation' || element.kind === 'command'
-  );
-  if (firstReactionElement) {
-    for (const reaction of reactions) {
-      if (reaction.event?.$refText) edges.push(edge(`ref/event/${reaction.event.$refText}`, firstReactionElement.id, 'reactsTo'));
-    }
-  }
+  const reactions = resolveSliceReactions(node);
+  if (reactions.length) slice.reactions = reactions.map(({ event, targets }) => {
+    const targetIds = targets.flatMap((target) => slice.elements.filter((element) => element.name === target.name
+      && element.kind === (isReadModel(target) ? 'readmodel' : isAutomation(target) ? 'automation' : 'command')).map((element) => element.id));
+    for (const targetId of targetIds) if (event) edges.push(edge(`ref/event/${event}`, targetId, 'reactsTo'));
+    return { event, targetIds };
+  });
 
   const screens = slice.elements.filter((element) => element.kind === 'screen');
   const command = slice.elements.find((element) => element.kind === 'command');
@@ -1137,6 +1152,7 @@ const withSourceRange = (node: AstNode): { sourceRange?: MedolSourceRange } => {
   if (!range) return {};
   return {
     sourceRange: {
+      sourceName: node.$cstNode ? sourceNamesForRanges.get(node.$cstNode.root) : undefined,
       start: {
         line: range.start.line + 1,
         column: range.start.character + 1

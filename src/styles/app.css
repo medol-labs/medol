@@ -934,7 +934,7 @@ textarea {
 
 .preview-mode-select {
   display: block;
-  flex: 0 0 138px;
+  flex: 0 0 190px;
 }
 
 .view-tabs button {
@@ -963,6 +963,8 @@ textarea {
 
 .canvas-pane {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -984,6 +986,35 @@ textarea {
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(8px);
 }
+
+.canvas-scope-controls {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #d8dee8;
+}
+.canvas-flow-stage { position: relative; flex: 1; min-height: 0; min-width: 0; }
+.canvas-empty { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; pointer-events: none; color: #68717b; font-size: 13px; }
+.explorer-imported-status { padding: 0 4px; color: #68717b; font-size: 10px; white-space: nowrap; }
+.canvas-view-controls { max-width: calc(100% - 24px); flex-wrap: wrap; }
+.canvas-scope-controls select { width: 180px; max-width: 48%; min-width: 0; height: 28px; border: 1px solid #ced4da; border-radius: 4px; padding: 0 6px; font-size: 12px; }
+.canvas-scope-controls label { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; font-size: 12px; }
+.canvas-scope-controls > button { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #496656; cursor: pointer; }
+.canvas-scope-controls > button:hover:not(:disabled) { background: #e3eee7; }
+.canvas-scope-controls > button:disabled, .canvas-context-header button:disabled { opacity: .4; cursor: default; }
+.canvas-view-controls button:disabled { opacity: .4; cursor: default; }
+.canvas-context-header { display: flex; align-items: center; gap: 8px; height: 44px; width: 100%; color: #303b36; background: #f7faf8; border-bottom: 1px solid #cedbd3; pointer-events: auto; }
+.canvas-context-header > div { min-width: 0; flex: 1; }
+.canvas-context-header small { display: block; font-size: 10px; color: #647269; }
+.canvas-context-header strong { display: block; font-size: 13px; line-height: 1.4; }
+.canvas-context-header > span { flex-shrink: 0; font-size: 11px; color: #647269; }
+.canvas-context-header button { flex-shrink: 0; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #496656; cursor: pointer; }
+.canvas-context-header button:hover { background: #e3eee7; }
+.canvas-context-header button:focus-visible { outline: 2px solid #17856e; }
 
 .canvas-view-controls button {
   display: inline-flex;

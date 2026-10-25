@@ -180,6 +180,7 @@ export interface EmSlice {
   startsLifecycle?: boolean;
   port?: boolean;
   resultingState?: string;
+  reactions?: Array<{ event: string; targetIds: string[] }>;
   tags: EmSliceTag[];
   hotspots: string[];
   elements: EmElement[];
@@ -245,10 +246,16 @@ export interface EmExternalCapability {
   name: string;
 }
 
+export interface EmSourceOrigin {
+  sourceName: string;
+  builtin?: true;
+}
+
 export interface EmContext {
   id: string;
   name: string;
   sourceRange?: MedolSourceRange;
+  sources?: EmSourceOrigin[];
   valueTypes: EmValueType[];
   aggregates: EmAggregate[];
   slices: EmSlice[];
@@ -267,6 +274,7 @@ export interface EmDomain {
   id: string;
   name: string;
   sourceRange?: MedolSourceRange;
+  sources?: EmSourceOrigin[];
   contexts: EmContext[];
   deployments: EmDeployment[];
   frontendApplications: EmFrontendApplication[];
@@ -322,6 +330,7 @@ export interface MedolSourcePosition {
 }
 
 export interface MedolSourceRange {
+  sourceName?: string;
   start: MedolSourcePosition;
   end: MedolSourcePosition;
 }

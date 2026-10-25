@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { EmAggregate, EmContext, EmElement, EmModel } from './model';
+import { isBuiltinDefinition } from './modelSource';
 
 interface ElementOwner {
   context: EmContext;
@@ -76,6 +77,7 @@ export const toOverviewFlow = (model: EmModel): { nodes: Node[]; edges: Edge[] }
       selectable: false,
       data: {
         title: context.name,
+        builtin: isBuiltinDefinition(context),
         note: context.notes[0],
         aggregates: context.aggregates.length,
         concepts: context.concepts.length,

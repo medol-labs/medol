@@ -24,7 +24,6 @@ interface UseToolbarActionsOptions {
   activeWorkspaceId?: string;
   dsl: string;
   emModelJson: string;
-  configJson: string;
   medolSourceHash: string;
   flowNodes: Node[];
   createDocument: (
@@ -41,7 +40,6 @@ export const useToolbarActions = ({
   activeWorkspaceId,
   dsl,
   emModelJson,
-  configJson,
   medolSourceHash,
   flowNodes,
   createDocument,
@@ -74,7 +72,8 @@ export const useToolbarActions = ({
         }, readCodegenModelJson, resolveModelTranslations);
         downloadJson(getCodegenModelFilename(documentationLanguage), resolvedJson);
       } else if (toolbarAction === 'config') {
-        downloadJson('config.json', configJson);
+        const { medolToConfig } = await import('../lib/dslToConfig');
+        downloadJson('config.json', JSON.stringify(medolToConfig(dsl), null, 2));
       } else if (toolbarAction === 'png' && flowNodes.length > 0) {
         await exportFlowViewportToPng({
           ...getImageExportOptions(flowNodes, 'medol-model.png'),

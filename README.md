@@ -62,6 +62,7 @@ slice 1 { command, event, GWT business rules }
 
 ## Features
 
+- Business analysis of lifecycle operations, projection eligibility profiles, direct field references, and source-linked diagnostics. Declared facts, inferred relationships, and unresolved behavior remain distinct.
 - Custom Langium grammar for domain design and Event Modeling concepts.
 - React Flow rendering for slices, lanes, nodes, and relationships.
 - Slice columns arranged left to right by timeline/order.
@@ -75,6 +76,56 @@ slice 1 { command, event, GWT business rules }
 - `config.json` to MEDOL conversion.
 - MEDOL to `config.json` conversion.
 - Browser UI for editing MEDOL and exporting `EmModel` JSON or `config.json`.
+
+## Model Workspace
+
+The studio opens in Model Canvas with one domain on a shared canvas. The domain
+selector switches boards; the context selector locates a context without hiding
+the other contexts in that domain. Contexts retain their boundaries and can be
+collapsed individually or together. Domain overview shows slice summaries; real
+relationships are remapped to the visible summaries or collapsed context headers.
+No timeline is inferred from declaration order. Cross-context links remain visible
+without enabling secondary relations.
+
+Local view is an explicit drill-down into a context, concept, or slice, with detailed
+nodes and optional fields. Leaving local view restores the same domain canvas.
+Top-level contexts without a domain share a separate viewing scope; no synthetic
+domain is written into the model. Domain selection, local-view mode, and collapsed
+contexts synchronize to the preview page. Viewing state does not change business
+ownership or the DSL, and graphical business editing is not added by this change.
+Run `npm run test:canvas` for domain, scope, and relationship checks.
+
+Imported built-in definitions are grouped under Built-in capabilities in both the
+canvas selector and Explorer, not listed as ordinary business domains. Classification
+uses loader provenance, never context names or source-name prefixes. Library contexts
+remain shared across import aliases and deployments; the underlying model and
+generation configuration are not regrouped. Imported definitions are read-only for
+editor navigation and implementation-status controls. Local extensions keep their
+own source identity and remain in the business scope instead of being hidden with
+the library. A same-named user-defined context is not treated as built-in.
+
+Business Analysis remains available. Select a context or business object to inspect
+lifecycle operations, projection selection conditions, and issues requiring review.
+Source actions locate the corresponding declaration without leaving analysis; canvas
+actions open the related model. Model Canvas, Domain Map, Documents, and the auxiliary
+Page Structure view remain available.
+
+Analysis is read-only and does not execute commands or external ports. A matched
+business eligibility profile takes precedence over the default condition, matching
+the current generators; the two are not automatically combined. Missing conditions
+are not business approval. Ambiguous projection references and multi-event state
+assignments remain unresolved rather than silently choosing a candidate. Imported
+source locations retain their file identity and are not mapped to current-editor lines.
+Analysis does not certify generated implementations or live system state.
+
+Run focused analysis tests with `npm run test:analysis`.
+
+Issues & Review marks scenarios with identical declared Given/When facts and different
+expected outcomes as under-specified, not contradictory. Trigger
+history is not displayed as a declared current-state precondition. Multi-event
+state effects remain unknown unless the model establishes their association.
+See [Business Modeling Semantics](docs/modeling-semantics.md) for composition
+rules, review meanings, and current expression boundaries.
 
 ## Project Structure
 
@@ -553,7 +604,7 @@ context FederationLearning {
 - `then reject "description"`: An expected business rejection for a specification. Rejections are inline outcomes, not separately declared domain elements.
 - `readmodel`: A read model updated by events. Use `readmodel Name[]` to export it as a collection read model with `listElement: true`. The legacy `projection` keyword is accepted only for migration.
 - `automation`: A process that reacts to events and emits commands.
-- `reactsTo`: Declares that a slice starts from a prior event.
+- `reactsTo`: Declares a response to an event. Matching automation `on` or projection `subscribe` declarations determine targets; otherwise exactly one unbound response target is required. Declaration order never selects a target. Legacy same-owner lifecycle guard inference remains for compatibility, but secondary-event states are no longer guessed from names; unresolved guard states block export. See [Reaction Binding and Lifecycle Compatibility](docs/modeling-semantics.md#reaction-binding).
 - `subscribe`: Declares that a read model subscribes to an event.
 - `emits`: Declares that an automation emits a command.
 - `for each Source.collection as item`: Declares event automation fan-out. The automation emits one command per collection item, and command fields may map from `item.field`.

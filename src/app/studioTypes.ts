@@ -30,7 +30,7 @@ export type DocumentationToolbarAction =
   | 'installation-manual-ai'
   | 'user-manual-ai';
 
-export type PreviewMode = 'canvas' | 'global' | 'layout' | 'documents';
+export type PreviewMode = 'analysis' | 'canvas' | 'global' | 'layout' | 'documents';
 
 export interface MedolStudioProps {
   previewOnly?: boolean;
@@ -48,11 +48,13 @@ export interface PreviewSyncMessage {
   selectedConceptId?: string;
   selectedSliceId?: string;
   selectedNodeId?: string;
+  localContextOnly?: boolean;
+  collapsedContextIds?: string[];
 }
 
 export const previewSyncChannelName = 'medol-preview-sync:v1';
 export const recentSearchStoragePrefix = 'medol:recent-search:v1';
-export const syncedPreviewModes = new Set<PreviewMode>(['canvas', 'global', 'layout', 'documents']);
+export const syncedPreviewModes = new Set<PreviewMode>(['analysis', 'canvas', 'global', 'layout', 'documents']);
 
 export const getInitialLeftPanelWidth = () => {
   if (typeof window === 'undefined') return 820;

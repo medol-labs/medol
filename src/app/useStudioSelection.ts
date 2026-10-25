@@ -18,10 +18,11 @@ import {
 import {
   findModelItem,
   resolveActiveAggregate,
-  resolveActiveConcept,
-  resolveActiveContext
+  resolveActiveConcept
 } from './modelSelection';
 import type { PreviewMode, PreviewSyncMessage } from './studioTypes';
+import { canvasBoards, resolveCanvasBoard, unassignedCanvasId } from '../lib/canvasScope';
+import { canLocateInEditor } from '../lib/modelSource';
 
 interface UseStudioSelectionOptions {
   model: EmModel;
@@ -40,12 +41,19 @@ export const useStudioSelection = ({
   const [selectedConceptId, setSelectedConceptId] = useState<string | undefined>();
   const [selectedSliceId, setSelectedSliceId] = useState<string | undefined>();
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
+  const [localContextOnly, setLocalContextOnly] = useState(false);
+  const [collapsedContextIds, setCollapsedContextIds] = useState<string[]>([]);
   const [dslFocusTarget, setDslFocusTarget] = useState<DslLocationTarget | undefined>();
   const [dslFocusPosition, setDslFocusPosition] = useState<MedolSourcePosition>();
   const [dslFocusVersion, setDslFocusVersion] = useState(0);
 
-  const activeDomain = model.domains.find((domain) => domain.id === selectedDomainId) ?? model.domains[0];
-  const activeContext = resolveActiveContext(model, selectedContextId);
+  const boards = useMemo(() => canvasBoards(model), [model]);
+  const canvasBoard = resolveCanvasBoard(model, {
+    domainId: boards.some((board) => board.id === selectedDomainId) ? selectedDomainId : undefined,
+    contextId: model.contexts.some((context) => context.id === selectedContextId) ? selectedContextId : undefined
+  });
+  const activeDomain = model.domains.find((domain) => domain.id === canvasBoard?.id);
+  const activeContext = canvasBoard?.contexts.find((context) => context.id === selectedContextId) ?? canvasBoard?.contexts[0];
   const activeAggregate = resolveActiveAggregate(activeContext, selectedAggregateId);
   const activeConcept = resolveActiveConcept(activeContext, selectedConceptId);
   const displayContext = selectedContextId ? activeContext : undefined;
@@ -64,6 +72,8 @@ export const useStudioSelection = ({
   }), [model, selectedDomainId, selectedContextId, selectedAggregateId, selectedConceptId, selectedSliceId, selectedNodeId]);
 
   const resetSelection = () => {
+    setLocalContextOnly(false);
+    setCollapsedContextIds([]);
     setSelectedDomainId(undefined);
     setSelectedContextId(undefined);
     setSelectedAggregateId(undefined);
@@ -73,6 +83,8 @@ export const useStudioSelection = ({
   };
 
   const applySyncedSelection = (message: Partial<PreviewSyncMessage>) => {
+    if (typeof message.localContextOnly === 'boolean') setLocalContextOnly(message.localContextOnly);
+    if (Array.isArray(message.collapsedContextIds)) setCollapsedContextIds(message.collapsedContextIds.filter((id) => typeof id === 'string'));
     setSelectedDomainId(message.selectedDomainId);
     setSelectedContextId(message.selectedContextId);
     setSelectedAggregateId(message.selectedAggregateId);
@@ -94,14 +106,27 @@ export const useStudioSelection = ({
   };
 
   const selectDomain = (domain: EmDomain) => {
-    setSelectedDomainId(domain.id);
+    setLocalContextOnly(false);
+    const board = boards.find((item) => item.id === domain.id) ?? boards.find((item) => item.contexts.some((context) => domain.contexts.some((candidate) => candidate.id === context.id)));
+    setSelectedDomainId(board?.id ?? domain.id);
     setSelectedContextId(undefined);
     setSelectedAggregateId(undefined);
     setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
-    onPreviewModeChange('global');
-    focusDslTarget({ kind: 'domain', name: domain.name });
+    onPreviewModeChange('canvas');
+    focusDslTarget(canLocateInEditor(domain.sourceRange) ? { kind: 'domain', name: domain.name } : undefined);
+  };
+
+  const selectCanvasDomain = (domainId: string) => {
+    setLocalContextOnly(false);
+    setSelectedDomainId(domainId);
+    setSelectedContextId(undefined);
+    setSelectedAggregateId(undefined);
+    setSelectedConceptId(undefined);
+    setSelectedSliceId(undefined);
+    setSelectedNodeId(undefined);
+    onPreviewModeChange('canvas');
   };
 
   const selectContext = (context: EmContext) => {
@@ -111,8 +136,8 @@ export const useStudioSelection = ({
     setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
-    onPreviewModeChange('canvas');
-    focusDslTarget({ kind: 'context', name: context.name });
+    if (previewMode !== 'analysis') onPreviewModeChange('canvas');
+    focusDslTarget(canLocateInEditor(context.sourceRange) ? { kind: 'context', name: context.name } : undefined);
   };
 
   const selectAggregate = (context: EmContext, aggregate: EmAggregate) => {
@@ -122,7 +147,7 @@ export const useStudioSelection = ({
     setSelectedConceptId(undefined);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
-    onPreviewModeChange('canvas');
+    if (previewMode !== 'analysis') onPreviewModeChange('canvas');
     focusDslTarget(undefined);
   };
 
@@ -133,8 +158,8 @@ export const useStudioSelection = ({
     setSelectedConceptId(concept.id);
     setSelectedSliceId(undefined);
     setSelectedNodeId(undefined);
-    onPreviewModeChange('canvas');
-    focusDslTarget({ kind: 'concept', name: concept.name });
+    if (previewMode !== 'analysis') onPreviewModeChange('canvas');
+    focusDslTarget(canLocateInEditor(concept.sourceRange) ? { kind: 'concept', name: concept.name } : undefined);
   };
 
   const selectSlice = (context: EmContext, aggregate: EmAggregate | undefined, slice: EmSlice) => {
@@ -146,19 +171,24 @@ export const useStudioSelection = ({
       : context.concepts.find((concept) => concept.sliceIds.includes(slice.id))?.id);
     setSelectedSliceId(slice.id);
     setSelectedNodeId(undefined);
-    onPreviewModeChange('canvas');
-    focusDslTarget({ kind: 'slice', name: slice.name });
+    if (previewMode !== 'analysis') onPreviewModeChange('canvas');
+    focusDslTarget(canLocateInEditor(slice.sourceRange) ? { kind: 'slice', name: slice.name } : undefined);
   };
 
   const selectSearchItem = (item: ModelSearchItem) => {
-    setSelectedDomainId(item.domainId);
+    if (item.kind === 'domain') {
+      const domain = model.domains.find((candidate) => candidate.id === item.domainId);
+      if (domain) selectDomain(domain);
+      return;
+    }
+    setSelectedDomainId(item.contextId ? findDomainIdForContext(model, item.contextId) : item.domainId);
     setSelectedContextId(item.contextId);
     setSelectedAggregateId(item.aggregateId);
     setSelectedConceptId(item.conceptId);
     setSelectedSliceId(item.sliceId);
     setSelectedNodeId(item.nodeId);
-    focusDslPosition(item.sourceRange?.start);
-    onPreviewModeChange(item.kind === 'domain' ? 'global' : 'canvas');
+    focusDslPosition(canLocateInEditor(item.sourceRange) ? item.sourceRange?.start : undefined);
+    onPreviewModeChange('canvas');
   };
 
   const selectOverviewGroup = (nodeId: string) => {
@@ -191,54 +221,18 @@ export const useStudioSelection = ({
   };
 
   const locateMedolSource = (sourceId: string) => {
-    for (const domain of model.domains) {
-      if (domain.id === sourceId) {
-        selectDomain(domain);
-        return;
-      }
-      for (const context of domain.contexts) {
-        if (context.id === sourceId) {
-          selectContext(context);
-          return;
-        }
-        for (const concept of context.concepts) {
-          if (concept.id === sourceId) {
-            selectConcept(context, concept);
-            return;
-          }
-        }
-        for (const aggregate of context.aggregates) {
-          if (aggregate.id === sourceId) {
-            selectAggregate(context, aggregate);
-            return;
-          }
-          for (const slice of aggregate.slices) {
-            if (slice.id === sourceId) {
-              selectSlice(context, aggregate, slice);
-              return;
-            }
-            const element = slice.elements.find((candidate) => candidate.id === sourceId);
-            if (element) {
-              selectSlice(context, aggregate, slice);
-              setSelectedNodeId(element.id);
-              onPreviewModeChange('canvas');
-              return;
-            }
-          }
-        }
-        for (const slice of context.slices) {
-          if (slice.id === sourceId) {
-            selectSlice(context, undefined, slice);
-            return;
-          }
-          const element = slice.elements.find((candidate) => candidate.id === sourceId);
-          if (element) {
-            selectSlice(context, undefined, slice);
-            setSelectedNodeId(element.id);
-            onPreviewModeChange('canvas');
-            return;
-          }
-        }
+    const item = findModelItem(model, { nodeId: sourceId });
+    if (!item) return;
+    if (item.type === 'domain' && item.domain) {
+      selectDomain(item.domain);
+    } else if (item.context) {
+      if (item.type === 'concept' && item.concept) selectConcept(item.context, item.concept);
+      else if (item.type === 'aggregate' && item.aggregate) selectAggregate(item.context, item.aggregate);
+      else if (item.slice) selectSlice(item.context, item.aggregate, item.slice);
+      else selectContext(item.context);
+      if (item.element) {
+        setSelectedNodeId(item.element.id);
+        onPreviewModeChange('canvas');
       }
     }
   };
@@ -250,6 +244,13 @@ export const useStudioSelection = ({
     selectedConceptId,
     selectedSliceId,
     selectedNodeId,
+    localContextOnly,
+    setLocalContextOnly,
+    collapsedContextIds,
+    setCollapsedContextIds,
+    canvasBoards: boards,
+    canvasBoard,
+    selectCanvasDomain,
     activeDomain,
     activeContext,
     activeAggregate,
@@ -277,7 +278,7 @@ export const useStudioSelection = ({
 };
 
 const findDomainIdForContext = (model: EmModel, contextId: string): string | undefined => {
-  return model.domains.find((domain) =>
+  return canvasBoards(model).find((domain) =>
     domain.contexts.some((candidate) => candidate.id === contextId)
-  )?.id;
+  )?.id ?? unassignedCanvasId;
 };

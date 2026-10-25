@@ -1,5 +1,6 @@
 import type { SelectedModelItem } from '../../app/modelSelection';
 import { OverflowText } from '../../components/ui/overflow-text';
+import { hasBuiltinSource, isBuiltinDefinition } from '../../lib/modelSource';
 
 interface InspectorPanelProps {
   item?: SelectedModelItem;
@@ -23,14 +24,20 @@ export function InspectorPanel({ item, compact = false }: InspectorPanelProps) {
 function InspectorContent({ item }: { item: SelectedModelItem }) {
   const fields = item.element?.fields ?? [];
   const metadata = item.element?.metadata ?? {};
+  const definition = item.context ?? item.domain;
 
   return (
     <div className="inspector-content">
       <section>
-        <span className="inspector-kind">{item.type}</span>
+        <span className="inspector-kind">{definition && isBuiltinDefinition(definition) ? 'Built-in / Read only'
+          : definition && hasBuiltinSource(definition) ? 'Extended built-in' : item.type}</span>
         <OverflowText as="h3" text={item.name} />
       </section>
       <dl className="inspector-facts">
+        {definition?.sources?.length ? <>
+          <dt>Sources</dt>
+          <OverflowText as="dd" text={definition.sources.map((source) => source.sourceName).join(', ')} />
+        </> : null}
         {item.context && (
           <>
             <dt>Context</dt>

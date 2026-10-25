@@ -5,6 +5,8 @@ import { AgentChatDock } from '../features/agent-chat/AgentChatDock';
 import { GlobalMap } from '../features/global-map/GlobalMap';
 import { InspectorPanel } from '../features/inspector/InspectorPanel';
 import { LayoutPreview } from '../components/LayoutPreview';
+import { ModelAnalysisWorkspace } from '../features/model-analysis/ModelAnalysisWorkspace';
+import { analyzeModel } from '../features/model-analysis/modelAnalysis';
 import { ModelExplorer } from '../features/model-explorer/ModelExplorer';
 import { SemanticCanvas } from '../features/semantic-canvas/SemanticCanvas';
 import { GlobalSearchDialog } from '../features/model-search/GlobalSearchDialog';
@@ -13,13 +15,14 @@ import { useModelingWorkspace } from '../features/workspace/useModelingWorkspace
 import { DocumentWorkspace } from '../features/documentation/DocumentWorkspace';
 import { hashMedolSource } from '../features/documentation/documentReferences';
 import { useModelingDocuments } from '../features/documentation/useModelingDocuments';
-import { modelToCodegenModel, modelToConfig } from '../lib/dslToConfig';
+import { modelToCodegenModel } from '../lib/dslToConfig';
 import { parseMedol } from '../lib/dslParser';
 import { emModelToJson } from '../lib/emModelExport';
 import { toReactFlow } from '../lib/flow';
 import { toLayoutPreviewModel } from '../lib/layoutPreview';
 import { toOverviewFlow } from '../lib/overviewFlow';
 import { sampleDsl } from '../lib/sampleDsl';
+import { canLocateInEditor } from '../lib/modelSource';
 import { EditorPaneHeader, EditorToolbar } from './EditorToolbar';
 import { PreviewToolbar } from './PreviewToolbar';
 import {
@@ -90,6 +93,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   } = useAgentSliceStatuses(activeWorkspaceId);
 
   const model = useMemo(() => parseMedol(debouncedDsl), [debouncedDsl]);
+  const analysis = useMemo(() => analyzeModel(model), [model]);
   const {
     selectedDomainId,
     selectedContextId,
@@ -97,6 +101,13 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     selectedConceptId,
     selectedSliceId,
     selectedNodeId,
+    localContextOnly,
+    setLocalContextOnly,
+    collapsedContextIds,
+    setCollapsedContextIds,
+    canvasBoards,
+    canvasBoard,
+    selectCanvasDomain,
     activeDomain,
     activeContext,
     activeAggregate,
@@ -138,26 +149,37 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     onOpenExplorerPanel: () => setExplorerPanelOpen(true)
   });
   const flow = useMemo(() => toReactFlow(model, {
-    contextId: activeContext?.id,
+    domainId: canvasBoard?.id,
+    contextId: localContextOnly ? activeContext?.id : selectedContextId,
     aggregateId: selectedAggregateId ? activeAggregate?.id : undefined,
     conceptId: selectedConceptId ? activeConcept?.id : undefined,
     sliceId: selectedSliceId,
+    localContextOnly,
+    compactSlices: !localContextOnly,
+    collapsedContextIds: localContextOnly ? [] : collapsedContextIds,
     showFields: canvasShowFields
-  }), [model, activeContext?.id, activeAggregate?.id, activeConcept?.id, selectedAggregateId, selectedConceptId, selectedSliceId, canvasShowFields]);
+  }), [model, canvasBoard?.id, activeContext?.id, selectedContextId, activeAggregate?.id, activeConcept?.id, selectedAggregateId, selectedConceptId, selectedSliceId, canvasShowFields, localContextOnly, collapsedContextIds]);
   const canvasFitKey = [
     activeWorkspaceId ?? 'loading',
     previewMode,
-    activeContext?.id ?? 'all-contexts',
-    activeAggregate?.id ?? '',
-    activeConcept?.id ?? '',
-    selectedSliceId ?? ''
+    canvasBoard?.id ?? 'no-domain',
+    localContextOnly ? `${activeContext?.id}:${activeAggregate?.id}:${activeConcept?.id}:${selectedSliceId}` : 'domain',
+    collapsedContextIds.join(',')
   ].join(':');
-  const codegenModel = useMemo(() => modelToCodegenModel(model), [model]);
-  const layoutPreview = useMemo(() => toLayoutPreviewModel(codegenModel), [codegenModel]);
+  const canvasFocusNodeId = selectedNodeId && flow.nodes.some((node) => node.id === selectedNodeId) ? selectedNodeId
+    : selectedItem?.slice ? localContextOnly ? selectedItem.slice.id : `${selectedItem.slice.id}/summary`
+      : selectedAggregateId ?? selectedConceptId ?? (selectedContextId && canvasBoard?.contexts.some((context) => context.id === selectedContextId) ? selectedContextId : undefined);
+  const layoutPreview = useMemo(() => {
+    if (previewMode !== 'layout') return { model: undefined, error: undefined };
+    try {
+      return { model: toLayoutPreviewModel(modelToCodegenModel(model)), error: undefined };
+    } catch (error) {
+      return { model: undefined, error: error instanceof Error ? error.message : String(error) };
+    }
+  }, [model, previewMode]);
   const overviewFlow = useMemo(() => toOverviewFlow(model), [model]);
   const modelSearchIndex = useMemo(() => buildModelSearchIndex(model), [model]);
   const emModelJson = useMemo(() => emModelToJson(model), [model]);
-  const configJson = useMemo(() => JSON.stringify(modelToConfig(model), null, 2), [model]);
   const medolSourceHash = useMemo(() => hashMedolSource(dsl), [dsl]);
   const documentSourceRefs = useMemo(
     () => new Set(documents.flatMap((document) => document.sourceRefs)),
@@ -175,7 +197,6 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     activeWorkspaceId,
     dsl,
     emModelJson,
-    configJson,
     medolSourceHash,
     flowNodes: flow.nodes,
     createDocument,
@@ -203,6 +224,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     selectedConceptId,
     selectedSliceId,
     selectedNodeId,
+    localContextOnly,
+    collapsedContextIds,
     switchWorkspace,
     updateDsl,
     onPreviewModeChange: setPreviewMode,
@@ -431,7 +454,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
             <>
               <ModelExplorer
                 model={model}
-                activeDomainId={selectedDomainId}
+                activeDomainId={canvasBoard?.id}
                 activeContextId={selectedContextId}
                 activeAggregateId={selectedAggregateId}
                 activeConceptId={selectedConceptId}
@@ -439,6 +462,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 sliceAgentStatuses={agentSliceStatuses}
                 documentSourceRefs={documentSourceRefs}
                 onSelectDomain={selectDomain}
+                onSelectBoard={selectCanvasDomain}
                 onSelectContext={selectContext}
                 onSelectAggregate={selectAggregate}
                 onSelectConcept={selectConcept}
@@ -558,7 +582,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                 <>
                   <ModelExplorer
                     model={model}
-                    activeDomainId={selectedDomainId}
+                    activeDomainId={canvasBoard?.id}
                     activeContextId={selectedContextId}
                     activeAggregateId={selectedAggregateId}
                     activeConceptId={selectedConceptId}
@@ -566,6 +590,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
                     sliceAgentStatuses={agentSliceStatuses}
                     documentSourceRefs={documentSourceRefs}
                     onSelectDomain={selectDomain}
+                    onSelectBoard={selectCanvasDomain}
                     onSelectContext={selectContext}
                     onSelectAggregate={selectAggregate}
                     onSelectConcept={selectConcept}
@@ -682,8 +707,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
       >
         <PreviewToolbar
           previewOnly={previewOnly}
-          eyebrow={displayContext?.name ?? activeDomain?.name ?? 'Event Modeling'}
-          title={activeAggregate?.name ?? activeConcept?.name ?? displayContext?.name ?? activeDomain?.name ?? 'Toolkit'}
+          eyebrow={displayContext?.name ?? activeDomain?.name ?? canvasBoard?.name ?? 'Event Modeling'}
+          title={activeAggregate?.name ?? activeConcept?.name ?? displayContext?.name ?? activeDomain?.name ?? canvasBoard?.name ?? 'Toolkit'}
           previewMode={previewMode}
           toolbarAction={toolbarAction}
           toolbarActionPending={toolbarActionPending}
@@ -699,8 +724,80 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           onRunToolbarAction={runToolbarAction}
         />
         <div className="preview-stage">
-          {previewMode === 'canvas' ? (
+          {previewMode === 'analysis' ? (
+            <ModelAnalysisWorkspace
+              analysis={analysis}
+              contexts={model.contexts}
+              contextId={selectedContextId}
+              ownerId={selectedConceptId ?? selectedAggregateId}
+              sliceId={selectedSliceId}
+              pending={isParsingPending}
+              canLocateSource={!previewOnly}
+              onScopeChange={(scope) => {
+                const owner = analysis.owners.find((item) => item.id === scope.ownerId);
+                const contextId = scope.contextId ?? owner?.contextId;
+                applySyncedSelection({
+                  selectedDomainId: model.domains.find((domain) => domain.contexts.some((context) => context.id === contextId))?.id,
+                  selectedContextId: contextId,
+                  selectedConceptId: owner?.kind === 'concept' ? owner.id : undefined,
+                  selectedAggregateId: owner?.kind === 'aggregate' ? owner.id : undefined,
+                  selectedSliceId: scope.sliceId
+                });
+              }}
+              onLocate={(source) => {
+                if (source.range) {
+                  setLeftPanelOpen(true);
+                  focusDslPosition(source.range.start);
+                }
+              }}
+              onCanvas={(source) => {
+                locateMedolSource(source.id);
+                setPreviewMode('canvas');
+              }}
+            />
+          ) : previewMode === 'canvas' ? (
             <SemanticCanvas
+              domains={canvasBoards}
+              domainId={canvasBoard?.id}
+              boardKind={canvasBoard?.kind}
+              onDomainChange={selectCanvasDomain}
+              contexts={canvasBoard?.contexts ?? []}
+              contextId={localContextOnly ? activeContext?.id : selectedContextId ?? ''}
+              localContextOnly={localContextOnly}
+              focusNodeId={canvasFocusNodeId}
+              onContextChange={(id) => {
+                if (!id) {
+                  selectCanvasDomain(canvasBoard?.id ?? '');
+                  return;
+                }
+                const context = model.contexts.find((item) => item.id === id);
+                if (context) selectContext(context);
+              }}
+              onLocalContextChange={(value) => {
+                if (value) {
+                  const context = selectedItem?.context ?? activeContext;
+                  if (context) selectContext(context);
+                }
+                setLocalContextOnly(value);
+              }}
+              onToggleContext={(id) => {
+                const context = model.contexts.find((item) => item.id === id);
+                if (context) selectContext(context);
+                setCollapsedContextIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+              }}
+              onOpenContext={(id) => {
+                const context = model.contexts.find((item) => item.id === id);
+                if (context) selectContext(context);
+                setLocalContextOnly(true);
+              }}
+              onCollapseAll={() => {
+                selectCanvasDomain(canvasBoard?.id ?? '');
+                setCollapsedContextIds((current) => [...new Set([...current, ...(canvasBoard?.contexts.map((context) => context.id) ?? [])])]);
+              }}
+              onExpandAll={() => {
+                selectCanvasDomain(canvasBoard?.id ?? '');
+                setCollapsedContextIds((current) => current.filter((id) => !canvasBoard?.contexts.some((context) => context.id === id)));
+              }}
               nodes={flow.nodes}
               edges={flow.edges}
               showFields={canvasShowFields}
@@ -713,7 +810,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           ) : previewMode === 'global' ? (
             <GlobalMap nodes={overviewFlow.nodes} edges={overviewFlow.edges} onSelectGroup={selectOverviewGroup} />
           ) : previewMode === 'layout' ? (
-            <LayoutPreview model={layoutPreview} />
+            layoutPreview.model ? <LayoutPreview model={layoutPreview.model} /> : <p role="alert" className="analysis-empty">{layoutPreview.error}</p>
           ) : (
             <DocumentWorkspace
               documents={documents}
@@ -739,7 +836,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
         </div>
         <footer className="studio-status">
           <strong>{modelStatus}</strong>
-          {previewMode === 'canvas' && <span>model canvas</span>}
+          {previewMode === 'analysis' && <span>business analysis</span>}
+          {previewMode === 'canvas' && <span>{localContextOnly ? 'local view' : canvasBoard?.kind === 'builtin' ? 'built-in capabilities' : 'domain canvas'}</span>}
           {previewMode === 'global' && <span>domain map</span>}
           {previewMode === 'layout' && <span>ui preview</span>}
           {previewMode === 'documents' && <span>{activeDocument ? `${activeDocument.title} · ${documentStatus}` : 'documents'}</span>}
@@ -748,7 +846,7 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
           {selectedSliceId && <span>slice focused</span>}
           {selectedNodeId && <span>element focused</span>}
           {model.diagnosticDetails.map((diagnostic, index) => (
-            diagnostic.range ? (
+            diagnostic.range && canLocateInEditor({ ...diagnostic.range, sourceName: diagnostic.sourceName }) ? (
               <button
                 key={`${diagnostic.message}:${index}`}
                 type="button"
