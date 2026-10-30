@@ -3,6 +3,7 @@ import { AlertTriangle, CodeXml, GitBranch, ListChecks, Network, Search } from '
 import type { AnalysisScope, AnalysisSource, ModelAnalysis } from './modelAnalysis';
 import { scopeAnalysis } from './modelAnalysis';
 import './modelAnalysis.css';
+import { FieldLineageView } from './FieldLineageView';
 
 interface Props {
   analysis: ModelAnalysis;
@@ -20,7 +21,7 @@ interface Props {
 const evidenceLabels = { declared: 'Declared', inferred: 'Inferred', unknown: 'Unknown' };
 
 export function ModelAnalysisWorkspace({ analysis, contexts, contextId, ownerId, sliceId, pending, canLocateSource = true, onScopeChange, onLocate, onCanvas }: Props) {
-  const [tab, setTab] = useState<'lifecycle' | 'references' | 'issues'>('lifecycle');
+  const [tab, setTab] = useState<'lifecycle' | 'references' | 'fields' | 'completeness' | 'issues'>('lifecycle');
   const scope = useMemo(() => ({ contextId, ownerId, sliceId }), [contextId, ownerId, sliceId]);
   const [query, setQuery] = useState('');
   useEffect(() => {
@@ -67,10 +68,20 @@ export function ModelAnalysisWorkspace({ analysis, contexts, contextId, ownerId,
     }}>
       <button type="button" role="tab" tabIndex={tab === 'lifecycle' ? 0 : -1} id="analysis-tab-lifecycle" aria-controls="analysis-results" aria-selected={tab === 'lifecycle'} onClick={() => setTab('lifecycle')}><GitBranch size={15} />Lifecycle <span>{scoped.operations.length}</span></button>
       <button type="button" role="tab" tabIndex={tab === 'references' ? 0 : -1} id="analysis-tab-references" aria-controls="analysis-results" aria-selected={tab === 'references'} onClick={() => setTab('references')}><ListChecks size={15} />References <span>{scoped.projections.length}</span></button>
+      <button type="button" role="tab" tabIndex={tab === 'fields' ? 0 : -1} id="analysis-tab-fields" aria-controls="analysis-results" aria-selected={tab === 'fields'} onClick={() => setTab('fields')}><GitBranch size={15} />Field Sources <span>{scoped.lineage.fields.length}</span></button>
+      <button type="button" role="tab" tabIndex={tab === 'completeness' ? 0 : -1} id="analysis-tab-completeness" aria-controls="analysis-results" aria-selected={tab === 'completeness'} onClick={() => setTab('completeness')}><ListChecks size={15} />Generation Checks <span>{scoped.lineage.diagnostics.length}</span></button>
       <button type="button" role="tab" tabIndex={tab === 'issues' ? 0 : -1} id="analysis-tab-issues" aria-controls="analysis-results" aria-selected={tab === 'issues'} onClick={() => setTab('issues')}><AlertTriangle size={15} />Issues & Review <span>{scoped.issues.length}</span></button>
     </div>
     <div className="analysis-update-status" role="status">{pending ? 'Source changed. Updating analysis; previous results are shown.' : 'Model relationships only. Generated code and runtime behavior are unverified.'}</div>
     <div className="analysis-results" id="analysis-results" role="tabpanel" aria-labelledby={`analysis-tab-${tab}`}>
+      {tab === 'fields' && <FieldLineageView key={JSON.stringify({ ...scope, query })} lineage={analysis.lineage} fields={scoped.lineage.fields} matches={matches} sourceActions={sourceActions} />}
+      {tab === 'completeness' && <ul className="analysis-issues">{scoped.lineage.diagnostics.filter((item) => matches(`${item.code} ${item.severity} ${item.message}`)).map((item) => {
+        const field = analysis.lineage.fields.find((candidate) => candidate.id === item.fieldId)!;
+        return <li key={`${item.fieldId}:${item.code}:${item.message}`}>
+          <span className={`analysis-evidence is-${item.severity === 'error' ? 'error' : 'unknown'}`}>{item.severity === 'error' ? 'Blocks generation' : 'Review'}</span>
+          <div><strong>{item.code}</strong><p>{item.message}</p></div>{sourceActions({ id: field.elementId, name: `${field.elementName}.${field.section === 'result' ? 'result.' : ''}${field.name}`, range: field.range })}
+        </li>;
+      })}{!scoped.lineage.diagnostics.some((item) => matches(`${item.code} ${item.severity} ${item.message}`)) && <li className="analysis-empty">No field-source diagnostics match the filter. Adapter implementations and runtime availability are unverified.</li>}</ul>}
       {tab === 'lifecycle' && <>
         {visibleOwners.map((owner) => {
           const operations = scoped.operations.filter((item) => item.ownerId === owner.id && (matches(owner.name) || matches(item.source.name)));

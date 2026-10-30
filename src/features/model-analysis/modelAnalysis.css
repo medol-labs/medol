@@ -29,6 +29,19 @@
 .analysis-evidence.is-declared { color: #126653; background: #e4f4ec; }
 .analysis-evidence.is-inferred { color: #53546e; background: #eeeef4; }
 .analysis-evidence.is-unknown { color: #825b12; background: #fff2d9; }
+.analysis-evidence.is-error { color: #a32936; background: #fce9ec; }
+.analysis-field-select { border: 0; background: transparent; padding: 0; text-align: left; color: #146c5b; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.model-analysis tr[aria-selected="true"] { background: #f0f7f5; }
+.analysis-trace-direction { display: flex; gap: 4px; flex-shrink: 0; }
+.analysis-trace-direction button { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #4b565e; cursor: pointer; }
+.analysis-trace-direction button[aria-pressed="true"] { background: #e4f4ec; color: #126653; border-color: #55a18c; }
+.analysis-trail { list-style: none; margin: 0; padding: 0; }
+.analysis-trail li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eceef0; }
+.analysis-lineage-table { max-height: 350px; overflow: auto; scrollbar-width: thin; scrollbar-color: #bdc9c4 transparent; }
+.analysis-lineage-table th { position: sticky; top: 0; z-index: 1; }
+.analysis-field-pagination { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 8px; color: #68717b; font-variant-numeric: tabular-nums; }
+.analysis-field-pagination button { display: inline-flex; justify-content: center; align-items: center; width: 28px; height: 28px; border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #146c5b; cursor: pointer; }
+.analysis-field-pagination button:disabled { opacity: .4; cursor: default; }
 .analysis-source-actions { display: inline-flex; flex-shrink: 0; gap: 2px; }
 .analysis-source-actions button { display: inline-flex; justify-content: center; align-items: center; width: 26px; height: 28px; border: 0; border-radius: 3px; background: transparent; color: #5e6874; cursor: pointer; }
 .analysis-source-actions button:hover:not(:disabled) { background: #e7eeeb; color: #146c5b; }

@@ -6,6 +6,7 @@ import type { TenantCapability } from './tenantCapability';
 import { resolveTenantCapability } from './tenantCapability';
 import type { CodegenMetadata } from './codegenProvenance';
 import { reactionDiagnostics } from './reactionSemantics';
+import { analyzeFieldLineage, FieldSourceValidationError } from './fieldLineage';
 
 export interface CodegenModel {
   metadata?: CodegenMetadata;
@@ -394,6 +395,8 @@ export interface CodegenSpecificationReject {
 }
 
 export const modelToCodegenModel = (model: EmModel): CodegenModel => {
+  const lineage = analyzeFieldLineage(model);
+  if (lineage.diagnostics.some((item) => item.severity === 'error')) throw new FieldSourceValidationError(lineage);
   const invalidReactions = reactionDiagnostics(model);
   if (invalidReactions.length) throw new Error(invalidReactions.join('\n'));
   const runtime = resolveTenantCapability(model);

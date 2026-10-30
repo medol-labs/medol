@@ -1,6 +1,7 @@
 import { allContextSlices } from '../../lib/dslParser';
 import type { EmElement, EmEligibility, EmModel, MedolSourceRange } from '../../lib/model';
 import { buildBehaviorReviews } from '../../lib/behaviorSemantics';
+import { analyzeFieldLineage, type FieldLineage } from '../../lib/fieldLineage';
 
 export type Evidence = 'declared' | 'inferred' | 'unknown';
 export interface AnalysisSource {
@@ -62,6 +63,7 @@ export interface AnalysisIssue {
   message: string;
 }
 export interface ModelAnalysis {
+  lineage: FieldLineage;
   owners: AnalysisOwner[];
   operations: LifecycleOperation[];
   projections: AnalysisProjection[];
@@ -82,7 +84,7 @@ export const selectEligibility = (rules: EmEligibility[], command: AnalysisSourc
 };
 
 export function analyzeModel(model: EmModel): ModelAnalysis {
-  const result: ModelAnalysis = { owners: [], operations: [], projections: [], references: [], issues: [] };
+  const result: ModelAnalysis = { lineage: analyzeFieldLineage(model), owners: [], operations: [], projections: [], references: [], issues: [] };
   const records = model.contexts.flatMap((context) => [
     ...allContextSlices(context),
     ...(context.looseElements.length ? [{ id: context.id, name: context.name, sourceRange: context.sourceRange,
@@ -277,6 +279,12 @@ export function scopeAnalysis(analysis: ModelAnalysis, scope: AnalysisScope): Mo
   const visibleReferences = analysis.references.filter((item) => references.includes(item)
     || item.projectionIds.some((id) => ownProjections.some((projection) => projection.id === id)));
   return {
+    lineage: (() => {
+      const fields = analysis.lineage.fields.filter((field) => inScope(field.contextId, field.sliceId));
+      const ids = new Set(fields.map((field) => field.id));
+      return { fields, links: analysis.lineage.links.filter((link) => ids.has(link.source) || ids.has(link.target)),
+        diagnostics: analysis.lineage.diagnostics.filter((item) => ids.has(item.fieldId)) };
+    })(),
     owners, operations, projections,
     references: visibleReferences,
     issues: analysis.issues.filter((item) => !item.contextId || inScope(item.contextId, item.sliceId) || item.source.id === scope.ownerId

@@ -8,6 +8,7 @@ import {
 import { modelToCodegenModel, type CodegenModel } from '../../../lib/codegenModel';
 import { parseMedol } from '../../../lib/dslParser';
 import { withCodegenProvenance } from '../../../lib/codegenProvenance';
+import { FieldSourceValidationError } from '../../../lib/fieldLineage';
 import { readResolvedModelTranslations } from '../../../server/modelTranslationResolver';
 import {
   listModelingWorkspaces,
@@ -58,7 +59,17 @@ export const Route = createFileRoute('/api/modeling/codegen-model')({
         }
 
         const sourceHash = hashMedolSource(dsl);
-        let codegenModel = modelToCodegenModel(model);
+        let codegenModel: CodegenModel;
+        try {
+          codegenModel = modelToCodegenModel(model);
+        } catch (error) {
+          if (!(error instanceof FieldSourceValidationError)) throw error;
+          return Response.json({
+            error: 'MEDOL field-source validation failed',
+            diagnostics: error.diagnostics.map((item) => item.message),
+            diagnosticDetails: error.diagnostics
+          }, { status: 400 });
+        }
         if (locale) {
           const translations = readCurrentCodegenTranslations({
             codegenModel,

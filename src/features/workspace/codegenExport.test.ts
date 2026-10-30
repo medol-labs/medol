@@ -6,6 +6,18 @@ import { sourceSha256 } from '../../lib/codegenProvenance';
 const old = 'domain Old { context Original {} }';
 const current = 'domain New { context Updated {} }';
 
+test('invalid explicit field sources cannot bypass the gate through remote or offline exports', async () => {
+  const dsl = `context Orders {
+    slice Place { command Place { id: UUID } event Placed { id: UUID from Place.missing } }
+  }`;
+  let requested = false;
+  await assert.rejects(resolveCodegenModelExport({ dsl, locale: 'en', workspaceId: 'w' }, async () => {
+    requested = true;
+    return '{}';
+  }), /source-unresolved.*Place.missing/);
+  assert.equal(requested, false);
+});
+
 test('immediate exports parse the captured source instead of the previous debounced model', async () => {
   const previous = await resolveCodegenModelExport({ dsl: old, locale: 'en' }, async () => '');
   const output = JSON.parse(await resolveCodegenModelExport({ dsl: current, locale: 'en', workspaceId: 'w' }, async () => previous));

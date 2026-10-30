@@ -120,6 +120,14 @@ Analysis does not certify generated implementations or live system state.
 
 Run focused analysis tests with `npm run test:analysis`.
 
+Business Analysis also provides **Field Sources** (upstream/downstream trails)
+and **Generation Checks** (blocking references versus review warnings).
+Run `npm run medol:check -- path/to/system.medol --json` for a machine-readable
+pre-generation report. CodegenModel export rejects unresolved or ambiguous
+explicit sources without guessing replacements. See
+[Field Sources And Generation Checks](docs/field-lineage.md) for evidence levels
+and limits; run `npm run test:lineage` for focused tests.
+
 Issues & Review marks scenarios with identical declared Given/When facts and different
 expected outcomes as under-specified, not contradictory. Trigger
 history is not displayed as a declared current-state precondition. Multi-event
