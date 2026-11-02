@@ -237,6 +237,13 @@ export const useModelingWorkspace = (initialDsl: string) => {
     }
   }, [mergeWorkspace]);
 
+  const acceptImportedWorkspace = useCallback(async (workspace: ModelingWorkspace) => {
+    mergeWorkspace(workspace);
+    await persistCurrentDsl();
+    editedBeforeReadyRef.current = false;
+    await loadWorkspace(workspace.id);
+  }, [loadWorkspace, mergeWorkspace, persistCurrentDsl]);
+
   const deleteWorkspace = useCallback(async () => {
     const workspaceId = activeWorkspaceIdRef.current;
     if (!workspaceId || workspaces.length <= 1) return;
@@ -334,7 +341,8 @@ export const useModelingWorkspace = (initialDsl: string) => {
     deleteWorkspace,
     createVersion,
     loadVersion,
-    restoreVersion
+    restoreVersion,
+    acceptImportedWorkspace
   };
 };
 

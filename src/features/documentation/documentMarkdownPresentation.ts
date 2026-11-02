@@ -1,4 +1,9 @@
 import type { ModelingDocumentRevision } from '../../contracts/modelingDocument';
+import type { DocumentMarkdownSection } from './documentReferences';
+
+// Repeated source markers in legacy documents are distinct visible sections.
+export const documentSectionRenderKey = (section: DocumentMarkdownSection): string =>
+  JSON.stringify([section.id, section.markerLine ?? 0]);
 
 const internalCommentPattern = /^\s*<!--\s*(?:medol:pagebreak|medol:toc|empty document body|em:section\b[^>]*)\s*-->\s*$/gim;
 

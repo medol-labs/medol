@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { toExportableDocumentMarkdown } from './documentMarkdownPresentation';
+import { documentSectionRenderKey, toExportableDocumentMarkdown } from './documentMarkdownPresentation';
+import { parseDocumentMarkdownSections } from './documentReferences';
+
+test('keeps repeated source markers as separate render identities without changing source IDs', () => {
+  const markdown = ['<!-- em:section id="scope" source="slice/scope" -->', '# First', '',
+    '<!-- em:section id="scope" source="slice/scope" -->', '# Second'].join('\n');
+  const sections = parseDocumentMarkdownSections(markdown);
+  const keys = sections.map(documentSectionRenderKey);
+  assert.equal(new Set(keys).size, keys.length);
+  assert.equal(sections.filter((section) => section.id === 'scope').length, 2);
+  assert.ok(sections.some((section) => section.markdown.includes('# First')));
+  assert.ok(sections.some((section) => section.markdown.includes('# Second')));
+});
 
 test('exports document revisions and source associations without changing editable content', () => {
   const markdown = '# PRD\n\n<!-- em:section id="scope" source="slice/scope" -->\n## Scope\n\nNotes.';

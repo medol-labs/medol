@@ -3,6 +3,26 @@
 Version baselines, document revisions, generation provenance, and delivery tags
 follow [Version And Release Traceability](docs/versioning.md).
 
+## Workspace Transfer
+
+The workspace header provides **Export workspace** and **Import workspace** icon actions.
+Export downloads a versioned `.medol-workspace.json` package containing the current editor
+model source, saved model versions/releases, saved documents, generated Markdown baselines,
+document revisions/source associations, and workspace translations. Save document edits before
+exporting. Chat history, temporary agent execution state, local preferences, and credentials
+are not included. Referenced external files are not embedded; make them available separately.
+
+Import always creates and selects a new workspace; it never replaces an existing one.
+Workspace, version, document, and revision IDs are remapped while preserving their associations.
+Imported documents remain editable and can be regenerated using the preserved baseline.
+Packages are limited to 64 MiB and validated before insertion; insertion errors roll back both
+stores. Keep normal database backups as well: attached SQLite databases in WAL mode do not
+guarantee cross-file atomicity during a machine/power failure. Packages can contain sensitive
+model/document content; review them before sharing or committing them to Git.
+
+This is a transfer/backup mechanism, not concurrent editing or automatic Git synchronization.
+Run `npm run test:workspace-archive` to verify round-trip and rollback behavior.
+
 MEDOL is a Domain Design Language for describing business domains, bounded contexts, concepts, event-modeling timelines, read models, rules, UI interactions, and code-generation intent.
 
 The project provides a Langium language implementation, Monaco editor, React Flow visual model, agentic modeling workflow, design-document generation, and adapters for application code generation. Each `slice` is rendered as a timeline column in the order it appears in MEDOL.

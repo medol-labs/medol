@@ -16,7 +16,7 @@ import {
   parseDocumentMarkdownSections
 } from './documentReferences';
 import { markdownHeadingAnchor } from '../../lib/generators/documentation/documentTableOfContents';
-import { toExportableDocumentMarkdown, toRenderableDocumentMarkdown } from './documentMarkdownPresentation';
+import { documentSectionRenderKey, toExportableDocumentMarkdown, toRenderableDocumentMarkdown } from './documentMarkdownPresentation';
 import { exportModelingDocumentWord, type WordExportProfileId } from './modelingDocumentClient';
 import type { DocumentPersistenceStatus } from './useModelingDocuments';
 
@@ -132,14 +132,14 @@ export function DocumentWorkspace({
 
   useEffect(() => {
     if (!focusSourceId || markdown !== activeDocument?.markdown) return;
-    const section = sectionRefs.current.get(focusSourceId);
-    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const section = renderableMarkdownSections.find((section) => section.sourceRefs.includes(focusSourceId));
+    if (section) sectionRefs.current.get(documentSectionRenderKey(section))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     const line = findDocumentSourceLine(markdown, focusSourceId);
     if (line) {
       editorRef.current?.revealLineInCenter(line);
       editorRef.current?.setPosition({ lineNumber: line, column: 1 });
     }
-  }, [activeDocument?.id, activeDocument?.markdown, focusSourceId, focusVersion, markdown]);
+  }, [activeDocument?.id, activeDocument?.markdown, focusSourceId, focusVersion, markdown, renderableMarkdownSections]);
 
   useEffect(() => () => {
     editorScrollSubscription.current?.dispose();
@@ -473,15 +473,14 @@ export function DocumentWorkspace({
               {previewMarkdown
                 ? renderableMarkdownSections.map((section) => (
                 <section
-                  key={section.id}
+                  key={documentSectionRenderKey(section)}
                   className={focusSourceId && section.sourceRefs.includes(focusSourceId)
                     ? 'document-markdown__section is-focused'
                     : 'document-markdown__section'}
                   ref={(element) => {
-                    for (const sourceRef of section.sourceRefs) {
-                      if (element) sectionRefs.current.set(sourceRef, element);
-                      else sectionRefs.current.delete(sourceRef);
-                    }
+                    const key = documentSectionRenderKey(section);
+                    if (element) sectionRefs.current.set(key, element);
+                    else sectionRefs.current.delete(key);
                   }}
                 >
                   {section.sourceRefs.length > 0 && (

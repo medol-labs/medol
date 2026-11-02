@@ -3,13 +3,20 @@ import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-r
 
 export const Route = createRootRoute({
   head: () => ({
+    links: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'MEDOL' }
     ]
   }),
-  component: RootComponent
+  component: RootComponent,
+  notFoundComponent: () => (
+    <main className="p-6">
+      <h1>Page Not Found</h1>
+      <a href="/">Return to Medol</a>
+    </main>
+  )
 });
 
 function RootComponent() {

@@ -5,6 +5,7 @@ import {
   Controls,
   MiniMap,
   ReactFlow,
+  ReactFlowProvider,
   type Edge,
   type Node,
   useReactFlow,
@@ -54,7 +55,11 @@ interface SemanticCanvasProps {
 
 const primaryRelations = new Set(['invokes', 'emits', 'updates']);
 
-export function SemanticCanvas({
+export function SemanticCanvas(props: SemanticCanvasProps) {
+  return <ReactFlowProvider><SemanticCanvasView {...props} /></ReactFlowProvider>;
+}
+
+function SemanticCanvasView({
   domains,
   domainId,
   boardKind = 'domain',

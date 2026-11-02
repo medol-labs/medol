@@ -155,9 +155,9 @@ export function WorkspaceVersionPanel({
         onClick={() => setOpen(true)}
         disabled={!activeWorkspaceId}
         title="Version history"
+        aria-label="Version history"
       >
         <History size={14} />
-        Versions
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="workspace-version-dialog">

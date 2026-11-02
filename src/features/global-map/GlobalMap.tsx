@@ -4,6 +4,7 @@ import {
   Controls,
   MiniMap,
   ReactFlow,
+  ReactFlowProvider,
   type Edge,
   type Node,
   useEdgesState,
@@ -23,7 +24,11 @@ interface GlobalMapProps {
   onSelectGroup: (nodeId: string) => void;
 }
 
-export function GlobalMap({ nodes, edges, onSelectGroup }: GlobalMapProps) {
+export function GlobalMap(props: GlobalMapProps) {
+  return <ReactFlowProvider><GlobalMapView {...props} /></ReactFlowProvider>;
+}
+
+function GlobalMapView({ nodes, edges, onSelectGroup }: GlobalMapProps) {
   const [localNodes, setLocalNodes, onNodesChange] = useNodesState(nodes);
   const [localEdges, setLocalEdges, onEdgesChange] = useEdgesState(edges);
 

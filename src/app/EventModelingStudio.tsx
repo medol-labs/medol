@@ -58,7 +58,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     deleteWorkspace,
     createVersion,
     loadVersion,
-    restoreVersion
+    restoreVersion,
+    acceptImportedWorkspace
   } = useModelingWorkspace(sampleDsl);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
   const [canvasShowFields, setCanvasShowFields] = useState(true);
@@ -67,8 +68,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState<'ltr' | 'rtl'>('ltr');
-  const [leftPanelWidth, setLeftPanelWidth] = useState(getInitialLeftPanelWidth);
-  const [editorPanelHeight, setEditorPanelHeight] = useState(getInitialEditorPanelHeight);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(820);
+  const [editorPanelHeight, setEditorPanelHeight] = useState(420);
   const [explorerPanelWidth, setExplorerPanelWidth] = useState(getInitialExplorerPanelWidth);
   const [dslEditorVersion, setDslEditorVersion] = useState(0);
   const [previewPatch, setPreviewPatch] = useState<AgentDslPatch | undefined>();
@@ -76,6 +77,11 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
   const [documentFocusVersion, setDocumentFocusVersion] = useState(0);
   const [documentNavigationMessage, setDocumentNavigationMessage] = useState<string>();
   const [documentNavigationTone, setDocumentNavigationTone] = useState<'info' | 'warning'>('warning');
+  // Hydrate the server layout first, then apply browser-only viewport dimensions.
+  useEffect(() => {
+    setLeftPanelWidth(getInitialLeftPanelWidth());
+    setEditorPanelHeight(getInitialEditorPanelHeight());
+  }, []);
   const debouncedDsl = useDebouncedValue(dsl, 800);
   const {
     documents,
@@ -417,6 +423,8 @@ export function MedolStudio({ previewOnly = false, editorOnly = false }: MedolSt
     agentPanelOpen ? 'minmax(320px,34vw)' : '42px'
   }`;
   const workspaceHeaderProps = {
+    getDsl: () => dsl,
+    onImported: acceptImportedWorkspace,
     workspaces,
     activeWorkspaceId,
     activeWorkspace,

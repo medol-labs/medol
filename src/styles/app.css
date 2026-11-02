@@ -117,10 +117,36 @@ textarea {
 }
 
 .workspace-header {
-  display: grid;
+  position: relative;
+  flex: 1 1 auto;
   min-width: 0;
-  gap: 5px;
+  max-width: calc(100vw - 100px);
 }
+
+.workspace-transfer {
+  flex: 0 0 auto;
+}
+
+.workspace-transfer__notice {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 260px;
+  max-width: calc(100vw - 36px);
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 4px 12px #17203320;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.workspace-transfer__error { color: #b42318; }
 
 .workspace-switcher {
   display: grid;
@@ -135,6 +161,18 @@ textarea {
   min-width: 0;
   gap: 4px;
 }
+
+.workspace-header > .workspace-switcher > .workspace-switcher__row {
+  flex-wrap: wrap;
+}
+
+.workspace-header > .workspace-switcher > .workspace-switcher__row > select {
+  flex: 1 1 120px;
+  width: 160px;
+  max-width: 220px;
+}
+
+.workspace-switcher input[hidden] { display: none; }
 
 .workspace-switcher select,
 .workspace-switcher input {
@@ -187,10 +225,11 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: max-content;
+  flex: 0 0 30px;
+  width: 30px;
   height: 30px;
   gap: 5px;
-  padding: 0 9px;
+  padding: 0;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   color: #475569;
@@ -735,6 +774,10 @@ textarea {
 
 .studio-status {
   min-width: 0;
+  max-height: min(128px, 20vh);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  align-content: flex-start;
   padding: 10px 14px;
   border-top: 1px solid #d8dee8;
   background: #ffffff;

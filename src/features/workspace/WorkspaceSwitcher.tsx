@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Check, FolderPlus, Pencil, Trash2, X } from 'lucide-react';
 import type { ModelingWorkspaceSummary } from '../../contracts/modelingWorkspace';
 import type { WorkspacePersistenceStatus } from './useModelingWorkspace';
 
 interface WorkspaceSwitcherProps {
+  actions?: ReactNode;
   workspaces: ModelingWorkspaceSummary[];
   activeWorkspaceId?: string;
   status: WorkspacePersistenceStatus;
@@ -20,7 +22,8 @@ export function WorkspaceSwitcher({
   onSelect,
   onCreate,
   onRename,
-  onDelete
+  onDelete,
+  actions
 }: WorkspaceSwitcherProps) {
   const [mode, setMode] = useState<'create' | 'rename'>();
   const [name, setName] = useState('');
@@ -85,6 +88,7 @@ export function WorkspaceSwitcher({
         >
           <Trash2 size={14} />
         </button>
+        {actions}
       </div>
       {mode && (
         <div className="workspace-switcher__form">

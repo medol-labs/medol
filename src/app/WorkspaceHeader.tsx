@@ -1,4 +1,5 @@
 import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher';
+import { WorkspaceTransfer } from '../features/workspace/WorkspaceTransfer';
 import { WorkspaceVersionPanel } from '../features/workspace/WorkspaceVersionPanel';
 import type {
   CreateModelingWorkspaceVersionInput,
@@ -6,12 +7,15 @@ import type {
   ModelingWorkspaceVersionSummary,
   ModelingWorkspaceSummary
 } from '../contracts/modelingWorkspace';
+import type { ModelingWorkspace } from '../contracts/modelingWorkspace';
 import type {
   WorkspacePersistenceStatus,
   WorkspaceVersionStatus
 } from '../features/workspace/useModelingWorkspace';
 
 export interface WorkspaceHeaderProps {
+  getDsl: () => string;
+  onImported: (workspace: ModelingWorkspace) => Promise<void>;
   workspaces: ModelingWorkspaceSummary[];
   activeWorkspaceId?: string;
   activeWorkspace?: ModelingWorkspaceSummary;
@@ -40,11 +44,12 @@ export function WorkspaceHeader({
   onDelete,
   onCreateVersion,
   onLoadVersion,
-  onRestoreVersion
+  onRestoreVersion,
+  getDsl,
+  onImported
 }: WorkspaceHeaderProps) {
   return (
     <div className="workspace-header">
-      <p className="eyebrow">Workspace</p>
       <WorkspaceSwitcher
         workspaces={workspaces}
         activeWorkspaceId={activeWorkspaceId}
@@ -53,15 +58,25 @@ export function WorkspaceHeader({
         onCreate={onCreate}
         onRename={onRename}
         onDelete={onDelete}
-      />
-      <WorkspaceVersionPanel
-        activeWorkspaceId={activeWorkspaceId}
-        activeHeadVersionId={activeWorkspace?.headVersionId}
-        versions={versions}
-        status={versionStatus}
-        onCreateVersion={onCreateVersion}
-        onLoadVersion={onLoadVersion}
-        onRestoreVersion={onRestoreVersion}
+        actions={(
+          <>
+            <WorkspaceVersionPanel
+              activeWorkspaceId={activeWorkspaceId}
+              activeHeadVersionId={activeWorkspace?.headVersionId}
+              versions={versions}
+              status={versionStatus}
+              onCreateVersion={onCreateVersion}
+              onLoadVersion={onLoadVersion}
+              onRestoreVersion={onRestoreVersion}
+            />
+            <WorkspaceTransfer
+              workspaceId={activeWorkspaceId}
+              disabled={persistenceStatus === 'loading'}
+              getDsl={getDsl}
+              onImported={onImported}
+            />
+          </>
+        )}
       />
     </div>
   );
