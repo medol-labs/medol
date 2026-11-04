@@ -11,6 +11,7 @@ import { analyzeFieldLineage, FieldSourceValidationError } from './fieldLineage'
 export interface CodegenModel {
   metadata?: CodegenMetadata;
   tenancy?: TenantCapability;
+  operationAudit?: { context: string; readModel: string };
   rootPackage: 'tech.medo';
   domain?: string;
   domains?: Array<{ id: string; name: string; title: string; defaultAccessPolicy?: string; contexts: Array<{ id: string; name: string; title: string }> }>;
@@ -166,7 +167,8 @@ export interface CodegenTransition {
   from?: string;
   fromStates?: string[];
   triggers?: Array<{ id: string; name: string; title: string }>;
-  to: string;
+  /** Absent for a lifecycle guard that preserves the current state. */
+  to?: string;
   startsLifecycle: boolean;
 }
 
@@ -610,6 +612,8 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         };
       })
     }))),
+    ...(model.capabilityImports?.some(imported => imported.name === 'OperationAudit')
+      ? {operationAudit: {context: 'OperationAudit', readModel: 'OperationAuditCatalog'}} : {}),
     transitions: buildTransitions(model),
     actors: [...actorRecords.values()],
     slices,
@@ -813,32 +817,43 @@ const buildTransitions = (model: EmModel): CodegenTransition[] => {
   const transitions: CodegenTransition[] = [];
   for (const contextItem of model.contexts) {
     for (const slice of allContextSlices(contextItem)) {
-      if (!slice.resultingState) continue;
       const owners = ownersBySliceId.get(slice.id) ?? [];
       if (owners.length === 0) continue;
 
       const command = slice.elements.find((element) => element.kind === 'command');
+      if (!slice.resultingState && !command) continue;
       const event = slice.elements.find((element) => element.kind === 'event');
-      const triggers = reactsToBySliceId.get(slice.id) ?? [];
+      const triggers = (reactsToBySliceId.get(slice.id) ?? []).filter(trigger =>
+        slice.resultingState || model.edges.some(edge => edge.label === 'reactsTo'
+          && edge.source === trigger.id && edge.target === command?.id));
       const trigger = triggers[0];
 
       for (const owner of owners) {
+        // A state-preserving reaction is also used for event responses. Only
+        // derive a guard when every same-owner trigger has an explicit state;
+        // never invent a state for a secondary outcome or partially restrict it.
+        if (!slice.resultingState && triggers.some((item) => {
+          const source = eventToSlice.get(item.id);
+          const sameOwner = (ownersBySliceId.get(source?.id ?? '') ?? []).some(candidate => candidate.id === owner.id);
+          return sameOwner && (!source?.resultingState || source.elements.find(element => element.kind === 'event')?.id !== item.id);
+        })) continue;
         const fromStates = slice.startsLifecycle ? [] : [...new Set(triggers.flatMap((item) => {
           const inferred = inferTransitionFromState(owner, item, eventToSlice, ownersBySliceId);
           return 'from' in inferred ? [inferred.from] : [];
         }))];
+        if (!slice.resultingState && (!command || fromStates.length === 0)) continue;
         transitions.push({
           id: stableId('transition', `${owner.id}/${slice.id}`),
           context: contextBySliceId.get(slice.id) ?? contextItem.name,
           owner,
           slice: toCodegenSliceRef(slice),
           ...(command ? { command: toCodegenTransitionElement(command) } : {}),
-          ...(event ? { event: toCodegenTransitionElement(event) } : {}),
+          ...(event && slice.resultingState ? { event: toCodegenTransitionElement(event) } : {}),
           ...(trigger ? { trigger: toCodegenTransitionElement(trigger) } : {}),
           ...(triggers.length > 1 ? {triggers: triggers.map(toCodegenTransitionElement)} : {}),
           ...(fromStates.length ? {from: fromStates[0]} : {}),
           ...(fromStates.length > 1 ? {fromStates} : {}),
-          to: slice.resultingState,
+          ...(slice.resultingState ? {to: slice.resultingState} : {}),
           startsLifecycle: Boolean(slice.startsLifecycle)
         });
       }

@@ -108,6 +108,7 @@ domain FileUpload {
       actor PlatformUser
       ui UploadedFileCatalogScreen confirm
       reactsTo FileUploaded
+      reactsTo FileReferenced
       port
   
       command DownloadFile {
@@ -258,6 +259,9 @@ domain FileUpload {
   
     slice UploadedFileCatalog {
       readmodel UploadedFileCatalog[] {
+        eligible when { UploadedFile.state == Available }
+        eligible for DownloadFile when { UploadedFile.state != Discarded
+          UploadedFile.state != Expired }
         exportable
         fileId: UUID id
         originalFileName: String display

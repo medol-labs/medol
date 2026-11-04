@@ -323,7 +323,7 @@ import data-exchange as PlatformDataExchange deploy FederationLearningSupport
 内置 `DataExchange` 自身包含导出任务、导出文件下载与导入任务：
 
 - `DataExportJob`：记录导出请求、处理状态、文件位置、下载地址、行数和失败信息。
-- `DownloadDataExportFile`：导出 job 完成后，`DataExportJobCatalog` 通过 `eligible for DownloadDataExportFile when { DataExportJob.status == "COMPLETED" }` 暴露下载动作。
+- `DownloadDataExportFile`：导出 job 完成后，`DataExportJobCatalog` 通过 `eligible for DownloadDataExportFile when { DataExportJob.state == Completed }` 暴露下载动作。
 - `DataImportJob`：记录导入请求、上传文件、请求哈希、处理状态、成功/失败行数和失败索引位置。
 
 业务模型通过简单标记接入通用导出或导入：
@@ -384,7 +384,7 @@ event TrainingJobCompleted {
 
 第一版保持轻量建模，不在业务模型里配置通知文案细节。生成器按事件上下文推导默认值：
 
-- `category`：优先按事件所在上下文/事件名推导，例如 data exchange、training、runtime，否则为 `SYSTEM`。
+- `category`：仅从模型声明的 NotificationCategory 枚举项中匹配事件上下文，未匹配时使用 `SYSTEM`。内置分类不包含 training/runtime 等具体业务分类。
 - `severity`：按事件名推导，例如 `Completed/Succeeded` 为 `SUCCESS`，`Failed/Rejected` 为 `ERROR`，`Alert/Raised` 为 `WARNING`，否则为 `INFO`。
 - `messageKey`：按事件名生成稳定 key，例如 `notifications.trainingJobCompleted`。
 - `messageArgsJson`：默认序列化事件字段，保证导出/列表/详情使用同一套后端事实。
@@ -411,10 +411,91 @@ event TrainingJobCompleted {
 
 ## 后续扩展方向
 
-后续如果新增通用业务能力，例如导入导出管理、审计管理、通知管理，应优先按同一模式设计：
+后续如果新增通用业务能力，例如定时任务管理，应优先按同一模式设计：
 
 1. 先定义内置能力 context。
 2. 业务模型通过 `import` 直接引用该内置能力。
 3. 如果业务模型需要接入自己的表、投影或流程，再通过 `extend <内置能力> { provider <扩展点> ... }` 声明。
 
 通用管理能力不应简单理解为“某个 readmodel 增删改查”。它更可能是一个内置管理能力，包含管理页面、任务记录、文件处理、执行状态和通用组件。业务模型后续再通过扩展点声明哪些业务资源接入该管理能力。
+
+## 内置生命周期与选择约束
+
+内置模型沿用普通 MEDOL 语义，不增加专属状态语法：
+
+- `reactsTo` 引用同一 concept 中明确关联状态的事件，约束命令允许执行的当前状态。
+- slice 没有 `state` 时，只校验前置状态，不改变对象状态。CodegenModel 对此输出带 `from/fromStates`、不带 `to/event` 的 guard；生成器不能把它当成状态变化。只有全部同一对象的触发事件均有明确状态关联时才生成此 guard；未关联状态的次要结果仍只表示事件响应，不推测状态，也不生成只覆盖部分结果的限制。
+- 默认 `eligible` 控制新的业务引用；管理操作仍按自己的生命周期执行。命名 `eligible for` 表达特定用途。
+- 唯一性和输入一致性使用 `specification expression`，并提供能证明违反约束的拒绝场景。
+
+当前内置规则：
+
+| 模块 | 约束 |
+| --- | --- |
+| IAM | 用户名（含停用账号）、角色编码、权限编码唯一；账号可停用和恢复；分配角色仅允许 Active，且不激活账号；账号目录只允许选择 Active 账号。 |
+| Dictionary | 新增值必须选择 Registered 字典；同一字典的 valueCode 唯一；新增值的 active 必须为 true，停用通过独立命令完成；字典值目录只选择 Active 值。 |
+| FileUpload | 新引用仅选择 Available 文件；下载允许 Available、Referenced；Discard/Expire 仅允许 Available，避免误删已引用文件。当前仍为单次引用模型。 |
+| DataExchange | Requested → Processing → Completed；Requested/Processing 可进入 Failed；状态转换逐 slice 建模，目录显式订阅全部阶段事件。 |
+| SystemNotification | 发布状态固定 UNREAD；单条已读属于通知生命周期，全部已读是独立的收件人批量确认，不使用收件人 ID 检查单条通知状态。 |
+| TenantManagement | 保持租户和成员各自的生命周期；更新租户等不改变状态的操作同样生成前置状态校验。 |
+
+数据交换及通知保留旧 `status` 输入字段以兼容现有基础设施调用，但通过表达式限制其与操作一致，不能任意指定结果状态。数据交换的生命周期判定及下载条件使用显式 state。导入 Completed 表示任务处理结束，不表示每一行成功，仍需查看 successRows/failedRows。
+
+### 尚未闭环的能力
+
+以下不是本次状态约束改造已经完成的能力，不应依赖生成器猜测：
+
+- 归档字典后，对已有字典值的跨投影联动禁用：当前限制新增值，已有值的父目录联动仍需通用关联校验/投影更新能力。不能加一个不会被正确维护的派生字段来模拟。
+- IAM 撤销分配事件对关联目录的删除/失效投影、Token 撤销及账号停用对已有 Token 的处理，需要连同认证和投影实现补齐。
+- 多处文件引用、解除引用及引用中的过期策略，需要独立的引用关系模型。
+- 导入失败行重试、取消、执行幂等及行数一致性需要完整执行协议；本次只补齐既有阶段的合法转换。
+- 通知收件人的可信身份绑定、批量已读的时间边界及重复事件幂等，需要通知执行和投影实现配合。
+- 租户成员的外部账号存在性/停用联动尚无身份目录 provider；不将租户模块强制绑定内置 IAM。
+
+重新导出模型并重新生成受影响的后端/前端后这些变更才会进入业务项目。已有数据中新加的 state 字段需要迁移或重建投影，不能认为模型更新会自动回填历史数据。
+
+### 生成链路复核
+
+- 导入/导出处理器先提交 Processing，再调用执行器，成功后提交 Completed，异常时提交 Failed。导入开始时 totalRows 为 0（尚未扫描），完成事件记录最终行数。
+- 回放仅使用显式的事件状态关联；事件名称中包含 Ready/Failed 等词不改变聚合状态。
+- 生命周期命令首先按模型元素 ID 匹配，不能借用其他 context 中同名命令的约束。
+- 同一目录的 ID 和附带字段按同一条记录校验：只按 ID 查询一次，附带字段与该记录比较。无法明确绑定 ID、复合 ID 或集合选择的情况会明确阻止生成，不能把非 ID 字段传给 findById。
+
+## 操作审计
+
+通过内置能力显式启用，无需新增 DSL 语法：
+
+```medol
+import operation-audit as Audit deploy Support
+
+frontend AuditConsole {
+  includes OperationAudit from Support
+}
+```
+
+导入产生只读 `OperationAuditCatalog`，记录操作类别、名称、开始/完成时间、结果、操作者、租户、消息/关联 ID、模型声明的对象 ID、耗时、错误码及 HTTP 状态。没有公开的新增、修改或删除命令；页面沿用普通 readmodel 的查询、筛选和权限生成。
+
+这是**每个部署本地采集**的能力；需要审计的 backend 均须导入，导入 Support 不会自动采集其他服务。导出契约 `operationAudit` 来自内置能力导入，用户定义同名 context 不会意外开启基础设施。
+
+### Axon5 实现
+
+- 命令和查询使用 Axon 5 `MessageHandlerInterceptor`，通过 `ProcessingContext.onError/whenComplete` 观察异步执行结果。仅提交完成且无错误时记录 SUCCEEDED；业务拒绝记录 REJECTED，执行或提交失败记录 FAILED。没有使用 Axon 4 的线程绑定 UnitOfWork 审计方式。
+- HTTP Filter 在 Spring Security 外层记录最终状态，因此未登录、权限拒绝、下载和查询入口也可记录；Servlet 异步请求等待完成。HTTP 和消息记录表示不同执行阶段，通过 correlationId 关联，不能直接相加当作用户操作次数。
+- 拦截器只发布 `OperationExecutionRecorded` 基础设施事件，不直接写审计目录。发布通过 Axon `EventStore`，使用独立 `REQUIRES_NEW` 事务并明确不传入业务 ProcessingContext，避免随失败业务回滚。没有公开的新增审计命令。
+- 唯一的 `AuditTrailProjection` 流式订阅操作结果事件及当前部署模型声明的业务事件，写入同一目录。HTTP/COMMAND/QUERY 表示操作结果，EVENT + RECORDED 表示已发生的业务事实，不能据此推断整个请求成功。
+- 操作结果事件携带固定记录 ID；业务事件按来源、租户和消息 ID 形成稳定记录 ID。重复投递和回放不新增重复行，投影失败向 Axon 抛出以便重试。审计事件不会再生成一条 EVENT 审计，也不会从投影中发布新事件。
+- 处理器名称按部署隔离并使用新的 v2 标识，不复用旧审计的处理进度；操作结果按来源部署过滤。业务事件订阅按当前部署模型声明的事件类型生成；Axon 5 的 Any/Object 参数不是通配订阅，未建模的外部事件不自动纳入。共享事件存储中相同事件类型的消息仍可能来自其他部署。
+- 身份来自认证上下文及内部消息元数据，不信任外部 `X-User-Id`。启用租户时使用已校验的租户上下文；未启用时不把任意租户请求头当作审计租户。
+- 不保存请求/响应正文、事件 payload、原始 URL/query string 或异常消息；HTTP 操作仅记录路由模板。历史 payload 不会自动删除。
+
+启用租户时，审计目录属于平台管理 context，审计员权限可以查看跨租户记录。应只给平台审计人员授予目录读取权限；它不等同于租户成员的操作历史页面。
+
+### 当前边界
+
+操作结果事件发布失败会记录不含业务正文的错误日志，并保留原业务结果；发布成功后可通过事件重放恢复投影。需要配置持久化事件存储才具备跨重启恢复能力，`inmemory` 模式不提供持久化。尚无 outbox 保证“业务结束至审计发布”之间的崩溃窗口，也不提供防篡改保证。尚未包含跨服务集中汇聚、归档保留策略和定期清理。消息处理拦截器只覆盖已进入处理链的命令/查询；HTTP 层补充入口拒绝，但后台消息在进入处理链前被拒绝的情况尚未单独采集。
+
+Axon 机制参考：[Message Intercepting](https://docs.axoniq.io/axon-framework-reference/5.1/messaging-concepts/message-intercepting/)。生成代码按当前使用的 Axon 5.1.1 API 验证。
+
+### 替换旧审计
+
+重新生成会移除旧的 `AuditLogEntry`、`AuditLogRepository`、旧 `AuditTrailProjection` 和 `/audit-trail` 查询接口源码，统一使用内置审计目录及其权限。请执行 clean build，避免旧 class 文件继续被扫描。旧 `audit_log` 表和历史数据保留，不自动迁移；新处理器不继承旧 token，也不能恢复历史上未记录的失败操作。

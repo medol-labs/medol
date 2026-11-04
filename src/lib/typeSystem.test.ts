@@ -1920,9 +1920,9 @@ test('built-in data exchange models completed export job downloads', () => {
     profile: 'DownloadDataExportFile',
     operator: 'AND',
     conditions: [{
-      left: 'DataExportJob.status',
+      left: 'DataExportJob.state',
       operator: '==',
-      right: 'COMPLETED'
+      right: 'Completed'
     }]
   });
 });

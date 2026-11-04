@@ -32,6 +32,10 @@ const loadBuiltinMedol = async (fileName: string): Promise<string> => {
     const source = await import('../builtin-models/system-notification.medol?raw');
     return source.default;
   }
+  if (fileName === 'operation-audit.medol') {
+    const source = await import('../builtin-models/operation-audit.medol?raw');
+    return source.default;
+  }
   if (fileName === 'tenant-management.medol') {
     const source = await import('../builtin-models/tenant-management.medol?raw');
     return source.default;
@@ -44,9 +48,12 @@ const dictionaryMaintenanceMedol = await loadBuiltinMedol('dictionary-maintenanc
 const dataExchangeMedol = await loadBuiltinMedol('data-exchange.medol');
 const fileUploadMedol = await loadBuiltinMedol('file-upload.medol');
 const systemNotificationMedol = await loadBuiltinMedol('system-notification.medol');
+const operationAuditMedol = await loadBuiltinMedol('operation-audit.medol');
 const tenantManagementMedol = await loadBuiltinMedol('tenant-management.medol');
 
 export const builtinMedolModels = new Map<string, string>([
+  ['operation-audit', operationAuditMedol],
+  ['operationAudit', operationAuditMedol],
   ['tenant-management', tenantManagementMedol],
   ['tenantManagement', tenantManagementMedol],
   ['identity-access-management', identityAccessManagementMedol],

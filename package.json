@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite dev --host 0.0.0.0",
     "build": "vite build",
+    "test:builtin": "node --import tsx --test src/lib/builtinLifecycle.test.ts src/lib/operationAudit.test.ts",
     "test:semantic": "node --import tsx --test src/lib/semanticValidator.test.ts",
     "test:analysis": "node --import tsx --test src/features/model-analysis/modelAnalysis.test.ts src/lib/behaviorSemantics.test.ts",
     "test:lineage": "node --import tsx --test src/lib/fieldLineage.test.ts src/server/fieldSourceExport.test.ts",

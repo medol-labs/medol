@@ -1,0 +1,33 @@
+domain OperationAudit {
+  access policy OperationAuditPlatformAccess {}
+  default access OperationAuditPlatformAccess
+
+  context OperationAudit {
+    note "Append-only audit trail projected from business events and OperationExecutionRecorded infrastructure events. Axon completion and HTTP boundaries publish execution results independently of business transactions. No public command can create, edit, or delete an audit record."
+    note "Audit access is a platform-level permission spanning tenants. Import this capability into every deployment that must collect local operations."
+
+    slice OperationAuditCatalog {
+      actor OperationAuditor
+      readmodel OperationAuditCatalog[] {
+        auditRecordId: UUID id
+        occurredAt: DateTime query
+        completedAt: DateTime query
+        category: String query
+        operation: String display query
+        outcome: String query
+        actorId: String? query
+        auditTenantId: String? query
+        messageId: String? query
+        correlationId: String? query
+        targetId: String? query
+        durationMs: Long
+        errorCode: String? query
+        httpStatus: Int? query
+      }
+    }
+
+    concept OperationAuditRecord {
+      slice OperationAuditCatalog
+    }
+  }
+}

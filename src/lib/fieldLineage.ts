@@ -172,6 +172,11 @@ export function analyzeFieldLineage(model: EmModel): FieldLineage {
             if (resolved.state) addDiagnostic(node, 'state-history', 'warning', `Source ${path} references state history; current-state availability and merge behavior require review.`);
           }
         }
+      } else if (element.kind === 'readmodel' && context.name === 'OperationAudit'
+        && element.name === 'OperationAuditCatalog'
+        && model.capabilityImports?.some(imported => imported.name === 'OperationAudit')) {
+        node.origin = 'generated';
+        node.reason = 'Projected by the imported operation-audit AuditTrailProjection from business and operation-result events.';
       } else if (field.attributes.includes('generated')) {
         node.origin = 'generated';
         node.reason = 'Explicit generated attribute; generation behavior is not verified.';

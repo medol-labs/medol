@@ -46,7 +46,7 @@ domain DictionaryMaintenance {
   
       specification "Dictionary Code Unique" {
         rule """
-          FederDictionary Codes must be unique.
+          Dictionary codes must be unique.
         """
   
         expression {
@@ -103,6 +103,7 @@ domain DictionaryMaintenance {
   
     slice DictionaryCatalog {
       readmodel DictionaryCatalog[] {
+        eligible when { Dictionary.state == Registered }
         exportable
         dictionaryId: UUID id
         dictionaryCode: DictionaryCode query
@@ -133,8 +134,8 @@ domain DictionaryMaintenance {
   
       command AddDictionaryValue {
         dictionaryValueId: UUID id generated technical
-        dictionaryId: UUID
-        dictionaryCode: DictionaryCode
+        dictionaryId: UUID from DictionaryCatalog.dictionaryId
+        dictionaryCode: DictionaryCode from DictionaryCatalog.dictionaryCode
         valueCode: DictionaryValueCode
         defaultDisplayName: String
         displayOrder: DisplayOrder?
@@ -154,6 +155,21 @@ domain DictionaryMaintenance {
       }
   
       state Active
+      specification "Dictionary Value Unique And Initially Active" {
+        expression {
+          unique (DictionaryValue.dictionaryCode, DictionaryValue.valueCode)
+          assert AddDictionaryValue.active == true
+        }
+        scenario "Reject Duplicate Value" {
+          given DictionaryValueAdded { dictionaryCode = "EXAMPLE" valueCode = "ONE" }
+          when AddDictionaryValue { dictionaryCode = "EXAMPLE" valueCode = "ONE" active = true }
+          then reject "Dictionary value already exists."
+        }
+        scenario "Reject Initially Disabled Value" {
+          when AddDictionaryValue { dictionaryCode = "EXAMPLE" valueCode = "ONE" active = false }
+          then reject "New dictionary values must be active."
+        }
+      }
     }
   
     slice DisableDictionaryValue {
@@ -194,6 +210,9 @@ domain DictionaryMaintenance {
   
     slice DictionaryValueCatalog {
       readmodel DictionaryValueCatalog[] {
+        eligible when {
+          DictionaryValue.state == Active
+        }
         exportable
         dictionaryValueId: UUID id
         dictionaryId: UUID

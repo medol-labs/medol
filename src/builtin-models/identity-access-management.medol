@@ -29,8 +29,10 @@ domain IdentityAccessManagement {
 
       specification "User Account Username Unique" {
         rule """
-          Active user account usernames must be unique.
+          User account usernames must be unique, including deactivated accounts.
         """
+
+        expression { unique UserAccount.username }
 
         scenario "Reject Duplicate Username" {
           given UserAccountRegistered {
@@ -46,6 +48,8 @@ domain IdentityAccessManagement {
 
     slice DeactivateUserAccount {
       actor IdentityAdministrator
+      reactsTo UserAccountRegistered
+      reactsTo UserAccountReactivated
 
       command DeactivateUserAccount {
         userAccountId: UUID id technical
@@ -58,6 +62,20 @@ domain IdentityAccessManagement {
       }
 
       state Deactivated
+    }
+
+    slice ReactivateUserAccount {
+      actor IdentityAdministrator
+      reactsTo UserAccountDeactivated
+      command ReactivateUserAccount {
+        userAccountId: UUID id technical
+        reason: String
+      }
+      event UserAccountReactivated {
+        userAccountId: UUID id technical
+        reason: String
+      }
+      state Active
     }
 
     slice GenerateUserAccountLoginPassword {
@@ -102,6 +120,14 @@ domain IdentityAccessManagement {
       }
 
       state Registered
+      specification "Role Code Unique" {
+        expression { unique Role.roleCode }
+        scenario "Reject Duplicate Role Code" {
+          given RoleRegistered { roleCode = "example" }
+          when RegisterRole { roleCode = "example" }
+          then reject "Role code already exists."
+        }
+      }
     }
 
     slice RegisterPermission {
@@ -127,10 +153,19 @@ domain IdentityAccessManagement {
       }
 
       state Registered
+      specification "Permission Code Unique" {
+        expression { unique Permission.permissionCode }
+        scenario "Reject Duplicate Permission Code" {
+          given PermissionRegistered { permissionCode = "example" }
+          when RegisterPermission { permissionCode = "example" }
+          then reject "Permission code already exists."
+        }
+      }
     }
 
     slice GrantPermissionToRole {
       actor IdentityAdministrator
+      reactsTo RoleRegistered
 
       command GrantPermissionToRole {
         roleId: UUID id from RoleCatalog.roleId
@@ -156,6 +191,8 @@ domain IdentityAccessManagement {
 
     slice AssignRoleToUser {
       actor IdentityAdministrator
+      reactsTo UserAccountRegistered
+      reactsTo UserAccountReactivated
 
       command AssignRoleToUser {
         userAccountId: UUID id from UserAccountCatalog.userAccountId
@@ -172,7 +209,6 @@ domain IdentityAccessManagement {
         roleCode: String
       }
 
-      state Active
 
     }
 
@@ -269,6 +305,7 @@ domain IdentityAccessManagement {
       actor IdentityAdministrator
 
       readmodel UserAccountCatalog[] {
+        eligible when { UserAccount.state == Active }
         exportable
         userAccountId: UUID id
         username: String display
@@ -276,8 +313,10 @@ domain IdentityAccessManagement {
         userSource: String? technical
         passwordHash: String? technical
         active: Boolean
+        state: UserAccount.State
         subscribe UserAccountRegistered
         subscribe UserAccountLoginPasswordGenerated
+        subscribe UserAccountReactivated
         subscribe UserAccountDeactivated
       }
     }
@@ -356,6 +395,7 @@ domain IdentityAccessManagement {
       state Deactivated
       slice RegisterUserAccount
       slice GenerateUserAccountLoginPassword
+      slice ReactivateUserAccount
       slice DeactivateUserAccount
       slice AssignRoleToUser
       slice UserAccountCatalogs

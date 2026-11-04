@@ -8,8 +8,6 @@ context SystemNotification {
   enum NotificationCategory {
     SYSTEM
     DATA_EXCHANGE
-    TRAINING
-    RUNTIME
     SECURITY
   }
 
@@ -66,6 +64,14 @@ context SystemNotification {
     }
 
     state Unread
+
+    specification "Published Notification Is Unread" {
+      expression { assert PublishSystemNotification.status == "UNREAD" }
+      scenario "Reject Inconsistent Notification Status" {
+        when PublishSystemNotification { status = "READ" }
+        then reject "New notifications must be unread."
+      }
+    }
   }
 
   slice MarkSystemNotificationRead {
@@ -87,7 +93,7 @@ context SystemNotification {
   }
 
   slice MarkAllSystemNotificationsRead {
-    reactsTo SystemNotificationPublished
+    // Recipient-scoped acknowledgement, independent of a single notification lifecycle.
 
     command MarkAllSystemNotificationsRead {
       recipientUserId: String id technical
@@ -140,13 +146,16 @@ context SystemNotification {
     }
   }
 
+  concept RecipientNotificationAcknowledgement {
+    slice MarkAllSystemNotificationsRead
+  }
+
   concept SystemNotification {
     state Unread
     state Read
 
     slice PublishSystemNotification
     slice MarkSystemNotificationRead
-    slice MarkAllSystemNotificationsRead
     slice SystemNotificationCatalog
   }
 }

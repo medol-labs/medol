@@ -7,6 +7,7 @@ domain DataExchange {
 context DataExchange {
   slice DataImportJob {
     startsLifecycle
+    state Requested
 
     command RequestDataImport {
       dataImportJobId: UUID id
@@ -32,6 +33,49 @@ context DataExchange {
       status: String
     }
 
+    specification "RequestDataImport Status Matches Outcome" {
+      expression { assert RequestDataImport.status == "REQUESTED" }
+      scenario "Reject Inconsistent Status" {
+        when RequestDataImport { status = "INVALID" }
+        then reject "Status does not match the operation."
+      }
+    }
+
+    automation ExecuteDataImport {
+      on DataImportRequested
+      uses DataExchange.import
+      emits MarkDataImportProcessing
+      emits CompleteDataImport
+      emits FailDataImport
+    }
+
+    readmodel DataImportJobCatalog[] {
+      dataImportJobId: UUID id
+      commandName: String query
+      resourceName: String query
+      originalFileName: String display
+      filePath: String
+      requestedLocale: String?
+      requestedAt: DateTime
+      requestHash: String
+      status: String query
+      state: DataImportJob.State query
+      subscribe DataImportRequested
+      subscribe DataImportProcessingStarted
+      subscribe DataImportCompleted
+      subscribe DataImportFailed
+
+      totalRows: Long?
+      successRows: Long?
+      failedRows: Long?
+      failureIndexPath: String?
+      errorMessage: Text?
+    }
+  }
+
+  slice MarkDataImportProcessing {
+    reactsTo DataImportRequested
+
     command MarkDataImportProcessing {
       dataImportJobId: UUID id
       totalRows: Long
@@ -43,6 +87,20 @@ context DataExchange {
       totalRows: Long
       status: String
     }
+
+    state Processing
+
+    specification "MarkDataImportProcessing Status Matches Outcome" {
+      expression { assert MarkDataImportProcessing.status == "PROCESSING" }
+      scenario "Reject Inconsistent Status" {
+        when MarkDataImportProcessing { status = "INVALID" }
+        then reject "Status does not match the operation."
+      }
+    }
+  }
+
+  slice CompleteDataImport {
+    reactsTo DataImportProcessingStarted
 
     command CompleteDataImport {
       dataImportJobId: UUID id
@@ -63,6 +121,21 @@ context DataExchange {
       status: String
     }
 
+    state Completed
+
+    specification "CompleteDataImport Status Matches Outcome" {
+      expression { assert CompleteDataImport.status == "COMPLETED" }
+      scenario "Reject Inconsistent Status" {
+        when CompleteDataImport { status = "INVALID" }
+        then reject "Status does not match the operation."
+      }
+    }
+  }
+
+  slice FailDataImport {
+    reactsTo DataImportRequested
+    reactsTo DataImportProcessingStarted
+
     command FailDataImport {
       dataImportJobId: UUID id
       errorMessage: Text
@@ -76,34 +149,20 @@ context DataExchange {
       status: String
     }
 
-    automation ExecuteDataImport {
-      on DataImportRequested
-      uses PlatformDataExchange.import
-      emits MarkDataImportProcessing
-      emits CompleteDataImport
-      emits FailDataImport
-    }
+    state Failed
 
-    readmodel DataImportJobCatalog[] {
-      dataImportJobId: UUID id
-      commandName: String query
-      resourceName: String query
-      originalFileName: String display
-      filePath: String
-      requestedLocale: String?
-      requestedAt: DateTime
-      requestHash: String
-      status: String query
-      totalRows: Long?
-      successRows: Long?
-      failedRows: Long?
-      failureIndexPath: String?
-      errorMessage: Text?
+    specification "FailDataImport Status Matches Outcome" {
+      expression { assert FailDataImport.status == "FAILED" }
+      scenario "Reject Inconsistent Status" {
+        when FailDataImport { status = "INVALID" }
+        then reject "Status does not match the operation."
+      }
     }
   }
 
   slice DataExportJob {
     startsLifecycle
+    state Requested
 
     command RequestDataExport {
       dataExportJobId: UUID id
@@ -133,6 +192,54 @@ context DataExchange {
       status: String
     }
 
+    specification "RequestDataExport Status Matches Outcome" {
+      expression { assert RequestDataExport.status == "REQUESTED" }
+      scenario "Reject Inconsistent Status" {
+        when RequestDataExport { status = "INVALID" }
+        then reject "Status does not match the operation."
+      }
+    }
+
+    automation ExecuteDataExport {
+      on DataExportRequested
+      uses DataExchange.export
+      emits MarkDataExportProcessing
+      emits CompleteDataExport
+      emits FailDataExport
+    }
+
+    readmodel DataExportJobCatalog[] {
+      dataExportJobId: UUID id
+      resourceName: String display
+      criteriaJson: Text
+      sortJson: Text
+      columnsJson: Text
+      requestedLocale: String?
+      requestedAt: DateTime
+      snapshotUpperBound: DateTime
+      requestHash: String
+      status: String query
+      state: DataExportJob.State query
+      subscribe DataExportRequested
+      subscribe DataExportProcessingStarted
+      subscribe DataExportCompleted
+      subscribe DataExportFailed
+
+      fileName: String?
+      filePath: String?
+      downloadUri: String?
+      rowCount: Long?
+      errorMessage: Text?
+
+      eligible for DownloadDataExportFile when {
+        DataExportJob.state == Completed
+      }
+    }
+  }
+
+  slice MarkDataExportProcessing {
+    reactsTo DataExportRequested
+
     command MarkDataExportProcessing {
       dataExportJobId: UUID id
       status: String
@@ -142,6 +249,20 @@ context DataExchange {
       dataExportJobId: UUID id
       status: String
     }
+
+    state Processing
+
+    specification "MarkDataExportProcessing Status Matches Outcome" {
+      expression { assert MarkDataExportProcessing.status == "PROCESSING" }
+      scenario "Reject Inconsistent Status" {
+        when MarkDataExportProcessing { status = "INVALID" }
+        then reject "Status does not match the operation."
+      }
+    }
+  }
+
+  slice CompleteDataExport {
+    reactsTo DataExportProcessingStarted
 
     command CompleteDataExport {
       dataExportJobId: UUID id
@@ -162,6 +283,21 @@ context DataExchange {
       status: String
     }
 
+    state Completed
+
+    specification "CompleteDataExport Status Matches Outcome" {
+      expression { assert CompleteDataExport.status == "COMPLETED" }
+      scenario "Reject Inconsistent Status" {
+        when CompleteDataExport { status = "INVALID" }
+        then reject "Status does not match the operation."
+      }
+    }
+  }
+
+  slice FailDataExport {
+    reactsTo DataExportRequested
+    reactsTo DataExportProcessingStarted
+
     command FailDataExport {
       dataExportJobId: UUID id
       errorMessage: Text
@@ -175,33 +311,13 @@ context DataExchange {
       status: String
     }
 
-    automation ExecuteDataExport {
-      on DataExportRequested
-      uses PlatformDataExchange.export
-      emits MarkDataExportProcessing
-      emits CompleteDataExport
-      emits FailDataExport
-    }
+    state Failed
 
-    readmodel DataExportJobCatalog[] {
-      dataExportJobId: UUID id
-      resourceName: String display
-      criteriaJson: Text
-      sortJson: Text
-      columnsJson: Text
-      requestedLocale: String?
-      requestedAt: DateTime
-      snapshotUpperBound: DateTime
-      requestHash: String
-      status: String query
-      fileName: String?
-      filePath: String?
-      downloadUri: String?
-      rowCount: Long?
-      errorMessage: Text?
-
-      eligible for DownloadDataExportFile when {
-        DataExportJob.status == "COMPLETED"
+    specification "FailDataExport Status Matches Outcome" {
+      expression { assert FailDataExport.status == "FAILED" }
+      scenario "Reject Inconsistent Status" {
+        when FailDataExport { status = "INVALID" }
+        then reject "Status does not match the operation."
       }
     }
   }
@@ -228,7 +344,25 @@ context DataExchange {
     }
   }
 
+  concept DataImportJob {
+    state Requested
+    state Processing
+    state Completed
+    state Failed
+    slice DataImportJob
+    slice MarkDataImportProcessing
+    slice CompleteDataImport
+    slice FailDataImport
+  }
+
   concept DataExportJob {
+    state Requested
+    state Processing
+    state Completed
+    state Failed
+    slice MarkDataExportProcessing
+    slice CompleteDataExport
+    slice FailDataExport
     slice DataExportJob
     slice DownloadDataExportFile
   }
