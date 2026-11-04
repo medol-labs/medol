@@ -1061,6 +1061,8 @@ export interface Field extends langium.AstNode {
     dictionary?: string;
     mapping?: FieldMapping;
     name: FieldName;
+    numberingCapability?: FieldSource;
+    numberingRule?: string;
     type: QualifiedType;
 }
 
@@ -1072,6 +1074,8 @@ export const Field = {
     dictionary: 'dictionary',
     mapping: 'mapping',
     name: 'name',
+    numberingCapability: 'numberingCapability',
+    numberingRule: 'numberingRule',
     type: 'type'
 } as const;
 
@@ -1152,7 +1156,7 @@ export function isFieldName(item: unknown): item is FieldName {
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AccessFieldRule | AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | Notifiable | ReadModel | RefExpr | SyncFilter | UniqueValidation;
+    readonly $container: AccessFieldRule | AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | Field | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | Notifiable | ReadModel | RefExpr | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -2920,6 +2924,12 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
                 },
                 name: {
                     name: Field.name
+                },
+                numberingCapability: {
+                    name: Field.numberingCapability
+                },
+                numberingRule: {
+                    name: Field.numberingRule
                 },
                 type: {
                     name: Field.type

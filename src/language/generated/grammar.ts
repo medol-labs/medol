@@ -4457,6 +4457,44 @@ export const MedolGrammar = (): Grammar => loadedMedolGrammar ?? (loadedMedolGra
             "elements": [
               {
                 "$type": "Keyword",
+                "value": "by"
+              },
+              {
+                "$type": "Assignment",
+                "feature": "numberingCapability",
+                "operator": "=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@97"
+                  },
+                  "arguments": []
+                }
+              },
+              {
+                "$type": "Keyword",
+                "value": "rule"
+              },
+              {
+                "$type": "Assignment",
+                "feature": "numberingRule",
+                "operator": "=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@134"
+                  },
+                  "arguments": []
+                }
+              }
+            ],
+            "cardinality": "?"
+          },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
                 "value": "dictionary"
               },
               {

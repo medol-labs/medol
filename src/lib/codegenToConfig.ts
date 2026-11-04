@@ -13,6 +13,7 @@ import type {
 import { stableId } from './codegenModel';
 
 interface ConfigField {
+  numbering?: { capability: string; rule: string };
   name: string;
   type: string;
   example?: string;
@@ -326,6 +327,7 @@ const toConfigField = (field: CodegenField): ConfigField => ({
   optional: field.optional,
   idAttribute: field.idAttribute,
   generated: field.generated,
+  ...(field.numbering ? { numbering: field.numbering } : {}),
   technicalAttribute: field.technicalAttribute,
   query: field.query,
   display: field.display,

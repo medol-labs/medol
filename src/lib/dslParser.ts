@@ -1141,6 +1141,7 @@ const parseField = (field: AstField): EmField => {
           ? 'Optional'
           : 'Single',
     attributes: [...(field.attributes ?? [])],
+    ...(field.numberingCapability ? {numbering: {capability: formatFieldSource(field.numberingCapability), rule: field.numberingRule ?? ''}} : {}),
     ...(field.details?.example ? { example: field.details.example } : {}),
     ...(field.dictionary ? { dictionary: field.dictionary } : {}),
     ...(mapping ? { mapping } : {})

@@ -9,6 +9,7 @@ import { reactionDiagnostics } from './reactionSemantics';
 import { analyzeFieldLineage, FieldSourceValidationError } from './fieldLineage';
 
 export interface CodegenModel {
+  numbering?: { context: string };
   metadata?: CodegenMetadata;
   tenancy?: TenantCapability;
   operationAudit?: { context: string; readModel: string };
@@ -276,6 +277,7 @@ export interface CodegenEligibilityCondition {
 }
 
 export interface CodegenField {
+  numbering?: { capability: string; rule: string };
   name: string;
   type: string;
   example?: string;
@@ -397,6 +399,7 @@ export interface CodegenSpecificationReject {
 }
 
 export const modelToCodegenModel = (model: EmModel): CodegenModel => {
+  validateNumbering(model);
   const lineage = analyzeFieldLineage(model);
   if (lineage.diagnostics.some((item) => item.severity === 'error')) throw new FieldSourceValidationError(lineage);
   const invalidReactions = reactionDiagnostics(model);
@@ -612,6 +615,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         };
       })
     }))),
+    ...(model.capabilityImports?.some(imported => imported.name === 'Numbering') ? {numbering: {context: 'Numbering'}} : {}),
     ...(model.capabilityImports?.some(imported => imported.name === 'OperationAudit')
       ? {operationAudit: {context: 'OperationAudit', readModel: 'OperationAuditCatalog'}} : {}),
     transitions: buildTransitions(model),
@@ -1165,6 +1169,7 @@ const givenSpecExamples = (
 const toCodegenField = (field: EmField, implicitSource?: CodegenFieldSource): CodegenField => ({
   name: field.name,
   type: field.type,
+  ...(field.numbering ? {numbering: field.numbering} : {}),
   ...(field.example ? { example: field.example } : {}),
   ...(field.dictionary ? { dictionary: field.dictionary } : {}),
   cardinality: field.cardinality === 'List' || field.cardinality === 'OptionalList' ? 'Multiple' : 'Single',
@@ -1309,3 +1314,23 @@ export const stableId = (prefix: string, value: string): string => {
   }
   return `${prefix}-${(hash >>> 0).toString(16).padStart(8, '0')}`;
 };
+
+
+function validateNumbering(model: EmModel) {
+  const imports = model.capabilityImports?.filter(item => item.name === 'Numbering') ?? [];
+  for (const context of model.contexts) for (const slice of allContextSlices(context)) for (const element of slice.elements) {
+    for (const field of element.fields) {
+      if (!field.numbering) continue;
+      if (element.kind !== 'command' || field.type !== 'String' || field.cardinality !== 'Single'
+        || !field.attributes.includes('generated') || field.attributes.includes('id') || field.mapping) {
+        throw new Error(`Numbering ${element.name}.${field.name} requires a scalar generated String command field, without id or source mapping.`);
+      }
+      if (!imports.some(item => item.alias === field.numbering!.capability || item.name === field.numbering!.capability)) {
+        throw new Error(`Numbering capability ${field.numbering.capability} is not imported.`);
+      }
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(field.numbering.rule)) throw new Error('Numbering rule must be a stable code (1-100 letters, digits, dots, dashes or underscores).');
+      const ids = element.fields.filter(item => item.attributes.includes('id'));
+      if (!ids.length || ids.some(item => item.cardinality !== 'Single')) throw new Error(`Numbered command ${element.name} requires scalar object identifiers for idempotent allocation.`);
+    }
+  }
+}

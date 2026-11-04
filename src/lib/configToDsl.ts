@@ -3,6 +3,7 @@ import { basename } from 'node:path';
 import { quote, toDslId } from './name';
 
 interface ConfigField {
+  numbering?: { capability: string; rule: string };
   name?: string;
   type?: string;
   example?: string;
@@ -189,6 +190,9 @@ type ConfigAccessPolicyRule =
   | { kind?: 'fields'; fields?: string[] };
 
 export const configToDsl = (config: ConfigRoot): string => {
+  if (config.slices?.some(slice => slice.commands?.some(command => command.fields?.some(field => field.numbering)))) {
+    throw new Error('Legacy config cannot restore numbering capability imports and deployment bindings. Use the original source.medol or workspace export instead.');
+  }
   const domainName = config.domain ? toDslId(config.domain, 'Domain') : undefined;
   const contextName = toDslId(config.context || config.slices?.[0]?.context || 'EventModel');
   const grouped = new Map<string, ConfigSlice[]>();
@@ -633,7 +637,7 @@ const formatField = (field: ConfigField): string => {
     field.file ? 'file' : '',
     field.portOutput ? 'portOutput' : ''
   ].filter(Boolean);
-  const prefix = `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}`;
+  const prefix = `${toDslId(field.name, 'field')}: ${type}${cardinality}${attributes.length ? ` ${attributes.join(' ')}` : ''}${field.numbering ? ` by ${field.numbering.capability} rule ${quote(field.numbering.rule)}` : ''}`;
   const dictionary = field.dictionary ? ` dictionary ${quote(field.dictionary)}` : '';
   const mapping = formatMapping(field);
   if (field.example && !mapping.details) {

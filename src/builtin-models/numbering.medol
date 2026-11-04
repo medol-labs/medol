@@ -1,0 +1,252 @@
+domain Numbering {
+  access policy NumberingPlatformAccess {}
+  default access NumberingPlatformAccess
+  context Numbering {
+    note "Rules are platform managed. Allocation uses authoritative transactional rules and counters, never the query projection. Codes may have gaps; allocated codes are never reused."
+    note "Rule scope and namespace cannot change after first activation. Revise Draft or Suspended rules to create immutable new configuration versions. Every command uses optimistic ruleVersion checks."
+    slice DefineNumberingRule {
+      actor NumberingAdministrator
+      startsLifecycle
+      command DefineNumberingRule {
+        ruleId: UUID id generated technical
+        ruleCode: String
+        numberNamespace: String
+        prefix: String?
+        suffix: String?
+        dateFormat: String?
+        timeZone: String
+        resetPeriod: String
+        allocationScope: String
+        sequenceWidth: Int
+        startAt: Long
+      }
+      event NumberingRuleDefined {
+        ruleId: UUID id
+        ruleCode: String
+        numberNamespace: String
+        prefix: String?
+        suffix: String?
+        dateFormat: String?
+        timeZone: String
+        resetPeriod: String
+        allocationScope: String
+        sequenceWidth: Int
+        startAt: Long
+        ruleVersion: Long
+        state: String
+      }
+      state Draft
+    }
+    slice ReviseNumberingRule {
+      actor NumberingAdministrator
+      reactsTo NumberingRuleDefined
+      reactsTo NumberingRuleRevised
+      reactsTo NumberingRuleSuspended
+      command ReviseNumberingRule {
+        ruleId: UUID id from NumberingRuleCatalog.ruleId
+        expectedVersion: Long derived from NumberingRuleCatalog.ruleVersion by ruleId
+        ruleCode: String
+        numberNamespace: String
+        prefix: String?
+        suffix: String?
+        dateFormat: String?
+        timeZone: String
+        resetPeriod: String
+        allocationScope: String
+        sequenceWidth: Int
+        startAt: Long
+      }
+      event NumberingRuleRevised {
+        ruleId: UUID id
+        ruleCode: String
+        numberNamespace: String
+        prefix: String?
+        suffix: String?
+        dateFormat: String?
+        timeZone: String
+        resetPeriod: String
+        allocationScope: String
+        sequenceWidth: Int
+        startAt: Long
+        ruleVersion: Long
+        state: String
+      }
+      state Draft
+    }
+    slice ActivateNumberingRule {
+      actor NumberingAdministrator
+      reactsTo NumberingRuleDefined
+      reactsTo NumberingRuleRevised
+      command ActivateNumberingRule {
+        ruleId: UUID id from NumberingRuleCatalog.ruleId
+        expectedVersion: Long derived from NumberingRuleCatalog.ruleVersion by ruleId
+      }
+      event NumberingRuleActivated {
+        ruleId: UUID id
+        ruleCode: String
+        numberNamespace: String
+        prefix: String?
+        suffix: String?
+        dateFormat: String?
+        timeZone: String
+        resetPeriod: String
+        allocationScope: String
+        sequenceWidth: Int
+        startAt: Long
+        ruleVersion: Long
+        state: String
+      }
+      state Active
+    }
+    slice SuspendNumberingRule {
+      actor NumberingAdministrator
+      reactsTo NumberingRuleActivated
+      reactsTo NumberingRuleResumed
+      command SuspendNumberingRule {
+        ruleId: UUID id from NumberingRuleCatalog.ruleId
+        expectedVersion: Long derived from NumberingRuleCatalog.ruleVersion by ruleId
+      }
+      event NumberingRuleSuspended {
+        ruleId: UUID id
+        ruleCode: String
+        numberNamespace: String
+        prefix: String?
+        suffix: String?
+        dateFormat: String?
+        timeZone: String
+        resetPeriod: String
+        allocationScope: String
+        sequenceWidth: Int
+        startAt: Long
+        ruleVersion: Long
+        state: String
+      }
+      state Suspended
+    }
+    slice ResumeNumberingRule {
+      actor NumberingAdministrator
+      reactsTo NumberingRuleSuspended
+      command ResumeNumberingRule {
+        ruleId: UUID id from NumberingRuleCatalog.ruleId
+        expectedVersion: Long derived from NumberingRuleCatalog.ruleVersion by ruleId
+      }
+      event NumberingRuleResumed {
+        ruleId: UUID id
+        ruleCode: String
+        numberNamespace: String
+        prefix: String?
+        suffix: String?
+        dateFormat: String?
+        timeZone: String
+        resetPeriod: String
+        allocationScope: String
+        sequenceWidth: Int
+        startAt: Long
+        ruleVersion: Long
+        state: String
+      }
+      state Active
+    }
+    slice RetireNumberingRule {
+      actor NumberingAdministrator
+      reactsTo NumberingRuleDefined
+      reactsTo NumberingRuleRevised
+      reactsTo NumberingRuleActivated
+      reactsTo NumberingRuleResumed
+      reactsTo NumberingRuleSuspended
+      command RetireNumberingRule {
+        ruleId: UUID id from NumberingRuleCatalog.ruleId
+        expectedVersion: Long derived from NumberingRuleCatalog.ruleVersion by ruleId
+      }
+      event NumberingRuleRetired {
+        ruleId: UUID id
+        ruleCode: String
+        numberNamespace: String
+        prefix: String?
+        suffix: String?
+        dateFormat: String?
+        timeZone: String
+        resetPeriod: String
+        allocationScope: String
+        sequenceWidth: Int
+        startAt: Long
+        ruleVersion: Long
+        state: String
+      }
+      state Retired
+    }
+    slice NumberingRuleCatalog {
+      actor NumberingAdministrator
+      readmodel NumberingRuleCatalog[] {
+        ruleId: UUID id from NumberingRuleDefined.ruleId, NumberingRuleRevised.ruleId, NumberingRuleActivated.ruleId, NumberingRuleSuspended.ruleId, NumberingRuleResumed.ruleId, NumberingRuleRetired.ruleId
+        ruleCode: String display query from NumberingRuleDefined.ruleCode, NumberingRuleRevised.ruleCode, NumberingRuleActivated.ruleCode, NumberingRuleSuspended.ruleCode, NumberingRuleResumed.ruleCode, NumberingRuleRetired.ruleCode
+        numberNamespace: String query from NumberingRuleDefined.numberNamespace, NumberingRuleRevised.numberNamespace, NumberingRuleActivated.numberNamespace, NumberingRuleSuspended.numberNamespace, NumberingRuleResumed.numberNamespace, NumberingRuleRetired.numberNamespace
+        prefix: String? from NumberingRuleDefined.prefix, NumberingRuleRevised.prefix, NumberingRuleActivated.prefix, NumberingRuleSuspended.prefix, NumberingRuleResumed.prefix, NumberingRuleRetired.prefix
+        suffix: String? from NumberingRuleDefined.suffix, NumberingRuleRevised.suffix, NumberingRuleActivated.suffix, NumberingRuleSuspended.suffix, NumberingRuleResumed.suffix, NumberingRuleRetired.suffix
+        dateFormat: String? from NumberingRuleDefined.dateFormat, NumberingRuleRevised.dateFormat, NumberingRuleActivated.dateFormat, NumberingRuleSuspended.dateFormat, NumberingRuleResumed.dateFormat, NumberingRuleRetired.dateFormat
+        timeZone: String from NumberingRuleDefined.timeZone, NumberingRuleRevised.timeZone, NumberingRuleActivated.timeZone, NumberingRuleSuspended.timeZone, NumberingRuleResumed.timeZone, NumberingRuleRetired.timeZone
+        resetPeriod: String from NumberingRuleDefined.resetPeriod, NumberingRuleRevised.resetPeriod, NumberingRuleActivated.resetPeriod, NumberingRuleSuspended.resetPeriod, NumberingRuleResumed.resetPeriod, NumberingRuleRetired.resetPeriod
+        allocationScope: String from NumberingRuleDefined.allocationScope, NumberingRuleRevised.allocationScope, NumberingRuleActivated.allocationScope, NumberingRuleSuspended.allocationScope, NumberingRuleResumed.allocationScope, NumberingRuleRetired.allocationScope
+        sequenceWidth: Int from NumberingRuleDefined.sequenceWidth, NumberingRuleRevised.sequenceWidth, NumberingRuleActivated.sequenceWidth, NumberingRuleSuspended.sequenceWidth, NumberingRuleResumed.sequenceWidth, NumberingRuleRetired.sequenceWidth
+        startAt: Long from NumberingRuleDefined.startAt, NumberingRuleRevised.startAt, NumberingRuleActivated.startAt, NumberingRuleSuspended.startAt, NumberingRuleResumed.startAt, NumberingRuleRetired.startAt
+        ruleVersion: Long from NumberingRuleDefined.ruleVersion, NumberingRuleRevised.ruleVersion, NumberingRuleActivated.ruleVersion, NumberingRuleSuspended.ruleVersion, NumberingRuleResumed.ruleVersion, NumberingRuleRetired.ruleVersion
+        state: String query from NumberingRuleDefined.state, NumberingRuleRevised.state, NumberingRuleActivated.state, NumberingRuleSuspended.state, NumberingRuleResumed.state, NumberingRuleRetired.state
+        subscribe NumberingRuleDefined
+        subscribe NumberingRuleRevised
+        subscribe NumberingRuleActivated
+        subscribe NumberingRuleSuspended
+        subscribe NumberingRuleResumed
+        subscribe NumberingRuleRetired
+      }
+    }
+    slice NumberAllocationRecorded {
+      event NumberAllocated {
+        allocationId: UUID id
+        ruleId: UUID
+        ruleCode: String
+        ruleVersion: Long
+        numberNamespace: String
+        tenantKey: String
+        requestKey: String
+        ownerKey: String
+        count: Int
+        periodKey: String
+        firstCode: String
+        lastCode: String
+        allocatedAt: DateTime
+      }
+    }
+    slice NumberAllocationCatalog {
+      actor NumberingAuditor
+      readmodel NumberAllocationCatalog[] {
+        allocationId: UUID id
+        ruleId: UUID
+        ruleCode: String query
+        ruleVersion: Long
+        numberNamespace: String
+        tenantKey: String query
+        requestKey: String query
+        ownerKey: String query
+        count: Int
+        periodKey: String
+        firstCode: String display
+        lastCode: String
+        allocatedAt: DateTime
+        subscribe NumberAllocated
+      }
+    }
+    concept NumberingRule {
+      state Draft
+      state Active
+      state Suspended
+      state Retired
+      slice DefineNumberingRule
+      slice ReviseNumberingRule
+      slice ActivateNumberingRule
+      slice SuspendNumberingRule
+      slice ResumeNumberingRule
+      slice RetireNumberingRule
+      slice NumberingRuleCatalog
+    }
+  }
+}

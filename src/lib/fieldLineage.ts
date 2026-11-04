@@ -172,6 +172,10 @@ export function analyzeFieldLineage(model: EmModel): FieldLineage {
             if (resolved.state) addDiagnostic(node, 'state-history', 'warning', `Source ${path} references state history; current-state availability and merge behavior require review.`);
           }
         }
+      } else if (element.kind === 'event' && context.name === 'Numbering'
+        && model.capabilityImports?.some(imported => imported.name === 'Numbering')) {
+        node.origin = 'generated';
+        node.reason = 'Supplied by the transactional numbering service and its outbox.';
       } else if (element.kind === 'readmodel' && context.name === 'OperationAudit'
         && element.name === 'OperationAuditCatalog'
         && model.capabilityImports?.some(imported => imported.name === 'OperationAudit')) {

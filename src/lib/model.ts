@@ -11,6 +11,7 @@ export type EmElementKind =
   | 'integration';
 
 export interface EmField {
+  numbering?: { capability: string; rule: string };
   name: string;
   type: string;
   cardinality?: 'Single' | 'List' | 'Optional' | 'OptionalList';
