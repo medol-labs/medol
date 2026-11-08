@@ -298,7 +298,7 @@ When `workspaceId` is omitted, `/api/modeling/codegen-model` exports the latest 
 
 ## Built-in Contexts
 
-Start with [Built-in Contexts: Usage and Configuration](docs/builtin-contexts/README.md). Each built-in context has its own modeling, deployment, configuration, and limitations guide, including [archiving](docs/builtin-contexts/archiving.md), [scheduling](docs/builtin-contexts/scheduling.md), [numbering](docs/builtin-contexts/numbering.md), and [tenant management](docs/builtin-contexts/tenant-management.md).
+Start with [Built-in Contexts: Usage and Configuration](docs/builtin-contexts/README.md). Each built-in context has its own modeling, deployment, configuration, and limitations guide, including [business calendar](docs/builtin-contexts/business-calendar.md), [organization management](docs/builtin-contexts/organization-management.md), [system configuration](docs/builtin-contexts/system-configuration.md), [document generation](docs/builtin-contexts/document-generation.md), [archiving](docs/builtin-contexts/archiving.md), [scheduling](docs/builtin-contexts/scheduling.md), [numbering](docs/builtin-contexts/numbering.md), and [tenant management](docs/builtin-contexts/tenant-management.md).
 
 ## Built-in IAM Auth Guidance
 

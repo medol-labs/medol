@@ -167,6 +167,10 @@ interface ConfigValueType {
 }
 
 interface ConfigRoot {
+  organizationManagement?: unknown;
+  businessCalendar?: unknown;
+  systemConfiguration?: unknown;
+  documentGeneration?: unknown;
   archiving?: unknown;
   scheduling?: unknown;
   domain?: string;
@@ -192,6 +196,10 @@ type ConfigAccessPolicyRule =
   | { kind?: 'fields'; fields?: string[] };
 
 export const configToDsl = (config: ConfigRoot): string => {
+  if (config.organizationManagement) throw new Error('Legacy config cannot restore organization-management capability imports. Use source.medol.');
+  if (config.businessCalendar) throw new Error('Legacy config cannot restore business-calendar capability imports. Use source.medol.');
+  if (config.systemConfiguration) throw new Error('Legacy config cannot restore system-configuration capability imports. Use source.medol.');
+  if (config.documentGeneration) throw new Error('Legacy config cannot restore document-generation capability imports. Use source.medol or workspace export.');
   if (config.archiving) throw new Error('Legacy config cannot restore archiving capability imports and deployment bindings. Use the original source.medol or workspace export instead.');
   if (config.scheduling) throw new Error('Legacy config cannot restore scheduling capability imports and deployment bindings. Use the original source.medol or workspace export instead.');
   if (config.slices?.some(slice => slice.commands?.some(command => command.fields?.some(field => field.numbering)))) {

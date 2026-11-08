@@ -1,0 +1,101 @@
+domain SystemConfiguration {
+  access policy SystemConfigurationAccess {}
+  default access SystemConfigurationAccess
+  context SystemConfiguration {
+    slice CreateConfigurationSet {
+      actor SystemConfigurationAdministrator
+      startsLifecycle
+      command CreateConfigurationSet {
+        configurationSetId: UUID id generated technical
+        groupKey: String
+        scopeType: String
+        scopeId: String
+        valuesJson: Text
+        reason: String
+      }
+      event ConfigurationSetCreated {
+        configurationSetId: UUID id
+        groupKey: String
+        scopeType: String
+        scopeId: String
+        valuesJson: Text
+        definitionVersion: String
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice ChangeConfigurationSet {
+      actor SystemConfigurationAdministrator
+      reactsTo ConfigurationSetCreated
+      reactsTo ConfigurationSetChanged
+      reactsTo ConfigurationSetRolledBack
+      command ChangeConfigurationSet {
+        configurationSetId: UUID id from ConfigurationSetCatalog.configurationSetId
+        expectedRevision: Long derived from ConfigurationSetCatalog.revision by configurationSetId
+        changesJson: Text
+        reason: String
+      }
+      event ConfigurationSetChanged {
+        configurationSetId: UUID id
+        groupKey: String
+        scopeType: String
+        scopeId: String
+        valuesJson: Text
+        definitionVersion: String
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice RollbackConfigurationSet {
+      actor SystemConfigurationAdministrator
+      reactsTo ConfigurationSetCreated
+      reactsTo ConfigurationSetChanged
+      reactsTo ConfigurationSetRolledBack
+      command RollbackConfigurationSet {
+        configurationSetId: UUID id from ConfigurationSetCatalog.configurationSetId
+        expectedRevision: Long derived from ConfigurationSetCatalog.revision by configurationSetId
+        targetRevision: Long
+        reason: String
+      }
+      event ConfigurationSetRolledBack {
+        configurationSetId: UUID id
+        groupKey: String
+        scopeType: String
+        scopeId: String
+        valuesJson: Text
+        definitionVersion: String
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice ConfigurationSetCatalog {
+      actor SystemConfigurationAdministrator
+      readmodel ConfigurationSetCatalog[] {
+        configurationSetId: UUID id from ConfigurationSetCreated.configurationSetId, ConfigurationSetChanged.configurationSetId, ConfigurationSetRolledBack.configurationSetId
+        groupKey: String from ConfigurationSetCreated.groupKey, ConfigurationSetChanged.groupKey, ConfigurationSetRolledBack.groupKey
+        scopeType: String from ConfigurationSetCreated.scopeType, ConfigurationSetChanged.scopeType, ConfigurationSetRolledBack.scopeType
+        scopeId: String from ConfigurationSetCreated.scopeId, ConfigurationSetChanged.scopeId, ConfigurationSetRolledBack.scopeId
+        valuesJson: Text from ConfigurationSetCreated.valuesJson, ConfigurationSetChanged.valuesJson, ConfigurationSetRolledBack.valuesJson
+        definitionVersion: String from ConfigurationSetCreated.definitionVersion, ConfigurationSetChanged.definitionVersion, ConfigurationSetRolledBack.definitionVersion
+        revision: Long from ConfigurationSetCreated.revision, ConfigurationSetChanged.revision, ConfigurationSetRolledBack.revision
+        state: String from ConfigurationSetCreated.state, ConfigurationSetChanged.state, ConfigurationSetRolledBack.state
+        subscribe ConfigurationSetCreated
+        subscribe ConfigurationSetChanged
+        subscribe ConfigurationSetRolledBack
+      }
+    }
+    concept ConfigurationSet {
+      state Active
+      slice CreateConfigurationSet
+      slice ChangeConfigurationSet
+      slice RollbackConfigurationSet
+      slice ConfigurationSetCatalog
+    }
+  }
+}

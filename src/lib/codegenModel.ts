@@ -11,6 +11,10 @@ import { analyzeFieldLineage, FieldSourceValidationError } from './fieldLineage'
 export interface CodegenModel {
   scheduling?: { context: string; targets: Array<{key: string; context: string; command: string; occurrenceField: string; scheduledAtField?: string}> };
   archiving?: { context: string };
+  organizationManagement?: { context: string };
+  businessCalendar?: { context: string };
+  systemConfiguration?: { context: string };
+  documentGeneration?: { context: string };
   numbering?: { context: string };
   metadata?: CodegenMetadata;
   tenancy?: TenantCapability;
@@ -402,6 +406,8 @@ export interface CodegenSpecificationReject {
 
 export const modelToCodegenModel = (model: EmModel): CodegenModel => {
   validateNumbering(model);
+  if (model.capabilityImports?.some(i => i.name === 'BusinessCalendar') && model.capabilityImports?.some(i => i.name === 'TenantManagement')) throw new Error('Business calendar does not support tenancy yet.');
+  if (model.capabilityImports?.some(i => i.name === 'OrganizationManagement') && model.capabilityImports?.some(i => i.name === 'TenantManagement')) throw new Error('Organization management does not support tenancy yet.');
   const lineage = analyzeFieldLineage(model);
   if (lineage.diagnostics.some((item) => item.severity === 'error')) throw new FieldSourceValidationError(lineage);
   const invalidReactions = reactionDiagnostics(model);
@@ -617,6 +623,10 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         };
       })
     }))),
+    ...(model.capabilityImports?.some(i => i.name === 'OrganizationManagement') ? {organizationManagement: {context: 'OrganizationManagement'}} : {}),
+    ...(model.capabilityImports?.some(i => i.name === 'SystemConfiguration') ? {systemConfiguration: {context: 'SystemConfiguration'}} : {}),
+    ...(model.capabilityImports?.some(i => i.name === 'BusinessCalendar') ? {businessCalendar: {context: 'BusinessCalendar'}} : {}),
+    ...documentGenerationContract(model),
     ...archivingContract(model),
     ...schedulingContract(model),
     ...(model.capabilityImports?.some(imported => imported.name === 'Numbering') ? {numbering: {context: 'Numbering'}} : {}),
@@ -1370,4 +1380,12 @@ function archivingContract(model: EmModel): Pick<CodegenModel, 'archiving'> {
     throw new Error('Archiving does not support tenancy yet; refusing export to prevent cross-tenant archive collisions.');
   }
   return {archiving: {context: 'Archiving'}};
+}
+
+function documentGenerationContract(model: EmModel): Pick<CodegenModel, 'documentGeneration'> {
+  if (!model.capabilityImports?.some(imported => imported.name === 'DocumentGeneration')) return {};
+  if (model.capabilityImports?.some(imported => imported.name === 'TenantManagement')) {
+    throw new Error('Document generation does not support tenancy yet; tenant-scoped snapshots and downloads require an explicit isolation contract.');
+  }
+  return {documentGeneration: {context: 'DocumentGeneration'}};
 }

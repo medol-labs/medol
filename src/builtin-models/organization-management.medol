@@ -1,0 +1,557 @@
+domain OrganizationManagement {
+  access policy OrganizationManagementAccess {}
+  default access OrganizationManagementAccess
+  context OrganizationManagement {
+    slice CreateOrganizationUnit {
+      actor OrganizationManagementAdministrator
+      startsLifecycle
+      command CreateOrganizationUnit {
+        organizationId: UUID id generated technical
+        organizationCode: String
+        organizationName: String
+        organizationType: String
+        parentOrganizationId: UUID? from OrganizationUnitCatalog.organizationId
+        reason: String
+      }
+      event OrganizationUnitCreated {
+        organizationId: UUID id
+        organizationCode: String
+        organizationName: String
+        organizationType: String
+        parentOrganizationId: UUID?
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice ReviseOrganizationUnit {
+      actor OrganizationManagementAdministrator
+      reactsTo OrganizationUnitCreated
+      reactsTo OrganizationUnitRevised
+      reactsTo OrganizationUnitActivated
+      command ReviseOrganizationUnit {
+        organizationId: UUID id from OrganizationUnitCatalog.organizationId
+        expectedRevision: Long derived from OrganizationUnitCatalog.revision by organizationId
+        organizationCode: String
+        organizationName: String
+        organizationType: String
+        parentOrganizationId: UUID? from OrganizationUnitCatalog.organizationId
+        reason: String
+      }
+      event OrganizationUnitRevised {
+        organizationId: UUID id
+        organizationCode: String
+        organizationName: String
+        organizationType: String
+        parentOrganizationId: UUID?
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice DeactivateOrganizationUnit {
+      actor OrganizationManagementAdministrator
+      reactsTo OrganizationUnitCreated
+      reactsTo OrganizationUnitRevised
+      reactsTo OrganizationUnitActivated
+      command DeactivateOrganizationUnit {
+        organizationId: UUID id from OrganizationUnitCatalog.organizationId
+        expectedRevision: Long derived from OrganizationUnitCatalog.revision by organizationId
+        reason: String
+      }
+      event OrganizationUnitDeactivated {
+        organizationId: UUID id
+        organizationCode: String
+        organizationName: String
+        organizationType: String
+        parentOrganizationId: UUID?
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Inactive
+    }
+    slice ActivateOrganizationUnit {
+      actor OrganizationManagementAdministrator
+      reactsTo OrganizationUnitDeactivated
+      command ActivateOrganizationUnit {
+        organizationId: UUID id from OrganizationUnitCatalog.organizationId
+        expectedRevision: Long derived from OrganizationUnitCatalog.revision by organizationId
+        reason: String
+      }
+      event OrganizationUnitActivated {
+        organizationId: UUID id
+        organizationCode: String
+        organizationName: String
+        organizationType: String
+        parentOrganizationId: UUID?
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice OrganizationUnitCatalog {
+      actor OrganizationManagementAdministrator
+      readmodel OrganizationUnitCatalog[] {
+        organizationId: UUID id from OrganizationUnitCreated.organizationId, OrganizationUnitRevised.organizationId, OrganizationUnitDeactivated.organizationId, OrganizationUnitActivated.organizationId
+        organizationCode: String from OrganizationUnitCreated.organizationCode, OrganizationUnitRevised.organizationCode, OrganizationUnitDeactivated.organizationCode, OrganizationUnitActivated.organizationCode
+        organizationName: String from OrganizationUnitCreated.organizationName, OrganizationUnitRevised.organizationName, OrganizationUnitDeactivated.organizationName, OrganizationUnitActivated.organizationName
+        organizationType: String from OrganizationUnitCreated.organizationType, OrganizationUnitRevised.organizationType, OrganizationUnitDeactivated.organizationType, OrganizationUnitActivated.organizationType
+        parentOrganizationId: UUID? from OrganizationUnitCreated.parentOrganizationId, OrganizationUnitRevised.parentOrganizationId, OrganizationUnitDeactivated.parentOrganizationId, OrganizationUnitActivated.parentOrganizationId
+        revision: Long from OrganizationUnitCreated.revision, OrganizationUnitRevised.revision, OrganizationUnitDeactivated.revision, OrganizationUnitActivated.revision
+        state: String from OrganizationUnitCreated.state, OrganizationUnitRevised.state, OrganizationUnitDeactivated.state, OrganizationUnitActivated.state
+        subscribe OrganizationUnitCreated
+        subscribe OrganizationUnitRevised
+        subscribe OrganizationUnitDeactivated
+        subscribe OrganizationUnitActivated
+        eligible for CreateOrganizationUnit when { OrganizationUnit.state == Active }
+        eligible for ReviseOrganizationUnit when { OrganizationUnit.state == Active }
+        eligible for EstablishOrganizationPosition when { OrganizationUnit.state == Active }
+      }
+    }
+    concept OrganizationUnit {
+      state Active
+      state Inactive
+      slice CreateOrganizationUnit
+      slice ReviseOrganizationUnit
+      slice DeactivateOrganizationUnit
+      slice ActivateOrganizationUnit
+      slice OrganizationUnitCatalog
+    }
+    slice DefinePosition {
+      actor OrganizationManagementAdministrator
+      startsLifecycle
+      command DefinePosition {
+        positionId: UUID id generated technical
+        positionCode: String
+        positionName: String
+        reason: String
+      }
+      event PositionDefined {
+        positionId: UUID id
+        positionCode: String
+        positionName: String
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice RevisePosition {
+      actor OrganizationManagementAdministrator
+      reactsTo PositionDefined
+      reactsTo PositionRevised
+      reactsTo PositionActivated
+      command RevisePosition {
+        positionId: UUID id from PositionDefinitionCatalog.positionId
+        expectedRevision: Long derived from PositionDefinitionCatalog.revision by positionId
+        positionCode: String
+        positionName: String
+        reason: String
+      }
+      event PositionRevised {
+        positionId: UUID id
+        positionCode: String
+        positionName: String
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice DeactivatePosition {
+      actor OrganizationManagementAdministrator
+      reactsTo PositionDefined
+      reactsTo PositionRevised
+      reactsTo PositionActivated
+      command DeactivatePosition {
+        positionId: UUID id from PositionDefinitionCatalog.positionId
+        expectedRevision: Long derived from PositionDefinitionCatalog.revision by positionId
+        reason: String
+      }
+      event PositionDeactivated {
+        positionId: UUID id
+        positionCode: String
+        positionName: String
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Inactive
+    }
+    slice ActivatePosition {
+      actor OrganizationManagementAdministrator
+      reactsTo PositionDeactivated
+      command ActivatePosition {
+        positionId: UUID id from PositionDefinitionCatalog.positionId
+        expectedRevision: Long derived from PositionDefinitionCatalog.revision by positionId
+        reason: String
+      }
+      event PositionActivated {
+        positionId: UUID id
+        positionCode: String
+        positionName: String
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice PositionDefinitionCatalog {
+      actor OrganizationManagementAdministrator
+      readmodel PositionDefinitionCatalog[] {
+        positionId: UUID id from PositionDefined.positionId, PositionRevised.positionId, PositionDeactivated.positionId, PositionActivated.positionId
+        positionCode: String from PositionDefined.positionCode, PositionRevised.positionCode, PositionDeactivated.positionCode, PositionActivated.positionCode
+        positionName: String from PositionDefined.positionName, PositionRevised.positionName, PositionDeactivated.positionName, PositionActivated.positionName
+        revision: Long from PositionDefined.revision, PositionRevised.revision, PositionDeactivated.revision, PositionActivated.revision
+        state: String from PositionDefined.state, PositionRevised.state, PositionDeactivated.state, PositionActivated.state
+        subscribe PositionDefined
+        subscribe PositionRevised
+        subscribe PositionDeactivated
+        subscribe PositionActivated
+        eligible for EstablishOrganizationPosition when { PositionDefinition.state == Active }
+      }
+    }
+    concept PositionDefinition {
+      state Active
+      state Inactive
+      slice DefinePosition
+      slice RevisePosition
+      slice DeactivatePosition
+      slice ActivatePosition
+      slice PositionDefinitionCatalog
+    }
+    slice EstablishOrganizationPosition {
+      actor OrganizationManagementAdministrator
+      startsLifecycle
+      command EstablishOrganizationPosition {
+        organizationPositionId: UUID id generated technical
+        organizationId: UUID from OrganizationUnitCatalog.organizationId
+        positionId: UUID from PositionDefinitionCatalog.positionId
+        reason: String
+      }
+      event OrganizationPositionEstablished {
+        organizationPositionId: UUID id
+        organizationId: UUID
+        positionId: UUID
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice DeactivateOrganizationPosition {
+      actor OrganizationManagementAdministrator
+      reactsTo OrganizationPositionEstablished
+      reactsTo OrganizationPositionActivated
+      command DeactivateOrganizationPosition {
+        organizationPositionId: UUID id from OrganizationPositionCatalog.organizationPositionId
+        expectedRevision: Long derived from OrganizationPositionCatalog.revision by organizationPositionId
+        reason: String
+      }
+      event OrganizationPositionDeactivated {
+        organizationPositionId: UUID id
+        organizationId: UUID
+        positionId: UUID
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Inactive
+    }
+    slice ActivateOrganizationPosition {
+      actor OrganizationManagementAdministrator
+      reactsTo OrganizationPositionDeactivated
+      command ActivateOrganizationPosition {
+        organizationPositionId: UUID id from OrganizationPositionCatalog.organizationPositionId
+        expectedRevision: Long derived from OrganizationPositionCatalog.revision by organizationPositionId
+        reason: String
+      }
+      event OrganizationPositionActivated {
+        organizationPositionId: UUID id
+        organizationId: UUID
+        positionId: UUID
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice OrganizationPositionCatalog {
+      actor OrganizationManagementAdministrator
+      readmodel OrganizationPositionCatalog[] {
+        organizationPositionId: UUID id from OrganizationPositionEstablished.organizationPositionId, OrganizationPositionDeactivated.organizationPositionId, OrganizationPositionActivated.organizationPositionId
+        organizationId: UUID from OrganizationPositionEstablished.organizationId, OrganizationPositionDeactivated.organizationId, OrganizationPositionActivated.organizationId
+        positionId: UUID from OrganizationPositionEstablished.positionId, OrganizationPositionDeactivated.positionId, OrganizationPositionActivated.positionId
+        revision: Long from OrganizationPositionEstablished.revision, OrganizationPositionDeactivated.revision, OrganizationPositionActivated.revision
+        state: String from OrganizationPositionEstablished.state, OrganizationPositionDeactivated.state, OrganizationPositionActivated.state
+        subscribe OrganizationPositionEstablished
+        subscribe OrganizationPositionDeactivated
+        subscribe OrganizationPositionActivated
+        eligible for ConfirmPositionAssignment when { OrganizationPosition.state == Active }
+        eligible for TransferPositionAssignment when { OrganizationPosition.state == Active }
+      }
+    }
+    concept OrganizationPosition {
+      state Active
+      state Inactive
+      slice EstablishOrganizationPosition
+      slice DeactivateOrganizationPosition
+      slice ActivateOrganizationPosition
+      slice OrganizationPositionCatalog
+    }
+    slice RegisterOrganizationMember {
+      actor OrganizationManagementAdministrator
+      startsLifecycle
+      command RegisterOrganizationMember {
+        memberId: UUID id generated technical
+        memberCode: String
+        memberName: String
+        userAccountId: UUID?
+        reason: String
+      }
+      event OrganizationMemberRegistered {
+        memberId: UUID id
+        memberCode: String
+        memberName: String
+        userAccountId: UUID?
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice ReviseOrganizationMember {
+      actor OrganizationManagementAdministrator
+      reactsTo OrganizationMemberRegistered
+      reactsTo OrganizationMemberRevised
+      reactsTo OrganizationMemberActivated
+      command ReviseOrganizationMember {
+        memberId: UUID id from OrganizationMemberCatalog.memberId
+        expectedRevision: Long derived from OrganizationMemberCatalog.revision by memberId
+        memberCode: String
+        memberName: String
+        userAccountId: UUID?
+        reason: String
+      }
+      event OrganizationMemberRevised {
+        memberId: UUID id
+        memberCode: String
+        memberName: String
+        userAccountId: UUID?
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice DeactivateOrganizationMember {
+      actor OrganizationManagementAdministrator
+      reactsTo OrganizationMemberRegistered
+      reactsTo OrganizationMemberRevised
+      reactsTo OrganizationMemberActivated
+      command DeactivateOrganizationMember {
+        memberId: UUID id from OrganizationMemberCatalog.memberId
+        expectedRevision: Long derived from OrganizationMemberCatalog.revision by memberId
+        reason: String
+      }
+      event OrganizationMemberDeactivated {
+        memberId: UUID id
+        memberCode: String
+        memberName: String
+        userAccountId: UUID?
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Inactive
+    }
+    slice ActivateOrganizationMember {
+      actor OrganizationManagementAdministrator
+      reactsTo OrganizationMemberDeactivated
+      command ActivateOrganizationMember {
+        memberId: UUID id from OrganizationMemberCatalog.memberId
+        expectedRevision: Long derived from OrganizationMemberCatalog.revision by memberId
+        reason: String
+      }
+      event OrganizationMemberActivated {
+        memberId: UUID id
+        memberCode: String
+        memberName: String
+        userAccountId: UUID?
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice OrganizationMemberCatalog {
+      actor OrganizationManagementAdministrator
+      readmodel OrganizationMemberCatalog[] {
+        memberId: UUID id from OrganizationMemberRegistered.memberId, OrganizationMemberRevised.memberId, OrganizationMemberDeactivated.memberId, OrganizationMemberActivated.memberId
+        memberCode: String from OrganizationMemberRegistered.memberCode, OrganizationMemberRevised.memberCode, OrganizationMemberDeactivated.memberCode, OrganizationMemberActivated.memberCode
+        memberName: String from OrganizationMemberRegistered.memberName, OrganizationMemberRevised.memberName, OrganizationMemberDeactivated.memberName, OrganizationMemberActivated.memberName
+        userAccountId: UUID? from OrganizationMemberRegistered.userAccountId, OrganizationMemberRevised.userAccountId, OrganizationMemberDeactivated.userAccountId, OrganizationMemberActivated.userAccountId
+        revision: Long from OrganizationMemberRegistered.revision, OrganizationMemberRevised.revision, OrganizationMemberDeactivated.revision, OrganizationMemberActivated.revision
+        state: String from OrganizationMemberRegistered.state, OrganizationMemberRevised.state, OrganizationMemberDeactivated.state, OrganizationMemberActivated.state
+        subscribe OrganizationMemberRegistered
+        subscribe OrganizationMemberRevised
+        subscribe OrganizationMemberDeactivated
+        subscribe OrganizationMemberActivated
+        eligible for ConfirmPositionAssignment when { OrganizationMember.state == Active }
+      }
+    }
+    concept OrganizationMember {
+      state Active
+      state Inactive
+      slice RegisterOrganizationMember
+      slice ReviseOrganizationMember
+      slice DeactivateOrganizationMember
+      slice ActivateOrganizationMember
+      slice OrganizationMemberCatalog
+    }
+    slice ConfirmPositionAssignment {
+      actor OrganizationManagementAdministrator
+      startsLifecycle
+      command ConfirmPositionAssignment {
+        assignmentId: UUID id generated technical
+        memberId: UUID from OrganizationMemberCatalog.memberId
+        organizationPositionId: UUID from OrganizationPositionCatalog.organizationPositionId
+        validFrom: Instant
+        validUntil: Instant?
+        primaryAssignment: Boolean
+        reason: String
+      }
+      event PositionAssignmentConfirmed {
+        assignmentId: UUID id
+        memberId: UUID
+        organizationPositionId: UUID
+        validFrom: Instant
+        validUntil: Instant?
+        primaryAssignment: Boolean
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Confirmed
+    }
+    slice EndPositionAssignment {
+      actor OrganizationManagementAdministrator
+      reactsTo PositionAssignmentConfirmed
+      command EndPositionAssignment {
+        assignmentId: UUID id from PositionAssignmentCatalog.assignmentId
+        expectedRevision: Long derived from PositionAssignmentCatalog.revision by assignmentId
+        endedAt: Instant
+        reason: String
+      }
+      event PositionAssignmentEnded {
+        assignmentId: UUID id
+        memberId: UUID
+        organizationPositionId: UUID
+        validFrom: Instant
+        validUntil: Instant?
+        primaryAssignment: Boolean
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Ended
+    }
+    slice CancelPositionAssignment {
+      actor OrganizationManagementAdministrator
+      reactsTo PositionAssignmentConfirmed
+      command CancelPositionAssignment {
+        assignmentId: UUID id from PositionAssignmentCatalog.assignmentId
+        expectedRevision: Long derived from PositionAssignmentCatalog.revision by assignmentId
+        reason: String
+      }
+      event PositionAssignmentCancelled {
+        assignmentId: UUID id
+        memberId: UUID
+        organizationPositionId: UUID
+        validFrom: Instant
+        validUntil: Instant?
+        primaryAssignment: Boolean
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Cancelled
+    }
+    slice PositionAssignmentTransferredOut {
+      event PositionAssignmentTransferredOut {
+        assignmentId: UUID id
+        memberId: UUID
+        organizationPositionId: UUID
+        validFrom: Instant
+        validUntil: Instant?
+        primaryAssignment: Boolean
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Ended
+    }
+    slice PositionAssignmentTransferredIn {
+      event PositionAssignmentTransferredIn {
+        assignmentId: UUID id
+        memberId: UUID
+        organizationPositionId: UUID
+        validFrom: Instant
+        validUntil: Instant?
+        primaryAssignment: Boolean
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Confirmed
+    }
+    slice TransferPositionAssignment {
+      actor OrganizationManagementAdministrator
+      reactsTo PositionAssignmentConfirmed
+      reactsTo PositionAssignmentTransferredIn
+      command TransferPositionAssignment {
+        assignmentId: UUID id from PositionAssignmentCatalog.assignmentId
+        expectedRevision: Long derived from PositionAssignmentCatalog.revision by assignmentId
+        newAssignmentId: UUID generated technical
+        organizationPositionId: UUID from OrganizationPositionCatalog.organizationPositionId
+        effectiveAt: Instant
+        primaryAssignment: Boolean
+        reason: String
+      }
+    }
+    slice PositionAssignmentCatalog {
+      actor OrganizationManagementAdministrator
+      readmodel PositionAssignmentCatalog[] {
+        assignmentId: UUID id from PositionAssignmentConfirmed.assignmentId, PositionAssignmentEnded.assignmentId, PositionAssignmentCancelled.assignmentId, PositionAssignmentTransferredOut.assignmentId, PositionAssignmentTransferredIn.assignmentId
+        memberId: UUID from PositionAssignmentConfirmed.memberId, PositionAssignmentEnded.memberId, PositionAssignmentCancelled.memberId, PositionAssignmentTransferredOut.memberId, PositionAssignmentTransferredIn.memberId
+        organizationPositionId: UUID from PositionAssignmentConfirmed.organizationPositionId, PositionAssignmentEnded.organizationPositionId, PositionAssignmentCancelled.organizationPositionId, PositionAssignmentTransferredOut.organizationPositionId, PositionAssignmentTransferredIn.organizationPositionId
+        validFrom: Instant from PositionAssignmentConfirmed.validFrom, PositionAssignmentEnded.validFrom, PositionAssignmentCancelled.validFrom, PositionAssignmentTransferredOut.validFrom, PositionAssignmentTransferredIn.validFrom
+        validUntil: Instant? from PositionAssignmentConfirmed.validUntil, PositionAssignmentEnded.validUntil, PositionAssignmentCancelled.validUntil, PositionAssignmentTransferredOut.validUntil, PositionAssignmentTransferredIn.validUntil
+        primaryAssignment: Boolean from PositionAssignmentConfirmed.primaryAssignment, PositionAssignmentEnded.primaryAssignment, PositionAssignmentCancelled.primaryAssignment, PositionAssignmentTransferredOut.primaryAssignment, PositionAssignmentTransferredIn.primaryAssignment
+        revision: Long from PositionAssignmentConfirmed.revision, PositionAssignmentEnded.revision, PositionAssignmentCancelled.revision, PositionAssignmentTransferredOut.revision, PositionAssignmentTransferredIn.revision
+        state: String from PositionAssignmentConfirmed.state, PositionAssignmentEnded.state, PositionAssignmentCancelled.state, PositionAssignmentTransferredOut.state, PositionAssignmentTransferredIn.state
+        subscribe PositionAssignmentConfirmed
+        subscribe PositionAssignmentEnded
+        subscribe PositionAssignmentCancelled
+        subscribe PositionAssignmentTransferredOut
+        subscribe PositionAssignmentTransferredIn
+      }
+    }
+    concept PositionAssignment {
+      state Confirmed
+      state Ended
+      state Cancelled
+      slice ConfirmPositionAssignment
+      slice EndPositionAssignment
+      slice CancelPositionAssignment
+      slice TransferPositionAssignment
+      slice PositionAssignmentTransferredOut
+      slice PositionAssignmentTransferredIn
+      slice PositionAssignmentCatalog
+    }
+  }
+}

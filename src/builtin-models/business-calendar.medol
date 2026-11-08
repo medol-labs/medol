@@ -1,0 +1,146 @@
+domain BusinessCalendar {
+  access policy BusinessCalendarAccess {}
+  default access BusinessCalendarAccess
+  context BusinessCalendar {
+    note "Calendar date overrides replace weekly hours. Calculations pin an Active revision and reject dates outside coverage; no national holidays are assumed."
+    slice DefineBusinessCalendar {
+      actor BusinessCalendarAdministrator
+      startsLifecycle
+      command DefineBusinessCalendar {
+        calendarId: UUID id generated technical
+        calendarCode: String
+        calendarName: String
+        timeZone: String
+        validFrom: Date
+        validThrough: Date
+        weeklyScheduleJson: Text
+        dateOverridesJson: Text
+        reason: String
+      }
+      event BusinessCalendarDefined {
+        calendarId: UUID id
+        calendarCode: String
+        calendarName: String
+        timeZone: String
+        validFrom: Date
+        validThrough: Date
+        weeklyScheduleJson: Text
+        dateOverridesJson: Text
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Draft
+    }
+    slice ReviseBusinessCalendar {
+      actor BusinessCalendarAdministrator
+      reactsTo BusinessCalendarDefined
+      reactsTo BusinessCalendarRevised
+      reactsTo BusinessCalendarSuspended
+      command ReviseBusinessCalendar {
+        calendarId: UUID id from BusinessCalendarCatalog.calendarId
+        expectedRevision: Long derived from BusinessCalendarCatalog.revision by calendarId
+        calendarCode: String
+        calendarName: String
+        timeZone: String
+        validFrom: Date
+        validThrough: Date
+        weeklyScheduleJson: Text
+        dateOverridesJson: Text
+        reason: String
+      }
+      event BusinessCalendarRevised {
+        calendarId: UUID id
+        calendarCode: String
+        calendarName: String
+        timeZone: String
+        validFrom: Date
+        validThrough: Date
+        weeklyScheduleJson: Text
+        dateOverridesJson: Text
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Draft
+    }
+    slice ActivateBusinessCalendar {
+      actor BusinessCalendarAdministrator
+      reactsTo BusinessCalendarDefined
+      reactsTo BusinessCalendarRevised
+      reactsTo BusinessCalendarSuspended
+      command ActivateBusinessCalendar {
+        calendarId: UUID id from BusinessCalendarCatalog.calendarId
+        expectedRevision: Long derived from BusinessCalendarCatalog.revision by calendarId
+        reason: String
+      }
+      event BusinessCalendarActivated {
+        calendarId: UUID id
+        calendarCode: String
+        calendarName: String
+        timeZone: String
+        validFrom: Date
+        validThrough: Date
+        weeklyScheduleJson: Text
+        dateOverridesJson: Text
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Active
+    }
+    slice SuspendBusinessCalendar {
+      actor BusinessCalendarAdministrator
+      reactsTo BusinessCalendarActivated
+      command SuspendBusinessCalendar {
+        calendarId: UUID id from BusinessCalendarCatalog.calendarId
+        expectedRevision: Long derived from BusinessCalendarCatalog.revision by calendarId
+        reason: String
+      }
+      event BusinessCalendarSuspended {
+        calendarId: UUID id
+        calendarCode: String
+        calendarName: String
+        timeZone: String
+        validFrom: Date
+        validThrough: Date
+        weeklyScheduleJson: Text
+        dateOverridesJson: Text
+        revision: Long
+        state: String
+        reason: String
+      }
+      state Suspended
+    }
+    slice BusinessCalendarCatalog {
+      actor BusinessCalendarAdministrator
+      readmodel BusinessCalendarCatalog[] {
+        calendarId: UUID id from BusinessCalendarDefined.calendarId, BusinessCalendarRevised.calendarId, BusinessCalendarActivated.calendarId, BusinessCalendarSuspended.calendarId
+        calendarCode: String from BusinessCalendarDefined.calendarCode, BusinessCalendarRevised.calendarCode, BusinessCalendarActivated.calendarCode, BusinessCalendarSuspended.calendarCode
+        calendarName: String from BusinessCalendarDefined.calendarName, BusinessCalendarRevised.calendarName, BusinessCalendarActivated.calendarName, BusinessCalendarSuspended.calendarName
+        timeZone: String from BusinessCalendarDefined.timeZone, BusinessCalendarRevised.timeZone, BusinessCalendarActivated.timeZone, BusinessCalendarSuspended.timeZone
+        validFrom: Date from BusinessCalendarDefined.validFrom, BusinessCalendarRevised.validFrom, BusinessCalendarActivated.validFrom, BusinessCalendarSuspended.validFrom
+        validThrough: Date from BusinessCalendarDefined.validThrough, BusinessCalendarRevised.validThrough, BusinessCalendarActivated.validThrough, BusinessCalendarSuspended.validThrough
+        weeklyScheduleJson: Text from BusinessCalendarDefined.weeklyScheduleJson, BusinessCalendarRevised.weeklyScheduleJson, BusinessCalendarActivated.weeklyScheduleJson, BusinessCalendarSuspended.weeklyScheduleJson
+        dateOverridesJson: Text from BusinessCalendarDefined.dateOverridesJson, BusinessCalendarRevised.dateOverridesJson, BusinessCalendarActivated.dateOverridesJson, BusinessCalendarSuspended.dateOverridesJson
+        revision: Long from BusinessCalendarDefined.revision, BusinessCalendarRevised.revision, BusinessCalendarActivated.revision, BusinessCalendarSuspended.revision
+        state: String from BusinessCalendarDefined.state, BusinessCalendarRevised.state, BusinessCalendarActivated.state, BusinessCalendarSuspended.state
+        subscribe BusinessCalendarDefined
+        subscribe BusinessCalendarRevised
+        subscribe BusinessCalendarActivated
+        subscribe BusinessCalendarSuspended
+        eligible when { CalendarDefinition.state == Active }
+      }
+    }
+    concept CalendarDefinition {
+      state Draft
+      state Active
+      state Suspended
+      slice DefineBusinessCalendar
+      slice ReviseBusinessCalendar
+      slice ActivateBusinessCalendar
+      slice SuspendBusinessCalendar
+      slice BusinessCalendarCatalog
+    }
+  }
+}

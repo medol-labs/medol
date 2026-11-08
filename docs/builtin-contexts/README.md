@@ -14,6 +14,10 @@ MEDOL 的内置上下文提供通用业务能力。这里统一说明如何接�
 | `tenant-management` | `TenantManagement` | [租户管理](tenant-management.md) |
 | `operation-audit` | `OperationAudit` | [操作审计](operation-audit.md) |
 | `numbering` | `Numbering` | [业务编号](numbering.md) |
+| `organization-management` | `OrganizationManagement` | [组织与岗位](organization-management.md) |
+| `business-calendar` | `BusinessCalendar` | [业务日历](business-calendar.md) |
+| `system-configuration` | `SystemConfiguration` | [系统配置](system-configuration.md) |
+| `document-generation` | `DocumentGeneration` | [模板与文档生成](document-generation.md) |
 | `archiving` | `Archiving` | [数据归档](archiving.md) |
 | `scheduling` | `Scheduling` | [业务调度](scheduling.md) |
 

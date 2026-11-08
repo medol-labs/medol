@@ -1,0 +1,253 @@
+domain DocumentGeneration {
+  access policy DocumentPlatformAccess {}
+  default access DocumentPlatformAccess
+  context DocumentGeneration {
+    note "Published template versions and generation snapshots are immutable. Rendering completion does not mean business approval or issuance. Runtime journals are authoritative and publish modeled events through an outbox."
+    slice CreateDocumentTemplateVersion {
+      actor DocumentTemplateAdministrator
+      startsLifecycle
+      command CreateDocumentTemplateVersion {
+        templateVersionId: UUID id generated technical
+        templateKey: String
+        versionLabel: String
+        providerKey: String
+        contractVersion: String
+        rendererKey: String
+        templateContent: Text
+      }
+      event DocumentTemplateVersionCreated {
+        templateVersionId: UUID id
+        templateKey: String
+        versionLabel: String
+        providerKey: String
+        contractVersion: String
+        rendererKey: String
+        templateContent: Text
+        revision: Long
+        state: String
+      }
+      state Draft
+    }
+    slice ReviseDocumentTemplateVersion {
+      actor DocumentTemplateAdministrator
+      reactsTo DocumentTemplateVersionCreated
+      reactsTo DocumentTemplateVersionRevised
+      command ReviseDocumentTemplateVersion {
+        templateVersionId: UUID id from DocumentTemplateCatalog.templateVersionId
+        expectedRevision: Long derived from DocumentTemplateCatalog.revision by templateVersionId
+        templateContent: Text
+      }
+      event DocumentTemplateVersionRevised {
+        templateVersionId: UUID id
+        templateKey: String
+        versionLabel: String
+        providerKey: String
+        contractVersion: String
+        rendererKey: String
+        templateContent: Text
+        revision: Long
+        state: String
+      }
+      state Draft
+    }
+    slice PublishDocumentTemplateVersion {
+      actor DocumentTemplateAdministrator
+      reactsTo DocumentTemplateVersionCreated
+      reactsTo DocumentTemplateVersionRevised
+      command PublishDocumentTemplateVersion {
+        templateVersionId: UUID id from DocumentTemplateCatalog.templateVersionId
+        expectedRevision: Long derived from DocumentTemplateCatalog.revision by templateVersionId
+      }
+      event DocumentTemplateVersionPublished {
+        templateVersionId: UUID id
+        templateKey: String
+        versionLabel: String
+        providerKey: String
+        contractVersion: String
+        rendererKey: String
+        templateContent: Text
+        revision: Long
+        state: String
+      }
+      state Published
+    }
+    slice RetireDocumentTemplateVersion {
+      actor DocumentTemplateAdministrator
+      reactsTo DocumentTemplateVersionPublished
+      command RetireDocumentTemplateVersion {
+        templateVersionId: UUID id from DocumentTemplateCatalog.templateVersionId
+        expectedRevision: Long derived from DocumentTemplateCatalog.revision by templateVersionId
+      }
+      event DocumentTemplateVersionRetired {
+        templateVersionId: UUID id
+        templateKey: String
+        versionLabel: String
+        providerKey: String
+        contractVersion: String
+        rendererKey: String
+        templateContent: Text
+        revision: Long
+        state: String
+      }
+      state Retired
+    }
+    slice DocumentTemplateCatalog {
+      actor DocumentTemplateAdministrator
+      readmodel DocumentTemplateCatalog[] {
+        templateVersionId: UUID id from DocumentTemplateVersionCreated.templateVersionId, DocumentTemplateVersionRevised.templateVersionId, DocumentTemplateVersionPublished.templateVersionId, DocumentTemplateVersionRetired.templateVersionId
+        templateKey: String from DocumentTemplateVersionCreated.templateKey, DocumentTemplateVersionRevised.templateKey, DocumentTemplateVersionPublished.templateKey, DocumentTemplateVersionRetired.templateKey
+        versionLabel: String from DocumentTemplateVersionCreated.versionLabel, DocumentTemplateVersionRevised.versionLabel, DocumentTemplateVersionPublished.versionLabel, DocumentTemplateVersionRetired.versionLabel
+        providerKey: String from DocumentTemplateVersionCreated.providerKey, DocumentTemplateVersionRevised.providerKey, DocumentTemplateVersionPublished.providerKey, DocumentTemplateVersionRetired.providerKey
+        contractVersion: String from DocumentTemplateVersionCreated.contractVersion, DocumentTemplateVersionRevised.contractVersion, DocumentTemplateVersionPublished.contractVersion, DocumentTemplateVersionRetired.contractVersion
+        rendererKey: String from DocumentTemplateVersionCreated.rendererKey, DocumentTemplateVersionRevised.rendererKey, DocumentTemplateVersionPublished.rendererKey, DocumentTemplateVersionRetired.rendererKey
+        templateContent: Text from DocumentTemplateVersionCreated.templateContent, DocumentTemplateVersionRevised.templateContent, DocumentTemplateVersionPublished.templateContent, DocumentTemplateVersionRetired.templateContent
+        revision: Long from DocumentTemplateVersionCreated.revision, DocumentTemplateVersionRevised.revision, DocumentTemplateVersionPublished.revision, DocumentTemplateVersionRetired.revision
+        state: String from DocumentTemplateVersionCreated.state, DocumentTemplateVersionRevised.state, DocumentTemplateVersionPublished.state, DocumentTemplateVersionRetired.state
+        subscribe DocumentTemplateVersionCreated
+        subscribe DocumentTemplateVersionRevised
+        subscribe DocumentTemplateVersionPublished
+        subscribe DocumentTemplateVersionRetired
+        eligible for RequestDocumentGeneration when { DocumentTemplateVersion.state == Published }
+      }
+    }
+    slice RequestDocumentGeneration {
+      actor DocumentOperator
+      startsLifecycle
+      command RequestDocumentGeneration {
+        documentId: UUID id generated technical
+        templateVersionId: UUID from DocumentTemplateCatalog.templateVersionId
+        objectRef: String
+        locale: String
+        timeZone: String
+      }
+      event DocumentGenerationRequested {
+        documentId: UUID id
+        templateVersionId: UUID
+        objectRef: String
+        locale: String
+        timeZone: String
+        requestedBy: String
+        revision: Long
+        state: String
+        fileRef: String?
+        fileHash: String?
+        errorCode: String?
+      }
+      state Requested
+    }
+    slice RetryDocumentGeneration {
+      actor DocumentOperator
+      reactsTo DocumentGenerationFailed
+      reactsTo DocumentGenerationStarted
+      command RetryDocumentGeneration {
+        documentId: UUID id from GeneratedDocumentCatalog.documentId
+        expectedRevision: Long derived from GeneratedDocumentCatalog.revision by documentId
+      }
+      event DocumentGenerationRetried {
+        documentId: UUID id
+        templateVersionId: UUID
+        objectRef: String
+        locale: String
+        timeZone: String
+        requestedBy: String
+        revision: Long
+        state: String
+        fileRef: String?
+        fileHash: String?
+        errorCode: String?
+      }
+      state Requested
+    }
+    slice DocumentGenerationStarted {
+      event DocumentGenerationStarted {
+        documentId: UUID id
+        templateVersionId: UUID
+        objectRef: String
+        locale: String
+        timeZone: String
+        requestedBy: String
+        revision: Long
+        state: String
+        fileRef: String?
+        fileHash: String?
+        errorCode: String?
+      }
+      state Processing
+    }
+    slice DocumentGenerationCompleted {
+      event DocumentGenerationCompleted {
+        documentId: UUID id
+        templateVersionId: UUID
+        objectRef: String
+        locale: String
+        timeZone: String
+        requestedBy: String
+        revision: Long
+        state: String
+        fileRef: String?
+        fileHash: String?
+        errorCode: String?
+      }
+      state Completed
+    }
+    slice DocumentGenerationFailed {
+      event DocumentGenerationFailed {
+        documentId: UUID id
+        templateVersionId: UUID
+        objectRef: String
+        locale: String
+        timeZone: String
+        requestedBy: String
+        revision: Long
+        state: String
+        fileRef: String?
+        fileHash: String?
+        errorCode: String?
+      }
+      state Failed
+    }
+    slice GeneratedDocumentCatalog {
+      actor DocumentOperator
+      readmodel GeneratedDocumentCatalog[] {
+        documentId: UUID id from DocumentGenerationRequested.documentId, DocumentGenerationRetried.documentId, DocumentGenerationStarted.documentId, DocumentGenerationCompleted.documentId, DocumentGenerationFailed.documentId
+        templateVersionId: UUID from DocumentGenerationRequested.templateVersionId, DocumentGenerationRetried.templateVersionId, DocumentGenerationStarted.templateVersionId, DocumentGenerationCompleted.templateVersionId, DocumentGenerationFailed.templateVersionId
+        objectRef: String from DocumentGenerationRequested.objectRef, DocumentGenerationRetried.objectRef, DocumentGenerationStarted.objectRef, DocumentGenerationCompleted.objectRef, DocumentGenerationFailed.objectRef
+        locale: String from DocumentGenerationRequested.locale, DocumentGenerationRetried.locale, DocumentGenerationStarted.locale, DocumentGenerationCompleted.locale, DocumentGenerationFailed.locale
+        timeZone: String from DocumentGenerationRequested.timeZone, DocumentGenerationRetried.timeZone, DocumentGenerationStarted.timeZone, DocumentGenerationCompleted.timeZone, DocumentGenerationFailed.timeZone
+        requestedBy: String from DocumentGenerationRequested.requestedBy, DocumentGenerationRetried.requestedBy, DocumentGenerationStarted.requestedBy, DocumentGenerationCompleted.requestedBy, DocumentGenerationFailed.requestedBy
+        revision: Long from DocumentGenerationRequested.revision, DocumentGenerationRetried.revision, DocumentGenerationStarted.revision, DocumentGenerationCompleted.revision, DocumentGenerationFailed.revision
+        state: String from DocumentGenerationRequested.state, DocumentGenerationRetried.state, DocumentGenerationStarted.state, DocumentGenerationCompleted.state, DocumentGenerationFailed.state
+        fileRef: String? from DocumentGenerationRequested.fileRef, DocumentGenerationRetried.fileRef, DocumentGenerationStarted.fileRef, DocumentGenerationCompleted.fileRef, DocumentGenerationFailed.fileRef
+        fileHash: String? from DocumentGenerationRequested.fileHash, DocumentGenerationRetried.fileHash, DocumentGenerationStarted.fileHash, DocumentGenerationCompleted.fileHash, DocumentGenerationFailed.fileHash
+        errorCode: String? from DocumentGenerationRequested.errorCode, DocumentGenerationRetried.errorCode, DocumentGenerationStarted.errorCode, DocumentGenerationCompleted.errorCode, DocumentGenerationFailed.errorCode
+        subscribe DocumentGenerationRequested
+        subscribe DocumentGenerationRetried
+        subscribe DocumentGenerationStarted
+        subscribe DocumentGenerationCompleted
+        subscribe DocumentGenerationFailed
+      }
+    }
+    concept DocumentTemplateVersion {
+      state Draft
+      state Published
+      state Retired
+      slice CreateDocumentTemplateVersion
+      slice ReviseDocumentTemplateVersion
+      slice PublishDocumentTemplateVersion
+      slice RetireDocumentTemplateVersion
+      slice DocumentTemplateCatalog
+    }
+    concept GeneratedDocument {
+      state Requested
+      state Processing
+      state Completed
+      state Failed
+      slice RequestDocumentGeneration
+      slice RetryDocumentGeneration
+      slice DocumentGenerationStarted
+      slice DocumentGenerationCompleted
+      slice DocumentGenerationFailed
+      slice GeneratedDocumentCatalog
+    }
+  }
+}

@@ -32,6 +32,10 @@ const loadBuiltinMedol = async (fileName: string): Promise<string> => {
     const source = await import('../builtin-models/system-notification.medol?raw');
     return source.default;
   }
+  if (fileName === 'organization-management.medol') return (await import('../builtin-models/organization-management.medol?raw')).default;
+  if (fileName === 'system-configuration.medol') return (await import('../builtin-models/system-configuration.medol?raw')).default;
+  if (fileName === 'business-calendar.medol') return (await import('../builtin-models/business-calendar.medol?raw')).default;
+  if (fileName === 'document-generation.medol') return (await import('../builtin-models/document-generation.medol?raw')).default;
   if (fileName === 'archiving.medol') return (await import('../builtin-models/archiving.medol?raw')).default;
   if (fileName === 'scheduling.medol') return (await import('../builtin-models/scheduling.medol?raw')).default;
   if (fileName === 'numbering.medol') {
@@ -58,6 +62,10 @@ const operationAuditMedol = await loadBuiltinMedol('operation-audit.medol');
 const tenantManagementMedol = await loadBuiltinMedol('tenant-management.medol');
 
 export const builtinMedolModels = new Map<string, string>([
+  ['organization-management', await loadBuiltinMedol('organization-management.medol')],
+  ['system-configuration', await loadBuiltinMedol('system-configuration.medol')],
+  ['business-calendar', await loadBuiltinMedol('business-calendar.medol')],
+  ['document-generation', await loadBuiltinMedol('document-generation.medol')],
   ['archiving', await loadBuiltinMedol('archiving.medol')],
   ['scheduling', await loadBuiltinMedol('scheduling.medol')],
   ['numbering', numberingMedol],
