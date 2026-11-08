@@ -22,6 +22,10 @@ MEDOL 的内置上下文提供通用业务能力。这里统一说明如何接�
 | `archiving` | `Archiving` | [数据归档](archiving.md) |
 | `scheduling` | `Scheduling` | [业务调度](scheduling.md) |
 
+## 待完善清单
+
+[内置上下文 TODO](TODO.md) 按上下文记录已确认缺口、待核验场景与可选扩展，并列出优先级和验收方向。能力当前用法以各自使用说明为准。
+
 ## 从哪里开始
 
 1. 在系统的 `.medol/source.medol` 中导入所需能力，指定 backend deployment。
