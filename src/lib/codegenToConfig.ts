@@ -148,6 +148,7 @@ interface ConfigSlice {
 }
 
 export interface ConfigRoot {
+  scheduling?: CodegenModel['scheduling'];
   slices: ConfigSlice[];
   flows: [];
   valueTypes: CodegenModel['valueTypes'];
@@ -179,6 +180,7 @@ interface ConfigCodeGen {
 }
 
 export const codegenModelToConfig = (model: CodegenModel): ConfigRoot => ({
+  ...(model.scheduling ? {scheduling:model.scheduling} : {}),
   slices: model.slices.map(toConfigSlice),
   flows: [],
   valueTypes: model.valueTypes,

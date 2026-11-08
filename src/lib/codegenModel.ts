@@ -9,6 +9,7 @@ import { reactionDiagnostics } from './reactionSemantics';
 import { analyzeFieldLineage, FieldSourceValidationError } from './fieldLineage';
 
 export interface CodegenModel {
+  scheduling?: { context: string; targets: Array<{key: string; context: string; command: string; occurrenceField: string; scheduledAtField?: string}> };
   numbering?: { context: string };
   metadata?: CodegenMetadata;
   tenancy?: TenantCapability;
@@ -615,6 +616,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         };
       })
     }))),
+    ...schedulingContract(model),
     ...(model.capabilityImports?.some(imported => imported.name === 'Numbering') ? {numbering: {context: 'Numbering'}} : {}),
     ...(model.capabilityImports?.some(imported => imported.name === 'OperationAudit')
       ? {operationAudit: {context: 'OperationAudit', readModel: 'OperationAuditCatalog'}} : {}),
@@ -1333,4 +1335,29 @@ function validateNumbering(model: EmModel) {
       if (!ids.length || ids.some(item => item.cardinality !== 'Single')) throw new Error(`Numbered command ${element.name} requires scalar object identifiers for idempotent allocation.`);
     }
   }
+}
+
+function schedulingContract(model: EmModel): Pick<CodegenModel, 'scheduling'> {
+  const imports = model.capabilityImports?.filter(i => i.name === 'Scheduling') ?? [];
+  const extensions = model.capabilityExtensions.filter(e => imports.some(i => e.target === i.name || e.target === i.alias));
+  if (!imports.length) return {};
+  const targets: NonNullable<CodegenModel['scheduling']>['targets'] = [];
+  for (const extension of extensions) for (const provider of extension.providers) {
+    if (provider.kind !== 'scheduledCommand' || !provider.source) throw new Error('Scheduling supports provider scheduledCommand from Context.Command only.');
+    const matches = model.contexts.flatMap(c => allContextSlices(c).flatMap(s => s.elements.filter(e => e.kind === 'command' && `${c.name}.${e.name}` === provider.source).map(command => ({context:c.name, command}))));
+    if (matches.length !== 1) throw new Error(`Scheduling target ${provider.source} must resolve to one modeled command.`);
+    const {context, command} = matches[0];
+    if (context === 'Scheduling') throw new Error('Scheduling cannot target its own management commands.');
+    const mappings = provider.mappings;
+    const occurrenceField = mappings.occurrenceId;
+    const scheduledAtField = mappings.scheduledAt;
+    if (Object.keys(mappings).some(role => !['occurrenceId','scheduledAt'].includes(role))) throw new Error('Scheduling supports unique occurrenceId and scheduledAt mappings.');
+    const occurrence = command.fields.find(f => f.name === occurrenceField);
+    if (!occurrence || occurrence.type !== 'UUID' || occurrence.cardinality !== 'Single') throw new Error('Scheduling occurrenceId must map to a required UUID command field.');
+    const time = command.fields.find(f => f.name === scheduledAtField);
+    if (scheduledAtField && (!time || time.type !== 'DateTime' || time.cardinality !== 'Single')) throw new Error('Scheduling scheduledAt must map to a required DateTime command field.');
+    if (targets.some(t=>t.key===provider.source)) throw new Error(`Duplicate scheduling target ${provider.source}.`);
+    targets.push({key:provider.source,context,command:command.name,occurrenceField:occurrence.name,...(scheduledAtField ? {scheduledAtField} : {})});
+  }
+  return {scheduling:{context:'Scheduling',targets}};
 }

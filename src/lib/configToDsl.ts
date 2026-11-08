@@ -167,6 +167,7 @@ interface ConfigValueType {
 }
 
 interface ConfigRoot {
+  scheduling?: unknown;
   domain?: string;
   context?: string;
   accessPolicies?: ConfigAccessPolicy[];
@@ -190,6 +191,7 @@ type ConfigAccessPolicyRule =
   | { kind?: 'fields'; fields?: string[] };
 
 export const configToDsl = (config: ConfigRoot): string => {
+  if (config.scheduling) throw new Error('Legacy config cannot restore scheduling capability imports and deployment bindings. Use the original source.medol or workspace export instead.');
   if (config.slices?.some(slice => slice.commands?.some(command => command.fields?.some(field => field.numbering)))) {
     throw new Error('Legacy config cannot restore numbering capability imports and deployment bindings. Use the original source.medol or workspace export instead.');
   }

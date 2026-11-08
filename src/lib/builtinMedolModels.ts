@@ -32,6 +32,7 @@ const loadBuiltinMedol = async (fileName: string): Promise<string> => {
     const source = await import('../builtin-models/system-notification.medol?raw');
     return source.default;
   }
+  if (fileName === 'scheduling.medol') return (await import('../builtin-models/scheduling.medol?raw')).default;
   if (fileName === 'numbering.medol') {
     return (await import('../builtin-models/numbering.medol?raw')).default;
   }
@@ -56,6 +57,7 @@ const operationAuditMedol = await loadBuiltinMedol('operation-audit.medol');
 const tenantManagementMedol = await loadBuiltinMedol('tenant-management.medol');
 
 export const builtinMedolModels = new Map<string, string>([
+  ['scheduling', await loadBuiltinMedol('scheduling.medol')],
   ['numbering', numberingMedol],
   ['operation-audit', operationAuditMedol],
   ['operationAudit', operationAuditMedol],

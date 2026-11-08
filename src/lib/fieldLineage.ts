@@ -172,6 +172,9 @@ export function analyzeFieldLineage(model: EmModel): FieldLineage {
             if (resolved.state) addDiagnostic(node, 'state-history', 'warning', `Source ${path} references state history; current-state availability and merge behavior require review.`);
           }
         }
+      } else if (element.kind === 'event' && context.name === 'Scheduling' && model.capabilityImports?.some(i => i.name === 'Scheduling')) {
+        node.origin = 'generated';
+        node.reason = 'Supplied by the built-in scheduling decision using authoritative event-sourced state.';
       } else if (element.kind === 'event' && context.name === 'Numbering'
         && model.capabilityImports?.some(imported => imported.name === 'Numbering')) {
         node.origin = 'generated';

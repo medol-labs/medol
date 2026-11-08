@@ -55,6 +55,7 @@ export const resolveTenantCapability = (model: EmModel): {
   const resolved = new Map<string, TenantCapabilityProvider>();
   const managementContexts = new Set<string>(model.capabilityImports?.some((imported) => imported.name === 'IdentityAccessManagement')
     ? ['IdentityAccessManagement'] : []);
+  if (model.capabilityImports?.some(imported => imported.name === 'Scheduling')) managementContexts.add('Scheduling');
   if (model.capabilityImports?.some(imported => imported.name === 'Numbering')) managementContexts.add('Numbering');
   if (model.capabilityImports?.some(imported => imported.name === 'OperationAudit')) managementContexts.add('OperationAudit');
   for (const [kind, requiredRoles] of Object.entries(rolesByKind)) {

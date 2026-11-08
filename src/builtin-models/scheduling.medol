@@ -1,0 +1,246 @@
+domain Scheduling {
+  access policy SchedulingPlatformAccess {}
+  default access SchedulingPlatformAccess
+  context Scheduling {
+    note "Plans are versioned. Active means desired business state; synchronization is tracked separately. Targets are explicitly bound modeled commands. Delivery is at least once with a stable occurrence identifier."
+    slice DefineSchedule {
+      actor SchedulingAdministrator
+      startsLifecycle
+      command DefineSchedule {
+        scheduleId: UUID id generated technical
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+      }
+      event ScheduleDefined {
+        scheduleId: UUID id
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+        planVersion: Long
+        state: String
+        nextAt: String?
+        lastScheduledAt: String?
+      }
+      state Draft
+    }
+    slice ReviseSchedule {
+      actor SchedulingAdministrator
+      reactsTo ScheduleDefined
+      reactsTo ScheduleRevised
+      reactsTo SchedulePaused
+      command ReviseSchedule {
+        scheduleId: UUID id from ScheduleCatalog.scheduleId
+        expectedVersion: Long derived from ScheduleCatalog.planVersion by scheduleId
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+      }
+      event ScheduleRevised {
+        scheduleId: UUID id
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+        planVersion: Long
+        state: String
+        nextAt: String?
+        lastScheduledAt: String?
+      }
+      state Draft
+    }
+    slice ActivateSchedule {
+      actor SchedulingAdministrator
+      reactsTo ScheduleDefined
+      reactsTo ScheduleRevised
+      command ActivateSchedule {
+        scheduleId: UUID id from ScheduleCatalog.scheduleId
+        expectedVersion: Long derived from ScheduleCatalog.planVersion by scheduleId
+      }
+      event ScheduleActivated {
+        scheduleId: UUID id
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+        planVersion: Long
+        state: String
+        nextAt: String?
+        lastScheduledAt: String?
+      }
+      state Active
+    }
+    slice PauseSchedule {
+      actor SchedulingAdministrator
+      reactsTo ScheduleActivated
+      reactsTo ScheduleResumed
+      reactsTo ScheduledOccurrenceAccepted
+      command PauseSchedule {
+        scheduleId: UUID id from ScheduleCatalog.scheduleId
+        expectedVersion: Long derived from ScheduleCatalog.planVersion by scheduleId
+      }
+      event SchedulePaused {
+        scheduleId: UUID id
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+        planVersion: Long
+        state: String
+        nextAt: String?
+        lastScheduledAt: String?
+      }
+      state Paused
+    }
+    slice ResumeSchedule {
+      actor SchedulingAdministrator
+      reactsTo SchedulePaused
+      command ResumeSchedule {
+        scheduleId: UUID id from ScheduleCatalog.scheduleId
+        expectedVersion: Long derived from ScheduleCatalog.planVersion by scheduleId
+      }
+      event ScheduleResumed {
+        scheduleId: UUID id
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+        planVersion: Long
+        state: String
+        nextAt: String?
+        lastScheduledAt: String?
+      }
+      state Active
+    }
+    slice RetireSchedule {
+      actor SchedulingAdministrator
+      reactsTo ScheduleDefined
+      reactsTo ScheduleRevised
+      reactsTo ScheduleActivated
+      reactsTo SchedulePaused
+      reactsTo ScheduleResumed
+      reactsTo ScheduledOccurrenceAccepted
+      command RetireSchedule {
+        scheduleId: UUID id from ScheduleCatalog.scheduleId
+        expectedVersion: Long derived from ScheduleCatalog.planVersion by scheduleId
+      }
+      event ScheduleRetired {
+        scheduleId: UUID id
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+        planVersion: Long
+        state: String
+        nextAt: String?
+        lastScheduledAt: String?
+      }
+      state Retired
+    }
+    slice AcceptScheduledOccurrence {
+      actor SchedulingWorker
+      reactsTo ScheduleActivated
+      reactsTo ScheduleResumed
+      reactsTo ScheduledOccurrenceAccepted
+      command AcceptScheduledOccurrence {
+        scheduleId: UUID id from ScheduleCatalog.scheduleId
+        expectedVersion: Long
+        providerKey: String
+        scheduledAt: String
+      }
+      event ScheduledOccurrenceAccepted {
+        scheduleId: UUID id
+        planName: String
+        providerKey: String
+        targetKey: String
+        argumentsJson: Text
+        scheduleKind: String
+        scheduleExpression: String
+        timeZone: String
+        misfirePolicy: String
+        planVersion: Long
+        state: String
+        nextAt: String?
+        lastScheduledAt: String?
+        occurrenceId: UUID
+        scheduledAt: String
+        dispatch: Boolean
+      }
+      state Active
+    }
+    slice ScheduleCatalog {
+      actor SchedulingAdministrator
+      readmodel ScheduleCatalog[] {
+        scheduleId: UUID id from ScheduleDefined.scheduleId, ScheduleRevised.scheduleId, ScheduleActivated.scheduleId, SchedulePaused.scheduleId, ScheduleResumed.scheduleId, ScheduleRetired.scheduleId, ScheduledOccurrenceAccepted.scheduleId
+        planName: String display from ScheduleDefined.planName, ScheduleRevised.planName, ScheduleActivated.planName, SchedulePaused.planName, ScheduleResumed.planName, ScheduleRetired.planName, ScheduledOccurrenceAccepted.planName
+        providerKey: String query from ScheduleDefined.providerKey, ScheduleRevised.providerKey, ScheduleActivated.providerKey, SchedulePaused.providerKey, ScheduleResumed.providerKey, ScheduleRetired.providerKey, ScheduledOccurrenceAccepted.providerKey
+        targetKey: String query from ScheduleDefined.targetKey, ScheduleRevised.targetKey, ScheduleActivated.targetKey, SchedulePaused.targetKey, ScheduleResumed.targetKey, ScheduleRetired.targetKey, ScheduledOccurrenceAccepted.targetKey
+        argumentsJson: Text from ScheduleDefined.argumentsJson, ScheduleRevised.argumentsJson, ScheduleActivated.argumentsJson, SchedulePaused.argumentsJson, ScheduleResumed.argumentsJson, ScheduleRetired.argumentsJson, ScheduledOccurrenceAccepted.argumentsJson
+        scheduleKind: String from ScheduleDefined.scheduleKind, ScheduleRevised.scheduleKind, ScheduleActivated.scheduleKind, SchedulePaused.scheduleKind, ScheduleResumed.scheduleKind, ScheduleRetired.scheduleKind, ScheduledOccurrenceAccepted.scheduleKind
+        scheduleExpression: String from ScheduleDefined.scheduleExpression, ScheduleRevised.scheduleExpression, ScheduleActivated.scheduleExpression, SchedulePaused.scheduleExpression, ScheduleResumed.scheduleExpression, ScheduleRetired.scheduleExpression, ScheduledOccurrenceAccepted.scheduleExpression
+        timeZone: String from ScheduleDefined.timeZone, ScheduleRevised.timeZone, ScheduleActivated.timeZone, SchedulePaused.timeZone, ScheduleResumed.timeZone, ScheduleRetired.timeZone, ScheduledOccurrenceAccepted.timeZone
+        misfirePolicy: String from ScheduleDefined.misfirePolicy, ScheduleRevised.misfirePolicy, ScheduleActivated.misfirePolicy, SchedulePaused.misfirePolicy, ScheduleResumed.misfirePolicy, ScheduleRetired.misfirePolicy, ScheduledOccurrenceAccepted.misfirePolicy
+        planVersion: Long from ScheduleDefined.planVersion, ScheduleRevised.planVersion, ScheduleActivated.planVersion, SchedulePaused.planVersion, ScheduleResumed.planVersion, ScheduleRetired.planVersion, ScheduledOccurrenceAccepted.planVersion
+        state: String query from ScheduleDefined.state, ScheduleRevised.state, ScheduleActivated.state, SchedulePaused.state, ScheduleResumed.state, ScheduleRetired.state, ScheduledOccurrenceAccepted.state
+        nextAt: String? from ScheduleDefined.nextAt, ScheduleRevised.nextAt, ScheduleActivated.nextAt, SchedulePaused.nextAt, ScheduleResumed.nextAt, ScheduleRetired.nextAt, ScheduledOccurrenceAccepted.nextAt
+        lastScheduledAt: String? from ScheduleDefined.lastScheduledAt, ScheduleRevised.lastScheduledAt, ScheduleActivated.lastScheduledAt, SchedulePaused.lastScheduledAt, ScheduleResumed.lastScheduledAt, ScheduleRetired.lastScheduledAt, ScheduledOccurrenceAccepted.lastScheduledAt
+        subscribe ScheduleDefined
+        subscribe ScheduleRevised
+        subscribe ScheduleActivated
+        subscribe SchedulePaused
+        subscribe ScheduleResumed
+        subscribe ScheduleRetired
+        subscribe ScheduledOccurrenceAccepted
+      }
+    }
+    concept SchedulePlan {
+      state Draft
+      state Active
+      state Paused
+      state Retired
+      slice DefineSchedule
+      slice ReviseSchedule
+      slice ActivateSchedule
+      slice PauseSchedule
+      slice ResumeSchedule
+      slice RetireSchedule
+      slice AcceptScheduledOccurrence
+      slice ScheduleCatalog
+    }
+  }
+}
