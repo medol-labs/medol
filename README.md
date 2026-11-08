@@ -763,3 +763,5 @@ Cardinality:
 - `?`: optional value
 - `[]`: list value
 - `[]?`: optional list value
+
+业务报表内置能力：参见[使用与配置](docs/builtin-contexts/reporting.md)，支持版本化定义、Provider 查询与受控 CSV 导出。

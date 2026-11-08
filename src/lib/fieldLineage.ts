@@ -175,7 +175,7 @@ export function analyzeFieldLineage(model: EmModel): FieldLineage {
       } else if (element.kind === 'event' && context.name === 'Scheduling' && model.capabilityImports?.some(i => i.name === 'Scheduling')) {
         node.origin = 'generated';
         node.reason = 'Supplied by the built-in scheduling decision using authoritative event-sourced state.';
-      } else if (element.kind === 'event' && ['OrganizationManagement','SystemConfiguration','BusinessCalendar'].includes(context.name) && model.capabilityImports?.some(i => i.name === context.name)) {
+      } else if (element.kind === 'event' && ['OrganizationManagement','SystemConfiguration','BusinessCalendar','Reporting'].includes(context.name) && model.capabilityImports?.some(i => i.name === context.name)) {
         node.origin = 'generated';
         node.reason = 'Supplied by the authoritative management transaction and durable event outbox.';
       } else if (element.kind === 'event' && context.name === 'DocumentGeneration' && model.capabilityImports?.some(i => i.name === 'DocumentGeneration')) {

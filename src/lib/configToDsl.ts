@@ -168,6 +168,7 @@ interface ConfigValueType {
 
 interface ConfigRoot {
   organizationManagement?: unknown;
+  reporting?: unknown;
   businessCalendar?: unknown;
   systemConfiguration?: unknown;
   documentGeneration?: unknown;
@@ -197,6 +198,7 @@ type ConfigAccessPolicyRule =
 
 export const configToDsl = (config: ConfigRoot): string => {
   if (config.organizationManagement) throw new Error('Legacy config cannot restore organization-management capability imports. Use source.medol.');
+  if (config.reporting) throw new Error('Legacy config cannot restore reporting capability imports. Use source.medol.');
   if (config.businessCalendar) throw new Error('Legacy config cannot restore business-calendar capability imports. Use source.medol.');
   if (config.systemConfiguration) throw new Error('Legacy config cannot restore system-configuration capability imports. Use source.medol.');
   if (config.documentGeneration) throw new Error('Legacy config cannot restore document-generation capability imports. Use source.medol or workspace export.');

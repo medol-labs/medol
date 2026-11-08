@@ -1,0 +1,243 @@
+domain Reporting {
+  access policy ReportingAccess {}
+  default access ReportingAccess
+  context Reporting {
+    note "Report providers own business queries and data authorization. Published contracts are immutable. Export parameters and results remain private; execution events contain metadata only. Retry may read newer data."
+    slice CreateReportDefinition {
+      actor ReportAdministrator
+      startsLifecycle
+      command CreateReportDefinition {
+        reportVersionId: UUID id generated technical
+        reportKey: String
+        versionLabel: String
+        reportName: String
+        providerKey: String
+        contractVersion: String
+      }
+      event ReportDefinitionCreated {
+        reportVersionId: UUID id
+        reportKey: String
+        versionLabel: String
+        reportName: String
+        providerKey: String
+        contractVersion: String
+        providerFingerprint: String
+        contractJson: Text
+        revision: Long
+        state: String
+      }
+      state Draft
+    }
+    slice ReviseReportDefinition {
+      actor ReportAdministrator
+      reactsTo ReportDefinitionCreated
+      reactsTo ReportDefinitionRevised
+      command ReviseReportDefinition {
+        reportVersionId: UUID id from ReportDefinitionCatalog.reportVersionId
+        expectedRevision: Long derived from ReportDefinitionCatalog.revision by reportVersionId
+        reportKey: String
+        versionLabel: String
+        reportName: String
+        providerKey: String
+        contractVersion: String
+      }
+      event ReportDefinitionRevised {
+        reportVersionId: UUID id
+        reportKey: String
+        versionLabel: String
+        reportName: String
+        providerKey: String
+        contractVersion: String
+        providerFingerprint: String
+        contractJson: Text
+        revision: Long
+        state: String
+      }
+      state Draft
+    }
+    slice PublishReportDefinition {
+      actor ReportAdministrator
+      reactsTo ReportDefinitionCreated
+      reactsTo ReportDefinitionRevised
+      command PublishReportDefinition {
+        reportVersionId: UUID id from ReportDefinitionCatalog.reportVersionId
+        expectedRevision: Long derived from ReportDefinitionCatalog.revision by reportVersionId
+      }
+      event ReportDefinitionPublished {
+        reportVersionId: UUID id
+        reportKey: String
+        versionLabel: String
+        reportName: String
+        providerKey: String
+        contractVersion: String
+        providerFingerprint: String
+        contractJson: Text
+        revision: Long
+        state: String
+      }
+      state Published
+    }
+    slice RetireReportDefinition {
+      actor ReportAdministrator
+      reactsTo ReportDefinitionPublished
+      command RetireReportDefinition {
+        reportVersionId: UUID id from ReportDefinitionCatalog.reportVersionId
+        expectedRevision: Long derived from ReportDefinitionCatalog.revision by reportVersionId
+      }
+      event ReportDefinitionRetired {
+        reportVersionId: UUID id
+        reportKey: String
+        versionLabel: String
+        reportName: String
+        providerKey: String
+        contractVersion: String
+        providerFingerprint: String
+        contractJson: Text
+        revision: Long
+        state: String
+      }
+      state Retired
+    }
+    slice ReportDefinitionCatalog {
+      actor ReportReader
+      readmodel ReportDefinitionCatalog[] {
+        reportVersionId: UUID id from ReportDefinitionCreated.reportVersionId, ReportDefinitionRevised.reportVersionId, ReportDefinitionPublished.reportVersionId, ReportDefinitionRetired.reportVersionId
+        reportKey: String from ReportDefinitionCreated.reportKey, ReportDefinitionRevised.reportKey, ReportDefinitionPublished.reportKey, ReportDefinitionRetired.reportKey
+        versionLabel: String from ReportDefinitionCreated.versionLabel, ReportDefinitionRevised.versionLabel, ReportDefinitionPublished.versionLabel, ReportDefinitionRetired.versionLabel
+        reportName: String from ReportDefinitionCreated.reportName, ReportDefinitionRevised.reportName, ReportDefinitionPublished.reportName, ReportDefinitionRetired.reportName
+        providerKey: String from ReportDefinitionCreated.providerKey, ReportDefinitionRevised.providerKey, ReportDefinitionPublished.providerKey, ReportDefinitionRetired.providerKey
+        contractVersion: String from ReportDefinitionCreated.contractVersion, ReportDefinitionRevised.contractVersion, ReportDefinitionPublished.contractVersion, ReportDefinitionRetired.contractVersion
+        providerFingerprint: String from ReportDefinitionCreated.providerFingerprint, ReportDefinitionRevised.providerFingerprint, ReportDefinitionPublished.providerFingerprint, ReportDefinitionRetired.providerFingerprint
+        contractJson: Text from ReportDefinitionCreated.contractJson, ReportDefinitionRevised.contractJson, ReportDefinitionPublished.contractJson, ReportDefinitionRetired.contractJson
+        revision: Long from ReportDefinitionCreated.revision, ReportDefinitionRevised.revision, ReportDefinitionPublished.revision, ReportDefinitionRetired.revision
+        state: String from ReportDefinitionCreated.state, ReportDefinitionRevised.state, ReportDefinitionPublished.state, ReportDefinitionRetired.state
+        subscribe ReportDefinitionCreated
+        subscribe ReportDefinitionRevised
+        subscribe ReportDefinitionPublished
+        subscribe ReportDefinitionRetired
+        eligible when { ReportDefinition.state == Published }
+      }
+    }
+    slice RequestReportExecution {
+      actor ReportReader
+      startsLifecycle
+      command RequestReportExecution {
+        executionId: UUID id generated technical
+        reportVersionId: UUID from ReportDefinitionCatalog.reportVersionId
+        parametersJson: Text
+      }
+      event ReportExecutionRequested {
+        executionId: UUID id
+        reportVersionId: UUID
+        requestedBy: String
+        revision: Long
+        state: String
+        attempt: Long
+        rowCount: Long
+        fileHash: String?
+        errorCode: String?
+      }
+      state Requested
+    }
+    slice RetryReportExecution {
+      actor ReportReader
+      reactsTo ReportExecutionFailed
+      reactsTo ReportExecutionStarted
+      command RetryReportExecution {
+        executionId: UUID id
+        expectedRevision: Long
+      }
+      event ReportExecutionRetried {
+        executionId: UUID id
+        reportVersionId: UUID
+        requestedBy: String
+        revision: Long
+        state: String
+        attempt: Long
+        rowCount: Long
+        fileHash: String?
+        errorCode: String?
+      }
+      state Requested
+    }
+    slice ReportExecutionStarted {
+      event ReportExecutionStarted {
+        executionId: UUID id
+        reportVersionId: UUID
+        requestedBy: String
+        revision: Long
+        state: String
+        attempt: Long
+        rowCount: Long
+        fileHash: String?
+        errorCode: String?
+      }
+      state Processing
+    }
+    slice ReportExecutionCompleted {
+      event ReportExecutionCompleted {
+        executionId: UUID id
+        reportVersionId: UUID
+        requestedBy: String
+        revision: Long
+        state: String
+        attempt: Long
+        rowCount: Long
+        fileHash: String?
+        errorCode: String?
+      }
+      state Completed
+    }
+    slice ReportExecutionFailed {
+      event ReportExecutionFailed {
+        executionId: UUID id
+        reportVersionId: UUID
+        requestedBy: String
+        revision: Long
+        state: String
+        attempt: Long
+        rowCount: Long
+        fileHash: String?
+        errorCode: String?
+      }
+      state Failed
+    }
+    slice ReportQueryExecuted {
+      event ReportQueryExecuted {
+        operationId: UUID id
+        reportVersionId: UUID
+        executionId: UUID?
+        actorId: String
+      }
+    }
+    slice ReportDownloadAuthorized {
+      event ReportDownloadAuthorized {
+        operationId: UUID id
+        reportVersionId: UUID
+        executionId: UUID?
+        actorId: String
+      }
+    }
+    concept ReportDefinition {
+      state Draft
+      state Published
+      state Retired
+      slice CreateReportDefinition
+      slice ReviseReportDefinition
+      slice PublishReportDefinition
+      slice RetireReportDefinition
+      slice ReportDefinitionCatalog
+    }
+    concept ReportExecution {
+      state Requested
+      state Processing
+      state Completed
+      state Failed
+      slice RequestReportExecution
+      slice RetryReportExecution
+      slice ReportExecutionStarted
+      slice ReportExecutionCompleted
+      slice ReportExecutionFailed
+    }
+  }
+}

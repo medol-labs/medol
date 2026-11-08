@@ -12,6 +12,7 @@ export interface CodegenModel {
   scheduling?: { context: string; targets: Array<{key: string; context: string; command: string; occurrenceField: string; scheduledAtField?: string}> };
   archiving?: { context: string };
   organizationManagement?: { context: string };
+  reporting?: { context: string };
   businessCalendar?: { context: string };
   systemConfiguration?: { context: string };
   documentGeneration?: { context: string };
@@ -626,6 +627,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
     ...(model.capabilityImports?.some(i => i.name === 'OrganizationManagement') ? {organizationManagement: {context: 'OrganizationManagement'}} : {}),
     ...(model.capabilityImports?.some(i => i.name === 'SystemConfiguration') ? {systemConfiguration: {context: 'SystemConfiguration'}} : {}),
     ...(model.capabilityImports?.some(i => i.name === 'BusinessCalendar') ? {businessCalendar: {context: 'BusinessCalendar'}} : {}),
+    ...reportingContract(model),
     ...documentGenerationContract(model),
     ...archivingContract(model),
     ...schedulingContract(model),
@@ -1388,4 +1390,10 @@ function documentGenerationContract(model: EmModel): Pick<CodegenModel, 'documen
     throw new Error('Document generation does not support tenancy yet; tenant-scoped snapshots and downloads require an explicit isolation contract.');
   }
   return {documentGeneration: {context: 'DocumentGeneration'}};
+}
+
+function reportingContract(model: EmModel): Pick<CodegenModel, 'reporting'> {
+  if (!model.capabilityImports?.some(i => i.name === 'Reporting')) return {};
+  if (model.capabilityImports?.some(i => i.name === 'TenantManagement')) throw new Error('Reporting does not support tenancy yet; explicit tenant-scoped execution and artifact isolation are required.');
+  return {reporting: {context: 'Reporting'}};
 }
