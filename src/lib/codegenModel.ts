@@ -10,6 +10,7 @@ import { analyzeFieldLineage, FieldSourceValidationError } from './fieldLineage'
 
 export interface CodegenModel {
   scheduling?: { context: string; targets: Array<{key: string; context: string; command: string; occurrenceField: string; scheduledAtField?: string}> };
+  archiving?: { context: string };
   numbering?: { context: string };
   metadata?: CodegenMetadata;
   tenancy?: TenantCapability;
@@ -616,6 +617,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
         };
       })
     }))),
+    ...archivingContract(model),
     ...schedulingContract(model),
     ...(model.capabilityImports?.some(imported => imported.name === 'Numbering') ? {numbering: {context: 'Numbering'}} : {}),
     ...(model.capabilityImports?.some(imported => imported.name === 'OperationAudit')
@@ -1360,4 +1362,12 @@ function schedulingContract(model: EmModel): Pick<CodegenModel, 'scheduling'> {
     targets.push({key:provider.source,context,command:command.name,occurrenceField:occurrence.name,...(scheduledAtField ? {scheduledAtField} : {})});
   }
   return {scheduling:{context:'Scheduling',targets}};
+}
+
+function archivingContract(model: EmModel): Pick<CodegenModel, 'archiving'> {
+  if (!model.capabilityImports?.some(imported => imported.name === 'Archiving')) return {};
+  if (model.capabilityImports?.some(imported => imported.name === 'TenantManagement')) {
+    throw new Error('Archiving does not support tenancy yet; refusing export to prevent cross-tenant archive collisions.');
+  }
+  return {archiving: {context: 'Archiving'}};
 }

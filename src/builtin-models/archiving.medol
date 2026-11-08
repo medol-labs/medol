@@ -1,0 +1,65 @@
+domain Archiving {
+  access policy ArchivingPlatformAccess {}
+  default access ArchivingPlatformAccess
+  context Archiving {
+    note "Requested means queued only. Runtime execution tables and APIs own completion. Business adapters and projection replay registry guards are mandatory; events are retained."
+    slice RequestArchiveBatch {
+      actor ArchivingAdministrator
+      startsLifecycle
+      command RequestArchiveBatch {
+        batchId: UUID id generated technical
+        targetKey: String
+        cutoffAt: DateTime
+        batchSize: Int
+      }
+      event ArchiveBatchRequested {
+        batchId: UUID id
+        targetKey: String
+        cutoffAt: DateTime
+        batchSize: Int
+      }
+      state Requested
+    }
+    slice ArchiveBatchCatalog {
+      actor ArchivingAdministrator
+      readmodel ArchiveBatchCatalog[] {
+        batchId: UUID id from ArchiveBatchRequested.batchId
+        targetKey: String from ArchiveBatchRequested.targetKey
+        cutoffAt: DateTime from ArchiveBatchRequested.cutoffAt
+        batchSize: Int from ArchiveBatchRequested.batchSize
+        subscribe ArchiveBatchRequested
+      }
+    }
+    concept ArchiveBatch {
+      state Requested
+      slice RequestArchiveBatch
+      slice ArchiveBatchCatalog
+    }
+    slice RequestArchiveRestore {
+      actor ArchivingAdministrator
+      startsLifecycle
+      command RequestArchiveRestore {
+        restoreId: UUID id generated technical
+        archiveId: UUID
+      }
+      event ArchiveRestoreRequested {
+        restoreId: UUID id
+        archiveId: UUID
+      }
+      state Requested
+    }
+    slice ArchiveRestoreCatalog {
+      actor ArchivingAdministrator
+      readmodel ArchiveRestoreCatalog[] {
+        restoreId: UUID id from ArchiveRestoreRequested.restoreId
+        archiveId: UUID from ArchiveRestoreRequested.archiveId
+        subscribe ArchiveRestoreRequested
+      }
+    }
+    concept ArchiveRestore {
+      state Requested
+      slice RequestArchiveRestore
+      slice ArchiveRestoreCatalog
+    }
+  }
+}
