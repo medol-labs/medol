@@ -886,6 +886,8 @@ context RuntimeProvisioning {
   }
 
   slice RegisterRuntimeInfrastructure {
+    // MANUAL_GUIDED permits deployment before registration: inject registered identity and credentials afterwards.
+    // Do not deploy from the platform in this mode. Registration still references an installation plan.
     actor RuntimeInstaller
     reactsTo RuntimeInfrastructurePlanned
 
@@ -8269,7 +8271,7 @@ context RuntimeAgentOperations {
 
     specification "Runtime Agent Startup Bootstrap Configuration" {
       rule """
-        Runtime agent startup begins by loading bootstrap configuration from environment variables, mounted files, or platform-issued startup material. The configuration must provide the stable runtimeAgentId generated when RuntimeInfrastructure was registered, the matching runtimeInfrastructureId, the agent version, and the endpoint the platform can use to call this runtime agent. A successful load starts the runtime-agent lifecycle; a missing or invalid configuration records a bootstrap failure and must not create a new random runtimeAgentId.
+        A runtime agent may be deployed before platform registration. Without complete identity and connection configuration it remains in the operational WAITING_FOR_CONFIGURATION mode: the process and health checks remain available, but business requests are rejected and no automatic bootstrap command is dispatched. This is not a domain lifecycle event because no registered runtime identity exists yet. After platform registration, operators inject the stable runtimeAgentId, matching runtimeInfrastructureId, agent version, platform URL and credential, reachable runtimeAgentEndpoint and endpointScope, then restart. They explicitly invoke LoadRuntimeAgentBootstrapConfiguration through the authenticated API to continue the existing startup, self-check and connection reporting flow. A successful load starts the runtime-agent lifecycle; an explicitly executed invalid load records a bootstrap failure and must not create a random runtimeAgentId. Configuration completeness does not prove platform authorization or connectivity. Reuse the same registered identity on restart; never reuse another agent's event store.
       """
 
       scenario "Load Runtime Agent Bootstrap Configuration" {

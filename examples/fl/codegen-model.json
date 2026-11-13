@@ -3,7 +3,7 @@
     "schemaVersion": 1,
     "medolVersion": "0.1.0",
     "source": {
-      "sha256": "45ce3c39729de070fe75656ab6a59dfdcd2fa8394e212463dce0be4bc9e8d191"
+      "sha256": "1ae1a6e903a6676221858415e7a470e3e52d249b9127ad08214fc8a04d96b3df"
     }
   },
   "rootPackage": "tech.medo",
@@ -98157,7 +98157,7 @@
           "sliceName": "Load Runtime Agent Bootstrap Configuration",
           "title": "Load Runtime Agent Bootstrap Configuration",
           "specification": "Runtime Agent Startup Bootstrap Configuration",
-          "rule": "Runtime agent startup begins by loading bootstrap configuration from environment variables, mounted files, or platform-issued startup material. The configuration must provide the stable runtimeAgentId generated when RuntimeInfrastructure was registered, the matching runtimeInfrastructureId, the agent version, and the endpoint the platform can use to call this runtime agent. A successful load starts the runtime-agent lifecycle; a missing or invalid configuration records a bootstrap failure and must not create a new random runtimeAgentId.",
+          "rule": "A runtime agent may be deployed before platform registration. Without complete identity and connection configuration it remains in the operational WAITING_FOR_CONFIGURATION mode: the process and health checks remain available, but business requests are rejected and no automatic bootstrap command is dispatched. This is not a domain lifecycle event because no registered runtime identity exists yet. After platform registration, operators inject the stable runtimeAgentId, matching runtimeInfrastructureId, agent version, platform URL and credential, reachable runtimeAgentEndpoint and endpointScope, then restart. They explicitly invoke LoadRuntimeAgentBootstrapConfiguration through the authenticated API to continue the existing startup, self-check and connection reporting flow. A successful load starts the runtime-agent lifecycle; an explicitly executed invalid load records a bootstrap failure and must not create a random runtimeAgentId. Configuration completeness does not prove platform authorization or connectivity. Reuse the same registered identity on restart; never reuse another agent's event store.",
           "expressions": [],
           "validates": [],
           "given": [],
@@ -98207,7 +98207,7 @@
           "sliceName": "Load Runtime Agent Bootstrap Configuration",
           "title": "Reject Missing Runtime Agent Bootstrap Configuration",
           "specification": "Runtime Agent Startup Bootstrap Configuration",
-          "rule": "Runtime agent startup begins by loading bootstrap configuration from environment variables, mounted files, or platform-issued startup material. The configuration must provide the stable runtimeAgentId generated when RuntimeInfrastructure was registered, the matching runtimeInfrastructureId, the agent version, and the endpoint the platform can use to call this runtime agent. A successful load starts the runtime-agent lifecycle; a missing or invalid configuration records a bootstrap failure and must not create a new random runtimeAgentId.",
+          "rule": "A runtime agent may be deployed before platform registration. Without complete identity and connection configuration it remains in the operational WAITING_FOR_CONFIGURATION mode: the process and health checks remain available, but business requests are rejected and no automatic bootstrap command is dispatched. This is not a domain lifecycle event because no registered runtime identity exists yet. After platform registration, operators inject the stable runtimeAgentId, matching runtimeInfrastructureId, agent version, platform URL and credential, reachable runtimeAgentEndpoint and endpointScope, then restart. They explicitly invoke LoadRuntimeAgentBootstrapConfiguration through the authenticated API to continue the existing startup, self-check and connection reporting flow. A successful load starts the runtime-agent lifecycle; an explicitly executed invalid load records a bootstrap failure and must not create a random runtimeAgentId. Configuration completeness does not prove platform authorization or connectivity. Reuse the same registered identity on restart; never reuse another agent's event store.",
           "expressions": [],
           "validates": [],
           "given": [],
