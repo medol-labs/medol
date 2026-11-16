@@ -857,10 +857,11 @@ const buildTransitions = (model: EmModel): CodegenTransition[] => {
           const sameOwner = (ownersBySliceId.get(source?.id ?? '') ?? []).some(candidate => candidate.id === owner.id);
           return sameOwner && (!source?.resultingState || source.elements.find(element => element.kind === 'event')?.id !== item.id);
         })) continue;
-        const fromStates = slice.startsLifecycle ? [] : [...new Set(triggers.flatMap((item) => {
-          const inferred = inferTransitionFromState(owner, item, eventToSlice, ownersBySliceId);
-          return 'from' in inferred ? [inferred.from] : [];
-        }))];
+        const inferredSources = triggers.map(item => inferTransitionFromState(owner, item, eventToSlice, ownersBySliceId));
+        // Alternative reactions must all constrain this owner before a shared
+        // command guard is safe. An external concept's event is not its state.
+        const fromStates = slice.startsLifecycle || inferredSources.some(source => !('from' in source))
+          ? [] : [...new Set(inferredSources.flatMap(source => 'from' in source ? [source.from] : []))];
         if (!slice.resultingState && (!command || fromStates.length === 0)) continue;
         transitions.push({
           id: stableId('transition', `${owner.id}/${slice.id}`),

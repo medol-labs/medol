@@ -9,6 +9,37 @@ function builtin(name: string) {
   return modelToCodegenModel(model);
 }
 
+test('alternative external reactions do not inherit a partial local lifecycle guard', () => {
+  const parsed = parseMedol(`context Example {
+    slice Start {
+      startsLifecycle
+      command Start { id: UUID id }
+      event Started { id: UUID id }
+      state Ready
+    }
+    slice External {
+      startsLifecycle
+      command External { id: UUID id }
+      event ExternallyCompleted { id: UUID id }
+      state Completed
+    }
+    slice Finish {
+      reactsTo Started
+      reactsTo ExternallyCompleted
+      command Finish { id: UUID id }
+      event Finished { id: UUID id }
+      state Finished
+    }
+    concept Work { state Ready state Finished slice Start slice Finish }
+    concept Other { state Completed slice External }
+  }`);
+  assert.deepEqual(parsed.diagnostics, []);
+  const transition = modelToCodegenModel(parsed).transitions.find(t => t.command?.name === 'Finish');
+  assert.equal(transition?.to, 'Finished');
+  assert.equal(transition?.from, undefined);
+  assert.equal(transition?.fromStates, undefined);
+});
+
 test('account role assignment preserves lifecycle and only active accounts are selectable', () => {
   const model = builtin('identity-access-management');
   const transitions = model.transitions;

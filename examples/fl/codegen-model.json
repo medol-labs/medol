@@ -6292,7 +6292,6 @@
           "title": "Plain Model Aggregation Completed"
         }
       ],
-      "from": "Completed",
       "to": "EvaluatingGlobalModel",
       "startsLifecycle": false
     },

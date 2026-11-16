@@ -14,6 +14,12 @@ const failures = [
   ['RetryRoundExecutionAfterRuntimeFailure', 'RoundExecutionRuntimeRetryFailed', 'Failed']
 ];
 
+test('secure and plain aggregation completion do not require an already completed round', () => {
+  const transition = codegen.transitions.find(t => t.command?.name === 'CompleteModelAggregation');
+  assert.equal(transition?.to, 'EvaluatingGlobalModel');
+  assert.equal(transition?.from, undefined);
+});
+
 test('Federation failure outcomes have explicit states and remain command outputs', () => {
   assert.deepEqual(model.diagnostics, []);
   for (const [commandName, eventName, state] of failures) {
