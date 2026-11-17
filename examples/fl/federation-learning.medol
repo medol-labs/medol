@@ -4626,6 +4626,7 @@ context TrainingOrchestration {
 
     event TrainingRoundCompleted {
       trainingJobId: UUID id technical
+      federationId: UUID
       trainingRunConfigurationId: UUID
       trainingJobObjective: String
       featureSchemaId: UUID
@@ -4648,9 +4649,15 @@ context TrainingOrchestration {
     specification "Training Round Completion Requires Global Evaluation" {
       rule """
         A training round can be completed only after the aggregated global model has been evaluated.
+        The completed event retains federationId from the TrainingRound state so the next round selects participants from the same federation.
       """
 
       scenario "Complete Round After Global Evaluation" {
+        given TrainingRoundParticipantsSelected {
+          trainingJobId = "job-1"
+          roundId = "round-1"
+          federationId = "federation-1"
+        }
         given GlobalModelEvaluationSubmitted {
           trainingJobId = "job-1"
           trainingRunConfigurationId = "config-1"
