@@ -245,6 +245,16 @@
 也就是同一 aggregate 里的主要 command/event 应该大致围绕同一主键：
 
 
+## 内置能力扩展方向（2026-11-17）
+
+- [ ] 外部接口对接管理：外部系统、操作契约、连接测试、调用/回调记录与补偿。
+- [ ] 系统问题反馈与工单：提报、分派、处理、确认关闭和重新打开。
+- [ ] 打印：复用报表和文档生成，补模板设计、批量任务及按需设备投递。
+- [ ] 系统知识与 Agent：自动维护 MEDOL 业务/能力知识，支持人工补充、运行经验积累、授权问答和受控操作。
+- [ ] **Medol AI-Native Business Application**：为生成的业务系统集成 AI Capability Generator、Agent Runtime 和 Human-Agent Collaboration，使 AI 理解业务语义、感知页面与业务状态，并通过自然语言完成多步骤业务任务；后续支持 A2UI、WebMCP 和 Browser Agent。目标是让系统不仅可供用户操作，也能被 AI 理解、操作和协同使用。
+
+详细边界、生成与运行时职责、实施阶段统一维护在 [内置上下文 TODO：候选能力](docs/builtin-contexts/TODO.md#候选内置能力2026-11-17)。以上为待设计/实现项，不代表已提供对应 import 或运行能力。
+
 ## mind
 
 - 建模人工参与 ai 辅助，生成器具体实现等注册为 skill tool 等，借助 ai 进一步实现更自动化、智能化的代码生成。生成后 ai 逐 slice 进行完善。
