@@ -1,3 +1,4 @@
+import {resolveAgentAssistance, type AgentAssistanceContract} from './agentAssistance';
 import type { EmCapabilityProvider, EmDictionaryProvider, EmElement, EmField, EmModel, EmSlice } from './model';
 import { allContextSlices } from './dslParser';
 import { humanize } from './name';
@@ -9,6 +10,7 @@ import { reactionDiagnostics } from './reactionSemantics';
 import { analyzeFieldLineage, FieldSourceValidationError } from './fieldLineage';
 
 export interface CodegenModel {
+  agentAssistance?: AgentAssistanceContract;
   scheduling?: { context: string; targets: Array<{key: string; context: string; command: string; occurrenceField: string; scheduledAtField?: string}> };
   archiving?: { context: string };
   organizationManagement?: { context: string };
@@ -406,6 +408,7 @@ export interface CodegenSpecificationReject {
 }
 
 export const modelToCodegenModel = (model: EmModel): CodegenModel => {
+  const agentAssistance = resolveAgentAssistance(model);
   validateNumbering(model);
   if (model.capabilityImports?.some(i => i.name === 'BusinessCalendar') && model.capabilityImports?.some(i => i.name === 'TenantManagement')) throw new Error('Business calendar does not support tenancy yet.');
   if (model.capabilityImports?.some(i => i.name === 'OrganizationManagement') && model.capabilityImports?.some(i => i.name === 'TenantManagement')) throw new Error('Organization management does not support tenancy yet.');
@@ -627,6 +630,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
     ...(model.capabilityImports?.some(i => i.name === 'OrganizationManagement') ? {organizationManagement: {context: 'OrganizationManagement'}} : {}),
     ...(model.capabilityImports?.some(i => i.name === 'SystemConfiguration') ? {systemConfiguration: {context: 'SystemConfiguration'}} : {}),
     ...(model.capabilityImports?.some(i => i.name === 'BusinessCalendar') ? {businessCalendar: {context: 'BusinessCalendar'}} : {}),
+    ...(agentAssistance ? {agentAssistance} : {}),
     ...reportingContract(model),
     ...documentGenerationContract(model),
     ...archivingContract(model),

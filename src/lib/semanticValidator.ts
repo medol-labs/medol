@@ -45,6 +45,7 @@ import type {
 } from './model';
 import { resolveTenantCapability } from './tenantCapability';
 import { reactionDiagnostics } from './reactionSemantics';
+import { resolveAgentAssistance } from './agentAssistance';
 
 const builtinTypes = new Set([
   'Any',
@@ -123,6 +124,11 @@ export const validateSemanticModel = (ast: AstModel, model: EmModel): string[] =
   validateDuplicateNames(astContexts.map((context) => context.name), 'context', 'model', diagnostics);
   validateAccessPolicies(ast, model, diagnostics);
   diagnostics.push(...resolveTenantCapability(model).diagnostics);
+  try {
+    resolveAgentAssistance(model);
+  } catch (error) {
+    diagnostics.push(`AgentAssistance: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   astContexts.forEach((astContext, index) => {
     const context = model.contexts[index];
