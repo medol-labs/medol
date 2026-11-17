@@ -1,0 +1,5 @@
+domain AgentAssistance {
+  context AgentAssistance {
+    note "Assistant capability boundaries are explicitly declared with extend providers. Import alone exposes no commands or queries. Business authorization remains authoritative."
+  }
+}
