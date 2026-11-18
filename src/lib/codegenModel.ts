@@ -221,6 +221,7 @@ export interface CodegenAggregateRef {
 }
 
 export interface CodegenElement {
+  projectionExtension?: { capability: 'system-notification'; role: 'catalog' | 'summary'; batchEventId: string };
   id: string;
   name: string;
   title: string;
@@ -505,6 +506,17 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           contextItem.concepts.filter((concept) => concept.sliceIds.includes(slice.id)).map((concept) => concept.name),
           defaultAccessPolicyByContextId.get(contextItem.id) ?? model.defaultAccessPolicy
       ));
+    }
+  }
+
+  // Bind the built-in implementation only for explicit imports (including aliases).
+  if (model.capabilityImports?.some(i => i.name === 'SystemNotification')) {
+    const notification = slices.filter(s => s.context === 'SystemNotification');
+    const event = notification.flatMap(s => s.events).find(e => e.name === 'AllSystemNotificationsRead');
+    if (event) for (const rm of notification.flatMap(s => s.readmodels)) {
+      const role = rm.name === 'SystemNotificationCatalog' ? 'catalog'
+        : rm.name === 'SystemNotificationSummary' ? 'summary' : undefined;
+      if (role) rm.projectionExtension = {capability: 'system-notification', role, batchEventId: event.id};
     }
   }
 

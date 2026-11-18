@@ -92,6 +92,10 @@ test('data exchange has explicit guards for each job phase and independent alias
 test('batch notification acknowledgement does not guard a notification by recipient id', () => {
   const model = builtin('system-notification');
   const batch = model.slices.find(s => s.name === 'MarkAllSystemNotificationsRead')!;
+  const catalog = model.slices.flatMap(s => s.readmodels).find(r => r.name === 'SystemNotificationCatalog')!;
+  assert.deepEqual(catalog.projectionExtension, {capability: 'system-notification', role: 'catalog', batchEventId: batch.events[0].id});
+  const ordinary = modelToCodegenModel(parseMedol('context SystemNotification { slice Catalog { readmodel SystemNotificationCatalog[] { notificationId: UUID id } } }'));
+  assert.equal(ordinary.slices[0].readmodels[0].projectionExtension, undefined);
   assert.deepEqual(batch.concepts, ['RecipientNotificationAcknowledgement']);
   assert(!batch.commands[0].dependencies.some(d => d.direction === 'INBOUND'));
   assert(!model.valueTypes.find(t => t.name === 'NotificationCategory')?.values?.includes('TRAINING'));
