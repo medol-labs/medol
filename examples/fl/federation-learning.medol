@@ -4593,7 +4593,14 @@ context TrainingOrchestration {
       modelArtifactDigest: String
       aggregatedModelSignatureUri: String?
       globalAccuracy: Decimal portOutput
-      globalFairnessScore: Decimal portOutput
+      globalFairnessScore: Decimal? portOutput
+      validationDatasetVersion: String? portOutput
+      validationDatasetDigest: String? portOutput
+      evaluatedSampleCount: Int? portOutput
+      truePositiveCount: Int? portOutput
+      trueNegativeCount: Int? portOutput
+      falsePositiveCount: Int? portOutput
+      falseNegativeCount: Int? portOutput
     }
   }
 
@@ -4800,6 +4807,13 @@ context TrainingOrchestration {
       aggregatedModelId: UUID?
       globalAccuracy: Decimal?
       globalFairnessScore: Decimal?
+      validationDatasetVersion: String?
+      validationDatasetDigest: String?
+      evaluatedSampleCount: Int?
+      truePositiveCount: Int?
+      trueNegativeCount: Int?
+      falsePositiveCount: Int?
+      falseNegativeCount: Int?
       failureReason: String?
       subscribe TrainingJobCreated
       subscribe FeatureSchemaDefined
