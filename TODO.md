@@ -270,6 +270,8 @@
 
 ### 业务旅程验收
 
+跨仓库设计统一维护在 [Simulation 业务旅程验收设计](../code-generator/docs/simulation-journey-design.md)。
+
 - [ ] **QUALITY-JOURNEY-01**：在 slice spec 之外设计跨 slice 旅程场景，描述用户目标、前置数据、关键事实、最终结果和业务不变量；避免绑定每一步内部实现或精确执行时序。
 - [ ] **QUALITY-JOURNEY-02**：覆盖正常完成、无可用资源后恢复、下游不可用、结果未知、重复事件、投影延迟、进程重启、取消和人工重试。验证用户能感知状态并采取下一步操作。
 - [ ] **QUALITY-JOURNEY-03**：业务预期需独立确认，不完全从被测生成逻辑推导；防止生成器与自动生成测试共同复制同一错误。先选一条真实业务旅程，将历史故障固化为可重复执行的回归场景，再提炼通用能力。
@@ -277,7 +279,7 @@
 - [ ] **QUALITY-JOURNEY-05**：在 Medol 工作区导航中提供与建模编辑器并列的「旅程验收」独立入口和页面，不复用建模编辑区或画布。页面提供用例列表、编辑、参数组和执行记录；可选择模型版本、只读引用模型元素，并按需跳回相关 slice。用例通过 Given / When / Then 分组编写，作为工作区制品随模型版本管理，不写进业务 `.medol` 源码，不修改既有 slice spec 语义，不新增 DSL，也不要求作者手写脚本或执行计划。
 - [ ] **QUALITY-JOURNEY-06**：结合 [Tosca 模块化步骤](https://docs.tricentis.com/tosca-cloud/en-us/content/create_tests/design_modules.htm)、[FitNesse 查询预期表](https://fitnesse.org/FitNesse/UserGuide/WritingAcceptanceTests/SliM.html) 和[数据驱动用例](https://robotframework.org/RobotDemo/)：从模型选择 command、readmodel 和字段，用类型化绑定引用前序输出；在预期表配置记录定位、数量和跨记录字段比较；同一验收规则复用不同参数组，预期不同则另写用例。业务预期由人工声明，不从被测模型推导。
 - [ ] **QUALITY-JOURNEY-07**：校验用例引用的模型元素、字段、参数类型及断言所需的可观察性，定位到对应步骤和 slice。生成 Simulation 时，将同版模型和用例结合目标生成器的接口契约，转换为现有执行计划。记录源用例 ID 和模型版本；模型校验通过不等于运行验收通过。Simulation 可补充手工特殊用例，通过模型元素 ID 关联覆盖范围，标明来源，重新生成不覆盖。
-- [ ] **QUALITY-JOURNEY-08**：以两轮训练为首个端到端验收：在 Medol 界面定位平台第一轮聚合记录和每个参与方的第二轮有效执行记录，断言两侧模型 ID 非空且 `RoundExecutionCatalog.baseModelId` 等于 `TrainingRoundProgress.aggregatedModelId`。先验证 2 节点参数组，再用同一预期复用 20 节点参数组；错误模型反例须定位节点、轮次、实际与预期 ID。执行和报告细节见 Simulation TODO。
+- [ ] **QUALITY-JOURNEY-08**：以两轮训练为首个端到端验收：在 Medol 界面定位平台第一轮聚合记录和每个参与方的第二轮有效执行记录，断言两侧模型 ID 非空且 `RoundExecutionCatalog.baseModelId` 等于 `TrainingRoundProgress.aggregatedModelId`。参与方数量由参数组提供。错误模型反例须定位参与方、轮次、实际与预期 ID。执行和报告细节见 Simulation TODO。
 - [ ] **QUALITY-JOURNEY-09**：在「旅程验收」独立页面支持从选定模型版本同步候选用例，人工不必从空表开始。不从测试代码或脚本反推：仅基于模型显式声明的命令、事件、自动化关系、字段映射和已有 slice spec，带入可确定的操作、输入绑定及候选观察点；自动化命令由被测系统执行，不生成额外调用。需要真实准备数据、跨 slice 验收预期、跨记录断言或等待期限时，明确标为待补充，不把 Given 历史事件当作造数步骤。草稿保留来源元素 ID 和模型版本，经人工补齐并审核后才能生成执行计划；再次同步时展示变更与失效引用，不覆盖人工维护的步骤和预期。
 - [ ] **QUALITY-JOURNEY-10**：人工通过界面，AI 通过授权工具，均可查找、选择和调用同一个已审核用例。调用时指定用例版本、参数组和目标环境，复用统一校验、权限、执行和报告；有副作用的用例按环境策略确认。AI 可以提议创建或调整草稿，但不能绕过审核、临时改变断言，或把自行生成的脚本当作已审核用例运行。
 
