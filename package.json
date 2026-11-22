@@ -18,7 +18,7 @@
     "test:specification": "node --import tsx --test src/lib/specificationCoverage.test.ts",
     "test:agent": "node --import tsx --test src/features/agent-chat/dslOperationTools.test.ts",
     "test:search": "node --import tsx --test src/features/model-search/modelSearch.test.ts",
-    "test:documentation": "node --import tsx --test src/features/documentation/documentationTranslation.test.ts",
+    "test:documentation": "node --import tsx --test src/features/documentation/documentationTranslation.test.ts src/lib/generators/documentation/gbt8567.test.ts",
     "test:model-translations": "node --import tsx --test src/server/modelTranslationRepository.test.ts src/server/modelTranslationResolver.test.ts",
     "test:workspace": "node --import tsx --test src/server/modelingWorkspaceRepository.test.ts",
     "test:workspace-archive": "node --import tsx --test src/server/workspaceArchive.test.ts",
@@ -37,7 +37,7 @@
     "dsl:to-codegen-model": "npm run medol:to-codegen-model --",
     "dsl:to-model": "npm run medol:to-model --",
     "prd:generate": "tsx src/lib/generators/prd/prdCli.ts",
-    "docs:generate": "tsx src/lib/generators/documentation/documentationCli.ts"
+    "docs:generate": "node --import tsx src/lib/generators/documentation/documentationCli.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",

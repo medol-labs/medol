@@ -516,6 +516,8 @@ Generate all document types:
 npm run docs:generate -- examples/fl/federation-learning.medol --kind=all
 ```
 
+For a Chinese SRS, SDD, DBDD and STD package with shared traceability, use the [GB/T 8567 documentation profile](docs/gbt-8567-documentation.md).
+
 Use `--json` to inspect the normalized documentation bundle together with the rendered Markdown. In the web toolkit, choose a document action and confirm it to save and open the result in Documents preview. For Simplified Chinese output in a workspace, run `Translate model` first; generated documents then read the stored model terminology before the deterministic document templates run. Identifiers remain traceable to their MEDOL source, and missing information is presented as notes or open questions rather than invented facts.
 
 The server endpoint is:

@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { parseMedolFile } from '../../medolProject';
 import { translateDocumentationModelWithModelTranslations } from '../../../features/documentation/documentationTranslation';
 import type { ModelTranslations } from '../../../features/model-i18n/modelTranslation';
@@ -9,6 +10,8 @@ import {
   generateDocumentationBundle
 } from './documentationGenerator';
 import type { DocumentationKind, DocumentationLanguage } from './documentationModel';
+import { generateGbt8567Documents, GBT8567_PROFILE, gbt8567Kinds, type Gbt8567Kind } from './gbt8567';
+import { generateGbt8567Srs, gbt8567SrsSchema } from './gbt8567Srs';
 
 function parseKind(value?: string): DocumentationKind | 'all' {
   if (
@@ -36,6 +39,10 @@ const translationsArgument = args.find((arg) => arg.startsWith('--translations='
 const outputJson = args.includes('--json');
 const enhanceWithAi = args.includes('--enhance-with-ai');
 const outputPath = args.find((arg) => arg.startsWith('--out='))?.slice('--out='.length);
+const argument = (name: string) => args.find(arg => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
+const profile = argument('profile');
+const materialsPath = argument('materials');
+const outputDirectory = argument('out-dir');
 if (enhanceWithAi) {
   const envPath = join(process.cwd(), '.env');
   if (existsSync(envPath)) process.loadEnvFile(envPath);
@@ -44,7 +51,11 @@ const language: DocumentationLanguage = languageArgument === 'zh-CN' || language
   ? 'zh-CN'
   : 'en';
 
-if (!input) {
+if (profile !== undefined) {
+  await runProfile();
+} else if (materialsPath !== undefined || outputDirectory !== undefined || gbt8567Kinds.includes(kindArgument as Gbt8567Kind)) {
+  throw new Error(`GB/T document options require --profile=${GBT8567_PROFILE}`);
+} else if (!input) {
   console.error('Usage: npm run docs:generate -- ./model.medol [--kind=prd|software-design|database-design|process|test-outline|user-journey|diagrams|installation-manual|user-manual|all] [--language=en|zh-CN] [--translations=path/to/model-translations.zh-CN.json] [--json] [--enhance-with-ai] [--out=path]');
   process.exitCode = 1;
 } else {
@@ -87,6 +98,90 @@ if (!input) {
     console.error(`Wrote ${outputPath}`);
   } else {
     console.log(output);
+  }
+}
+
+async function runProfile() {
+  if (profile !== GBT8567_PROFILE) throw new Error(`Unknown documentation profile: ${profile}`);
+  if (!input || !materialsPath) throw new Error(`Usage: docs:generate -- model.medol --profile=${GBT8567_PROFILE} --materials=materials.json [--kind=srs|sdd|dbdd|std|all] [--out-dir=path]`);
+  if (languageArgument && !['zh-CN', 'zh'].includes(languageArgument)) throw new Error('This profile currently supports zh-CN only');
+  if (enhanceWithAi || translationsArgument) throw new Error('The GB/T profile uses reviewed project materials and original model identifiers');
+  const selected = kindArgument ?? 'all';
+  if (selected !== 'all' && !gbt8567Kinds.includes(selected as Gbt8567Kind)) throw new Error(`Unsupported GB/T document kind: ${selected}`);
+  if (outputDirectory !== undefined && (!outputDirectory || outputPath !== undefined || outputJson || selected !== 'all')) {
+    throw new Error('--out-dir emits the full GB/T package and cannot be combined with --out, --json or a single kind');
+  }
+
+  const materialsText = readFileSync(materialsPath, 'utf8');
+  const materials: unknown = JSON.parse(materialsText);
+  const sha256 = (data: string | Buffer) => createHash('sha256').update(data).digest('hex');
+  if (materials && typeof materials === 'object' && 'documentKind' in materials) {
+    if ((kindArgument && selected !== 'srs') || outputDirectory !== undefined) {
+      throw new Error('Standalone SRS materials support --kind=srs with --out or standard output');
+    }
+    const spec = gbt8567SrsSchema.parse(materials);
+    const approvedCases = new Map<string, ReadonlySet<string>>();
+    const sources = spec.sources.map(source => {
+      const path = resolve(dirname(materialsPath), source.path);
+      const bytes = readFileSync(path);
+      if (source.kind === 'model' && realpathSync(path) !== realpathSync(input)) {
+        throw new Error(`${source.id}: documented primary model must match the CLI input`);
+      }
+      if (source.kind === 'approved-cases') {
+        const registry = JSON.parse(bytes.toString('utf8')) as { cases?: Array<{ id?: string; status?: string }> };
+        if (!Array.isArray(registry.cases)) throw new Error(`${source.id}: missing cases registry`);
+        approvedCases.set(source.id, new Set(registry.cases.flatMap(item =>
+          typeof item.id === 'string' && item.status === 'approved' ? [item.id] : [])));
+      }
+      return { ...source, sha256: sha256(bytes) };
+    });
+    const document = generateGbt8567Srs(parseMedolFile(input), spec, approvedCases);
+    const output = outputJson ? JSON.stringify({
+      profile, ...document, sources, materialsSha256: sha256(materialsText),
+      documentSha256: sha256(document.markdown),
+    }, null, 2) + '\n' : document.markdown;
+    if (outputPath) {
+      mkdirSync(dirname(outputPath), { recursive: true });
+      writeFileSync(outputPath, output, 'utf8');
+    } else {
+      process.stdout.write(output);
+    }
+    return;
+  }
+  const result = generateGbt8567Documents(parseMedolFile(input), materials);
+  const sources = result.sources.map(source => {
+    const path = resolve(dirname(materialsPath), source.path);
+    if (!existsSync(path) || !statSync(path).isFile()) throw new Error(`${source.id}: source is not a file: ${source.path}`);
+    return { ...source, sha256: sha256(readFileSync(path)) };
+  });
+  const { documents, sources: _sources, ...trace } = result;
+  const manifest = {
+    schemaVersion: 1,
+    ...trace,
+    sources,
+    materialsSha256: sha256(materialsText),
+    modelFileSha256: sha256(readFileSync(input)),
+    documents: Object.values(documents).map(({ kind, title, clause, markdown }) => ({
+      kind, title, clause, file: `${kind}.md`, sha256: sha256(markdown),
+    })),
+  };
+  if (outputDirectory) {
+    mkdirSync(outputDirectory, { recursive: true });
+    for (const document of Object.values(documents)) {
+      writeFileSync(join(outputDirectory, `${document.kind}.md`), document.markdown, 'utf8');
+    }
+    writeFileSync(join(outputDirectory, 'traceability.json'), JSON.stringify(manifest, null, 2) + '\n', 'utf8');
+    console.error(`Wrote SRS, SDD, DBDD, STD and traceability.json to ${outputDirectory}`);
+    return;
+  }
+  const output = selected === 'all'
+    ? outputJson ? JSON.stringify({ ...manifest, documents }, null, 2) : Object.values(documents).map(doc => doc.markdown.trimEnd()).join('\n\n---\n\n')
+    : outputJson ? JSON.stringify(documents[selected as Gbt8567Kind], null, 2) : documents[selected as Gbt8567Kind].markdown;
+  if (outputPath) {
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, output.trimEnd() + '\n', 'utf8');
+  } else {
+    console.log(output.trimEnd());
   }
 }
 
