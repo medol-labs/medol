@@ -3,6 +3,7 @@ import { MedolGeneratedModule, MedolGeneratedSharedModule } from '../language/ge
 import {
   isActorRef,
   isAccessFieldRule,
+  isAccessScopeRule,
   isAutomation,
   isCommandStep,
   isAutomationCapabilityUse,
@@ -561,6 +562,8 @@ const parseAccessPolicy = (node: AstAccessPolicy, domainName?: string): EmAccess
         fields: rule.targets.map(formatFieldSource)
       };
     }
+    if (isAccessScopeRule(rule)) return { kind: 'scope' as const, field: rule.field, source: formatFieldSource(rule.source),
+      ...(rule.subjectField ? { subjectField: rule.subjectField, subjectSource: formatFieldSource(rule.subjectSource!) } : {}) };
     return { kind: 'fields' as const, fields: [] };
   })
 });
@@ -1073,7 +1076,12 @@ const parseElement = (
         source: formatFieldSource(filter.source)
       }))
     } : {}),
-    ...(isReadModel(node) && node.accesses.length === 1 ? { accessPolicy: safeName(node.accesses[0].policy, 'UnnamedAccessPolicy') } : {}),
+    ...(isReadModel(node) && node.accesses.length === 1 ? {
+      ...(node.accesses[0].policy ? { accessPolicy: node.accesses[0].policy } : {}),
+      ...(node.accesses[0].bindings.length ? { accessBindings: Object.fromEntries(node.accesses[0].bindings.map(b => [b.field, b.target])) } : {}),
+      ...(node.accesses[0].rules.length ? { accessRules: node.accesses[0].rules.map(r => ({ kind: 'scope' as const, field: r.field, source: formatFieldSource(r.source),
+        ...(r.subjectField ? { subjectField: r.subjectField, subjectSource: formatFieldSource(r.subjectSource!) } : {}) })) } : {})
+    } : {}),
     ...(isReadModel(node) && node.eligibility.length ? { eligibility: node.eligibility.map(parseEligibility) } : {}),
     sliceId: scopeId.includes('/slice/') ? scopeId : undefined,
     metadata: parseElementMetadata(node),

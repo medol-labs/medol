@@ -54,6 +54,8 @@ interface ConfigElement {
   listElement?: boolean;
   todo?: boolean;
   accessPolicy?: string;
+  accessBindings?: Record<string, string>;
+  accessRules?: import('./model').EmAccessScopeRule[];
   accessPolicyInherited?: boolean;
   eligibility?: CodegenElement['eligibility'];
   metadata?: Record<string, string>;
@@ -164,6 +166,7 @@ export interface ConfigRoot {
   }>;
   transitions: CodegenModel['transitions'];
   domain?: string;
+  dataAccess?: CodegenModel['dataAccess'];
   accessPolicies?: CodegenModel['accessPolicies'];
   defaultAccessPolicy?: string;
   context: string;
@@ -195,6 +198,7 @@ export const codegenModelToConfig = (model: CodegenModel): ConfigRoot => ({
   concepts: model.concepts,
   transitions: model.transitions,
   ...(model.domain ? { domain: model.domain } : {}),
+  ...(model.dataAccess ? { dataAccess: model.dataAccess } : {}),
   ...(model.accessPolicies?.length ? { accessPolicies: model.accessPolicies } : {}),
   ...(model.defaultAccessPolicy ? { defaultAccessPolicy: model.defaultAccessPolicy } : {}),
   context: getPrimaryContextName(model),
@@ -252,6 +256,8 @@ const toConfigElement = (element: CodegenElement): ConfigElement => ({
   aggregate: element.aggregate?.name,
   ...(element.type === 'READMODEL' && element.listElement ? { listElement: true } : {}),
   ...(element.type === 'READMODEL' && element.todo ? { todo: true } : {}),
+  ...(element.accessBindings ? { accessBindings: element.accessBindings } : {}),
+  ...(element.accessRules ? { accessRules: element.accessRules } : {}),
   ...(element.type === 'READMODEL' && element.accessPolicy && !element.accessPolicyInherited ? { accessPolicy: element.accessPolicy } : {}),
   ...(element.type === 'READMODEL' && element.eligibility?.length ? { eligibility: element.eligibility } : {}),
   ...(element.metadata ? { metadata: element.metadata } : {}),

@@ -48,3 +48,9 @@ IAM 模型负责账号、角色、权限与分配；登录、管理员初始化�
 Portal 前端入口为 `/sso/portal?token=<portal-jwt>&redirect=/target-page&systemSource=PORTAL`，后端为 `POST /api/auth/exchange-portal-jwt`。首次登录通过 `RegisterUserAccount` 注册账号；`systemSource` 写入技术字段 `userSource`，缺省时使用 `MEDOL_SECURITY_PORTAL_SSO_USER_SOURCE`，默认 `PORTAL_SSO`。
 
 `userSource` 不授予权限。新注册账号仍需分配角色与权限，获得会话不等于可以访问所有菜单和命令。前端也不应要求操作人员填写 `userSource`。
+
+## Readmodel 数据范围
+
+数据范围与 API 读取权限分别授权；只有 `import data-access` 后才生成并启用数据范围逻辑。全局默认策略、权限字段重绑定和追加规则见 [访问策略](../access-policies.md)。生成器将 `data:<policy>:<rule>:scope` 与 `:all`（小写）登记到 IAM 权限目录，管理员通过现有角色授权流程分配；不会自动按 actor 或 `*:*` 取消数据约束。
+
+IAM 自定义部门属性通过生成项目的 `IdentityAccessAttributes` 适配器提供；业务参与方范围由业务库的成员关系解析，不把 IAM 组织与业务参与方混为一谈。

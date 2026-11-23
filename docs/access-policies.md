@@ -1,182 +1,144 @@
-# MEDOL 访问策略建模说明
+# Readmodel 数据权限
 
-本文说明 `access policy` 的定位和语法边界。
+`access policy` 定义权限字段与授权范围来源。`default access` 让 readmodel 自动继承；只有字段改名、追加约束或替换策略时才需要局部配置。
 
-`access policy` 用来描述 readmodel 的业务数据可见性策略元数据。它解决的是“当前访问主体在有读取权限的前提下，能看到哪些投影记录”的建模问题，不直接表达 SQL、Mongo query 或具体鉴权引擎规则。
+API 读取权限控制是否允许进入查询；数据策略决定能看到哪些记录；租户隔离始终独立生效；`eligible when` 表达业务可用性，不能代替数据授权。
 
-数据权限需要分层处理：
+## 显式启用
 
-- 租户、系统组织、独立库表、独立部署等隔离属于部署和运行时安全边界，优先由数据源路由、租户上下文或基础设施处理。
-- 角色、权限、菜单、按钮、API、command 操作控制属于 IAM 和应用安全层。
-- readmodel 的行级业务可见性由 `access policy` 描述。
-- 业务对象是否能被某个流程继续选择或使用由 `eligible when` 描述。
-
-## 核心原则
-
-- 先定义策略，再在 readmodel 中引用策略。
-- 如果某个 domain 下的 readmodel 确实共享同一种业务可见性，可以设置 `default access`。
-- 如果不同 readmodel 依赖不同业务关系，应该显式写 `access <PolicyName>`，不要用一个默认策略覆盖所有投影。
-- 访问字段必须说明所属 context、实体和字段名，MEDOL 不内置 `tenant`、`organization`、`owner` 等固定概念。
-- 访问字段是策略锚点，不等价于当前 readmodel 上的字段，也不要求生成器把它机械拼成 where 条件。
-- 物理多租户、独立库表、运行时鉴权引擎接入属于生成器、部署和项目适配实现问题，不在本语法中直接建模。
-
-## TODO
-
-数据权限的完整运行时语义后续继续完善，当前 `access policy` 先作为 readmodel 可见性元数据和生成器扩展点保留。
-
-后续需要补齐：
-
-- 同库同 schema 下的租户、系统组织或部署隔离默认实现。
-- IAM 角色权限与数据范围配置的标准模型。
-- 权限 scope 到查询谓词的映射，避免把大规模用户集合展开成 `IN` 条件。
-- 业务可见性策略到关系查询、exists 过滤或外部权限引擎的标准适配方式。
-- 字段级隐藏、脱敏、导出权限与聚合报表权限的边界。
-
-## 基本语法
+只有引用内置能力才启用运行时数据权限：
 
 ```medol
-access policy DefaultAccess {
-  RuntimeMonitoring.RuntimeIdentityCatalog.organizationId
+import data-access
+```
+
+未引用时，策略声明仅保留为模型元数据；不导出启用标记，不生成范围过滤器、范围来源、数据范围权限码、后台权限恢复或增量同步范围检查。IAM 的 API 权限与租户隔离独立运行。移除引用后重新生成会清理旧的生成运行时及 Spring 注册。
+
+这是应用级基础设施能力，不创建额外的业务上下文或后端部署；无需 `deploy`。导出文件的所有者及目录安全检查独立保留，不会因关闭数据权限而允许跨用户下载。
+
+## IAM 范围来源
+
+```medol
+import data-access
+
+access policy DepartmentAccess {
+  departmentId from identity.departmentIds
 }
+default access DepartmentAccess
 
-access policy FederationMembershipAccess {
-  FederationManagement.FederationMembershipDirectory.federationId
-  FederationManagement.FederationMembershipDirectory.organizationId
+context Orders {
+  slice Views {
+    readmodel OrderOverview[] {
+      orderId: UUID id
+      departmentId: UUID
+    }
+  }
 }
+```
 
-access policy PublicAccess {
+`departmentId` 同时是稳定的规则名称和默认目标字段。服务端解析 IAM 授权属性后，在业务库执行 `department_id IN (...)`。不接受客户端提交的授权范围。
+
+内置 `IdentityAccessAttributes` 支持 `identity.userId` 和 `identity.organizationId`；它不会把组织字段猜测为部门或业务参与方。`departmentIds` 等自定义属性需要应用注册 `IdentityAccessAttributes` Bean，使用传入的可信 CurrentUser 向 IAM 解析。未实现的属性明确拒绝。IAM HTTP 地址、令牌、缓存等配置属于适配实现，不写入 DSL。
+
+## 业务关联来源
+
+```medol
+import data-access
+
+access policy ParticipantAccess {
+  organizationId from People.Members.organizationId by userAccountId = identity.userId
 }
+access policy MembershipAdministration {}
+default access ParticipantAccess
 
-default access DefaultAccess
-
-context RuntimeMonitoring {
-  slice RuntimeCatalogs {
-    readmodel RuntimeIdentityCatalog[] {
+context People {
+  slice Views {
+    readmodel Members[] {
+      access MembershipAdministration
+      membershipId: UUID id
+      userAccountId: UUID
+      organizationId: UUID
+      state: String
+      eligible when { state == "Active" }
+    }
+    readmodel RuntimeOverview[] {
       runtimeId: UUID id
       organizationId: UUID
-      runtimeName: String
-    }
-
-    readmodel RuntimePublicCatalog[] {
-      access PublicAccess
-      runtimeId: UUID id
-      runtimeName: String
-    }
-
-    readmodel FederationOverview[] {
-      access FederationMembershipAccess
-      federationId: UUID id
-      federationName: String
     }
   }
 }
 ```
 
-含义：
+执行顺序：
 
-- `DefaultAccess` 表示访问适配层需要基于 `RuntimeMonitoring.RuntimeIdentityCatalog.organizationId` 这个模型字段识别访问域。
-- `FederationMembershipAccess` 表示访问适配层需要基于联邦成员关系判断当前主体能看到哪些联邦记录；它不要求 `FederationOverview` 自身必须有 `organizationId` 字段。
-- `PublicAccess` 是空策略，表示数据权限层不生成字段过滤条件；谁能访问由 IAM、API 权限、页面入口或服务端安全边界控制。
-- `default access DefaultAccess` 表示未单独声明 `access` 的 readmodel 默认使用该策略。
-- `RuntimePublicCatalog` 使用 `PublicAccess` 覆盖默认策略。
-- `FederationOverview` 显式使用 `FederationMembershipAccess`，避免被不合适的默认策略误归类。
+1. 验证当前用户拥有此范围授权。
+2. 内部查询 Members，以 userAccountId 匹配当前主体，应用来源的默认 eligibility，获取去重的 organizationId 集合。
+3. 独立查询 RuntimeOverview，以 organizationId 匹配该集合。
 
-## 规则类型
+目标查询不生成 `EXISTS` 或跨库 JOIN，不复制 IAM 角色关系。范围来源是内部可信查询，不递归调用来源 readmodel 的 HTTP 数据权限；Members 的公开管理入口仍受自己的 API 权限控制。
 
-### 访问字段路径
+当前内置业务来源支持同部署 JPA readmodel、`by <UUID字段> = identity.userId`，以及来源默认 eligibility 的等于/不等于条件（AND/OR）。命名 eligibility profile 不会被隐式选用。若关系可撤销，模型必须提供有效状态及对应默认 eligibility；生成器不会根据字段名猜测 Active。其他条件或跨部署来源明确报错，可改用 identity 范围及自定义适配器。
 
-```medol
-access policy DefaultAccess {
-  RuntimeMonitoring.RuntimeIdentityCatalog.organizationId
-}
-```
-
-访问字段路径使用 `<Context>.<Entity>.<field>` 格式，表示该策略依赖哪个上下文、哪个实体、哪个字段作为业务可见性锚点。
-
-多字段可以写在一行：
+## 局部改名与追加
 
 ```medol
-access policy DefaultAccess {
-  RuntimeMonitoring.RuntimeIdentityCatalog.organizationId, RuntimeMonitoring.RuntimeIdentityCatalog.runtimeInfrastructureId
-}
-```
-
-也可以拆成多行：
-
-```medol
-access policy DefaultAccess {
-  RuntimeMonitoring.RuntimeIdentityCatalog.organizationId
-  RuntimeMonitoring.RuntimeIdentityCatalog.runtimeInfrastructureId
-}
-```
-
-这些字段之间不在 MEDOL 中展开成查询条件。生成器或权限适配层负责把它们映射到当前登录主体、授权范围、关系查询或外部权限引擎。
-
-例如 `FederationMembershipDirectory.federationId` 和 `FederationMembershipDirectory.organizationId` 可以被后端适配为：
-
-- 平台管理员看全部。
-- 参与方用户先解析自己可代表的业务参与方，再查这些参与方加入的 federation 集合。
-- 业务 readmodel 查询时按 federationId 集合过滤。
-- 服务账号或 runtime agent 可以按独立的 service identity 规则处理。
-
-### 空策略
-
-```medol
-access policy PublicAccess {
-}
-```
-
-空策略表示该策略不携带访问字段。readmodel 引用空策略时，数据权限生成器不追加字段级数据过滤。
-
-```medol
-access policy SystemAccess {
-}
-```
-
-`PublicAccess`、`SystemAccess` 这类名称只是业务模型自己的命名。MEDOL 不解释这些名称，也不把它们当作固定权限语义。
-
-## 与 eligible when 的区别
-
-`eligible when` 解决“业务上是否可选、可继续使用”的问题，例如状态不是 Active 时不能被新任务选择。
-
-`access policy` 解决“当前访问主体能看到哪些数据”的问题，例如只能看到本组织、本工作区或自己负责范围内的数据。
-
-两者可以同时存在：
-
-```medol
-readmodel FederationOverview[] {
-  access FederationAccess
-  eligible when {
-    Federation.state == Active
+readmodel PersonalDatasetOverview[] {
+  access {
+    organizationId = ownerOrganizationId
+    ownerUserId from identity.userId
   }
-
-  federationId: UUID id
-  organizationId: UUID
-  state: String
+  datasetId: UUID id
+  ownerOrganizationId: UUID
+  ownerUserId: UUID
 }
 ```
 
-这里 `access FederationAccess` 控制谁能看到这个投影；`eligible when` 控制这个投影记录是否可被某个业务流程选择。
+继承 ParticipantAccess，组织规则改绑 ownerOrganizationId，追加 ownerUserId 约束。两条约束取 AND。追加项不能覆盖已有规则；改名不会改变原规则的授权码。
 
-## 与 IAM 和租户隔离的区别
+权限字段必须已经存在且有正确的投影来源，不能通过权限声明自动创建。当前支持必填 UUID、String、Int、Long 标量。缺字段或来源/目标类型不兼容会阻止导出。
 
-`access policy` 不替代 IAM。IAM 决定用户、角色或服务账号是否可以访问某个页面、API、command 或导出能力；`access policy` 决定通过该入口后 readmodel 查询结果应该落在哪个业务可见范围内。
+| 配置 | 行为 |
+| --- | --- |
+| 不写 access | 继承 domain 默认；没有则继承全局默认 |
+| `access { ... }` | 调整继承策略的字段绑定，追加规则 |
+| `access OtherPolicy` | 替换默认策略 |
+| `access OtherPolicy { ... }` | 替换后调整或追加 |
+| 显式引用空策略 | 不增加业务数据范围条件，仍需 API 授权并遵守租户边界 |
 
-`access policy` 也不替代租户隔离。单库多租户、独立 schema、独立数据库、独立部署等技术隔离，应由运行时安全上下文、数据源路由或基础设施完成。模型中如果出现 `Organization`、`Tenant`、`Workspace` 这类概念，也必须先判断它们是不是系统隔离边界；如果只是业务参与方，就不能把它直接作为全局默认隔离条件。
+全局默认也会作用于导入的上下文，生成器不会遇到内置模型缺字段就自动豁免。包含内置能力时，优先在业务 domain 配置默认策略，内置上下文保持自己的权限边界。
 
-## 生成器处理建议
+## IAM 角色授权
 
-当前语法只输出稳定元数据：
+生成器在 IAM 权限目录登记以下权限码，全部转为小写：
 
-- `accessPolicies`
-- `defaultAccessPolicy`
-- readmodel 上的 `accessPolicy`
+- `data:<策略名>:<规则名>:scope`：使用模型声明的范围来源。
+- `data:<策略名>:<规则名>:all`：该维度不限制。
 
-具体生成器可以按技术栈选择实现方式：
+例如：
 
-- 在后端 query adapter 中追加访问域过滤。
-- 在 repository/readmodel 查询层统一注入访问条件。
-- 映射到外部权限引擎的 resource relation 或 attribute check。
-- 在物理多租户部署中将策略解释为数据源/租户路由元数据。
+- `data:participantaccess:organizationid:scope`
+- `data:participantaccess:organizationid:all`
+- `data:participantaccess:owneruserid:scope`
 
-MEDOL 不要求所有系统采用同一种权限实现。
+通过现有 IAM 授权命令将这些权限分配给角色。不会因为角色有 read 权限而自动授予范围，也不会因为角色名叫 Admin 或持有 `*:*` 就隐式取消数据约束；需要显式范围授权。多个角色的有效权限合并，同一规则 all 优先于 scope；不同规则始终 AND。追加规则需要自己的授权。策略名和规则名若在转小写后发生碰撞，建模及生成时会拒绝。
+
+`AuthorizationScopeResolver` 可被应用替换，以对接现有 IAM 的不同授权约定。结果必须是 `ALL`、`VALUES` 或 `NONE`；空集合等于无可见数据，绝不代表全部。
+
+## 运行边界
+
+- 列表、详情、计数和常规读模型导出沿用统一查询过滤入口。其他自定义 SQL、报表 Provider 必须显式接入授权。
+- 普通内部 findById/投影更新方法不是用户查询接口；此改动不把读取权限自动当成命令执行权限。
+- 范围最多 1000 个不同值；业务来源最多读取 1001 个不同值以检测超限。超限拒绝，不截断、不放行。大量范围应调整设计或使用明确的自定义适配方案。
+- 一次 Specification 创建时解析范围，数据库分页与计数复用该结果。没有跨请求缓存；长任务每次查询可能重新解析权限，不承诺跨请求或跨批次的权限快照。
+- 受保护异步导出在入队前检查 `BackgroundAccessActorResolver` 是否可用；事件处理时按任务元数据的用户 ID 重新读取当前身份和 API 权限，再在隔离的执行上下文中查询。结束或异常都会清理上下文。同部署内置 IAM 自动实现该接口；IAM 分库分服务时需要部署自己的可信 IAM 适配器。不会把 JWT 或权限快照持久化到任务。
+- 异步导出文件按当前租户（如启用）与任务所有者隔离，下载校验目录及所有者，随机文件路径避免覆盖。旧版没有所有者目录的导出文件不能继续通过新下载入口访问，需要重新导出。导出文件是创建时的数据快照，下载不重新计算每一行的业务范围。
+- 普通同步快照复用 readmodel 查询；outbox 增量包含历史更新、删除，不能直接用当前记录范围过滤，因此只有各维度显式 `ALL` 授权可读取增量。受限用户增量同步需要专门设计删除、撤权与历史可见性协议，当前默认拒绝。
+- JWT 权限仍受现有令牌更新/撤销机制约束。
+- 业务关系与目标数据是两次读取，不保证并发撤权瞬时生效。没有新增跨库事务。
+- 多租户业务来源会保留租户限定；控制面来源使用现有控制面存储边界。
+
+## 从旧字段路径策略迁移
+
+旧语法只有 `Context.Readmodel.field`，无法明确范围来源。解析和往返导出仍保留这些元数据，但启用 data-access 后默认运行时拒绝非空旧策略，要求迁移到 `field from ...`，或提供显式自定义 `ReadModelAccessPolicyFilter`。不再默默使用 PermitAll。
+
+空策略仍有效；未配置任何数据策略的 readmodel 保持原 API 权限行为。

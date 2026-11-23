@@ -1,3 +1,4 @@
+import { accessPolicyDiagnostics } from './accessPolicies';
 import type { EmCapabilityProvider, EmDictionaryProvider, EmElement, EmField, EmModel, EmSlice } from './model';
 import { allContextSlices } from './dslParser';
 import { humanize } from './name';
@@ -28,6 +29,7 @@ export interface CodegenModel {
   locales?: string[];
   defaultLocale?: string;
   translations?: Record<string, Record<string, string>>;
+  dataAccess?: { enabled: true };
   accessPolicies?: CodegenAccessPolicy[];
   defaultAccessPolicy?: string;
   contexts: CodegenContext[];
@@ -50,7 +52,8 @@ export interface CodegenAccessPolicy {
 }
 
 export type CodegenAccessPolicyRule =
-  | { kind: 'fields'; fields: string[] };
+  | { kind: 'fields'; fields: string[] }
+  | import('./model').EmAccessScopeRule;
 
 export interface CodegenCapabilityExtension {
   target: string;
@@ -242,6 +245,8 @@ export interface CodegenElement {
   syncFilters?: CodegenSyncFilter[];
   accessPolicy?: string;
   accessPolicyInherited?: boolean;
+  accessBindings?: Record<string, string>;
+  accessRules?: import('./model').EmAccessScopeRule[];
   eligibility?: CodegenEligibility[];
   metadata?: Record<string, string>;
   ui?: CodegenUi;
@@ -407,6 +412,8 @@ export interface CodegenSpecificationReject {
 }
 
 export const modelToCodegenModel = (model: EmModel): CodegenModel => {
+  const accessErrors = accessPolicyDiagnostics(model);
+  if (accessErrors.length) throw new Error(accessErrors.join('\n'));
   validateNumbering(model);
   if (model.capabilityImports?.some(i => i.name === 'BusinessCalendar') && model.capabilityImports?.some(i => i.name === 'TenantManagement')) throw new Error('Business calendar does not support tenancy yet.');
   if (model.capabilityImports?.some(i => i.name === 'OrganizationManagement') && model.capabilityImports?.some(i => i.name === 'TenantManagement')) throw new Error('Organization management does not support tenancy yet.');
@@ -567,6 +574,7 @@ export const modelToCodegenModel = (model: EmModel): CodegenModel => {
           }))
         }
       : {}),
+    ...(model.capabilityImports?.some(i => i.name === 'DataAccess') ? { dataAccess: { enabled: true as const } } : {}),
     ...(model.accessPolicies.length
       ? {
           accessPolicies: model.accessPolicies.map((policy) => ({
@@ -1034,6 +1042,8 @@ const toCodegenElement = (
   ...(type === 'READMODEL' && element.sync ? { sync: true } : {}),
   ...(type === 'READMODEL' && element.syncSource ? { syncSource: element.syncSource } : {}),
   ...(type === 'READMODEL' && element.syncFilters?.length ? { syncFilters: element.syncFilters } : {}),
+  ...(type === 'READMODEL' && element.accessBindings ? { accessBindings: element.accessBindings } : {}),
+  ...(type === 'READMODEL' && element.accessRules ? { accessRules: element.accessRules } : {}),
   ...(type === 'READMODEL' && (element.accessPolicy ?? defaultAccessPolicy)
     ? {
         accessPolicy: element.accessPolicy ?? defaultAccessPolicy,

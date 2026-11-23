@@ -6,6 +6,7 @@ MEDOL 的内置上下文提供通用业务能力。这里统一说明如何接�
 
 | 内置模块 / import 名 | 上下文 | 使用与配置说明 |
 | --- | --- | --- |
+| `data-access` | 应用级数据权限能力 | [数据权限](data-access.md) |
 | `identity-access-management` | `IdentityAccessManagement` | [身份与权限](identity-access-management.md) |
 | `dictionary-maintenance` | `DictionaryMaintenance` | [字典维护](dictionary-maintenance.md) |
 | `file-upload` | `FileUpload` | [文件上传](file-upload.md) |
@@ -28,7 +29,7 @@ MEDOL 的内置上下文提供通用业务能力。这里统一说明如何接�
 
 ## 从哪里开始
 
-1. 在系统的 `.medol/source.medol` 中导入所需能力，指定 backend deployment。
+1. 在系统的 `.medol/source.medol` 中导入所需能力，业务上下文指定 backend deployment；`data-access` 是应用级开关，无需单独部署。
 2. 按独立说明接入业务资源：字典可绑定读模型，数据交换标记导入命令/导出目录，通知标记事件，编号绑定生成字段，调度绑定目标命令。
 3. 通过 `frontend includes` 选择需要展示的管理上下文；展示页面与后端启用是两回事。
 4. 重新导出 CodegenModel，再生成受影响的后端、前端及部署配置。

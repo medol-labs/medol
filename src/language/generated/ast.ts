@@ -180,6 +180,23 @@ export type MedolKeywordNames =
 
 export type MedolTokenNames = MedolTerminalNames | MedolKeywordNames;
 
+export interface AccessBinding extends langium.AstNode {
+    readonly $container: ReadModelAccess;
+    readonly $type: 'AccessBinding';
+    field: FieldName;
+    target: FieldName;
+}
+
+export const AccessBinding = {
+    $type: 'AccessBinding',
+    field: 'field',
+    target: 'target'
+} as const;
+
+export function isAccessBinding(item: unknown): item is AccessBinding {
+    return reflection.isInstance(item, AccessBinding.$type);
+}
+
 export interface AccessFieldRule extends langium.AstNode {
     readonly $container: AccessPolicy;
     readonly $type: 'AccessFieldRule';
@@ -212,7 +229,7 @@ export function isAccessPolicy(item: unknown): item is AccessPolicy {
     return reflection.isInstance(item, AccessPolicy.$type);
 }
 
-export type AccessPolicyRule = AccessFieldRule;
+export type AccessPolicyRule = AccessFieldRule | AccessScopeRule;
 
 export const AccessPolicyRule = {
     $type: 'AccessPolicyRule'
@@ -220,6 +237,27 @@ export const AccessPolicyRule = {
 
 export function isAccessPolicyRule(item: unknown): item is AccessPolicyRule {
     return reflection.isInstance(item, AccessPolicyRule.$type);
+}
+
+export interface AccessScopeRule extends langium.AstNode {
+    readonly $container: AccessPolicy | ReadModelAccess;
+    readonly $type: 'AccessScopeRule';
+    field: FieldName;
+    source: FieldSource;
+    subjectField?: FieldName;
+    subjectSource?: FieldSource;
+}
+
+export const AccessScopeRule = {
+    $type: 'AccessScopeRule',
+    field: 'field',
+    source: 'source',
+    subjectField: 'subjectField',
+    subjectSource: 'subjectSource'
+} as const;
+
+export function isAccessScopeRule(item: unknown): item is AccessScopeRule {
+    return reflection.isInstance(item, AccessScopeRule.$type);
 }
 
 export interface ActorRef extends langium.AstNode {
@@ -1149,14 +1187,14 @@ export function isFieldMapping(item: unknown): item is FieldMapping {
     return reflection.isInstance(item, FieldMapping.$type);
 }
 
-export type FieldName = 'active' | 'code' | 'description' | 'domain' | 'eligible' | 'event' | 'export' | 'format' | 'id' | 'import' | 'label' | 'missing' | 'name' | 'order' | 'port' | 'state' | 'sync' | 'type' | 'value' | string;
+export type FieldName = 'active' | 'code' | 'description' | 'domain' | 'eligible' | 'event' | 'export' | 'format' | 'id' | 'identity' | 'import' | 'label' | 'missing' | 'name' | 'order' | 'port' | 'state' | 'sync' | 'type' | 'value' | string;
 
 export function isFieldName(item: unknown): item is FieldName {
-    return item === 'active' || item === 'code' || item === 'description' || item === 'domain' || item === 'eligible' || item === 'event' || item === 'export' || item === 'format' || item === 'id' || item === 'import' || item === 'label' || item === 'missing' || item === 'name' || item === 'order' || item === 'port' || item === 'state' || item === 'sync' || item === 'type' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
+    return item === 'identity' || item === 'active' || item === 'code' || item === 'description' || item === 'domain' || item === 'eligible' || item === 'event' || item === 'export' || item === 'format' || item === 'id' || item === 'import' || item === 'label' || item === 'missing' || item === 'name' || item === 'order' || item === 'port' || item === 'state' || item === 'sync' || item === 'type' || item === 'value' || (typeof item === 'string' && (/[_a-zA-Z][\w_]*/.test(item)));
 }
 
 export interface FieldSource extends langium.AstNode {
-    readonly $container: AccessFieldRule | AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | Field | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | Notifiable | ReadModel | RefExpr | SyncFilter | UniqueValidation;
+    readonly $container: AccessFieldRule | AccessScopeRule | AssertValidation | CapabilityExtension | CapabilityProvider | Exportable | FanOut | Field | FieldDerivation | FieldDetails | FieldSourceMapping | Importable | LookupKey | Notifiable | ReadModel | RefExpr | SyncFilter | UniqueValidation;
     readonly $type: 'FieldSource';
     parts: Array<FieldName>;
 }
@@ -1578,12 +1616,16 @@ export function isReadModel(item: unknown): item is ReadModel {
 export interface ReadModelAccess extends langium.AstNode {
     readonly $container: ReadModel;
     readonly $type: 'ReadModelAccess';
-    policy: string;
+    bindings: Array<AccessBinding>;
+    policy?: string;
+    rules: Array<AccessScopeRule>;
 }
 
 export const ReadModelAccess = {
     $type: 'ReadModelAccess',
-    policy: 'policy'
+    bindings: 'bindings',
+    policy: 'policy',
+    rules: 'rules'
 } as const;
 
 export function isReadModelAccess(item: unknown): item is ReadModelAccess {
@@ -2175,9 +2217,11 @@ export function isWhen(item: unknown): item is When {
 }
 
 export type MedolAstType = {
+    AccessBinding: AccessBinding
     AccessFieldRule: AccessFieldRule
     AccessPolicy: AccessPolicy
     AccessPolicyRule: AccessPolicyRule
+    AccessScopeRule: AccessScopeRule
     ActorRef: ActorRef
     AssertValidation: AssertValidation
     Assignment: Assignment
@@ -2300,6 +2344,18 @@ export type MedolAstType = {
 
 export class MedolAstReflection extends langium.AbstractAstReflection {
     override readonly types = {
+        AccessBinding: {
+            name: AccessBinding.$type,
+            properties: {
+                field: {
+                    name: AccessBinding.field
+                },
+                target: {
+                    name: AccessBinding.target
+                }
+            },
+            superTypes: []
+        },
         AccessFieldRule: {
             name: AccessFieldRule.$type,
             properties: {
@@ -2328,6 +2384,24 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
             properties: {
             },
             superTypes: []
+        },
+        AccessScopeRule: {
+            name: AccessScopeRule.$type,
+            properties: {
+                field: {
+                    name: AccessScopeRule.field
+                },
+                source: {
+                    name: AccessScopeRule.source
+                },
+                subjectField: {
+                    name: AccessScopeRule.subjectField
+                },
+                subjectSource: {
+                    name: AccessScopeRule.subjectSource
+                }
+            },
+            superTypes: [AccessPolicyRule.$type]
         },
         ActorRef: {
             name: ActorRef.$type,
@@ -3305,8 +3379,16 @@ export class MedolAstReflection extends langium.AbstractAstReflection {
         ReadModelAccess: {
             name: ReadModelAccess.$type,
             properties: {
+                bindings: {
+                    name: ReadModelAccess.bindings,
+                    defaultValue: []
+                },
                 policy: {
                     name: ReadModelAccess.policy
+                },
+                rules: {
+                    name: ReadModelAccess.rules,
+                    defaultValue: []
                 }
             },
             superTypes: []

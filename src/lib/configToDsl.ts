@@ -51,6 +51,8 @@ interface ConfigElement {
   syncSource?: string;
   syncFilters?: ConfigSyncFilter[];
   accessPolicy?: string;
+  accessBindings?: Record<string, string>;
+  accessRules?: import('./model').EmAccessScopeRule[];
   eligibility?: ConfigEligibility[];
   metadata?: Record<string, string>;
   fields?: ConfigField[];
@@ -176,6 +178,7 @@ interface ConfigRoot {
   scheduling?: unknown;
   domain?: string;
   context?: string;
+  dataAccess?: { enabled: boolean };
   accessPolicies?: ConfigAccessPolicy[];
   defaultAccessPolicy?: string;
   valueTypes?: ConfigValueType[];
@@ -194,7 +197,8 @@ interface ConfigAccessPolicy {
 }
 
 type ConfigAccessPolicyRule =
-  | { kind?: 'fields'; fields?: string[] };
+  | { kind?: 'fields'; fields?: string[] }
+  | import('./model').EmAccessScopeRule;
 
 export const configToDsl = (config: ConfigRoot): string => {
   if (config.organizationManagement) throw new Error('Legacy config cannot restore organization-management capability imports. Use source.medol.');
@@ -258,7 +262,7 @@ export const configToDsl = (config: ConfigRoot): string => {
 
   const contextIndent = domainName ? 2 : 0;
   const childIndent = contextIndent + 2;
-  const lines: string[] = [];
+  const lines: string[] = config.dataAccess?.enabled ? ['import data-access', ''] : [];
 
   if (domainName) {
     lines.push(`domain ${domainName} {`);
@@ -566,8 +570,14 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   if (kind === 'readmodel' && element.dictionaryProvider) {
     appendDictionaryProvider(lines, element.dictionaryProvider, indent + 2);
   }
-  if (kind === 'readmodel' && element.accessPolicy) {
-    lines.push(`${pad}  access ${toDslId(element.accessPolicy, 'AccessPolicy')}`);
+  if (kind === 'readmodel' && (element.accessPolicy || element.accessBindings || element.accessRules)) {
+    const suffix = element.accessPolicy ? ` ${toDslId(element.accessPolicy, 'AccessPolicy')}` : '';
+    if (element.accessBindings || element.accessRules) {
+      lines.push(`${pad}  access${suffix} {`);
+      for (const [field, target] of Object.entries(element.accessBindings ?? {})) lines.push(`${pad}    ${field} = ${target}`);
+      for (const rule of element.accessRules ?? []) lines.push(`${pad}    ${renderAccessScope(rule)}`);
+      lines.push(`${pad}  }`);
+    } else lines.push(`${pad}  access${suffix}`);
   }
   if (kind === 'readmodel' && element.exportable) {
     lines.push(`${pad}  exportable${element.exportable.capability ? ` by ${element.exportable.capability}` : ''}`);
@@ -594,10 +604,14 @@ const appendElement = (lines: string[], kind: 'command' | 'event' | 'readmodel',
   lines.push(`${pad}}`);
 };
 
+const renderAccessScope = (rule: import('./model').EmAccessScopeRule): string =>
+  `${rule.field} from ${rule.source}${rule.subjectField ? ` by ${rule.subjectField} = ${rule.subjectSource}` : ''}`;
+
 const appendAccessPolicy = (lines: string[], policy: ConfigAccessPolicy, indent: number): void => {
   const name = toDslId(policy.name, 'AccessPolicy');
   lines.push(`${pad(indent)}access policy ${name} {`);
   for (const rule of policy.rules ?? []) {
+    if (rule.kind === 'scope') lines.push(`${pad(indent + 2)}${renderAccessScope(rule)}`);
     if (rule.kind === 'fields') {
       if (!rule.fields?.length) continue;
       lines.push(`${pad(indent + 2)}${rule.fields.join(', ')}`);

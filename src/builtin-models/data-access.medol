@@ -1,0 +1,5 @@
+domain DataAccess {
+  context DataAccess {
+    note "Enables modeled readmodel data scopes. IAM operation permissions and tenant isolation remain independent."
+  }
+}

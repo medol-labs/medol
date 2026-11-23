@@ -34,6 +34,7 @@ const loadBuiltinMedol = async (fileName: string): Promise<string> => {
   }
   if (fileName === 'organization-management.medol') return (await import('../builtin-models/organization-management.medol?raw')).default;
   if (fileName === 'system-configuration.medol') return (await import('../builtin-models/system-configuration.medol?raw')).default;
+  if (fileName === 'data-access.medol') return (await import('../builtin-models/data-access.medol?raw')).default;
   if (fileName === 'reporting.medol') return (await import('../builtin-models/reporting.medol?raw')).default;
   if (fileName === 'business-calendar.medol') return (await import('../builtin-models/business-calendar.medol?raw')).default;
   if (fileName === 'document-generation.medol') return (await import('../builtin-models/document-generation.medol?raw')).default;
@@ -65,6 +66,7 @@ const tenantManagementMedol = await loadBuiltinMedol('tenant-management.medol');
 export const builtinMedolModels = new Map<string, string>([
   ['organization-management', await loadBuiltinMedol('organization-management.medol')],
   ['system-configuration', await loadBuiltinMedol('system-configuration.medol')],
+  ['data-access', await loadBuiltinMedol('data-access.medol')],
   ['reporting', await loadBuiltinMedol('reporting.medol')],
   ['business-calendar', await loadBuiltinMedol('business-calendar.medol')],
   ['document-generation', await loadBuiltinMedol('document-generation.medol')],
@@ -105,7 +107,8 @@ export const resolveBuiltinMedolImport = (
   return {
     sourceName: `<builtin:${moduleName}>`,
     builtin: true,
-    text: appendBuiltinDeployment(source, imported.deployment)
+    // This capability enables infrastructure only; it must not add a business domain/deployment.
+    text: moduleName === 'data-access' ? '' : appendBuiltinDeployment(source, imported.deployment)
   };
 };
 
@@ -133,6 +136,7 @@ ${builtinDeployment(text, deployment)}`;
 };
 
 const builtinDeployment = (text: string, deployment?: string): string => {
+  if (extractBuiltinContextName(text) === 'DataAccess') return '';
   const normalizedDeployment = deployment?.trim() || extractBuiltinContextName(text);
   return `deployment ${normalizedDeployment} {
   includes ${extractBuiltinContextName(text)}

@@ -1,3 +1,4 @@
+import { accessPolicyDiagnostics } from './accessPolicies';
 import {
   isAssertValidation,
   isAutomation,
@@ -162,12 +163,14 @@ const validateUserJourneys = (model: EmModel, diagnostics: string[]): void => {
 };
 
 const validateAccessPolicies = (ast: AstModel, model: EmModel, diagnostics: string[]): void => {
+  diagnostics.push(...accessPolicyDiagnostics(model));
   const policyNames = model.accessPolicies.map((policy) => policy.name);
   validateDuplicateNames(policyNames, 'access policy', 'model', diagnostics);
   const policyNameSet = new Set(policyNames);
 
   for (const policy of model.accessPolicies) {
     for (const rule of policy.rules) {
+      if (rule.kind !== 'fields') continue;
       for (const field of rule.fields) {
         if (field.split('.').length < 3) {
           diagnostics.push(`Access policy ${policy.name}: field ${field} must include context, entity, and field name.`);
@@ -245,6 +248,10 @@ const validateContext = (
 };
 
 const validateReadModelAccess = (readmodel: AstReadModel, diagnostics: string[]): void => {
+  for (const access of readmodel.accesses) {
+    const names = access.bindings.map(b => b.field);
+    if (new Set(names).size !== names.length) diagnostics.push(`Projection ${readmodel.name}: duplicate access field binding.`);
+  }
   if (readmodel.accesses.length > 1) {
     diagnostics.push(`Projection ${readmodel.name} can declare at most one access policy.`);
   }

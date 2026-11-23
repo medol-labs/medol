@@ -54,6 +54,8 @@ export interface EmElement {
   syncFilters?: EmSyncFilter[];
   eligibility?: EmEligibility[];
   accessPolicy?: string;
+  accessBindings?: Record<string, string>;
+  accessRules?: EmAccessScopeRule[];
   sliceId?: string;
   aggregateId?: string;
   sourceRange?: MedolSourceRange;
@@ -74,7 +76,16 @@ export interface EmAccessPolicy {
 }
 
 export type EmAccessPolicyRule =
-  | { kind: 'fields'; fields: string[] };
+  | { kind: 'fields'; fields: string[] }
+  | EmAccessScopeRule;
+
+export interface EmAccessScopeRule {
+  kind: 'scope';
+  field: string;
+  source: string;
+  subjectField?: string;
+  subjectSource?: string;
+}
 
 export interface EmSyncFilter {
   target: string;

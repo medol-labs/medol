@@ -44,7 +44,15 @@ AccessPolicy:
 ;
 
 AccessPolicyRule:
-    AccessFieldRule
+    AccessScopeRule | AccessFieldRule
+;
+
+AccessScopeRule:
+    field=FieldName 'from' source=FieldSource ('by' subjectField=FieldName '=' subjectSource=FieldSource)?
+;
+
+AccessBinding:
+    field=FieldName '=' target=FieldName
 ;
 
 AccessFieldRule:
@@ -300,7 +308,8 @@ ReadModel:
 ;
 
 ReadModelAccess:
-    'access' policy=ID
+    'access' (policy=ID ('{' (rules+=AccessScopeRule | bindings+=AccessBinding)* '}')?
+      | '{' (rules+=AccessScopeRule | bindings+=AccessBinding)* '}')
 ;
 
 SyncFilter:
@@ -512,6 +521,7 @@ QualifiedTypePart returns string:
 ;
 
 FieldName returns string:
+    'identity' |
       ID
     | 'active'
     | 'code'
